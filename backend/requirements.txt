@@ -1,0 +1,14 @@
+# Exact pins: verified to install and pass the test suite on Python 3.14.
+fastapi==0.141.1
+uvicorn==0.53.0
+pandas==3.0.6
+sqlalchemy==2.0.54
+alembic==1.20.0
+psycopg2-binary==2.9.13
+pydantic-settings==2.15.0
+anthropic==1.6.0
+python-multipart==0.0.32
+statsmodels==0.15.0
+plotly==7.1.0
+pytest==9.1.1
+httpx==0.28.1

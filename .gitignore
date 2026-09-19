@@ -1,0 +1,22 @@
+# Secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+dist/
+
+# Run data (uploaded files and contract outputs)
+runs/
+
+# Editor / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
