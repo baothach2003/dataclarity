@@ -125,12 +125,11 @@ dataclarity/
       against SQLite in a test); PostgreSQL only for dev/deploy, verified by
       hand. Needs PostgreSQL installed locally. Decide the write order, so a
       failed DB insert cannot leave an orphan `raw.csv` (or the reverse)
-- [ ] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
+- [x] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
       `profile.json` contract. Unit tests with fixture CSVs. Rejects a
       header-only file with EMPTY_FILE (SPECS section 10; 1A only rejects
-      0-byte and whitespace-only files, without parsing). If 1B adds the
-      first stage CLI (`__main__.py`), decide how it gets the runs root
-      without importing the backend (SEC-4), e.g. a `--runs-dir` argument
+      0-byte and whitespace-only files, without parsing). No stage CLI was
+      added in 1B; the runs-root question moved to 5D
 - [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
       real-API guard fixture that activates CONSTRAINTS F4, then
       `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
@@ -147,14 +146,19 @@ dataclarity/
 - [ ] 1E `stages/ingest/ai_plan.py`: AI stage B (cleaning plan) + catalog/legality
       validation. Tests with mocked AI
 - [ ] 1F `stages/ingest/cleaning.py`: preview (sample) and execute (full) engines
-      -> `cleaned.csv` + `cleaning_report.json`. Tests
+      -> `cleaned.csv` + `cleaning_report.json`. Tests. Emit the SPECS
+      section 10 `encoding_fallback` warning in `cleaning_report.warnings`
+      when `profile.json` has `encoding_used: "latin-1"` (profile.json has
+      no warnings field; 1B only records the encoding)
 - [ ] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
       `docs/SPECS.md` section 8. Tests with mocked AI. Decide the code for a
       malformed request (e.g. no `file` part): FastAPI's default 422
       `{"detail": [...]}` breaks the section 8 error envelope, and section 10
       has no code for it. The same holds for an unexpected server error (e.g.
       the database is down during `POST /api/runs`): today it is FastAPI's
-      plain 500, outside the envelope
+      plain 500, outside the envelope. Map `stages.ingest.profiling`
+      errors by their `.code` (`EmptyCsvError` -> EMPTY_FILE, `CsvParseError`
+      -> PARSE_FAILED, both 400) when the profile step is wired to an endpoint
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
@@ -216,7 +220,9 @@ dataclarity/
       SPECS first, then 5B and the Phase 6 screens follow it
 - [ ] 5C `POST /api/runs/{id}/report` + download endpoints. Tests
 - [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
-      independence)
+      independence). Decide how a stage CLI gets the runs root without
+      importing the backend (SEC-4), e.g. a `--runs-dir` argument (no stage
+      has a CLI yet as of 1B)
 - **DoD:** the HTML report is readable standalone and matches the contract data
 
 ### Phase 6 - Frontend
@@ -243,7 +249,9 @@ dataclarity/
 
 ### Phase 8 - Hardening
 - [ ] 8A Edge cases from SPECS section 10 (empty, header-only, non-UTF8, wrong
-      delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary)
+      delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary);
+      duplicate header names (pandas renames the second `a` to `a.1`, so the
+      review screen would show a name that is not in the file)
 - [ ] 8B Abuse guards: rate limits on uploads (SPECS section 11 abuse guards)
       and on every AI endpoint (SEC-2), each from its own required env var;
       a request-body size limit so an oversized upload is refused before it
@@ -298,15 +306,56 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1A2 closed 2026-09-19 (uncommitted until
-Thach commits, after his manual PostgreSQL check). Earlier: Phase 0 (0A
-`b790448` ... 0D `24307c3`), 1A (`83eccbf`). 1A2 delivered the SQLAlchemy
-`Run` model (`app/models/`), `app/db.py`, Alembic (`backend/alembic.ini`,
-`backend/alembic/`, revision `2a9492d9af49` creating `runs`), and
-`services/runs.py`, which `POST /api/runs` now uses to write the row. pytest
-226 passed from the repo root and from `backend/`, 0 skipped.
-**Next step:** Phase 1B (`stages/ingest/profiling.py` -> `profile.json`).
+**Phase in progress:** Phase 1. 1B closed 2026-09-19 (uncommitted until
+Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
+(`83eccbf`), 1A2 (`ee5d7c9`, PostgreSQL check passed). 1B delivered
+`stages/ingest/profiling.py` (`read_csv_text`, `profile_column`,
+`profile_csv`, `profile_run`) and 55 tests in `tests/stages/ingest/`.
+pytest 281 passed from the repo root and from `backend/`, 0 skipped.
+**Next step:** Phase 1C (`shared/ai_client.py` + F4 guard fixture, then
+`stages/ingest/ai_schema.py`).
 **Notes:**
+- 1B decisions (Thach): missing = the 19 pandas 3.0 default NA tokens, listed
+  explicitly in `NA_TOKENS` (so "NA" counts as missing, even when it means
+  Namibia); `sample_values` = up to 5 values per column from evenly spaced
+  rows (`i * (n - 1) // 4`), raw text, missing kept as null.
+- 1B design: the file is read once with every value as text, so
+  `top_values`/`sample_values` show the file's own spelling ("0012",
+  "12.50"). A column is numeric when it has at least one value and every
+  non-missing value is a finite number; then `dtype` is pandas' `int64` /
+  `float64` (float64 when there are gaps) and the stats are filled, else
+  `dtype` is `str` and the stats are null. Quartiles and median use pandas'
+  default linear interpolation. `unique_count` compares raw text ("8.5" and
+  "8.50" are two values). Top values: count descending, ties by value.
+  Percentages are not rounded.
+- 1B encoding and delimiter: UTF-16 BOM -> `utf-16`; else strict UTF-8 (BOM
+  stripped from the first column name); else `latin-1` (SPECS section 10).
+  The latin-1 warning belongs in `cleaning_report.warnings`
+  (`encoding_fallback`, CONTRACTS section 5), so 1B only records
+  `encoding_used` and 1F emits the warning (written into the 1F line).
+  Delimiter: `csv.Sniffer` over `, ; \t |`; a header with none of them is a
+  single-column file; otherwise `CsvParseError`.
+- 1B errors: the stage raises `EmptyCsvError` (`code = EMPTY_FILE`: no lines,
+  or header-only) and `CsvParseError` (`code = PARSE_FAILED`: a row with too
+  many fields, invalid UTF-16, undeterminable delimiter). 1G maps them to the
+  envelope (written into the 1G line). `profile.json` is written atomically
+  (temp file + `os.replace`).
+- 1B performance (SPECS section 11: profiling a 50MB file under 3 s): a
+  generated realistic 50 MB CSV (712,645 rows x 9 columns) took 5.1 s at
+  first; two result-preserving optimizations brought it to 3.3 s (a
+  200-value probe that rejects text columns before a full numeric
+  conversion, and reusing `value_counts` for unique count and top values);
+  `pyarrow==25.0.1` (Thach approved; pandas 3 then uses it as its string
+  backend, no code change) brought it to 2.86 s. The margin is thin (~5%);
+  re-measure if profiling grows. No timing test in the suite (it would be
+  machine-dependent and flaky).
+- One-off security check for the new dependency (Thach's request, 1B), not
+  the official W3 install: pip-audit 2.10.1 ran from a throwaway venv that was
+  deleted afterwards (project venv unchanged, 52 packages). `pyarrow==25.0.1`:
+  no known vulnerabilities. Whole project venv: one finding, pip 26.1.2
+  `PYSEC-2026-3721` (fixed in 26.2); pip is the venv installer, not a
+  `requirements.txt` dependency. Fixed with Thach's approval: the project
+  venv now has pip 26.2.1. A recreated venv must upgrade pip the same way.
 - 1A2 schema: `runs` has exactly the 7 SPECS section 9 columns, with no JSON
   columns (contract files live on disk). Types behave the same on SQLite and
   PostgreSQL: `id` is `String(36)` (the canonical UUID string, not a native
@@ -331,9 +380,6 @@ Thach commits, after his manual PostgreSQL check). Earlier: Phase 0 (0A
 - Tests never touch a real database: `tests/conftest.py` sets
   `DATABASE_URL=sqlite://`, and `create_app(settings, engine=...)` takes an
   injected in-memory engine.
-- Manual PostgreSQL check for 1A2 (Thach): `alembic upgrade head`, `current`
-  and `check`, then one upload through the running server whose `runs` row
-  matches `runs/<id>/raw.csv`.
 - Launch decision (1A): the dev server runs from the REPO ROOT with
   `python -m uvicorn app.main:app --app-dir backend --reload`, the same two
   path entries as `pytest.ini` (root + `backend`). Starting it from
