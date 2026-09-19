@@ -103,9 +103,9 @@ dataclarity/
       imports, and on any import of `app` or `backend` from `stages/` or
       `shared/` (backs SPECS SEC-4); also stages -> web/DB frameworks,
       shared -> stages, and contracts -> anything internal or a framework
-- [ ] 0C2 Run registry helper (`shared/run_registry.py`: `runs/<run_id>/`
-      creation, path resolution). `RUNS_DIR` is relative to the working
-      directory today; resolve it against the repo root
+- [x] 0C2 Run registry helper (`shared/run_registry.py`: `runs/<run_id>/`
+      creation, path resolution); `Settings.runs_dir` anchored to the repo
+      root
 - [ ] 0D Frontend skeleton: Vite + React + TS, `/health` call, CORS via env var
 - **DoD:** both apps run; architecture test passes; contracts importable
 
@@ -116,7 +116,9 @@ dataclarity/
       row. Decide how a binary file renamed to `.csv` is rejected: it can
       decode as latin-1 and pass SEC-1 today
 - [ ] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
-      `profile.json` contract. Unit tests with fixture CSVs
+      `profile.json` contract. Unit tests with fixture CSVs. If 1B adds the
+      first stage CLI (`__main__.py`), decide how it gets the runs root
+      without importing the backend (SEC-4), e.g. a `--runs-dir` argument
 - [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
       real-API guard fixture that activates CONSTRAINTS F4, then
       `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
@@ -273,14 +275,35 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0C closed (2026-09-19, uncommitted until Thach commits).
-Earlier: 0A (`b790448`), the rename (`4d62960`), SKILLS SETUP (`1178c1b`),
-SPECS UPDATE (`b54dce3`), the owner-assignment fix (`582e8a9`), 0B
-(`6aee173`). 0C delivered `tests/test_architecture.py` (23 tests) and
-`tests/architecture_fixtures/`; the run registry moved to its own sub-phase
-0C2 (Thach's decision). 136 tests pass, 0 skipped.
-**Next step:** Phase 0C2 (run registry helper in `shared/run_registry.py`).
+**Phase in progress:** 0C2 closed (2026-09-19, uncommitted until Thach
+commits). Earlier: 0A (`b790448`), the rename (`4d62960`), SKILLS SETUP
+(`1178c1b`), SPECS UPDATE (`b54dce3`), the owner-assignment fix (`582e8a9`),
+0B (`6aee173`), 0C (`685e85f`). 0C2 delivered `shared/run_registry.py`, the
+`runs_dir` validator in `backend/app/config.py`, and 29 tests. 165 tests
+pass, 0 skipped, with the same 165 test ids from the repo root and from
+`backend/`.
+**Next step:** Phase 0D (frontend skeleton: Vite + React + TS, `/health`
+call, CORS via env var; W4 `npm audit` and F5/F6 become active).
 **Notes:**
+- 0C2 design: `shared/` may not import the backend, so the registry does not
+  read settings. The caller passes an absolute runs root (from 1A on, a
+  service passes `settings.runs_dir`); a relative root raises `ValueError`.
+  `config.py` anchors a relative `RUNS_DIR` to its existing `REPO_ROOT`, the
+  only place that finds the repo root. `REPO_ROOT` was not moved into
+  `shared/`, because `config.py` would then import `shared`, which is not
+  on `sys.path` when uvicorn runs from `backend/` (see the Phase 1 launch
+  note below).
+- Registry API: `create_run(runs_root) -> NewRun(run_id, path)`, `run_dir`,
+  `run_file` (the file need not exist; stages write to it). Only a canonical
+  lowercase UUID is accepted as a run id (`InvalidRunIdError`, a
+  `ValueError` -> 400 later), so an id from a URL can never climb out of
+  `runs/` (SPECS section 11: never user-supplied paths); a well-formed id with
+  no directory raises `RunNotFoundError` (a `LookupError` -> 404 later).
+  Filenames must be bare names.
+- Tests never touch the real `runs/`: `tests/conftest.py` sets `RUNS_DIR` to
+  an absolute temp dir outside the repo, and a test in
+  `tests/backend/test_config.py` fails if that changes. Registry tests use
+  `tmp_path`.
 - 0C rules, decided with Thach: stages may not import another stage, `app` /
   `backend`, or fastapi / starlette / sqlalchemy / alembic; a file directly in
   `stages/` (not in a stage) may import no stage, so it cannot become a back

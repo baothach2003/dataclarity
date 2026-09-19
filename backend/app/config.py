@@ -44,6 +44,13 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    @field_validator("runs_dir")
+    @classmethod
+    def anchor_runs_dir(cls, value: Path) -> Path:
+        # A relative RUNS_DIR means relative to the repo, like `.env` above; left
+        # alone it would follow whatever directory the process started in.
+        return value if value.is_absolute() else REPO_ROOT / value
+
 
 @lru_cache
 def get_settings() -> Settings:

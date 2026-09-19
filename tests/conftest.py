@@ -1,4 +1,6 @@
 import os
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -12,7 +14,9 @@ TEST_ENV = {
     "MODEL_REASONING": "test-model-reasoning",
     "MODEL_BULK": "test-model-bulk",
     "MAX_UPLOAD_MB": "50",
-    "RUNS_DIR": "runs",
+    # Absolute and outside the repo, so no test that creates runs through
+    # Settings can ever write into the real, gitignored runs/ folder.
+    "RUNS_DIR": str(Path(tempfile.gettempdir()) / "dataclarity-test-runs"),
     "RETENTION_HOURS": "24",
 }
 os.environ.update(TEST_ENV)
