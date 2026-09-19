@@ -106,8 +106,9 @@ dataclarity/
 - [x] 0C2 Run registry helper (`shared/run_registry.py`: `runs/<run_id>/`
       creation, path resolution); `Settings.runs_dir` anchored to the repo
       root
-- [ ] 0D Frontend skeleton: Vite + React + TS, `/health` call, CORS via env var
+- [x] 0D Frontend skeleton: Vite + React + TS, `/health` call, CORS via env var
 - **DoD:** both apps run; architecture test passes; contracts importable
+  (met 2026-09-19: "Backend: ok" confirmed by Thach in the browser)
 
 ### Phase 1 - Stage 1 Collect (backend)
 - [ ] 1A Upload endpoint `POST /api/runs` (multipart, `MAX_UPLOAD_MB` cap and
@@ -275,16 +276,37 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0C2 closed (2026-09-19, uncommitted until Thach
-commits). Earlier: 0A (`b790448`), the rename (`4d62960`), SKILLS SETUP
-(`1178c1b`), SPECS UPDATE (`b54dce3`), the owner-assignment fix (`582e8a9`),
-0B (`6aee173`), 0C (`685e85f`). 0C2 delivered `shared/run_registry.py`, the
-`runs_dir` validator in `backend/app/config.py`, and 29 tests. 165 tests
-pass, 0 skipped, with the same 165 test ids from the repo root and from
-`backend/`.
-**Next step:** Phase 0D (frontend skeleton: Vite + React + TS, `/health`
-call, CORS via env var; W4 `npm audit` and F5/F6 become active).
+**Phase in progress:** Phase 0 closed. 0D closed 2026-09-19 (uncommitted
+until Thach commits). Earlier: 0A (`b790448`), the rename (`4d62960`),
+SKILLS SETUP (`1178c1b`), SPECS UPDATE (`b54dce3`), the owner-assignment fix
+(`582e8a9`), 0B (`6aee173`), 0C (`685e85f`), 0C2 (`26e72c9`). 0D delivered
+`frontend/` (Vite 8, React 19, TypeScript 6 strict, Vitest, ESLint) with a
+`/health` check shown on the page. Thach confirmed "Backend: ok" in the
+browser with both apps running. pytest 165 passed, Vitest 9 passed, 0
+skipped; `tsc -b` 0 errors; ESLint 0 problems; `npm audit` 0 vulnerabilities.
+**Next step:** Phase 1A (upload endpoint). Decide first how uvicorn is
+launched so services can import `stages`/`contracts`/`shared` (see the
+Phase 1 launch note below).
 **Notes:**
+- 0D frontend setup: one `.env` at the repo root for both apps. Vite reads it
+  through `envDir: '..'`, and only `VITE_*` variables reach the browser.
+  `VITE_API_BASE_URL` is in `.env.example` and must be in every local `.env`
+  (without it the page says "not configured").
+  `server.strictPort: true` so Vite never drifts off the port listed in
+  `ALLOWED_ORIGINS`. Layout: `src/api/` (fetch + response checks),
+  `src/components/`; tests next to the code (`*.test.ts(x)`, jsdom).
+- 0D template changes: the current `create-vite` react-ts template has no
+  `"strict": true` (added to both tsconfigs for F5) and ships oxlint (swapped
+  for ESLint + typescript-eslint `strictTypeChecked` + react-hooks, as Thach
+  asked). The config is `eslint.config.ts` (no plain .js), which needs the dev
+  dependency `jiti`; ESLint's native TS loading is still behind an unstable
+  flag. `npm run lint` uses `--max-warnings=0`. ESLint enforces F6 too:
+  planted `any`, `@ts-ignore` and a reasonless `@ts-expect-error` were all
+  errors.
+- Floors now active: F5 (`npx tsc -b`), F6, Vitest in F1 (`npx vitest run` or
+  `npm test`), W4 (`npm audit --audit-level=high`). `CONSTRAINTS.md` F10 still
+  names only ruff; adding `npm run lint` in `frontend/` to F10 is a tightening
+  (allowed by F11) for Thach to approve in a docs session.
 - 0C2 design: `shared/` may not import the backend, so the registry does not
   read settings. The caller passes an absolute runs root (from 1A on, a
   service passes `settings.runs_dir`); a relative root raises `ValueError`.
@@ -397,8 +419,8 @@ call, CORS via env var; W4 `npm audit` and F5/F6 become active).
   and `backend` to the path.
 - `tests/conftest.py` forces fake env values before `app.main` is imported, so
   the suite never reads the real `.env` or API key.
-- Not created on purpose: `frontend/` (Vite scaffolding in 0D wants an empty
-  directory) and `runs/` (created by the run registry in 0C).
+- Not created on purpose: `runs/` (created on the first run through
+  `shared/run_registry.py`; gitignored).
 - For Phase 1: when uvicorn
   runs from `backend/`, the repo root is not on `sys.path`, so services cannot
   import `stages`/`contracts` yet - decide how to launch (e.g. from root with
@@ -408,8 +430,9 @@ call, CORS via env var; W4 `npm audit` and F5/F6 become active).
   updates. Do not count it as a new lint warning.
 - Running a command via `!` in Claude Code uses Bash: use forward slashes
   (`backend/venv/Scripts/python -m pytest`), backslashes get stripped.
-- No project linter is configured yet (a global ruff config flags `app` imports
-  as third-party); consider adding a ruff config when Thach approves.
+- No Python linter is configured yet (a global ruff config flags `app` imports
+  as third-party); consider adding a ruff config when Thach approves. The
+  frontend has ESLint since 0D.
 - Architecture decision made this session: ONE repo with five independent stage
   packages and contract files between them, instead of five separate repos.
   Boundary enforced by `tests/test_architecture.py` (Phase 0C). Splitting into
