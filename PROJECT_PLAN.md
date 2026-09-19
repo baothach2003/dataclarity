@@ -1,4 +1,4 @@
-# CleanStock - Project Plan (v2)
+# DataClarity - Project Plan (v2)
 
 > Official roadmap. Used by both Thach and Claude Code. At the start of EVERY new
 > session, re-read section 12 "Current Status" before doing anything. Functional
@@ -7,7 +7,7 @@
 
 ## 1. What this project is
 
-**CleanStock** is a web application that turns a messy inventory/sales CSV into a
+**DataClarity** is a web application that turns a messy inventory/sales CSV into a
 decision-ready report, through a 5-stage pipeline:
 
 | Stage | Name | Question it answers | Package |
@@ -70,7 +70,7 @@ later, without paying the version-sync cost of 5 repos today.
 ## 4. Folder Structure (target)
 
 ```
-cleanstock/
+dataclarity/
 ├── CLAUDE.md  PROJECT_PLAN.md  KICKOFF_PROMPT.md  README.md
 ├── docs/           SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
 ├── prompts/        schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md
@@ -222,12 +222,30 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0A DONE - confirmed by Thach on his machine (3 tests pass,
-`GET /health` returns 200) and committed as the first commit
-(`feat: backend skeleton with health endpoint and config`).
+**Phase in progress:** 0A FULLY CLOSED - confirmed by Thach on his machine (3
+tests pass, `GET /health` returns 200), committed (`b790448 feat: backend
+skeleton with health endpoint and config`) and pushed to
+https://github.com/baothach2003/dataclarity (`main` tracks `origin/main`).
+Rename session (between 0A and 0B, docs/consistency only): project renamed
+CleanStock -> DataClarity in every repo file (titles of README, CLAUDE.md,
+PROJECT_PLAN.md, KICKOFF_PROMPT.md, all docs/*; folder trees; FastAPI title
+`DataClarity API`; DB name `dataclarity` in `.env.example` and local `.env`;
+fake test DB `dataclarity_test` in `tests/conftest.py`). No logic changed,
+3 tests still pass. Commit: `docs: rename project from CleanStock to DataClarity`.
 **Next step:** session 2 = Phase 0B (`contracts/` Pydantic models per
 `docs/CONTRACTS.md`, with validation tests).
 **Notes:**
+- Local root folder is renamed by Thach manually to
+  `C:\Users\Happy\Desktop\dataclarity` (Windows cannot rename a folder that
+  Claude Code / VS Code / a terminal is using). A venv hardcodes its absolute
+  path (`pyvenv.cfg`, `activate*`, every `Scripts\*.exe` launcher such as
+  `uvicorn.exe`, `pytest.exe`, `pip.exe`), so after the rename `backend\venv` is
+  recreated (same name `venv`) and requirements reinstalled.
+- Claude Code history and memory are keyed by folder path: after the rename,
+  `claude -c` in the new folder will not find old sessions. This section is the
+  handover.
+- Images in `design/mockups/*.png` may still show "CleanStock" as drawn text;
+  they are binary Figma exports and are not edited here.
 - 0A delivered: git repo (`main`), empty packages for `contracts/`, `stages/*`,
   `shared/`, `backend/app/{routers,services,models}`; `create_app(settings)`
   factory + `GET /health` in `routers/health.py`; `config.py` (pydantic-settings,

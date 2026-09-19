@@ -13,7 +13,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     settings = settings or get_settings()
 
-    app = FastAPI(title="CleanStock API")
+    app = FastAPI(title="DataClarity API")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,

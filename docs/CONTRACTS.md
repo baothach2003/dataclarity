@@ -1,4 +1,4 @@
-# CleanStock - Stage Contracts
+# DataClarity - Stage Contracts
 
 The single source of truth for how the five stages talk to each other. Every
 stage reads contract files written by earlier stages and writes its own. No stage

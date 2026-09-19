@@ -1,4 +1,4 @@
-# CleanStock - Project Instructions
+# DataClarity - Project Instructions
 
 Persistent context for Claude Code. Read fully before starting any task in this repo.
 
@@ -66,7 +66,7 @@ All schema changes go through Alembic. Never drop/recreate tables.
 ## 4. Folder structure (target)
 
 ```
-cleanstock/
+dataclarity/
 ├── CLAUDE.md  PROJECT_PLAN.md  KICKOFF_PROMPT.md  README.md
 ├── docs/       SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
 ├── prompts/    schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md

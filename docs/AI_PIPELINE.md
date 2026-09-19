@@ -1,4 +1,4 @@
-# CleanStock - AI Pipeline Specification (v2)
+# DataClarity - AI Pipeline Specification (v2)
 
 Source of truth for everything the AI does. Product behavior: `docs/SPECS.md`.
 Data schemas between stages: `docs/CONTRACTS.md`.

@@ -1,4 +1,4 @@
-# CleanStock - Figma Design Notes
+# DataClarity - Figma Design Notes
 
 > **Status: DESIGN COMPLETE (sessions 1-3). Pending before Phase 6: PNG exports in `design/mockups/`, sticky scroll set in Figma, Return rate KPI decision.**
 > Frontend phases (6A-6F) MUST NOT start until this file has real values.

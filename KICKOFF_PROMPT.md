@@ -6,7 +6,7 @@ the next sub-phase from PROJECT_PLAN.md section 5.
 
 ---
 
-This is the first working session of the CleanStock project.
+This is the first working session of the DataClarity project.
 
 Before doing anything, read in this order and follow them strictly:
 1. `CLAUDE.md` - the rules of this repo

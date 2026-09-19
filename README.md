@@ -1,4 +1,4 @@
-# CleanStock
+# DataClarity
 
 Turn a messy inventory/sales CSV into a decision-ready report through a five-stage
 pipeline: **Collect -> Analyze -> Diagnose -> Predict -> Report**.

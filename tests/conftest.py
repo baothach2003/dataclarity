@@ -7,7 +7,7 @@ import pytest
 # a developer's real API key is never picked up by the test suite.
 TEST_ENV = {
     "ANTHROPIC_API_KEY": "test-key-not-real",
-    "DATABASE_URL": "postgresql://test:test@localhost:5432/cleanstock_test",
+    "DATABASE_URL": "postgresql://test:test@localhost:5432/dataclarity_test",
     "ALLOWED_ORIGINS": "http://localhost:5173",
     "MODEL_REASONING": "test-model-reasoning",
     "MODEL_BULK": "test-model-bulk",

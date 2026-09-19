@@ -1,4 +1,4 @@
-# CleanStock - Functional Specification (SPECS v2)
+# DataClarity - Functional Specification (SPECS v2)
 
 Source of truth for product behavior. Stage data schemas: `docs/CONTRACTS.md`.
 AI internals: `docs/AI_PIPELINE.md`. If code and this spec disagree, the spec
