@@ -96,8 +96,9 @@ dataclarity/
 ### Phase 0 - Foundations
 - [x] 0A Repo init, folder skeleton, backend FastAPI app factory, `/health`,
       config via pydantic-settings + `.env.example`, pytest wired, 1 passing test
-- [ ] 0B `contracts/` package: Pydantic models for all 6 contract files per
-      `docs/CONTRACTS.md`, with validation tests
+- [x] 0B `contracts/` package: Pydantic models for all 6 contract modules per
+      `docs/CONTRACTS.md` (8 models for the 9 JSON files), with validation
+      tests
 - [ ] 0C `tests/test_architecture.py`: AST-based test failing on cross-stage
       imports, and on any import of `app` or `backend` from `stages/` or
       `shared/` (backs SPECS SEC-4); run registry helper (`runs/<run_id>/`
@@ -116,7 +117,13 @@ dataclarity/
 - [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
       real-API guard fixture that activates CONSTRAINTS F4, then
       `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
-      client, validated, retry-once, degraded mode. Tests with mocked AI
+      client, validated, retry-once, degraded mode. Checks that every
+      profiled column appears exactly once (CONTRACTS section 3; the model
+      checks only the in-file half). `AIUnavailable` carries the reason
+      (timeout, network, invalid twice, auth) and the client logs it
+      (AI_PIPELINE section 9 item 5); decide whether degraded contract files
+      also record it (an optional field is a minor bump, CONTRACTS section
+      10). Tests with mocked AI
 - [ ] 1D `stages/ingest/transforms.py`: the full transform catalog
       (`docs/AI_PIPELINE.md` section 6) as pure functions + change log. One test
       per transform including edge cases
@@ -138,17 +145,23 @@ dataclarity/
       / `MODEL_BULK`, never the largest model at runtime; no model ids in the
       ADR). ADRs hold the "why"; existing docs keep the rule and link to the ADR
 - [ ] 2A `metrics_core.py`: revenue by period, MoM growth, orders, active
-      customers, AOV, return rate. Tests with hand-calculated expected values
+      customers, AOV, return rate. Tests with hand-calculated expected values.
+      Zero denominators (`revenue_change_pct` with no previous revenue, `aov`
+      and return rate with no orders) need a contract decision first: the 1.0
+      contract requires a number there
 - [ ] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
       Loyal, At-risk, Hibernating, New). Tests
 - [ ] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
-      velocity + stockout projection. Tests
+      velocity + stockout projection. Tests. `days_to_stockout` at zero
+      velocity needs a contract decision first (same reason as 2A)
 - [ ] 2D Assemble `metrics.json` contract + `POST /api/runs/{id}/analyze`. Tests
 - **DoD:** numbers in `metrics.json` verified by hand against the fixture data
 
 ### Phase 3 - Stage 3 Diagnose
 - [ ] 3A `decomposition.py`: revenue = customers x frequency x AOV, period-over-
-      period attribution, contribution by segment/country/product group. Tests
+      period attribution, contribution by segment/country/product group. Tests.
+      Decide the insufficient-data path (one month of data, zero previous
+      customers or orders): CONTRACTS section 7 requires `decomposition`
 - [ ] 3B `ai_root_cause.py`: AI reads decomposition output only, returns driver +
       evidence + ruled-out hypotheses, validated. Tests with mocked AI
 - [ ] 3C Assemble `diagnosis.json` + `POST /api/runs/{id}/diagnose`. Tests
@@ -161,14 +174,19 @@ dataclarity/
       intervals and an explicit "insufficient history" path. Tests
 - [ ] 4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
       recommendations, each with insight, cause, action, expected impact
-      (arithmetic shown), how to measure. Validated. Tests with mocked AI
+      (arithmetic shown), how to measure. Validated. Decide whether stage 4
+      calls the AI when `diagnosis.json` has `ai_findings: null`. Tests with
+      mocked AI
 - [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests
 - **DoD:** every recommendation cites a number that exists in the inputs; a
   manual review finds no fabricated figures
 
 ### Phase 5 - Stage 5 Report
 - [ ] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
-      actions) from all prior contracts. Tests
+      actions) from all prior contracts. Tests. First define the layer
+      structure in CONTRACTS section 9 (today `dict[str, Any]`), including
+      how a `null` AI block shows as "unavailable" (AI_PIPELINE section 9) and
+      where `provenance.ai_calls` is traced from
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
@@ -252,24 +270,42 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0A closed (committed `b790448`, pushed to
-https://github.com/baothach2003/dataclarity). Three tooling/docs sessions since,
-no application code: the rename CleanStock -> DataClarity (`4d62960`), the
-SKILLS SETUP session (`1178c1b`, Wave 1 of `addyosmani/agent-skills` in
-`.claude/skills/`, references in `.claude/references/`), and the SPECS UPDATE
-session "Integrate engineering skills" (this one, 2026-09-19). This session
-created `CONSTRAINTS.md` (Floor F1-F11 blocks, Warn W1-W4 reports; coverage
->= 80% of changed lines in `stages/` and `backend/app/services/`, project
-coverage measure-and-hold, `pip-audit`, `npm audit` from 0D, 90 s task-end
-budget), added SPECS section 11 SEC-1 to SEC-5 and the section 13 change log,
-the CLAUDE.md "Skill usage" section, section 13 of this file (Definition of
-Done), the Phase 2 ADR item, and wording updates in 1A, 1G, 5B, 6B, 6E, 8A, 8B.
-Full detail: `docs/SPECS.md` section 13. 3 tests pass, 0 skipped.
-**Next step:** Phase 0B (`contracts/` Pydantic models per `docs/CONTRACTS.md`,
-with validation tests).
+**Phase in progress:** 0B closed (2026-09-19, uncommitted until Thach commits).
+Earlier: 0A (`b790448`), the rename (`4d62960`), SKILLS SETUP (`1178c1b`),
+SPECS UPDATE (`b54dce3`), and the owner-assignment fix (`582e8a9`). 0B
+delivered `contracts/` (`_base.py` + 6 modules, 8 models for the 9 JSON files),
+110 tests in `tests/contracts/`, and one contract amendment (below). 113 tests
+pass, 0 skipped.
+**Next step:** Phase 0C (`tests/test_architecture.py` + run registry helper;
+see the 0C line for the `app`/`backend` import rule).
 **Notes:**
-- Wave 3 goes at Phase 6, not 0D (0D is only a Vite skeleton calling
-  `/health`). Now recorded durably in the `docs/SKILLS.md` Wave 3 heading.
+- 0B decisions (Thach): unknown fields are ignored (`extra="ignore"` on
+  `ContractModel`, matching CONTRACTS section 10); strict AI-output checks
+  stay in the stages (1C/1E/3B/4B). `report.json` layers are
+  `dict[str, Any]` until 5A. Degraded AI in stages 3-4: the AI blocks are
+  required keys with nullable values, all null or all filled; CONTRACTS
+  sections 7, 8 and 10 and the SPECS section 10 error row were amended in
+  place at `1.0` (no file existed yet), recorded in the SPECS change log.
+- 0B conventions for later contract work: `_base.py` holds `ContractFile`
+  (`schema_version` must be `1.x`, `generated_at` must carry a timezone) and
+  the shared types (`Percent`, `UnitInterval`, `YearMonth`, ...). Enums are
+  `Literal`s, only where the docs define one (AI_PIPELINE sections 5-6,
+  plan `source`); everything else is `str`. Bounds only where definitional
+  (counts >= 0, percentages of a whole, confidence, `low <= point <= high`,
+  chart `len(x) == len(y)`); revenue, shares and return rates are unbounded
+  because refunds can make them negative. Nullable fields are required keys
+  (no default) so a dropped key never parses as `null`.
+- Follow-ups found in 0B live in their owning sub-phase lines in section 5:
+  1C (every profiled column exactly once), 2A/2C (zero denominators vs
+  required numbers), 3A (insufficient-data decomposition), 4B (AI call when
+  `ai_findings` is null), 5A (layer structure, "unavailable", `ai_calls`),
+  1C (why the AI was unavailable: carried by `AIUnavailable`, logged, and
+  maybe recorded in degraded files). Not addressed (run-model question, not a contract one): a
+  re-run of stage 3 after stage 4 ran degraded leaves `forecast.json` stale.
+- `pydantic==2.13.5` is now pinned in `backend/requirements.txt` (it was
+  already installed as a FastAPI dependency; `contracts/` imports it
+  directly). Pytest adds the repo root to the path, so `tests/contracts/`
+  imports `contracts` without an install step.
 - Wave 1 has no personas, so `.claude/agents/` does not exist yet;
   doubt-driven-development's mention of `agents/` is prose, not a link. Personas
   arrive with Wave 2 (test-engineer, code-reviewer) and Wave 4 (security-auditor).

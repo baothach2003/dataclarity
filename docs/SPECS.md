@@ -209,7 +209,7 @@ warning in the import summary when it would go negative).
 | Non-UTF8 | latin-1 fallback, warning in the report | success + warning |
 | All-null column | flagged; default action drop_column | - |
 | Not inventory data (domain_confidence < 0.5) | say so plainly; offer generic cleaning with downloads only; disable mapping-dependent import and stages 2-5 | NOT_INVENTORY (200 + flag) |
-| AI invalid twice / API down | degraded mode: profiling + manual plan building still work | AI_UNAVAILABLE (200 + flag) |
+| AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stages 3-4 still write their computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` sections 7-8) | AI_UNAVAILABLE (200 + flag) |
 | Stage called out of order | rejected | INVALID_STATE (409) |
 | Plan contains an unknown or illegal action | whole plan rejected | INVALID_PLAN (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
@@ -300,6 +300,20 @@ before building; never invent layout or tokens.
 
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
+
+### 2026-09-19 - Degraded AI in stages 3-4 (Phase 0B)
+- What: `docs/CONTRACTS.md` sections 7 and 8 now say how `diagnosis.json` and
+  `forecast.json` represent an unavailable AI step (the AI blocks are
+  required keys with nullable values, all null or all filled; the computed
+  blocks are always filled). Section 10 records why this was done in place at
+  `1.0`. The section 10 error row "AI invalid twice / API down" in this file
+  now covers stages 3-4.
+- Why: `docs/AI_PIPELINE.md` section 9 requires stages 3-4 to keep writing
+  their computed blocks when the AI fails, but the contracts made the AI blocks
+  mandatory. Found while writing the `contracts/` models; decided by Thach.
+- Files: `docs/CONTRACTS.md`, `docs/SPECS.md`, `PROJECT_PLAN.md`.
+- Unchanged on purpose: `schema_version` stays `1.0` (no contract file had been
+  written yet); `docs/AI_PIPELINE.md`.
 
 ### 2026-09-19 - Integrate engineering skills into the project workflow
 - What: created `CONSTRAINTS.md` (floor, warn-level coverage and dependency

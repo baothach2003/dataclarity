@@ -226,6 +226,14 @@ member (signed), not share of revenue. Stage 2 never calls the AI.
 The AI receives `metrics.json` + the computed `decomposition` block only. It never
 computes the decomposition itself.
 
+When the AI step is unavailable, meaning no AI output was accepted after the
+shared retry (`docs/AI_PIPELINE.md` section 9), stage 3 still writes this file:
+`decomposition` is always filled, and `model_used` and `ai_findings` are both
+`null`. They are either both `null` or both filled, never partially filled. The
+keys are always written: `null` is a value, not a missing key. Minimum counts
+such as "at least two `ruled_out`" (`docs/AI_PIPELINE.md` section 7) are
+enforced by stage 3 before writing, not by this contract.
+
 ## 8. `forecast.json` (stage 4 output)
 
 ```json
@@ -264,6 +272,15 @@ Forecast numbers come from code; the AI writes only `recommendations` and
 `do_not_do`, and every `expected_impact` must show its arithmetic from input
 numbers.
 
+When the AI step is unavailable, meaning no AI output was accepted after the
+shared retry (`docs/AI_PIPELINE.md` section 9), stage 4 still writes this file:
+`forecast` is always filled, and `model_used`, `recommendations` and
+`do_not_do` are all `null`. They are either all `null` or all filled, never
+partially filled. The keys are always written: `null` is a value, not a missing
+key, and it is never replaced by an empty list. Minimum counts such as "3 to 5
+recommendations" (`docs/AI_PIPELINE.md` section 8) are enforced by stage 4
+before writing, not by this contract.
+
 ## 9. `report.json` (stage 5 output, data layer)
 
 ```json
@@ -295,3 +312,7 @@ the report defensible.
   the change in `PROJECT_PLAN.md` section 12 Notes.
 - Never let a stage read a field that is not documented here. If a stage needs
   new data, add it to the contract first, then implement.
+- 2026-09-19: the nullable AI blocks in sections 7 and 8 were added in place at
+  `1.0`, without a bump, because no stage and no contract file existed yet
+  (Phase 0B). From the first contract file a stage writes onward, every
+  change follows the rules above.
