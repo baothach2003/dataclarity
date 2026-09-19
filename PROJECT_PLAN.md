@@ -99,10 +99,13 @@ dataclarity/
 - [x] 0B `contracts/` package: Pydantic models for all 6 contract modules per
       `docs/CONTRACTS.md` (8 models for the 9 JSON files), with validation
       tests
-- [ ] 0C `tests/test_architecture.py`: AST-based test failing on cross-stage
+- [x] 0C `tests/test_architecture.py`: AST-based test failing on cross-stage
       imports, and on any import of `app` or `backend` from `stages/` or
-      `shared/` (backs SPECS SEC-4); run registry helper (`runs/<run_id>/`
-      creation, path resolution)
+      `shared/` (backs SPECS SEC-4); also stages -> web/DB frameworks,
+      shared -> stages, and contracts -> anything internal or a framework
+- [ ] 0C2 Run registry helper (`shared/run_registry.py`: `runs/<run_id>/`
+      creation, path resolution). `RUNS_DIR` is relative to the working
+      directory today; resolve it against the repo root
 - [ ] 0D Frontend skeleton: Vite + React + TS, `/health` call, CORS via env var
 - **DoD:** both apps run; architecture test passes; contracts importable
 
@@ -270,15 +273,36 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0B closed (2026-09-19, uncommitted until Thach commits).
+**Phase in progress:** 0C closed (2026-09-19, uncommitted until Thach commits).
 Earlier: 0A (`b790448`), the rename (`4d62960`), SKILLS SETUP (`1178c1b`),
-SPECS UPDATE (`b54dce3`), and the owner-assignment fix (`582e8a9`). 0B
-delivered `contracts/` (`_base.py` + 6 modules, 8 models for the 9 JSON files),
-110 tests in `tests/contracts/`, and one contract amendment (below). 113 tests
-pass, 0 skipped.
-**Next step:** Phase 0C (`tests/test_architecture.py` + run registry helper;
-see the 0C line for the `app`/`backend` import rule).
+SPECS UPDATE (`b54dce3`), the owner-assignment fix (`582e8a9`), 0B
+(`6aee173`). 0C delivered `tests/test_architecture.py` (23 tests) and
+`tests/architecture_fixtures/`; the run registry moved to its own sub-phase
+0C2 (Thach's decision). 136 tests pass, 0 skipped.
+**Next step:** Phase 0C2 (run registry helper in `shared/run_registry.py`).
 **Notes:**
+- 0C rules, decided with Thach: stages may not import another stage, `app` /
+  `backend`, or fastapi / starlette / sqlalchemy / alembic; a file directly in
+  `stages/` (not in a stage) may import no stage, so it cannot become a back
+  door; `contracts/` may import none of `stages`, `shared`, `app`,
+  `backend`, the frameworks; `shared/` may import neither `stages` nor
+  `app` / `backend`. `backend/app/` is walked but has no rule yet (a
+  routers -> services rule could be added there later).
+- How the guard works: the walker and the rules live in
+  `tests/test_architecture.py` itself, so the F3 review of that file covers
+  them. Stage ownership comes from the path (no list of stage names).
+  Relative imports are resolved; `from stages import x` counts as importing
+  `stages.x`; imports under `TYPE_CHECKING` or inside functions count;
+  `importlib.import_module` / `__import__` count only with a literal name (a
+  computed name cannot be resolved statically). `app.*` and `backend.*` are
+  the same boundary, because `backend/` is on the path.
+- Fixtures: `tests/architecture_fixtures/violations/` (18 files, one
+  violation each, all listed in the test) and `clean/`. They are parsed,
+  never imported, and are outside the four scanned roots; a test asserts
+  that. A test also asserts that all four real roots are reached, so a typo
+  in `SCAN_ROOTS` cannot silently scan nothing. F3 verified: an import
+  planted in `stages/ingest/` and in `contracts/` failed the build, then was
+  removed.
 - 0B decisions (Thach): unknown fields are ignored (`extra="ignore"` on
   `ContractModel`, matching CONTRACTS section 10); strict AI-output checks
   stay in the stages (1C/1E/3B/4B). `report.json` layers are
@@ -352,8 +376,7 @@ see the 0C line for the `app`/`backend` import rule).
   the suite never reads the real `.env` or API key.
 - Not created on purpose: `frontend/` (Vite scaffolding in 0D wants an empty
   directory) and `runs/` (created by the run registry in 0C).
-- For 0C: `RUNS_DIR` is relative to the working directory today; the run
-  registry should resolve it against the repo root. For Phase 1: when uvicorn
+- For Phase 1: when uvicorn
   runs from `backend/`, the repo root is not on `sys.path`, so services cannot
   import `stages`/`contracts` yet - decide how to launch (e.g. from root with
   `--app-dir backend`) before 1A.
