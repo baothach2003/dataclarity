@@ -123,6 +123,7 @@ dataclarity/
   deliberately messy fixture CSV
 
 ### Phase 2 - Stage 2 Analyze
+- [ ] Install skills Wave 2 (see docs/SKILLS.md)
 - [ ] 2A `metrics_core.py`: revenue by period, MoM growth, orders, active
       customers, AOV, return rate. Tests with hand-calculated expected values
 - [ ] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
@@ -163,6 +164,7 @@ dataclarity/
 - **DoD:** the HTML report is readable standalone and matches the contract data
 
 ### Phase 6 - Frontend
+- [ ] Install skills Wave 3 (see docs/SKILLS.md)
 - [ ] 6A Upload page + analyzing states (SPECS 4.1)
 - [ ] 6B Review screen part 1: column table with editable type / mapping / action
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
@@ -186,6 +188,7 @@ dataclarity/
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
+- [ ] Install skills Wave 4 (see docs/SKILLS.md)
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain
 - [ ] 9B Deploy frontend to Vercel; production smoke test
 - [ ] 9C README: problem, architecture diagram, stage contracts, AI design
@@ -222,19 +225,34 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** 0A FULLY CLOSED - confirmed by Thach on his machine (3
-tests pass, `GET /health` returns 200), committed (`b790448 feat: backend
-skeleton with health endpoint and config`) and pushed to
-https://github.com/baothach2003/dataclarity (`main` tracks `origin/main`).
-Rename session (between 0A and 0B, docs/consistency only): project renamed
-CleanStock -> DataClarity in every repo file (titles of README, CLAUDE.md,
-PROJECT_PLAN.md, KICKOFF_PROMPT.md, all docs/*; folder trees; FastAPI title
-`DataClarity API`; DB name `dataclarity` in `.env.example` and local `.env`;
-fake test DB `dataclarity_test` in `tests/conftest.py`). No logic changed,
-3 tests still pass. Commit: `docs: rename project from CleanStock to DataClarity`.
-**Next step:** session 2 = Phase 0B (`contracts/` Pydantic models per
-`docs/CONTRACTS.md`, with validation tests).
+**Phase in progress:** 0A closed (committed `b790448`, pushed to
+https://github.com/baothach2003/dataclarity). Two tooling/docs sessions since,
+no application code: the rename CleanStock -> DataClarity (`4d62960`), and the
+SKILLS SETUP session (this one). The skills session installed **Wave 1 only** of
+`addyosmani/agent-skills` per `docs/SKILLS.md`: incremental-implementation,
+test-driven-development, constraint-driven-development, context-engineering,
+source-driven-development, api-and-interface-design, security-and-hardening,
+doubt-driven-development, debugging-and-error-recovery,
+git-workflow-and-versioning (copied into `.claude/skills/`, pinned in
+`skills-lock.json`). References `definition-of-done.md`, `testing-patterns.md`,
+`security-checklist.md`, `orchestration-patterns.md` copied into
+`.claude/references/` (all 4 `../../references/` links verified); MIT license
+at `.claude/THIRD_PARTY_LICENSES/agent-skills-LICENSE`. CLAUDE.md gained a
+"Skill precedence" section (CLAUDE.md wins; agent never commits/pushes and
+always ends a session with exact git commands; one sub-phase per session; no
+weakening tests). Unticked "Install skills Wave N" items added at the start of
+Phase 2 (Wave 2), Phase 6 (Wave 3) and Phase 9 (Wave 4). 3 tests still pass
+(confirmed by Thach).
+**Next step:** SPECS UPDATE session (`SPECS_UPDATE_PROMPT.md`), then Phase 0B
+(`contracts/` Pydantic models per `docs/CONTRACTS.md`, with validation tests).
 **Notes:**
+- Wave timing decided with Thach: Wave 3 goes at Phase 6, not 0D (0D is only a
+  Vite skeleton calling `/health`; Wave 3 targets the real review-and-approve UI).
+- Wave 1 has no personas, so `.claude/agents/` does not exist yet;
+  doubt-driven-development's mention of `agents/` is prose, not a link. Personas
+  arrive with Wave 2 (test-engineer, code-reviewer) and Wave 4 (security-auditor).
+- constraint-driven-development will suggest a `CONSTRAINTS.md`; creating it is
+  out of scope unless Thach approves it for a specific session.
 - Local root folder is renamed by Thach manually to
   `C:\Users\Happy\Desktop\dataclarity` (Windows cannot rename a folder that
   Claude Code / VS Code / a terminal is using). A venv hardcodes its absolute

@@ -143,3 +143,13 @@ python -m stages.analyze --run <run_id>
 # frontend
 cd frontend && npm install && npm run dev && npm test
 ```
+
+## Skill precedence
+- Rules in this file override any installed skill (see docs/SKILLS.md).
+- Never run git commit or git push. Propose the message; Thach types the commands.
+- At the very end of EVERY session (any phase, sub-phase or tooling session), give
+  Thach the exact, copy-pasteable `git add ...`, `git commit -m "..."` and
+  `git push` commands, with the full proposed commit message spelled out. Never
+  assume he remembers the convention or will ask for it.
+- One sub-phase per session. Never start the next task without Thach's approval.
+- Never skip, delete or weaken a test to make it pass. tests/test_architecture.py may be created (Phase 0C) or extended to cover new boundaries, but never relaxed to make a build pass.
