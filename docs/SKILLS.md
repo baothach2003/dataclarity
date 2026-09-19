@@ -68,7 +68,7 @@ References: `definition-of-done.md`, `testing-patterns.md`,
 
 References: `performance-checklist.md`.
 
-### Wave 3: first frontend phase
+### Wave 3: first frontend phase (Phase 6; the 0D skeleton does not count)
 
 | Skill | Used for |
 |---|---|

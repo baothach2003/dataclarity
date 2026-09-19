@@ -202,7 +202,7 @@ warning in the import summary when it would go negative).
 
 | Case | Behavior | Code |
 |---|---|---|
-| File > 50MB | rejected client and server side | FILE_TOO_LARGE (413) |
+| File > `MAX_UPLOAD_MB` (at most 50MB, SEC-1) | rejected client and server side | FILE_TOO_LARGE (413) |
 | Not `.csv` | rejected | UNSUPPORTED_TYPE (400) |
 | Empty or header-only | rejected with a clear message | EMPTY_FILE (400) |
 | Unparseable / wrong delimiter | sniff delimiter, then reject | PARSE_FAILED (400) |
@@ -228,8 +228,66 @@ warning in the import summary when it would go negative).
 - Privacy: uploaded data never leaves the server except the bounded sample sent
   to the Anthropic API; stated plainly on the Upload page
 - Security: no secrets in code; CORS restricted by config; files stored under
-  server-generated UUIDs, never user-supplied paths
+  server-generated UUIDs, never user-supplied paths (testable detail: SEC-1 to
+  SEC-5 below)
 - Accessibility: keyboard-navigable review table; color is never the only signal
+
+### Security requirements (testable)
+
+Each item states the behaviour and the test that proves it. The mechanisms for
+AI validation live in `docs/AI_PIPELINE.md`; the quality gates that run these
+tests live in `CONSTRAINTS.md`.
+
+- **SEC-1 Upload size and type.** The server enforces the configured cap
+  `MAX_UPLOAD_MB` (1 MB = 1,048,576 bytes). `MAX_UPLOAD_MB` must not exceed the
+  50MB design ceiling in section 1; the app refuses to start unless it is a
+  positive integer no greater than 50. A
+  file of exactly the cap is accepted; a file
+  one byte over returns 413 `FILE_TOO_LARGE`. A filename whose extension is not
+  `.csv` (case-insensitive) returns 400 `UNSUPPORTED_TYPE`. The browser-supplied
+  MIME type is not trusted and not checked. Content that cannot be read as a CSV
+  is handled by `EMPTY_FILE` and `PARSE_FAILED` (section 10), not by the type
+  check. Test: boundary sizes, `.CSV` accepted, `.xlsx` and `.csv.exe`
+  rejected, startup fails for `MAX_UPLOAD_MB` of 0 and of 51.
+- **SEC-2 Rate limit on AI endpoints.** Every endpoint whose handler can trigger
+  an Anthropic API call is rate-limited per client IP. The client IP is the
+  address recorded by the deploy's own proxy, never a value the client can set
+  in a header. The limit is a required configuration value, set to 40 requests
+  per hour per IP in `.env.example` when 8B adds it (10 uploads x 4 AI steps).
+  The check runs
+  before any AI call; over the limit returns 429 `RATE_LIMITED`. A
+  rate-limited run must still reach the same outcomes as degraded mode
+  (`docs/AI_PIPELINE.md` section 9): manual plan building in stage 1, and the
+  computed blocks of stages 3 and 4. The run-state transition that achieves
+  this is specified when 8B is implemented. The count may live in process memory (no extra
+  infrastructure in v1), so a restart resetting it is accepted. This limit is
+  separate from the 10 uploads/hour/IP guard above and from the per-run AI
+  budget. Test: request N+1 within the window returns 429 and the mocked AI
+  client records no call.
+- **SEC-3 LLM output is untrusted.** Rule: `CLAUDE.md` section 3.2; mechanism:
+  `docs/AI_PIPELINE.md` sections 3 and 9. Testable behaviour: a mocked AI
+  response that fails schema validation, or that contains an action outside the
+  catalog, never reaches a contract file or the transform engine. AI-generated
+  text is escaped wherever it is rendered (frontend and `report.html`), never
+  inserted as HTML. Test: a mocked response with a schema violation, and one
+  with an off-catalog action, leave no contract file written; a mocked response
+  carrying `<script>` in a text field appears escaped in the rendered output.
+- **SEC-4 Secrets only from the environment.** Secrets (`ANTHROPIC_API_KEY`,
+  the credentials in `DATABASE_URL`) come only from environment variables or
+  the `.env` file (`CLAUDE.md` section 5), never from source code, fixtures or
+  contract files. Stages and `shared/` never import `backend/` to get them;
+  they receive them from their caller or read the same sources themselves (the
+  mechanism is decided with the AI client). No secret value appears in logs,
+  API responses, or error `details`. Test: with a distinctive fake key and
+  database password (strings that occur nowhere else in the test setup),
+  neither appears in a startup validation error, an API error response, or
+  captured logs.
+- **SEC-5 CORS only from `ALLOWED_ORIGINS`.** The CORS allow-list is exactly the
+  origins in `ALLOWED_ORIGINS`. A request from an unlisted origin receives no
+  `Access-Control-Allow-Origin` header (covered by
+  `tests/backend/test_cors.py`). The app refuses to start when `ALLOWED_ORIGINS`
+  is empty, or when any entry contains `*` or is `null`. Test: startup fails for
+  `""`, `"*"`, `"https://*.vercel.app"` and `"null"`.
 
 ## 12. Design
 
@@ -237,3 +295,24 @@ All screens have hi-fi Figma frames (Thach, Figma Pro).
 `docs/FIGMA_DESIGN_NOTES.md` records the file link, node id per screen, design
 tokens and component patterns. Frontend sessions must open the referenced frame
 before building; never invent layout or tokens.
+
+## 13. Change log
+
+Newest first. One entry per documentation session that changes a
+source-of-truth file.
+
+### 2026-09-19 - Integrate engineering skills into the project workflow
+- What: created `CONSTRAINTS.md` (floor, warn-level coverage and dependency
+  checks, exceptions); added SEC-1 to SEC-5 as testable security requirements
+  in section 11; added the "Skill usage" section and a `CONSTRAINTS.md` pointer
+  to `CLAUDE.md`; added `PROJECT_PLAN.md` section 13 (Definition of Done for
+  every sub-phase) and the Phase 2 ADR item; aligned sub-phases 1A, 1G, 5B, 6B,
+  6E, 8A and 8B with the new requirements; section 10 now names
+  `MAX_UPLOAD_MB` as the size limit; recorded the Wave 3 timing in
+  `docs/SKILLS.md`.
+- Why: turn the installed engineering skills into a written, checkable workflow
+  and quality bar, and make the security non-functional requirements testable.
+- Files: `CONSTRAINTS.md`, `CLAUDE.md`, `docs/SPECS.md`, `PROJECT_PLAN.md`,
+  `docs/SKILLS.md`, `README.md`.
+- Unchanged on purpose: `docs/CONTRACTS.md` and `contracts/` (no schema_version
+  bump), `docs/AI_PIPELINE.md`, phase order, and the "what to cut first" list.

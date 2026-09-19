@@ -71,7 +71,7 @@ later, without paying the version-sync cost of 5 repos today.
 
 ```
 dataclarity/
-├── CLAUDE.md  PROJECT_PLAN.md  KICKOFF_PROMPT.md  README.md
+├── CLAUDE.md  PROJECT_PLAN.md  CONSTRAINTS.md  KICKOFF_PROMPT.md  README.md
 ├── docs/           SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
 ├── prompts/        schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md
 ├── contracts/      # Pydantic models shared by all stages - the ONLY shared import
@@ -104,8 +104,10 @@ dataclarity/
 - **DoD:** both apps run; architecture test passes; contracts importable
 
 ### Phase 1 - Stage 1 Collect (backend)
-- [ ] 1A Upload endpoint `POST /api/runs` (multipart, 50MB cap, validation),
-      file stored under `runs/<run_id>/raw.csv`, `runs` DB row
+- [ ] 1A Upload endpoint `POST /api/runs` (multipart, `MAX_UPLOAD_MB` cap and
+      type validation per SPECS section 11 SEC-1, including the 50MB ceiling
+      check at startup), file stored under `runs/<run_id>/raw.csv`, `runs` DB
+      row
 - [ ] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
       `profile.json` contract. Unit tests with fixture CSVs
 - [ ] 1C `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
@@ -117,13 +119,19 @@ dataclarity/
       validation. Tests with mocked AI
 - [ ] 1F `stages/ingest/cleaning.py`: preview (sample) and execute (full) engines
       -> `cleaned.csv` + `cleaning_report.json`. Tests
-- [ ] 1G Endpoints wiring: `/analyze`, `/plan`, `/preview`, `/execute` per
+- [ ] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
       `docs/SPECS.md` section 8. Tests with mocked AI
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
 ### Phase 2 - Stage 2 Analyze
 - [ ] Install skills Wave 2 (see docs/SKILLS.md)
+- [ ] Create `docs/adr/` (own docs session, after the Wave 2 install, using
+      documentation-and-adrs) with: ADR-0001 one repo with five independent
+      stage packages; ADR-0002 pandas computes, AI only interprets; ADR-0003
+      model choice per task (reasoning model vs bulk model via `MODEL_REASONING`
+      / `MODEL_BULK`, never the largest model at runtime; no model ids in the
+      ADR). ADRs hold the "why"; existing docs keep the rule and link to the ADR
 - [ ] 2A `metrics_core.py`: revenue by period, MoM growth, orders, active
       customers, AOV, return rate. Tests with hand-calculated expected values
 - [ ] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
@@ -157,7 +165,8 @@ dataclarity/
 - [ ] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
       actions) from all prior contracts. Tests
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
-      downloadable. Tests on structure, not pixels
+      downloadable. Tests on structure, not pixels, including AI text escaped
+      (SPECS SEC-3)
 - [ ] 5C `POST /api/runs/{id}/report` + download endpoints. Tests
 - [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
       independence)
@@ -167,9 +176,11 @@ dataclarity/
 - [ ] Install skills Wave 3 (see docs/SKILLS.md)
 - [ ] 6A Upload page + analyzing states (SPECS 4.1)
 - [ ] 6B Review screen part 1: column table with editable type / mapping / action
+      (AI rationale rendered escaped, SPECS SEC-3)
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
 - [ ] 6D Results page: cleaning summary + downloads
-- [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list
+- [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
+      text rendered escaped, SPECS SEC-3)
 - [ ] 6F Dashboard page: charts + low-stock table + report download
 - **DoD:** a non-technical user completes upload -> report without instructions
 
@@ -182,8 +193,12 @@ dataclarity/
 
 ### Phase 8 - Hardening
 - [ ] 8A Edge cases from SPECS section 10 (empty, header-only, non-UTF8, wrong
-      delimiter, all-null column, non-inventory data, 50MB boundary)
-- [ ] 8B Abuse guards: rate limit, AI call budget per run, retention cleanup job
+      delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary)
+- [ ] 8B Abuse guards: rate limits on uploads (SPECS section 11 abuse guards)
+      and on every AI endpoint (SEC-2), each from its own required env var;
+      AI call budget per run; retention
+      cleanup job; startup `ALLOWED_ORIGINS` checks per SEC-5;
+      `DATABASE_URL` handled as a secret so it never reaches logs (SEC-4)
 - [ ] 8C Test sweep + coverage review on `stages/` and `backend/app/services/`
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -226,33 +241,44 @@ comparing two runs, email delivery of reports, mobile layout.
 ## 12. Current Status
 
 **Phase in progress:** 0A closed (committed `b790448`, pushed to
-https://github.com/baothach2003/dataclarity). Two tooling/docs sessions since,
-no application code: the rename CleanStock -> DataClarity (`4d62960`), and the
-SKILLS SETUP session (this one). The skills session installed **Wave 1 only** of
-`addyosmani/agent-skills` per `docs/SKILLS.md`: incremental-implementation,
-test-driven-development, constraint-driven-development, context-engineering,
-source-driven-development, api-and-interface-design, security-and-hardening,
-doubt-driven-development, debugging-and-error-recovery,
-git-workflow-and-versioning (copied into `.claude/skills/`, pinned in
-`skills-lock.json`). References `definition-of-done.md`, `testing-patterns.md`,
-`security-checklist.md`, `orchestration-patterns.md` copied into
-`.claude/references/` (all 4 `../../references/` links verified); MIT license
-at `.claude/THIRD_PARTY_LICENSES/agent-skills-LICENSE`. CLAUDE.md gained a
-"Skill precedence" section (CLAUDE.md wins; agent never commits/pushes and
-always ends a session with exact git commands; one sub-phase per session; no
-weakening tests). Unticked "Install skills Wave N" items added at the start of
-Phase 2 (Wave 2), Phase 6 (Wave 3) and Phase 9 (Wave 4). 3 tests still pass
-(confirmed by Thach).
-**Next step:** SPECS UPDATE session (`SPECS_UPDATE_PROMPT.md`), then Phase 0B
-(`contracts/` Pydantic models per `docs/CONTRACTS.md`, with validation tests).
+https://github.com/baothach2003/dataclarity). Three tooling/docs sessions since,
+no application code: the rename CleanStock -> DataClarity (`4d62960`), the
+SKILLS SETUP session (`1178c1b`, Wave 1 of `addyosmani/agent-skills` in
+`.claude/skills/`, references in `.claude/references/`), and the SPECS UPDATE
+session "Integrate engineering skills" (this one, 2026-09-19). This session
+created `CONSTRAINTS.md` (Floor F1-F11 blocks, Warn W1-W4 reports; coverage
+>= 80% of changed lines in `stages/` and `backend/app/services/`, project
+coverage measure-and-hold, `pip-audit`, `npm audit` from 0D, 90 s task-end
+budget), added SPECS section 11 SEC-1 to SEC-5 and the section 13 change log,
+the CLAUDE.md "Skill usage" section, section 13 of this file (Definition of
+Done), the Phase 2 ADR item, and wording updates in 1A, 1G, 5B, 6B, 6E, 8A, 8B.
+Full detail: `docs/SPECS.md` section 13. 3 tests pass, 0 skipped.
+**Next step:** Phase 0B (`contracts/` Pydantic models per `docs/CONTRACTS.md`,
+with validation tests).
 **Notes:**
-- Wave timing decided with Thach: Wave 3 goes at Phase 6, not 0D (0D is only a
-  Vite skeleton calling `/health`; Wave 3 targets the real review-and-approve UI).
+- Wave 3 goes at Phase 6, not 0D (0D is only a Vite skeleton calling
+  `/health`). Now recorded durably in the `docs/SKILLS.md` Wave 3 heading.
 - Wave 1 has no personas, so `.claude/agents/` does not exist yet;
   doubt-driven-development's mention of `agents/` is prose, not a link. Personas
   arrive with Wave 2 (test-engineer, code-reviewer) and Wave 4 (security-auditor).
-- constraint-driven-development will suggest a `CONSTRAINTS.md`; creating it is
-  out of scope unless Thach approves it for a specific session.
+- `CONSTRAINTS.md` exists at enforcement level "written only": the agent runs
+  the checks at task end, Thach before committing. Not installed yet, each
+  needing Thach's approval: `pytest-cov` + `diff-cover` (W1/W2; add
+  `coverage.xml` to `.gitignore` then), `pip-audit` (W3), a project ruff config
+  (F10). W4 (`npm audit`, from 0D) was added by Claude after the interview as
+  the npm twin of W3: confirm or remove. F4 needs the AI-client guard fixture,
+  and no sub-phase names `shared/ai_client.py` yet; decide in 1C which session
+  builds it.
+- Open items from this session's doubt review, not applied (need Thach): text
+  from the uploaded CSV (column names, product/category values) rendered in
+  `report.html` or the UI should be escaped like AI text (SEC-3 covers AI text
+  only); CORS origins with a trailing slash or Vercel preview domains (9A);
+  the frontend size check needs the limit without a second source of truth
+  (6A); the exact run-state transition for a rate-limited AI step (8B); a
+  binary file renamed to `.csv` can decode as latin-1 and pass SEC-1 (1A);
+  `tests/test_architecture.py` should also fail when `stages/` or `shared/`
+  imports `app` or `backend` (0C, backs SEC-4); the trusted-proxy setting for
+  the client IP in SEC-2 (8B/9A).
 - Local root folder is renamed by Thach manually to
   `C:\Users\Happy\Desktop\dataclarity` (Windows cannot rename a folder that
   Claude Code / VS Code / a terminal is using). A venv hardcodes its absolute
@@ -305,3 +331,42 @@ Phase 2 (Wave 2), Phase 6 (Wave 3) and Phase 9 (Wave 4). 3 tests still pass
 - No auth in v1; public demo protected by rate limits and retention cleanup.
 - Forecasting (Phase 4A) deliberately uses interpretable statistics, not ML
   models, so every number in the report can be explained in an interview.
+
+## 13. Definition of Done for every sub-phase
+
+The standing bar every sub-phase clears before it is ticked. It adapts
+`.claude/references/definition-of-done.md` to this project. `CLAUDE.md` section 7
+is canonical: this checklist links to its items and adds only the items the
+reference contributes (runtime verification, contract discipline, decision
+records). If the two ever differ, `CLAUDE.md` section 7 applies. The **DoD:** line
+under each phase in section 5 is that phase's acceptance criteria, checked in
+addition to this list.
+
+- [ ] Scope: only the sub-phase's items are implemented (`CLAUDE.md` section 7
+      item 1)
+- [ ] Tests written and passing: new code in `stages/` or
+      `backend/app/services/` has tests with hand-checked expectations
+      (`CLAUDE.md` section 7 item 3 and `CLAUDE.md` section 5); every suite
+      passes (`CLAUDE.md` section 7 item 2)
+- [ ] Constraints respected: every Floor row in `CONSTRAINTS.md` passes,
+      including no new lint warnings (`CLAUDE.md` section 7 item 4; checked by
+      command once a ruff config exists); Warn rows are reported to Thach
+- [ ] Verified at runtime where the sub-phase delivers something runnable: a
+      stage via `python -m stages.<name> --run <run_id>`, an endpoint via the
+      running API, not only via tests. Run with a fake `ANTHROPIC_API_KEY` so
+      every AI step takes the degraded path; real tokens are spent only when
+      Thach asks
+- [ ] Contracts: any contract change follows `docs/CONTRACTS.md` section 10
+- [ ] Decision records: from Phase 2 on, an architectural decision worth
+      keeping gets an ADR in `docs/adr/`
+- [ ] Current Status updated: checklist ticked and section 12 rewritten with the
+      file-editing tool (`CLAUDE.md` section 7 item 5; section 6 of this file)
+- [ ] Key decisions explained to Thach in Vietnamese (`CLAUDE.md` section 7
+      item 6)
+- [ ] Commit proposed: exact `git add`, `git commit -m "..."` and `git push`
+      commands given to Thach ("Skill precedence" in `CLAUDE.md`)
+
+Reference items that do not apply in v1: observability beyond basic logging
+(`docs/SKILLS.md` section 4), feature flags (none in this project), and a
+rollback path (only for the Phase 9 deploy, via the Wave 4 skills). "Human
+review before merge" is met because Thach reviews and types every git command.

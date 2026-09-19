@@ -32,6 +32,7 @@ python -m stages.analyze --run <run_id>
 |---|---|
 | `PROJECT_PLAN.md` | Phase-by-phase roadmap and current status |
 | `CLAUDE.md` | Repo rules (architecture, conventions, what not to do) |
+| `CONSTRAINTS.md` | Measurable quality bar: checks, thresholds, exceptions |
 | `docs/SPECS.md` | Functional spec: flows, screens, API, edge cases |
 | `docs/CONTRACTS.md` | JSON schemas passed between stages |
 | `docs/AI_PIPELINE.md` | AI steps, transform catalog, failure handling |

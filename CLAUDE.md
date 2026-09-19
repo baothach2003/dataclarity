@@ -12,8 +12,9 @@ stages 2-5 run on the approved clean data.
 Roadmap and session rules: `PROJECT_PLAN.md` (re-read section 12 every session).
 Functional source of truth: `docs/SPECS.md`. Stage input/output schemas:
 `docs/CONTRACTS.md`. AI internals: `docs/AI_PIPELINE.md`. Frontend must follow
-`docs/FIGMA_DESIGN_NOTES.md`. If this file conflicts with those, stop and
-reconcile with Thach - never silently pick one.
+`docs/FIGMA_DESIGN_NOTES.md`. Measurable quality bar: `CONSTRAINTS.md`. If this
+file conflicts with those, stop and reconcile with Thach - never silently pick
+one.
 
 ## 2. Tech stack (do not deviate without asking)
 
@@ -67,7 +68,7 @@ All schema changes go through Alembic. Never drop/recreate tables.
 
 ```
 dataclarity/
-├── CLAUDE.md  PROJECT_PLAN.md  KICKOFF_PROMPT.md  README.md
+├── CLAUDE.md  PROJECT_PLAN.md  CONSTRAINTS.md  KICKOFF_PROMPT.md  README.md
 ├── docs/       SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
 ├── prompts/    schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md
 ├── contracts/  profile.py  cleaning.py  metrics.py  diagnosis.py  forecast.py
@@ -153,3 +154,17 @@ cd frontend && npm install && npm run dev && npm test
   assume he remembers the convention or will ask for it.
 - One sub-phase per session. Never start the next task without Thach's approval.
 - Never skip, delete or weaken a test to make it pass. tests/test_architecture.py may be created (Phase 0C) or extended to cover new boundaries, but never relaxed to make a build pass.
+
+## Skill usage
+Read `CONSTRAINTS.md` before writing code.
+
+| Moment in the session | Skill |
+|---|---|
+| Session start | context-engineering |
+| Implementing a task | incremental-implementation + test-driven-development |
+| Writing code against a library or SDK | source-driven-development |
+| Stage 3 or stage 4 logic, or any contract change | doubt-driven-development |
+| A test fails, a build breaks, or behaviour is unexpected | debugging-and-error-recovery |
+
+What each installed skill is for, and when each wave is installed:
+`docs/SKILLS.md`.
