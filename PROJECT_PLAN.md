@@ -99,7 +99,9 @@ dataclarity/
 - [ ] 0B `contracts/` package: Pydantic models for all 6 contract files per
       `docs/CONTRACTS.md`, with validation tests
 - [ ] 0C `tests/test_architecture.py`: AST-based test failing on cross-stage
-      imports; run registry helper (`runs/<run_id>/` creation, path resolution)
+      imports, and on any import of `app` or `backend` from `stages/` or
+      `shared/` (backs SPECS SEC-4); run registry helper (`runs/<run_id>/`
+      creation, path resolution)
 - [ ] 0D Frontend skeleton: Vite + React + TS, `/health` call, CORS via env var
 - **DoD:** both apps run; architecture test passes; contracts importable
 
@@ -107,10 +109,13 @@ dataclarity/
 - [ ] 1A Upload endpoint `POST /api/runs` (multipart, `MAX_UPLOAD_MB` cap and
       type validation per SPECS section 11 SEC-1, including the 50MB ceiling
       check at startup), file stored under `runs/<run_id>/raw.csv`, `runs` DB
-      row
+      row. Decide how a binary file renamed to `.csv` is rejected: it can
+      decode as latin-1 and pass SEC-1 today
 - [ ] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
       `profile.json` contract. Unit tests with fixture CSVs
-- [ ] 1C `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
+- [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
+      real-API guard fixture that activates CONSTRAINTS F4, then
+      `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
       client, validated, retry-once, degraded mode. Tests with mocked AI
 - [ ] 1D `stages/ingest/transforms.py`: the full transform catalog
       (`docs/AI_PIPELINE.md` section 6) as pure functions + change log. One test
@@ -166,7 +171,9 @@ dataclarity/
       actions) from all prior contracts. Tests
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
-      (SPECS SEC-3)
+      (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
+      from the uploaded CSV (column names, product/category values): update
+      SPECS first, then 5B and the Phase 6 screens follow it
 - [ ] 5C `POST /api/runs/{id}/report` + download endpoints. Tests
 - [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
       independence)
@@ -174,7 +181,9 @@ dataclarity/
 
 ### Phase 6 - Frontend
 - [ ] Install skills Wave 3 (see docs/SKILLS.md)
-- [ ] 6A Upload page + analyzing states (SPECS 4.1)
+- [ ] 6A Upload page + analyzing states (SPECS 4.1); decide how the
+      client-side size check learns `MAX_UPLOAD_MB` without a second source of
+      truth for the limit
 - [ ] 6B Review screen part 1: column table with editable type / mapping / action
       (AI rationale rendered escaped, SPECS SEC-3)
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
@@ -196,7 +205,9 @@ dataclarity/
       delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary)
 - [ ] 8B Abuse guards: rate limits on uploads (SPECS section 11 abuse guards)
       and on every AI endpoint (SEC-2), each from its own required env var;
-      AI call budget per run; retention
+      the run-state transition for a rate-limited AI step (SEC-2); the
+      trusted-proxy setting that yields the client IP (SEC-2; 9A sets the
+      Render value); AI call budget per run; retention
       cleanup job; startup `ALLOWED_ORIGINS` checks per SEC-5;
       `DATABASE_URL` handled as a secret so it never reaches logs (SEC-4)
 - [ ] 8C Test sweep + coverage review on `stages/` and `backend/app/services/`
@@ -204,7 +215,8 @@ dataclarity/
 
 ### Phase 9 - Deploy and Documentation
 - [ ] Install skills Wave 4 (see docs/SKILLS.md)
-- [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain
+- [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
+      including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
 - [ ] 9C README: problem, architecture diagram, stage contracts, AI design
       decisions, local setup, demo link, screenshots
@@ -265,20 +277,14 @@ with validation tests).
   the checks at task end, Thach before committing. Not installed yet, each
   needing Thach's approval: `pytest-cov` + `diff-cover` (W1/W2; add
   `coverage.xml` to `.gitignore` then), `pip-audit` (W3), a project ruff config
-  (F10). W4 (`npm audit`, from 0D) was added by Claude after the interview as
-  the npm twin of W3: confirm or remove. F4 needs the AI-client guard fixture,
-  and no sub-phase names `shared/ai_client.py` yet; decide in 1C which session
-  builds it.
-- Open items from this session's doubt review, not applied (need Thach): text
-  from the uploaded CSV (column names, product/category values) rendered in
-  `report.html` or the UI should be escaped like AI text (SEC-3 covers AI text
-  only); CORS origins with a trailing slash or Vercel preview domains (9A);
-  the frontend size check needs the limit without a second source of truth
-  (6A); the exact run-state transition for a rate-limited AI step (8B); a
-  binary file renamed to `.csv` can decode as latin-1 and pass SEC-1 (1A);
-  `tests/test_architecture.py` should also fail when `stages/` or `shared/`
-  imports `app` or `backend` (0C, backs SEC-4); the trusted-proxy setting for
-  the client IP in SEC-2 (8B/9A).
+  (F10). W4 (`npm audit`, from 0D) confirmed by Thach on 2026-09-19.
+- The 8 open items from the SPECS UPDATE doubt review now live in their
+  owning sub-phase lines in section 5, so they survive Notes rewrites: 0C
+  (`app`/`backend` imports from `stages/`/`shared/`), 1A (binary renamed to
+  `.csv`), 1C (`shared/ai_client.py` + F4 guard fixture), 5B (extend SEC-3 to
+  CSV-derived text; SPECS first), 6A (size limit without a second source of
+  truth), 8B (rate-limited run-state transition; trusted proxy, value set in
+  9A), 9A (CORS trailing slash, Vercel preview domains).
 - Local root folder is renamed by Thach manually to
   `C:\Users\Happy\Desktop\dataclarity` (Windows cannot rename a folder that
   Claude Code / VS Code / a terminal is using). A venv hardcodes its absolute
