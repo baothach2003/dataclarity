@@ -4,12 +4,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import SecretStr, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Resolved from this file rather than the working directory, so the same `.env`
-# is found whether uvicorn is started from `backend/` or pytest from the repo root.
+# is found whatever directory the server or pytest is started from.
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# The design ceiling from SPECS section 1: synchronous processing is only sized
+# for files up to this. MAX_UPLOAD_MB may lower the limit, never raise it.
+MAX_UPLOAD_MB_CEILING = 50
 
 
 class Settings(BaseSettings):
@@ -33,7 +37,7 @@ class Settings(BaseSettings):
     allowed_origins: Annotated[list[str], NoDecode]
     model_reasoning: str
     model_bulk: str
-    max_upload_mb: int
+    max_upload_mb: Annotated[int, Field(gt=0, le=MAX_UPLOAD_MB_CEILING)]
     runs_dir: Path
     retention_hours: int
 

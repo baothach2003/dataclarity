@@ -132,11 +132,14 @@ analysis logic. Stages may import it. It must contain zero business rules.
 ## 8. Commands
 
 ```bash
-# backend
+# backend: the venv lives in backend/, but the server runs from the REPO ROOT
+# so `app` (via --app-dir backend) and stages/, contracts/, shared/ (via the
+# root on sys.path) are all importable - the same paths pytest.ini sets
 cd backend && python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
-pytest
+cd ..
+python -m uvicorn app.main:app --app-dir backend --reload
+pytest    # from the repo root or from backend/
 
 # run a single stage standalone (proves stage independence)
 python -m stages.analyze --run <run_id>

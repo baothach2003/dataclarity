@@ -111,13 +111,24 @@ dataclarity/
   (met 2026-09-19: "Backend: ok" confirmed by Thach in the browser)
 
 ### Phase 1 - Stage 1 Collect (backend)
-- [ ] 1A Upload endpoint `POST /api/runs` (multipart, `MAX_UPLOAD_MB` cap and
+- [x] 1A Upload endpoint `POST /api/runs` (multipart, `MAX_UPLOAD_MB` cap and
       type validation per SPECS section 11 SEC-1, including the 50MB ceiling
-      check at startup), file stored under `runs/<run_id>/raw.csv`, `runs` DB
-      row. Decide how a binary file renamed to `.csv` is rejected: it can
-      decode as latin-1 and pass SEC-1 today
+      check at startup), file stored under `runs/<run_id>/raw.csv`. A binary
+      file renamed to `.csv` is rejected by a NUL-byte check on the first
+      8 KB (PARSE_FAILED); 0-byte and whitespace-only files are EMPTY_FILE.
+      The `runs` DB row moved to 1A2 (Thach's decision)
+- [ ] 1A2 Database setup and the `runs` row: SQLAlchemy engine/session,
+      Alembic init, the `runs` migration per SPECS section 9 (pulled forward
+      from 7A), `POST /api/runs` writes the row (`status=uploaded`,
+      `expires_at` from `RETENTION_HOURS`), and a DB/filesystem consistency
+      test. Tests use SQLite (Thach's decision; the migration also runs
+      against SQLite in a test); PostgreSQL only for dev/deploy, verified by
+      hand. Needs PostgreSQL installed locally. Decide the write order, so a
+      failed DB insert cannot leave an orphan `raw.csv` (or the reverse)
 - [ ] 1B `stages/ingest/profiling.py`: pure pandas per-column + dataset stats ->
-      `profile.json` contract. Unit tests with fixture CSVs. If 1B adds the
+      `profile.json` contract. Unit tests with fixture CSVs. Rejects a
+      header-only file with EMPTY_FILE (SPECS section 10; 1A only rejects
+      0-byte and whitespace-only files, without parsing). If 1B adds the
       first stage CLI (`__main__.py`), decide how it gets the runs root
       without importing the backend (SEC-4), e.g. a `--runs-dir` argument
 - [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
@@ -138,7 +149,10 @@ dataclarity/
 - [ ] 1F `stages/ingest/cleaning.py`: preview (sample) and execute (full) engines
       -> `cleaned.csv` + `cleaning_report.json`. Tests
 - [ ] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
-      `docs/SPECS.md` section 8. Tests with mocked AI
+      `docs/SPECS.md` section 8. Tests with mocked AI. Decide the code for a
+      malformed request (e.g. no `file` part): FastAPI's default 422
+      `{"detail": [...]}` breaks the section 8 error envelope, and section 10
+      has no code for it
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
@@ -218,7 +232,8 @@ dataclarity/
 - **DoD:** a non-technical user completes upload -> report without instructions
 
 ### Phase 7 - Import and Persistence
-- [ ] 7A Alembic migrations for `products`, `transactions`, `runs`
+- [ ] 7A Alembic migrations for `products`, `transactions` (`runs` is done in
+      1A2)
 - [ ] 7B Import service: approved clean data -> canonical tables, upsert by
       SKU/name, import summary with skipped rows and reasons. Tests
 - [ ] 7C Dashboard endpoints read from DB (not from run files). Tests
@@ -229,6 +244,9 @@ dataclarity/
       delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary)
 - [ ] 8B Abuse guards: rate limits on uploads (SPECS section 11 abuse guards)
       and on every AI endpoint (SEC-2), each from its own required env var;
+      a request-body size limit so an oversized upload is refused before it
+      is fully received (today 1A returns 413 only after python-multipart has
+      spooled the whole body);
       the run-state transition for a rate-limited AI step (SEC-2); the
       trusted-proxy setting that yields the client IP (SEC-2; 9A sets the
       Render value); AI call budget per run; retention
@@ -276,18 +294,36 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 0 closed. 0D closed 2026-09-19 (uncommitted
-until Thach commits). Earlier: 0A (`b790448`), the rename (`4d62960`),
-SKILLS SETUP (`1178c1b`), SPECS UPDATE (`b54dce3`), the owner-assignment fix
-(`582e8a9`), 0B (`6aee173`), 0C (`685e85f`), 0C2 (`26e72c9`). 0D delivered
-`frontend/` (Vite 8, React 19, TypeScript 6 strict, Vitest, ESLint) with a
-`/health` check shown on the page. Thach confirmed "Backend: ok" in the
-browser with both apps running. pytest 165 passed, Vitest 9 passed, 0
-skipped; `tsc -b` 0 errors; ESLint 0 problems; `npm audit` 0 vulnerabilities.
-**Next step:** Phase 1A (upload endpoint). Decide first how uvicorn is
-launched so services can import `stages`/`contracts`/`shared` (see the
-Phase 1 launch note below).
+**Phase in progress:** Phase 1. 1A closed 2026-09-19 (uncommitted until
+Thach commits); the `runs` DB row was split off into 1A2. Earlier: Phase 0
+(0A `b790448` ... 0D `24307c3`). 1A delivered `POST /api/runs`
+(`routers/runs.py` -> `services/uploads.py` -> `shared/run_registry.py`),
+the `{error: {code, message, details?}}` envelope (`app/errors.py`), the
+`MAX_UPLOAD_MB` startup ceiling, the repo-root launch command, and the F10
+widening. pytest 203 passed from the repo root and from `backend/`, Vitest 9,
+0 skipped. Verified at runtime: server started from the repo root with the
+new command; a valid upload stored a byte-identical `raw.csv`, and rejected
+uploads left no run directory (the probe run was deleted afterwards).
+**Next step:** Phase 1A2 (database + `runs` row). Install PostgreSQL locally
+first (not installed on this machine as of 2026-09-19; no Docker per
+CLAUDE.md section 2), and create the database named in `DATABASE_URL`.
 **Notes:**
+- Launch decision (1A): the dev server runs from the REPO ROOT with
+  `python -m uvicorn app.main:app --app-dir backend --reload`, the same two
+  path entries as `pytest.ini` (root + `backend`). Starting it from
+  `backend/` now fails with `No module named 'shared'`, which is intended.
+  CLAUDE.md section 8 and README updated. pytest still works from both.
+- 1A upload rules: checks run type -> size -> empty -> binary. The type check
+  creates no run; any later rejection deletes the run directory. The file is
+  copied in 64 KB chunks with a running byte count, never read whole.
+  Limitation: FastAPI/python-multipart has already spooled the whole body
+  before the handler runs, so an oversized upload is still received in full
+  (to a temp file) before the 413; a request-size limit at the server or proxy
+  belongs to 8B abuse guards.
+- 1A decisions (Thach): endpoint first, DB in 1A2; SQLite for tests;
+  header-only files rejected in 1B; NUL-byte check for binary files in 1A.
+  Messages are English UI copy in `services/uploads.py`.
+- F10 now also covers `npm run lint` in `frontend/` (approved by Thach).
 - 0D frontend setup: one `.env` at the repo root for both apps. Vite reads it
   through `envDir: '..'`, and only `VITE_*` variables reach the browser.
   `VITE_API_BASE_URL` is in `.env.example` and must be in every local `.env`
@@ -421,10 +457,6 @@ Phase 1 launch note below).
   the suite never reads the real `.env` or API key.
 - Not created on purpose: `runs/` (created on the first run through
   `shared/run_registry.py`; gitignored).
-- For Phase 1: when uvicorn
-  runs from `backend/`, the repo root is not on `sys.path`, so services cannot
-  import `stages`/`contracts` yet - decide how to launch (e.g. from root with
-  `--app-dir backend`) before 1A.
 - pytest shows 1 DeprecationWarning from `starlette/testclient.py` (anyio
   renamed `BlockingPortal`). Third-party, not our code; ignore until starlette
   updates. Do not count it as a new lint warning.

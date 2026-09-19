@@ -43,13 +43,15 @@ python -m stages.analyze --run <run_id>
 One `.env` at the repo root serves both apps: copy `.env.example` to `.env` and
 fill in the values. The frontend reads only the `VITE_*` variables from it.
 
-Backend (http://localhost:8000):
+Backend (http://localhost:8000). The server runs from the repo root, so the
+backend can import the shared `stages/`, `contracts/` and `shared/` packages:
 
 ```bash
 cd backend
 python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
-uvicorn app.main:app --reload
+cd ..
+python -m uvicorn app.main:app --app-dir backend --reload
 ```
 
 Frontend (http://localhost:5173, must match `ALLOWED_ORIGINS`):
