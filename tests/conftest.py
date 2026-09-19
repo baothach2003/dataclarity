@@ -9,7 +9,9 @@ import pytest
 # a developer's real API key is never picked up by the test suite.
 TEST_ENV = {
     "ANTHROPIC_API_KEY": "test-key-not-real",
-    "DATABASE_URL": "postgresql://test:test@localhost:5432/dataclarity_test",
+    # Never a network database: a test that forgets to inject its own engine
+    # fails on missing tables instead of reaching a real server.
+    "DATABASE_URL": "sqlite://",
     "ALLOWED_ORIGINS": "http://localhost:5173",
     "MODEL_REASONING": "test-model-reasoning",
     "MODEL_BULK": "test-model-bulk",

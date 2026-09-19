@@ -1,6 +1,7 @@
 """Stage 1 entry: validate an uploaded file and store it as `runs/<id>/raw.csv`
 (SPECS sections 8, 10 and 11 SEC-1)."""
 
+import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path, PurePath
@@ -23,6 +24,7 @@ class StoredUpload:
     run_id: str
     filename: str
     size_bytes: int
+    path: Path  # the run directory holding raw.csv
 
 
 def max_upload_bytes(max_upload_mb: int) -> int:
@@ -49,7 +51,9 @@ def store_upload(
         # a leftover directory is removed by the retention cleanup (8B).
         shutil.rmtree(run.path, ignore_errors=True)
         raise
-    return StoredUpload(run_id=run.run_id, filename=filename, size_bytes=size_bytes)
+    return StoredUpload(
+        run_id=run.run_id, filename=filename, size_bytes=size_bytes, path=run.path
+    )
 
 
 def _copy_checked(stream: BinaryIO, target: Path, max_bytes: int) -> int:
@@ -72,6 +76,9 @@ def _copy_checked(stream: BinaryIO, target: Path, max_bytes: int) -> int:
             if len(head) < _HEAD_BYTES:
                 head += chunk[: _HEAD_BYTES - len(head)]
             out.write(chunk)
+        # On disk before the caller commits a row that points at this file.
+        out.flush()
+        os.fsync(out.fileno())
 
     if not has_content:
         raise ApiError("EMPTY_FILE", "The file is empty.")

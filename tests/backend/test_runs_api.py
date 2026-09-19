@@ -1,11 +1,17 @@
+from collections.abc import Iterator
+from datetime import timedelta
 from pathlib import Path
 
-import pytest
 import httpx
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import Engine, create_engine, select
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 from app.config import Settings
 from app.main import create_app
+from app.models import Base, Run, RunStatus
 
 ONE_MB = 1_048_576  # SEC-1
 
@@ -16,13 +22,29 @@ def runs_root(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def client(runs_root: Path) -> TestClient:
+def engine() -> Iterator[Engine]:
+    # One shared in-memory database; the endpoint runs in a worker thread.
+    engine = create_engine(
+        "sqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    Base.metadata.create_all(engine)
+    yield engine
+    engine.dispose()
+
+
+@pytest.fixture
+def client(runs_root: Path, engine: Engine) -> TestClient:
     # max_upload_mb=1 keeps the SEC-1 boundary tests at 1 MB instead of 50 MB;
     # the MB-to-bytes rule is the same.
     settings = Settings(  # type: ignore[call-arg]  # remaining fields come from env
         _env_file=None, runs_dir=str(runs_root), max_upload_mb=1
     )
-    return TestClient(create_app(settings))
+    return TestClient(create_app(settings, engine=engine))
+
+
+def all_runs(engine: Engine) -> list[Run]:
+    with Session(engine) as session:
+        return list(session.scalars(select(Run)))
 
 
 def post_file(client: TestClient, content: bytes, filename: str = "sales.csv",
@@ -104,3 +126,37 @@ def test_binary_file_renamed_to_csv_is_rejected(client: TestClient) -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "PARSE_FAILED"
+
+
+def test_response_row_and_file_agree(client: TestClient, engine: Engine,
+                                     runs_root: Path) -> None:
+    content = b"sku,qty\nA1,3\n"  # 13 bytes
+
+    body = post_file(client, content).json()
+
+    [row] = all_runs(engine)
+    raw = runs_root / row.id / "raw.csv"
+    assert row.id == body["run_id"]
+    assert row.filename == body["filename"] == "sales.csv"
+    assert row.size_bytes == body["size_bytes"] == raw.stat().st_size == 13
+    assert row.status is RunStatus.UPLOADED
+    assert row.status.value == body["status"]
+    assert row.expires_at - row.created_at == timedelta(hours=24)  # RETENTION_HOURS
+
+
+@pytest.mark.parametrize(
+    ("content", "filename"),
+    [
+        (b"", "sales.csv"),
+        (b"sku,qty\nA1,3\n", "sales.xlsx"),
+        (b"x" * (ONE_MB + 1), "sales.csv"),
+    ],
+    ids=["empty", "wrong-type", "too-large"],
+)
+def test_rejected_upload_leaves_no_row_and_no_directory(
+    client: TestClient, engine: Engine, runs_root: Path, content: bytes, filename: str
+) -> None:
+    assert post_file(client, content, filename=filename).status_code in {400, 413}
+
+    assert all_runs(engine) == []
+    assert not runs_root.exists() or list(runs_root.iterdir()) == []

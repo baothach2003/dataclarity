@@ -117,7 +117,7 @@ dataclarity/
       file renamed to `.csv` is rejected by a NUL-byte check on the first
       8 KB (PARSE_FAILED); 0-byte and whitespace-only files are EMPTY_FILE.
       The `runs` DB row moved to 1A2 (Thach's decision)
-- [ ] 1A2 Database setup and the `runs` row: SQLAlchemy engine/session,
+- [x] 1A2 Database setup and the `runs` row: SQLAlchemy engine/session,
       Alembic init, the `runs` migration per SPECS section 9 (pulled forward
       from 7A), `POST /api/runs` writes the row (`status=uploaded`,
       `expires_at` from `RETENTION_HOURS`), and a DB/filesystem consistency
@@ -152,7 +152,9 @@ dataclarity/
       `docs/SPECS.md` section 8. Tests with mocked AI. Decide the code for a
       malformed request (e.g. no `file` part): FastAPI's default 422
       `{"detail": [...]}` breaks the section 8 error envelope, and section 10
-      has no code for it
+      has no code for it. The same holds for an unexpected server error (e.g.
+      the database is down during `POST /api/runs`): today it is FastAPI's
+      plain 500, outside the envelope
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
@@ -246,7 +248,9 @@ dataclarity/
       and on every AI endpoint (SEC-2), each from its own required env var;
       a request-body size limit so an oversized upload is refused before it
       is fully received (today 1A returns 413 only after python-multipart has
-      spooled the whole body);
+      spooled the whole body); the retention cleanup also deletes run
+      directories that have no `runs` row (left by a commit with an unknown
+      outcome, see 1A2);
       the run-state transition for a rate-limited AI step (SEC-2); the
       trusted-proxy setting that yields the client IP (SEC-2; 9A sets the
       Render value); AI call budget per run; retention
@@ -294,20 +298,42 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1A closed 2026-09-19 (uncommitted until
-Thach commits); the `runs` DB row was split off into 1A2. Earlier: Phase 0
-(0A `b790448` ... 0D `24307c3`). 1A delivered `POST /api/runs`
-(`routers/runs.py` -> `services/uploads.py` -> `shared/run_registry.py`),
-the `{error: {code, message, details?}}` envelope (`app/errors.py`), the
-`MAX_UPLOAD_MB` startup ceiling, the repo-root launch command, and the F10
-widening. pytest 203 passed from the repo root and from `backend/`, Vitest 9,
-0 skipped. Verified at runtime: server started from the repo root with the
-new command; a valid upload stored a byte-identical `raw.csv`, and rejected
-uploads left no run directory (the probe run was deleted afterwards).
-**Next step:** Phase 1A2 (database + `runs` row). Install PostgreSQL locally
-first (not installed on this machine as of 2026-09-19; no Docker per
-CLAUDE.md section 2), and create the database named in `DATABASE_URL`.
+**Phase in progress:** Phase 1. 1A2 closed 2026-09-19 (uncommitted until
+Thach commits, after his manual PostgreSQL check). Earlier: Phase 0 (0A
+`b790448` ... 0D `24307c3`), 1A (`83eccbf`). 1A2 delivered the SQLAlchemy
+`Run` model (`app/models/`), `app/db.py`, Alembic (`backend/alembic.ini`,
+`backend/alembic/`, revision `2a9492d9af49` creating `runs`), and
+`services/runs.py`, which `POST /api/runs` now uses to write the row. pytest
+226 passed from the repo root and from `backend/`, 0 skipped.
+**Next step:** Phase 1B (`stages/ingest/profiling.py` -> `profile.json`).
 **Notes:**
+- 1A2 schema: `runs` has exactly the 7 SPECS section 9 columns, with no JSON
+  columns (contract files live on disk). Types behave the same on SQLite and
+  PostgreSQL: `id` is `String(36)` (the canonical UUID string, not a native
+  UUID); `status` is an enum of the SPECS section 3 states stored as VARCHAR
+  + CHECK `ck_runs_run_status` (`create_constraint=True` explicitly: its
+  default is False in SQLAlchemy 2.0); timestamps use `UtcDateTime` (naive
+  UTC stored, aware UTC returned; the TZDateTime pattern from the SQLAlchemy
+  docs), because SQLite keeps no timezone.
+- 1A2 consistency rule: a `runs` row exists only if its `raw.csv` is complete
+  on disk. Order: file (fsynced) -> flush -> commit. A flush failure means
+  nothing was committed, so the directory is deleted. A commit failure has an
+  unknown outcome, so the directory is kept; a directory without a row is
+  garbage for the 8B retention cleanup. Both branches are tested.
+- Alembic: run it from the repo root with
+  `backend\venv\Scripts\alembic -c backend\alembic.ini <command>`. `env.py`
+  reads `DATABASE_URL` through `Settings` (no URL in `alembic.ini`), or uses
+  a connection passed by tests. `render_as_batch=True` because tests migrate
+  SQLite. Migrations never import the models (the first one uses
+  `sa.DateTime()` where the model has `UtcDateTime`). Tests: upgrade, no
+  drift against the models (`compare_metadata`), the CHECK constraint name
+  (autogenerate does not compare CHECKs), and downgrade.
+- Tests never touch a real database: `tests/conftest.py` sets
+  `DATABASE_URL=sqlite://`, and `create_app(settings, engine=...)` takes an
+  injected in-memory engine.
+- Manual PostgreSQL check for 1A2 (Thach): `alembic upgrade head`, `current`
+  and `check`, then one upload through the running server whose `runs` row
+  matches `runs/<id>/raw.csv`.
 - Launch decision (1A): the dev server runs from the REPO ROOT with
   `python -m uvicorn app.main:app --app-dir backend --reload`, the same two
   path entries as `pytest.ini` (root + `backend`). Starting it from
