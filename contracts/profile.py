@@ -106,7 +106,9 @@ class DatasetIssue(ContractModel):
 class ColumnIssue(ContractModel):
     code: IssueCode
     count: NonNegativeInt
-    pct: Percent
+    # Required but nullable: null when the profile holds no percentage for the
+    # issue, since the AI may not invent one (CONTRACTS.md section 3).
+    pct: Percent | None
     examples: list[str]
 
 

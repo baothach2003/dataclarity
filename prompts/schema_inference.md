@@ -8,6 +8,11 @@ do not transform data and you do not compute new numbers.
 
 STRICT RULES
 - Use only figures present in the profile. Never invent counts or percentages.
+- Give "pct" only for "missing_values" and "all_null_column", copied from the
+  column's null_pct. For every other issue code the profile holds no
+  percentage: use null.
+- Copy each "source_name" exactly as it appears in the profile, including any
+  spaces or capitals.
 - If unsure about a column, lower "confidence" instead of guessing.
 - Map at most one column to each canonical field. Unmappable columns -> "ignore".
 - If the dataset does not look like inventory/sales data, set "domain_confidence"
@@ -29,6 +34,9 @@ DATASET PROFILE (JSON)
 {profile_json}
 
 SAMPLE ROWS (up to 30, stratified to include problematic rows)
+An object with "columns" (the column names, in order) and "rows"; each row has
+its 1-based "row" number in the file and "values" positionally matching
+"columns". Long values are cut and marked "…[truncated]".
 {sample_rows}
 
 OUTPUT SCHEMA

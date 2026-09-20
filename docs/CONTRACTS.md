@@ -97,7 +97,9 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
 ```
 Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
 column appears exactly once; at most one column per canonical field except
-`ignore`; confidence in [0,1].
+`ignore`; confidence in [0,1]. An issue's `pct` is a number in [0,100] or
+`null` when the profile holds no percentage for that issue (the AI never
+invents one); the key is always present.
 
 ## 4. `plan_proposed.json` and `plan_final.json` (stage 1 steps C and D)
 
@@ -316,3 +318,6 @@ the report defensible.
   `1.0`, without a bump, because no stage and no contract file existed yet
   (Phase 0B). From the first contract file a stage writes onward, every
   change follows the rules above.
+- 2026-09-19: section 3's issue `pct` became nullable in place at `1.0` (1C),
+  because no `schema_inference.json` had been written yet; the prompt already
+  allowed `null`, and the AI must not invent a percentage.

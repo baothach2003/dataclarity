@@ -48,6 +48,18 @@ class Settings(BaseSettings):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
 
+    @field_validator("anthropic_api_key")
+    @classmethod
+    def key_is_not_empty(cls, value: SecretStr) -> SecretStr:
+        # "Required" alone lets ANTHROPIC_API_KEY= through; the SDK then crashes
+        # while building a request instead of taking the degraded path.
+        key = value.get_secret_value().strip()
+        if not key:
+            raise ValueError("must not be empty")
+        # Stored trimmed: a quoted .env value or a trailing newline would
+        # otherwise reach the API as part of the key and come back as a 401.
+        return SecretStr(key)
+
     @field_validator("runs_dir")
     @classmethod
     def anchor_runs_dir(cls, value: Path) -> Path:

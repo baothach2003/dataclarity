@@ -7,8 +7,6 @@ text: sample and top values show exactly what is in the file ("0012",
 
 import csv
 import io
-import os
-import tempfile
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +22,7 @@ from contracts.profile import (
     TopValue,
 )
 from shared.run_registry import run_file
+from stages.ingest.contract_files import write_contract
 
 # pandas 3.0 read_csv defaults, listed here so the definition of "missing" is
 # ours and cannot drift with a pandas upgrade (decided by Thach in 1B).
@@ -215,20 +214,5 @@ def profile_csv(raw: bytes, now: datetime | None = None) -> ProfileContract:
 def profile_run(runs_root: Path, run_id: str, now: datetime | None = None) -> ProfileContract:
     """Profile runs/<run_id>/raw.csv and write runs/<run_id>/profile.json."""
     profile = profile_csv(run_file(runs_root, run_id, RAW_FILENAME).read_bytes(), now)
-    _write_atomically(
-        run_file(runs_root, run_id, PROFILE_FILENAME), profile.model_dump_json(indent=2)
-    )
+    write_contract(run_file(runs_root, run_id, PROFILE_FILENAME), profile)
     return profile
-
-
-def _write_atomically(target: Path, text: str) -> None:
-    # A temp file in the same directory, then os.replace: a later stage reads
-    # either the previous profile.json or the complete new one, never half.
-    handle, temp_name = tempfile.mkstemp(dir=target.parent, prefix=".profile-", suffix=".tmp")
-    try:
-        with os.fdopen(handle, "w", encoding="utf-8") as out:
-            out.write(text)
-        os.replace(temp_name, target)
-    except BaseException:
-        Path(temp_name).unlink(missing_ok=True)
-        raise

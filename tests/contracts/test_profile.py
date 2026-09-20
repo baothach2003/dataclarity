@@ -255,3 +255,30 @@ def test_inference_rejects_duplicate_source_name() -> None:
 
     with pytest.raises(ValidationError, match="Qty"):
         SchemaInferenceContract.model_validate(payload)
+
+
+def test_inference_accepts_an_issue_without_a_percentage() -> None:
+    # CONTRACTS section 3: pct is null when the profile has no figure for the
+    # issue (e.g. inconsistent_case); the AI must not invent one.
+    payload = inference_payload()
+    payload["columns"][0]["issues"][0]["pct"] = None
+
+    inference = SchemaInferenceContract.model_validate(payload)
+
+    assert inference.columns[0].issues[0].pct is None
+
+
+def test_inference_still_requires_the_pct_key() -> None:
+    payload = inference_payload()
+    del payload["columns"][0]["issues"][0]["pct"]
+
+    with pytest.raises(ValidationError, match="pct"):
+        SchemaInferenceContract.model_validate(payload)
+
+
+def test_inference_still_rejects_a_pct_above_100() -> None:
+    payload = inference_payload()
+    payload["columns"][0]["issues"][0]["pct"] = 150.0
+
+    with pytest.raises(ValidationError, match="pct"):
+        SchemaInferenceContract.model_validate(payload)

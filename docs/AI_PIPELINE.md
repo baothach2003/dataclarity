@@ -7,7 +7,13 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 
 1. **Bounded input.** The AI never sees a full file. Stage 1 sends the truncated
    profile (max 60 columns, 10 top values each) plus max 30 stratified sample
-   rows. Stages 3 and 4 send only computed JSON contracts, never raw rows.
+   rows. Schema inference sends 25 columns, because an answer for more does
+   not fit in 3000 output tokens; the stage marks the rest "not inferred"
+   (confidence 0) for the user to map. Every value sent (top values, sample
+   values, sample-row cells) is cut to 100 characters, so the size is bounded
+   as well as the count; column names are never cut (1C doubt review,
+   decided by Thach). Stages 3 and 4 send only computed JSON contracts, never
+   raw rows.
 2. **Whitelisted output.** Cleaning actions must exist in the catalog (section 6).
    Anything else fails validation and is rejected whole.
 3. **No AI arithmetic.** The AI never produces a number that appears in the
@@ -26,8 +32,14 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 | 3 | diagnose | root cause | `prompts/root_cause.md` | `claude-sonnet-5` | metrics + decomposition | `diagnosis.ai_findings` |
 | 4 | predict | strategy | `prompts/strategy.md` | `claude-sonnet-5` | metrics + diagnosis + forecast | `forecast.recommendations` |
 
-Shared retry budget: 1 per run. Temperature 0. Max tokens 3000 per call. JSON
-only; the client strips markdown fences defensively.
+Shared retry budget: 1 per run. Max tokens 3000 per call. JSON only; the
+client strips markdown fences defensively. No sampling parameters:
+`claude-sonnet-5` rejects `temperature` with a 400 (1C, 2026-09-19; this line
+said "Temperature 0" before). Thinking is disabled (`thinking: {type:
+"disabled"}`, accepted by Sonnet 5, which otherwise thinks by default), so the
+3000 tokens and the 30 s timeout hold for the JSON answer itself. The SDK's
+own retries are off (`max_retries=0`): every retry is the client's, counted
+against the run budget.
 
 `claude-haiku-4-5` is reserved for future cheap bulk tasks (e.g. suggesting
 category labels row-group by row-group); not used in v1.
@@ -35,7 +47,11 @@ category labels row-group by row-group); not used in v1.
 ## 3. AI client (`shared/ai_client.py`)
 
 Single entry point: `call_structured(prompt_name, variables, response_model,
-model, max_tokens) -> response_model`.
+model, max_tokens, retry_budget, validate=None)` returning the validated
+`response_model` plus the model that answered. The caller passes the API key
+(`AIClient.from_api_key`), the model id and the run's `RetryBudget`, because
+`shared/` may not read the backend's settings (SPECS SEC-4). `validate` is the
+stage's own check; a `ValueError` from it uses the retry like a schema error.
 
 Responsibilities, in order:
 1. Load the prompt template from `prompts/` and substitute `{placeholders}`
@@ -46,6 +62,15 @@ Responsibilities, in order:
 5. On second failure: raise `AIUnavailable`, which callers translate into the
    degraded path
 6. Log model, token counts, latency, and outcome - never log the sample data
+
+`AIUnavailable.reason` is a fixed code: `timeout`, `network`, `auth`,
+`rate_limited`, `api_error`, `invalid_response` (invalid twice, or once with
+the budget spent), `truncated` (`stop_reason` `max_tokens`) or `refused`.
+Truncated and refused answers are not retried: the same input would fail the
+same way. API failures do not spend the retry. The reason is logged and
+carried by the exception only, never written to a contract file (1C, Thach).
+Structured outputs (`output_config.format`) are a candidate later
+improvement, to be verified with a real call first.
 
 The client contains zero business rules. Stage-specific validation (catalog
 whitelist, legality, column coverage) lives in the stage packages.

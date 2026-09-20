@@ -301,6 +301,27 @@ before building; never invent layout or tokens.
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
 
+### 2026-09-19 - AI call policy and issue pct (Phase 1C)
+- What: `docs/AI_PIPELINE.md` section 2 drops "Temperature 0" (rejected by
+  `claude-sonnet-5`), disables thinking, and turns the SDK's own retries off;
+  section 3 documents the `call_structured` signature, the `validate`
+  callback and the `AIUnavailable` reason codes. `docs/CONTRACTS.md` section 3
+  makes an issue's `pct` nullable, in place at `1.0` (section 10 note).
+- Why: the documented call would fail with a 400 on the configured model;
+  thinking would share the 3000-token budget and the 30 s timeout with the
+  JSON answer; the prompt already allowed a null `pct` that the contract
+  rejected. Decided by Thach in the 1C session.
+  `prompts/schema_inference.md` gained the rules the code enforces: a `pct`
+  only for `missing_values` and `all_null_column`, source names copied
+  exactly, and the shape of the sample rows. AI_PIPELINE section 1 records
+  the 25-column and 100-character bounds for this step.
+- Files: `docs/AI_PIPELINE.md`, `docs/CONTRACTS.md`, `docs/SPECS.md`,
+  `contracts/profile.py`, `prompts/schema_inference.md`, `PROJECT_PLAN.md`.
+- Unchanged on purpose: the 4-call / 1-retry budget, max tokens 3000, the
+  30 s timeout, and `schema_version` `1.0`. AI_PIPELINE section 4 asks for a
+  golden-path re-run after a template change; that test arrives in Phase 5,
+  so the change is covered by the mocked tests only.
+
 ### 2026-09-19 - Degraded AI in stages 3-4 (Phase 0B)
 - What: `docs/CONTRACTS.md` sections 7 and 8 now say how `diagnosis.json` and
   `forecast.json` represent an unavailable AI step (the AI blocks are

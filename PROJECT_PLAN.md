@@ -130,19 +130,23 @@ dataclarity/
       header-only file with EMPTY_FILE (SPECS section 10; 1A only rejects
       0-byte and whitespace-only files, without parsing). No stage CLI was
       added in 1B; the runs-root question moved to 5D
-- [ ] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
+- [x] 1C `shared/ai_client.py` (`docs/AI_PIPELINE.md` section 3) with the
       real-API guard fixture that activates CONSTRAINTS F4, then
-      `stages/ingest/ai_schema.py`: AI stage A (schema inference) via the AI
-      client, validated, retry-once, degraded mode. Checks that every
-      profiled column appears exactly once (CONTRACTS section 3; the model
-      checks only the in-file half). `AIUnavailable` carries the reason
-      (timeout, network, invalid twice, auth) and the client logs it
-      (AI_PIPELINE section 9 item 5); decide whether degraded contract files
-      also record it (an optional field is a minor bump, CONTRACTS section
-      10). Tests with mocked AI
+      `stages/ingest/ai_input.py` + `ai_schema.py`: AI stage A (schema
+      inference) via the AI client, validated, retry-once, degraded mode.
+      Checks that every profiled column appears exactly once (CONTRACTS
+      section 3). `AIUnavailable` carries a reason code and the client logs
+      it; the reason is not written to a contract file (Thach's decision:
+      stage 1 degraded writes no file at all)
 - [ ] 1D `stages/ingest/transforms.py`: the full transform catalog
       (`docs/AI_PIPELINE.md` section 6) as pure functions + change log. One test
-      per transform including edge cases
+      per transform including edge cases. Also count, in pandas, the issue
+      codes the profile holds no figure for (negative_values, zero_values,
+      trailing_whitespace, invalid_dates, outliers_iqr, ...), so
+      `ai_schema.py` can replace the AI's estimate with the computed count
+      (1C checks only missing_values, duplicate_rows and all_null_column), and
+      consider sample-row kinds 1C does not pick yet (text in a mostly numeric
+      column, whitespace, bad dates)
 - [ ] 1E `stages/ingest/ai_plan.py`: AI stage B (cleaning plan) + catalog/legality
       validation. Tests with mocked AI
 - [ ] 1F `stages/ingest/cleaning.py`: preview (sample) and execute (full) engines
@@ -158,7 +162,13 @@ dataclarity/
       the database is down during `POST /api/runs`): today it is FastAPI's
       plain 500, outside the envelope. Map `stages.ingest.profiling`
       errors by their `.code` (`EmptyCsvError` -> EMPTY_FILE, `CsvParseError`
-      -> PARSE_FAILED, both 400) when the profile step is wired to an endpoint
+      -> PARSE_FAILED, both 400) when the profile step is wired to an endpoint.
+      Wire schema inference: build the client with
+      `AIClient.from_api_key(settings.anthropic_api_key...)` and pass
+      `settings.model_reasoning`; map `AIUnavailable` to AI_UNAVAILABLE (200 +
+      flag, its `reason` code in `details`); send `domain_confidence < 0.5` to
+      the NOT_INVENTORY path (AI_PIPELINE 9.4); keep the run's `RetryBudget`
+      across the schema and plan steps (it spans the run, not one request)
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
@@ -251,7 +261,9 @@ dataclarity/
 - [ ] 8A Edge cases from SPECS section 10 (empty, header-only, non-UTF8, wrong
       delimiter, all-null column, non-inventory data, `MAX_UPLOAD_MB` boundary);
       duplicate header names (pandas renames the second `a` to `a.1`, so the
-      review screen would show a name that is not in the file)
+      review screen would show a name that is not in the file); a pathological
+      header (e.g. a 1 MB column name), which 1C cannot cut because the AI's
+      answer must repeat names exactly
 - [ ] 8B Abuse guards: rate limits on uploads (SPECS section 11 abuse guards)
       and on every AI endpoint (SEC-2), each from its own required env var;
       a request-body size limit so an oversized upload is refused before it
@@ -306,15 +318,59 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1B closed 2026-09-19 (uncommitted until
+**Phase in progress:** Phase 1. 1C closed 2026-09-20 (uncommitted until
 Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
-(`83eccbf`), 1A2 (`ee5d7c9`, PostgreSQL check passed). 1B delivered
-`stages/ingest/profiling.py` (`read_csv_text`, `profile_column`,
-`profile_csv`, `profile_run`) and 55 tests in `tests/stages/ingest/`.
-pytest 281 passed from the repo root and from `backend/`, 0 skipped.
-**Next step:** Phase 1C (`shared/ai_client.py` + F4 guard fixture, then
-`stages/ingest/ai_schema.py`).
+(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`). 1C delivered
+`shared/ai_client.py`, `stages/ingest/ai_input.py` + `ai_schema.py`,
+`stages/ingest/contract_files.py` (atomic writer shared with 1B), the F4
+network guard in `tests/conftest.py`, and 91 tests. pytest 372 passed from
+the repo root and from `backend/`, 0 skipped.
+**Next step:** Phase 1D (`stages/ingest/transforms.py`; see its line, which
+now also owns the pandas-computed issue counts).
 **Notes:**
+- 1C call policy (`docs/AI_PIPELINE.md` sections 1-3 updated): no sampling
+  parameters, because `claude-sonnet-5` rejects `temperature` with a 400;
+  thinking disabled, so the 3000 tokens and 30 s cover the JSON answer; the
+  SDK's own retries off, so every retry is counted against the run budget.
+  The caller passes the API key, the model id and the run's `RetryBudget`
+  (`shared/` may not read settings, SEC-4). Structured outputs
+  (`output_config.format`) are a later candidate, to be checked with a real
+  call first.
+- 1C degraded mode: `AIUnavailable.reason` is one of timeout, network, auth,
+  rate_limited, api_error, invalid_response, truncated, refused. Truncated
+  and refused answers are not retried; API failures do not spend the retry.
+  The reason is logged and carried by the exception, never written to a
+  contract (Thach). A degraded run writes no `schema_inference.json` and
+  deletes an earlier one, so no later step reads a valid-looking file; other
+  errors (a broken template) leave it alone.
+- 1C bounded input: 25 columns (not 60: more does not fit in 3000 output
+  tokens), 30 stratified sample rows, every value cut to 100 characters
+  including the mark. Sample rows go as a header plus positional value
+  lists, so 25 names are not repeated 30 times. Column names are never cut,
+  because the answer must repeat them exactly; a pathological header belongs
+  to 8A.
+- 1C answer checks (all use the single retry): every sent column exactly
+  once, one canonical field per column, column issue counts within the rows
+  and dataset counts within the cells, and the figures the profile holds
+  (`missing_values` vs `null_count`/`null_pct` with a 0.1 tolerance,
+  `duplicate_rows`, `all_null_column`) must match. Any other code must have
+  `pct: null`. The AI's names are matched back to the file's exact names
+  when trimming and case-folding leaves one candidate. Answers are validated
+  strictly (`true` is not 1.0), and unknown extra keys are ignored on
+  purpose, since they are dropped rather than stored.
+- 1C review: three doubt-driven cycles (the skill's limit), each with a
+  fresh-context reviewer; cross-model skipped by Thach each time. Cycle 1
+  found the unbounded value size and the unchecked figures; cycle 2 the
+  dataset counts measured in cells and the stale-profile hole; cycle 3 a
+  real bug in cycle 2's own fix (an `elif` chain skipped the `pct` rule for
+  `all_null_column`). Everything actionable is fixed with tests. Accepted
+  trade-offs: issue `examples` have no length cap, and the dataset figures
+  cover the whole file while only 25 columns are described (the profile the
+  AI sees now says how many).
+- CONSTRAINTS F4 is active: `tests/conftest.py` blocks the real httpx2/httpx
+  transports and records every attempt, so a call the SDK or our client
+  swallows still fails the test at teardown. Verified with a probe that
+  caught the error and still failed.
 - 1B decisions (Thach): missing = the 19 pandas 3.0 default NA tokens, listed
   explicitly in `NA_TOKENS` (so "NA" counts as missing, even when it means
   Namibia); `sample_values` = up to 5 values per column from evenly spaced

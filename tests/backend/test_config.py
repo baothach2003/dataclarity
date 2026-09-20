@@ -51,3 +51,17 @@ def test_max_upload_mb_accepts_the_edges_of_the_range(value: int) -> None:
     settings = Settings(_env_file=None, max_upload_mb=value)  # type: ignore[call-arg]  # remaining fields come from env
 
     assert settings.max_upload_mb == value
+
+
+@pytest.mark.parametrize("key", ["", "   "])
+def test_an_empty_anthropic_api_key_stops_startup(key: str) -> None:
+    # An empty key would crash the SDK while building the request instead of
+    # taking the degraded path; refuse it where every other setting is checked.
+    with pytest.raises(ValidationError, match="anthropic_api_key"):
+        Settings(_env_file=None, anthropic_api_key=key)  # type: ignore[call-arg]  # remaining fields come from env
+
+
+def test_the_api_key_is_stored_without_surrounding_whitespace() -> None:
+    settings = Settings(_env_file=None, anthropic_api_key="  sk-ant-test\n")  # type: ignore[call-arg]  # remaining fields come from env
+
+    assert settings.anthropic_api_key.get_secret_value() == "sk-ant-test"
