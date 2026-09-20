@@ -241,7 +241,9 @@ dataclarity/
       client-side size check learns `MAX_UPLOAD_MB` without a second source of
       truth for the limit
 - [ ] 6B Review screen part 1: column table with editable type / mapping / action
-      (AI rationale rendered escaped, SPECS SEC-3)
+      (AI rationale rendered escaped, SPECS SEC-3). Issue examples are AI text
+      of unknown shape (a real call returned the string "null"): render them
+      as given, escaped, without assuming they are row references
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
 - [ ] 6D Results page: cleaning summary + downloads
 - [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
@@ -367,6 +369,19 @@ now also owns the pandas-computed issue counts).
   trade-offs: issue `examples` have no length cap, and the dataset figures
   cover the whole file while only 25 columns are described (the profile the
   AI sees now says how many).
+- Why call 1 was rejected in that check: the model put cell values in issue
+  `examples` and wrote a real `null` there, which `list[str]` refuses (the
+  schema layer in `shared/ai_client.py`, five times). The retry turned it into
+  the string "null" and passed. `prompts/schema_inference.md` now says
+  `examples` are row references ("row 4"), never a value and never null, so
+  that the run's single shared retry is not spent on formatting.
+- 1C verified against the real API once (2026-09-20, Thach ran a throwaway
+  script on a 12-row messy CSV, about 3 cents): call 1 was rejected, the
+  retry corrected itself and passed both the schema and the stage checks, and
+  the model obeyed the new `pct` rule. It distinguished `duplicate_rows` from
+  `duplicate_business_key` and found `mixed_date_formats` and
+  `near_duplicate_labels` in the planted dirt. Everything else in the suite
+  is mocked; this was the only real call.
 - CONSTRAINTS F4 is active: `tests/conftest.py` blocks the real httpx2/httpx
   transports and records every attempt, so a call the SDK or our client
   swallows still fails the test at teardown. Verified with a probe that

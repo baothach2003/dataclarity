@@ -13,6 +13,8 @@ STRICT RULES
   percentage: use null.
 - Copy each "source_name" exactly as it appears in the profile, including any
   spaces or capitals.
+- "examples" are row references from the sample rows, as strings: ["row 4",
+  "row 11"]. Never a cell value, and never JSON null.
 - If unsure about a column, lower "confidence" instead of guessing.
 - Map at most one column to each canonical field. Unmappable columns -> "ignore".
 - If the dataset does not look like inventory/sales data, set "domain_confidence"
@@ -50,7 +52,7 @@ OUTPUT SCHEMA
       "semantic_type": "...",
       "canonical_field": "...",
       "confidence": <float 0..1>,
-      "issues": [{"code": "...", "count": <int>, "pct": <float|null>, "examples": ["..."]}]
+      "issues": [{"code": "...", "count": <int>, "pct": <float|null>, "examples": ["row 4"]}]
     }
   ]
 }
