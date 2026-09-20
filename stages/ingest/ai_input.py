@@ -12,6 +12,7 @@ from typing import Any
 import pandas as pd
 
 from contracts.profile import ProfileContract
+from stages.ingest import column_kinds
 
 # AI_PIPELINE section 1 allows up to 60; 25 because an answer for more columns
 # does not fit in the 3000 output tokens (1C doubt review, decided by Thach).
@@ -20,7 +21,10 @@ MAX_SAMPLE_ROWS = 30  # AI_PIPELINE section 1
 # Bounds the size, not just the count, of what is sent (1C, decided by Thach).
 MAX_VALUE_CHARS = 100
 TRUNCATION_MARK = "…[truncated]"
-PER_PROBLEM_KIND = 5
+# Six problem kinds share the 30 rows, so each takes at most three: a sample
+# made only of dirt hides what an ordinary row of this file looks like, and
+# the semantic types are inferred from ordinary rows.
+PER_PROBLEM_KIND = 3
 _NUMERIC_DTYPES = {"int64", "float64"}
 
 
@@ -29,11 +33,13 @@ def select_sample_rows(
 ) -> list[dict[str, Any]]:
     """Up to `limit` rows, "stratified to include problematic rows" (the prompt).
 
-    Deterministic, so tests can check it by hand: up to 5 rows each with a
-    missing cell, an exact duplicate, or a negative number in a numeric
-    column, then evenly spaced rows up to the limit (fewer when an evenly
-    spaced row was already picked as a problem row). Returned in file order;
-    `row` is 1 for the first data row, so the AI can cite rows as examples.
+    Deterministic, so tests can check it by hand: up to `PER_PROBLEM_KIND`
+    rows for each kind of dirt in `_problem_masks` (a missing cell, an exact
+    duplicate, a negative number, text in a column of numbers, padded
+    whitespace, an unparseable date), then evenly spaced rows up to the limit
+    (fewer when an evenly spaced row was already picked as a problem row).
+    Returned in file order; `row` is 1 for the first data row, so the AI can
+    cite rows as examples.
     """
     count = len(frame)
     if limit <= 0 or count == 0:
@@ -65,14 +71,32 @@ def select_sample_rows(
 
 
 def _problem_masks(frame: pd.DataFrame, numeric_columns: Collection[str]) -> list[pd.Series]:
-    negative = pd.Series(False, index=frame.index)
-    for name in numeric_columns:
-        if name in frame.columns:
-            negative |= pd.to_numeric(frame[name], errors="coerce") < 0
+    """One mask per kind of dirt worth showing the AI. The kinds match the
+    issue codes it is asked to report (`issue_counts.py`), so the sample holds
+    an example of what the schema answer has to describe.
+
+    A column is scanned for numbers or for dates only when its head looks that
+    way: converting all 25 columns both ways would cost more than the whole
+    profiling step.
+    """
+    nothing = pd.Series(False, index=frame.index)
+    negative, non_numeric, whitespace, bad_date = (nothing.copy() for _ in range(4))
+    for name in frame.columns:
+        values = frame[name]
+        whitespace |= column_kinds.whitespace_mask(values)
+        if name in numeric_columns or column_kinds.probably_numeric(values):
+            negative |= column_kinds.as_numbers(values) < 0
+            # Text in a column of numbers: the "n/a" the AI must not average.
+            non_numeric |= column_kinds.non_numeric_mask(values)
+        elif column_kinds.probably_dates(values):
+            bad_date |= column_kinds.invalid_date_mask(values)
     return [
         frame.isna().any(axis=1),
         frame.duplicated(keep=False),
         negative,
+        non_numeric,
+        whitespace,
+        bad_date,
     ]
 
 

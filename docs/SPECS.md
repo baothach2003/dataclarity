@@ -301,6 +301,28 @@ before building; never invent layout or tokens.
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
 
+### 2026-09-20 - Transform catalog legality (Phase 1D)
+- What: `docs/AI_PIPELINE.md` section 6 no longer contradicts itself.
+  `impute_constant` is "categorical/text/boolean" in the table, matching the
+  legality matrix, instead of "any". `trim_whitespace` and `normalize_case`
+  gain `identifier`. The required-canonical-field rule now says in words that
+  it forbids the four imputation actions only, and that every other action the
+  semantic type allows stays legal there.
+- Why: the three points were found while implementing the matrix as data in
+  1D; each could be read two ways, and the wrong reading of the third would
+  have made `transaction_date` unparseable, breaking the pipeline's main job.
+  `identifier` was added because trimming or re-casing a SKU standardizes how
+  a value is written and invents nothing, unlike imputation, which stays
+  illegal on an identifier. Decided by Thach in the 1D session.
+- Files: `docs/AI_PIPELINE.md`, `docs/SPECS.md`,
+  `stages/ingest/transform_catalog.py`,
+  `tests/stages/ingest/test_transform_catalog.py`,
+  `tests/stages/ingest/test_transforms.py`, `PROJECT_PLAN.md`.
+- Unchanged on purpose: the 16 actions themselves, their params, the fixed
+  execution order, and every contract file (`TransformAction` in
+  `contracts/cleaning.py` already listed all 16, and legality was never part
+  of a contract). No `schema_version` bump: no file format changed.
+
 ### 2026-09-19 - AI call policy and issue pct (Phase 1C)
 - What: `docs/AI_PIPELINE.md` section 2 drops "Temperature 0" (rejected by
   `claude-sonnet-5`), disables thinking, and turns the SDK's own retries off;

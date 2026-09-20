@@ -138,7 +138,7 @@ dataclarity/
       section 3). `AIUnavailable` carries a reason code and the client logs
       it; the reason is not written to a contract file (Thach's decision:
       stage 1 degraded writes no file at all)
-- [ ] 1D `stages/ingest/transforms.py`: the full transform catalog
+- [x] 1D `stages/ingest/transforms.py`: the full transform catalog
       (`docs/AI_PIPELINE.md` section 6) as pure functions + change log. One test
       per transform including edge cases. Also count, in pandas, the issue
       codes the profile holds no figure for (negative_values, zero_values,
@@ -320,16 +320,77 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1C closed 2026-09-20 (uncommitted until
+**Phase in progress:** Phase 1. 1D closed 2026-09-20 (uncommitted until
 Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
-(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`). 1C delivered
-`shared/ai_client.py`, `stages/ingest/ai_input.py` + `ai_schema.py`,
-`stages/ingest/contract_files.py` (atomic writer shared with 1B), the F4
-network guard in `tests/conftest.py`, and 91 tests. pytest 372 passed from
-the repo root and from `backend/`, 0 skipped.
-**Next step:** Phase 1D (`stages/ingest/transforms.py`; see its line, which
-now also owns the pandas-computed issue counts).
+(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`). 1D delivered
+`stages/ingest/transforms.py` (the 16 actions), `transform_catalog.py` (the
+legality matrix and the fixed order as data), `changes.py` (the shared
+mechanics), `column_kinds.py` (the detectors) and `issue_counts.py` (the
+pandas counts), plus the three new sample-row kinds in `ai_input.py`.
+It also closed three contradictions in `docs/AI_PIPELINE.md` section 6 (see
+the note below). pytest 1059 passed from the repo root and from `backend/`,
+0 skipped; Vitest 9 passed; `npx tsc -b` and `npm run lint` clean.
+**Next step:** Phase 1E (`stages/ingest/ai_plan.py`), which validates the AI's
+plan against `transform_catalog.illegality_reason` and may wire the computed
+issue counts into `ai_schema.py` (see the 1D notes below).
 **Notes:**
+- 1D found three readings of `AI_PIPELINE` section 6 and Thach decided all
+  three in the same session; section 6 was rewritten so none of them can be
+  read two ways again (`docs/SPECS.md` change log, 2026-09-20). (a)
+  `impute_constant` is categorical / text / boolean, per the legality matrix;
+  the table's "Applies to: any" was the stale half and now matches. (b)
+  `trim_whitespace` and `normalize_case` also apply to `identifier`: they
+  standardize how a value is written and invent nothing, so a padded or
+  mis-cased SKU is cleanable. Imputation stays illegal on an identifier, and
+  `standardize_categories` was deliberately not widened - merging labels would
+  collapse two ids into one. A plan that re-cases an identifier should say so
+  in its rationale, because a case-sensitive source system may keep "ab-1" and
+  "AB-1" apart. (c) The required-canonical-field rule forbids the four
+  imputation actions only; every other action the semantic type allows stays
+  legal, or `transaction_date` could never be parsed. The whole matrix is
+  walked against a required field in `test_transform_catalog.py`.
+- 1D catalog decisions: `cells_affected` counts cells this action changed or
+  removed, `rows_affected` counts rows it dropped or marked, and one action
+  fills one of the two (the table in `transforms.py`'s docstring is the list).
+  An action that ran and changed nothing is still logged with two zeros
+  (Thach). A failed cast or parse leaves the cell missing and adds a boolean
+  flag column `__flag_<kind>__<column>`, added only when something is flagged.
+  Dropping rows keeps the row index, so a gap shows where a row was.
+- 1D `cast_type` targets are integer / float / string / boolean, and
+  `normalize_case` modes title / lower / upper; both are data in
+  `transform_catalog.py` for 1E to validate a plan against. Casting "3.7" to
+  integer is a flagged failure, never a 4.
+- 1D issue counts: every one of the 15 issue codes now has a source for its
+  number. Three come from `profile.json` (`missing_values`,
+  `all_null_column`, `duplicate_rows`, checked in 1C), eleven from
+  `issue_counts.count_column_issue`, and `duplicate_business_key` from
+  `count_duplicate_business_key`, which needs the key columns and so can only
+  run after the AI has named the canonical fields. 1E/1F wires this into
+  `ai_schema.py`: after `check_answer` passes, replace each issue's `count`
+  with the computed one. `pct` is deliberately untouched, so the 1C rule (a
+  percentage only where the profile holds one) still holds; whether a
+  computed `pct` should be filled in is a decision for that session.
+- 1D counting definitions worth knowing: `invalid_dates` and
+  `mixed_date_formats` count 0 unless more than half the column's values
+  parse as dates (otherwise every product-name column would report its whole
+  length); `inconsistent_case` counts cells that are not the dominant
+  spelling of their case-folded label; `near_duplicate_labels` ignores case,
+  spacing and punctuation but never counts a pure case difference, so the two
+  codes stay disjoint; `mixed_types` counts the minority kind when a column
+  holds both numbers and text.
+- 1D sample rows: `_problem_masks` now has six kinds, not three (added: text
+  in a column of numbers, padded whitespace, an unparseable date). Because
+  six kinds share the 30 rows, `PER_PROBLEM_KIND` went from 5 to 3, so
+  ordinary rows are still visible - the semantic types are inferred from
+  them. `test_each_problem_kind_is_capped_at_five` was renamed and rewritten
+  for the new cap (a stricter assertion, not a weaker one); the four new
+  kinds have their own tests.
+- 1D performance: deciding a column's kind uses a 500-row probe
+  (`column_kinds.PROBE_ROWS`) before converting the whole column, the same
+  trade-off `profiling.py` already makes for its numeric probe. Measured on
+  this machine: `pd.to_datetime(format="mixed")` is about 0.025 s per 200k
+  values and `pd.to_numeric` about 0.1 s, so an unprobed scan of 25 columns
+  of a 50MB file would have cost seconds.
 - 1C call policy (`docs/AI_PIPELINE.md` sections 1-3 updated): no sampling
   parameters, because `claude-sonnet-5` rejects `temperature` with a 400;
   thinking disabled, so the 3000 tokens and 30 s cover the JSON answer; the

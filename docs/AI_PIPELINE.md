@@ -109,13 +109,13 @@ ChangeLogEntry: `{action, column, cells_affected, rows_affected, params, detail}
 | impute_median | numeric | - | fill NaN with median |
 | impute_mean | numeric | - | fill NaN with mean |
 | impute_mode | categorical/text/boolean | - | fill NaN with mode |
-| impute_constant | any | value | fill NaN with an explicit value |
+| impute_constant | categorical/text/boolean | value | fill NaN with an explicit value |
 | drop_rows_missing | any | - | drop rows null in this column |
 | drop_column | any | - | remove the column |
 | parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged |
 | cast_type | any | target | safe cast; failures flagged, never silently coerced |
-| trim_whitespace | text/categorical | - | strip surrounding whitespace |
-| normalize_case | text/categorical | mode: title/lower/upper | consistent casing |
+| trim_whitespace | text/categorical/identifier | - | strip surrounding whitespace |
+| normalize_case | text/categorical/identifier | mode: title/lower/upper | consistent casing |
 | standardize_categories | categorical | mapping {from: to} | merge near-duplicate labels |
 | fix_negative | numeric | strategy: flag/abs/drop | default flag |
 | remove_exact_duplicates | dataset | - | drop fully identical rows |
@@ -123,12 +123,25 @@ ChangeLogEntry: `{action, column, cells_affected, rows_affected, params, detail}
 | clip_outliers_iqr | numeric | k=1.5 | clip outside [Q1-k*IQR, Q3+k*IQR]; opt-in |
 | flag_only | any | note | record only, change nothing |
 
-**Legality matrix** (implemented as data, table-driven tests):
+**Legality matrix** (implemented as data, table-driven tests). The "Applies to"
+column above is the matrix; the entries below spell out the parts that were
+read two ways before (1D):
 - impute_median / impute_mean: numeric semantic types only; never identifier
-- impute_mode / impute_constant: categorical, text, boolean
+- impute_mode / impute_constant: categorical, text, boolean - never numeric,
+  datetime or identifier. An invented id joins rows that are not the same thing
 - parse_datetime: datetime only
-- Required canonical fields (product_name, transaction_date, quantity):
-  imputation is ILLEGAL; only drop_rows_missing or flag_only
+- trim_whitespace / normalize_case: categorical, text and identifier. They
+  standardize how a value is written and invent nothing, so a padded or
+  mis-cased SKU can be cleaned like any other string. The rationale of a plan
+  that normalizes the case of an identifier should say so, because a
+  case-sensitive source system may keep "ab-1" and "AB-1" apart
+- Required canonical fields (product_name, transaction_date, quantity): the
+  four imputation actions are ILLEGAL there, because a filled-in value would be
+  counted in the report as if it had been measured. Missing values in those
+  columns are handled by drop_rows_missing or flag_only instead. The rule is
+  about imputation only: every other action the column's semantic type allows
+  stays legal, so transaction_date is still parsed and product_name is still
+  trimmed
 
 **Fixed execution order** (not AI-controlled, because order changes results):
 drop_column -> remove_exact_duplicates -> trim_whitespace -> normalize_case ->

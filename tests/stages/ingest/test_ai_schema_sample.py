@@ -60,17 +60,59 @@ def test_problem_rows_are_included_before_filler() -> None:
     assert [r["row"] for r in rows] == [1, 11, 20, 21, 22, 31]
 
 
-def test_each_problem_kind_is_capped_at_five() -> None:
-    # 40 rows with a missing qty; limit 30 leaves room, but only 5 are taken
-    # for that reason so other kinds and ordinary rows still fit.
-    values = [[f"S{i}", None if i < 40 else str(i)] for i in range(100)]
+def test_each_problem_kind_is_capped_at_three() -> None:
+    # Rows 1 to 10 have a missing qty; limit 5 leaves room, but only three are
+    # taken for that reason, so the other five kinds and ordinary rows fit.
+    values = [[f"S{i}", None if i < 10 else str(i)] for i in range(100)]
     data = frame(values, ["sku", "qty"])
 
-    rows = select_sample_rows(data, numeric_columns={"qty"}, limit=30)
+    rows = select_sample_rows(data, numeric_columns={"qty"}, limit=5)
 
-    first_five_missing = [r["row"] for r in rows if r["values"]["qty"] is None][:5]
-    assert first_five_missing == [1, 2, 3, 4, 5]
-    assert len(rows) <= 30
+    # Problem rows 1, 2, 3, then evenly spaced positions 0, 24, 49, 74, 99
+    # (i * 99 // 4) until 5 rows: 0 is already in, so 24 and 49 join.
+    assert [r["row"] for r in rows] == [1, 2, 3, 25, 50]
+
+
+def test_text_in_a_column_of_numbers_is_picked() -> None:
+    # Row 8 holds "n/a" where every other row holds a number.
+    values = [[f"S{i}", str(i)] for i in range(50)]
+    values[7][1] = "n/a"
+    data = frame(values, ["sku", "qty"])
+
+    rows = select_sample_rows(data, numeric_columns=set(), limit=3)
+
+    # The dirty row, then evenly spaced 0 and 24 (i * 49 // 2 -> 0, 24, 49).
+    assert 8 in [r["row"] for r in rows]
+
+
+def test_a_padded_cell_is_picked() -> None:
+    values = [[f"S{i}", str(i)] for i in range(50)]
+    values[5][0] = " S5 "
+    data = frame(values, ["sku", "qty"])
+
+    rows = select_sample_rows(data, numeric_columns={"qty"}, limit=3)
+
+    assert 6 in [r["row"] for r in rows]
+
+
+def test_an_unparseable_date_is_picked() -> None:
+    values = [["2024-01-05", str(i)] for i in range(50)]
+    values[9][0] = "31/02/2024"  # no such day
+    data = frame(values, ["when", "qty"])
+
+    rows = select_sample_rows(data, numeric_columns={"qty"}, limit=3)
+
+    assert 10 in [r["row"] for r in rows]
+
+
+def test_a_text_column_is_not_searched_for_bad_dates() -> None:
+    # Product names are not dates, so none of them is an unparseable one.
+    values = [[f"Product {i}", str(i)] for i in range(50)]
+    data = frame(values, ["name", "qty"])
+
+    rows = select_sample_rows(data, numeric_columns={"qty"}, limit=3)
+
+    assert [r["row"] for r in rows] == [1, 25, 50]  # i * 49 // 2 -> 0, 24, 49
 
 
 def test_negative_check_ignores_text_columns() -> None:

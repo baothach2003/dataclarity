@@ -1,0 +1,150 @@
+"""What the 16 transforms apply to and in which order they run
+(docs/AI_PIPELINE.md section 6). What each one does: `transforms.py`.
+
+Everything here is data, not branching logic: the legality matrix is a table
+the AI's plan is checked against (stage 1E) and the tests walk every
+(semantic_type, action) pair. Adding an action means adding a row, not an `if`.
+"""
+
+from typing import Literal, get_args
+
+from contracts.cleaning import TransformAction
+from contracts.profile import CanonicalField, SemanticType
+
+Scope = Literal["column", "dataset"]
+
+ALL_ACTIONS: frozenset[TransformAction] = frozenset(get_args(TransformAction))
+ALL_SEMANTIC_TYPES: frozenset[SemanticType] = frozenset(get_args(SemanticType))
+
+NUMERIC_TYPES: frozenset[SemanticType] = frozenset({"numeric_continuous", "numeric_discrete"})
+CATEGORICAL_TYPES: frozenset[SemanticType] = frozenset(
+    {"categorical_nominal", "categorical_ordinal"}
+)
+# "text/categorical" in the catalog table.
+TEXTUAL_TYPES: frozenset[SemanticType] = CATEGORICAL_TYPES | {"text"}
+# The types the two string-shape actions apply to. An identifier is included
+# (decided by Thach in 1D, AI_PIPELINE section 6 updated): trimming or
+# re-casing a SKU standardizes how it is written and invents nothing, unlike
+# imputation, which stays illegal on an identifier.
+STRING_SHAPE_TYPES: frozenset[SemanticType] = TEXTUAL_TYPES | {"identifier"}
+
+# The two dataset-wide actions: they take no column and read the whole frame.
+DATASET_ACTIONS: frozenset[TransformAction] = frozenset(
+    {"remove_exact_duplicates", "flag_duplicate_keys"}
+)
+
+# Filling a missing cell with a computed or chosen value. Illegal on a required
+# canonical field, where an invented value would become a number in the report.
+IMPUTATION_ACTIONS: frozenset[TransformAction] = frozenset(
+    {"impute_median", "impute_mean", "impute_mode", "impute_constant"}
+)
+# Without these three a row cannot be counted at all (AI_PIPELINE section 6).
+REQUIRED_CANONICAL_FIELDS: frozenset[CanonicalField] = frozenset(
+    {"product_name", "transaction_date", "quantity"}
+)
+
+# The semantic types each column action is legal for. Absent from the catalog
+# table means "any" (drop_rows_missing, drop_column, cast_type, flag_only): they
+# neither invent a value nor assume a shape.
+LEGAL_SEMANTIC_TYPES: dict[TransformAction, frozenset[SemanticType]] = {
+    "impute_median": NUMERIC_TYPES,
+    "impute_mean": NUMERIC_TYPES,
+    "impute_mode": TEXTUAL_TYPES | {"boolean"},
+    "impute_constant": TEXTUAL_TYPES | {"boolean"},
+    "drop_rows_missing": ALL_SEMANTIC_TYPES,
+    "drop_column": ALL_SEMANTIC_TYPES,
+    "parse_datetime": frozenset({"datetime"}),
+    "cast_type": ALL_SEMANTIC_TYPES,
+    "trim_whitespace": STRING_SHAPE_TYPES,
+    "normalize_case": STRING_SHAPE_TYPES,
+    "standardize_categories": CATEGORICAL_TYPES,
+    "fix_negative": NUMERIC_TYPES,
+    "clip_outliers_iqr": NUMERIC_TYPES,
+    "flag_only": ALL_SEMANTIC_TYPES,
+}
+
+# The fixed execution order, one group per step. Order changes results (trimming
+# after merging labels would leave " Cafe" unmerged), so the plan never sets it;
+# within a group the plan's own order is kept.
+EXECUTION_ORDER: tuple[tuple[TransformAction, ...], ...] = (
+    ("drop_column",),
+    ("remove_exact_duplicates",),
+    ("trim_whitespace",),
+    ("normalize_case",),
+    ("parse_datetime", "cast_type"),
+    ("impute_median", "impute_mean", "impute_mode", "impute_constant", "drop_rows_missing"),
+    ("standardize_categories",),
+    ("fix_negative", "clip_outliers_iqr"),
+    ("flag_duplicate_keys", "flag_only"),
+)
+
+# Params an action cannot run without; everything else has a documented default.
+REQUIRED_PARAMS: dict[TransformAction, frozenset[str]] = {
+    "impute_constant": frozenset({"value"}),
+    "cast_type": frozenset({"target"}),
+    "normalize_case": frozenset({"mode"}),
+    "standardize_categories": frozenset({"mapping"}),
+    "flag_duplicate_keys": frozenset({"keys"}),
+}
+OPTIONAL_PARAMS: dict[TransformAction, frozenset[str]] = {
+    "parse_datetime": frozenset({"format", "dayfirst"}),
+    "fix_negative": frozenset({"strategy"}),
+    "clip_outliers_iqr": frozenset({"k"}),
+    "flag_only": frozenset({"note"}),
+}
+
+CAST_TARGETS: frozenset[str] = frozenset({"integer", "float", "string", "boolean"})
+CASE_MODES: frozenset[str] = frozenset({"title", "lower", "upper"})
+NEGATIVE_STRATEGIES: frozenset[str] = frozenset({"flag", "abs", "drop"})
+
+
+def scope_of(action: TransformAction) -> Scope:
+    return "dataset" if action in DATASET_ACTIONS else "column"
+
+
+def execution_rank(action: TransformAction) -> int:
+    """The action's place in the fixed order. Sorting a plan by this with a
+    stable sort keeps the plan's own order inside a group."""
+    for rank, group in enumerate(EXECUTION_ORDER):
+        if action in group:
+            return rank
+    raise KeyError(f"{action} is not in the execution order")
+
+
+def illegality_reason(
+    action: TransformAction,
+    semantic_type: SemanticType | None = None,
+    canonical_field: CanonicalField | None = None,
+) -> str | None:
+    """Why this action may not run on this column, or None when it may.
+
+    A dataset action is checked with `semantic_type=None`: it has no column.
+    """
+    if action not in ALL_ACTIONS:
+        return f"{action} is not in the transform catalog"
+    if scope_of(action) == "dataset":
+        if semantic_type is not None:
+            return f"{action} applies to the dataset, not to a column"
+        return None
+    if semantic_type is None:
+        return f"{action} applies to a column, not to the dataset"
+    if semantic_type not in LEGAL_SEMANTIC_TYPES[action]:
+        return f"{action} is not legal for a {semantic_type} column"
+    if canonical_field in REQUIRED_CANONICAL_FIELDS and action in IMPUTATION_ACTIONS:
+        # Imputation only: a filled-in product name or quantity would be
+        # counted in the report as if it had been measured (CLAUDE.md 3.2).
+        # Every other action the semantic type allows stays legal here, or
+        # transaction_date could never be parsed (AI_PIPELINE section 6).
+        return (
+            f"{action} is not legal for {canonical_field}, a required field: "
+            f"use drop_rows_missing or flag_only"
+        )
+    return None
+
+
+def is_legal(
+    action: TransformAction,
+    semantic_type: SemanticType | None = None,
+    canonical_field: CanonicalField | None = None,
+) -> bool:
+    return illegality_reason(action, semantic_type, canonical_field) is None
