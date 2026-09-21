@@ -4,6 +4,8 @@
 Everything here is data, not branching logic: the legality matrix is a table
 the AI's plan is checked against (stage 1E) and the tests walk every
 (semantic_type, action) pair. Adding an action means adding a row, not an `if`.
+The params an action takes are named here; whether a value is acceptable is
+`transform_params.py`.
 """
 
 from typing import Literal, get_args
@@ -13,7 +15,9 @@ from contracts.profile import CanonicalField, SemanticType
 
 Scope = Literal["column", "dataset"]
 
-ALL_ACTIONS: frozenset[TransformAction] = frozenset(get_args(TransformAction))
+# `ALL_ACTIONS` has no order; this one is the catalog's own (AI_PIPELINE section 6).
+_CATALOG_ORDER: tuple[TransformAction, ...] = get_args(TransformAction)
+ALL_ACTIONS: frozenset[TransformAction] = frozenset(_CATALOG_ORDER)
 ALL_SEMANTIC_TYPES: frozenset[SemanticType] = frozenset(get_args(SemanticType))
 
 NUMERIC_TYPES: frozenset[SemanticType] = frozenset({"numeric_continuous", "numeric_discrete"})
@@ -148,3 +152,19 @@ def is_legal(
     canonical_field: CanonicalField | None = None,
 ) -> bool:
     return illegality_reason(action, semantic_type, canonical_field) is None
+
+
+def legal_column_actions(
+    semantic_type: SemanticType, canonical_field: CanonicalField
+) -> list[TransformAction]:
+    """Every action a plan may give this column, in the catalog's order. The AI
+    is shown this list, so the whitelist is something it is told, not guessed."""
+    return [
+        action
+        for action in _CATALOG_ORDER
+        if scope_of(action) == "column" and is_legal(action, semantic_type, canonical_field)
+    ]
+
+
+def legal_dataset_actions() -> list[TransformAction]:
+    return [action for action in _CATALOG_ORDER if scope_of(action) == "dataset"]

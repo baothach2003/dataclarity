@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 from contracts.profile import IssueCode
+from stages.ingest import column_kinds
 from stages.ingest.issue_counts import (
     COMPUTED_COLUMN_CODES,
     COMPUTED_DATASET_CODES,
@@ -224,3 +225,107 @@ def test_an_empty_frame_has_no_key_collisions() -> None:
     empty = pd.DataFrame({"sku": EMPTY})
 
     assert count_duplicate_business_key(empty, ["sku"]) == 0
+
+
+# --- cost: a column is probed before it is converted in full (1E review) ------
+
+
+def test_a_text_column_is_never_converted_to_dates_in_full(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # 2,000 product names. Converting them all as dates cost about 4 s per 200k
+    # rows per code, and the AI may list a date code on any column.
+    seen: list[int] = []
+    real = column_kinds.as_dates
+
+    def spy(values: pd.Series, date_format: str | None = None, dayfirst: bool = False) -> pd.Series:
+        seen.append(len(values))
+        return real(values, date_format, dayfirst)
+
+    monkeypatch.setattr(column_kinds, "as_dates", spy)
+    names = column(*[f"Product {i}" for i in range(2000)])
+
+    assert count_column_issue("invalid_dates", names) == 0
+    assert count_column_issue("mixed_date_formats", names) == 0
+    assert max(seen) <= column_kinds.PROBE_ROWS
+
+
+def test_a_date_column_still_gets_its_full_count_after_the_probe() -> None:
+    dates = column(*["2024-01-05"] * 600, "not a date", "never")
+
+    assert count_column_issue("invalid_dates", dates) == 2
+
+
+def test_a_column_whose_first_rows_are_not_dates_counts_zero_even_if_later_ones_are() -> None:
+    # The accepted cost of probing (the same trade-off as profiling's numeric
+    # probe): a column that only turns into dates after PROBE_ROWS rows is
+    # treated as text, so it reports no date issue.
+    late = column(*["free text"] * column_kinds.PROBE_ROWS, *["2024-01-05"] * 1500)
+
+    assert count_column_issue("invalid_dates", late) == 0
+
+
+def test_dates_written_with_different_utc_offsets_are_counted_not_a_crash() -> None:
+    offsets = column("2024-01-05T10:00:00Z", "2024-01-05 10:00:00+01:00", "later")
+
+    assert count_column_issue("invalid_dates", offsets) == 1
+    assert count_column_issue("mixed_date_formats", offsets) >= 0
+
+
+# --- labels with no letters or digits (found in the 1E review) ------------------
+
+
+@pytest.mark.parametrize(
+    "labels",
+    [["$", "€", "$"], ["+", "-", "+", "-", "-"], ["😀", "😂", "😀"], ["#", "%", "&"]],
+    ids=["currencies", "signs", "emoji", "symbols"],
+)
+def test_labels_made_only_of_punctuation_are_not_each_others_near_duplicates(
+    labels: list[str],
+) -> None:
+    # Ignoring punctuation turned every one of these into the empty string, and
+    # the empty string is a group of its own: "$" and "€" became "duplicates".
+    assert count_column_issue("near_duplicate_labels", column(*labels)) == 0
+
+
+def test_the_documented_punctuation_rule_still_holds_for_real_labels() -> None:
+    assert count_column_issue("near_duplicate_labels", column("Coca-Cola", "coca cola")) == 1
+
+
+# --- what counts as punctuation (cycle-3 review) -----------------------------------
+
+
+def _nfd(*labels: str) -> pd.Series:
+    import unicodedata
+
+    return column(*[unicodedata.normalize("NFD", label) for label in labels])
+
+
+def test_accents_written_as_combining_marks_are_part_of_the_word_not_punctuation() -> None:
+    # "ma", "ma" + acute, ... are four different Vietnamese words. Decomposed
+    # (what a macOS export writes), the accent is a combining mark, which the
+    # old `\w` pattern deleted: all four became "ma".
+    assert count_column_issue("near_duplicate_labels", _nfd("ma", "má", "mà", "mã")) == 0
+
+
+def test_indic_and_thai_marks_are_not_punctuation_either() -> None:
+    assert count_column_issue("near_duplicate_labels", column("कि", "की", "को", "के")) == 0
+    assert count_column_issue("near_duplicate_labels", column("ที่", "ทื่")) == 0
+
+
+def test_the_same_word_in_two_unicode_forms_is_a_near_duplicate() -> None:
+    import unicodedata
+
+    composed = "má"
+    decomposed = unicodedata.normalize("NFD", composed)
+
+    assert count_column_issue("near_duplicate_labels", column(composed, composed, decomposed)) == 1
+
+
+def test_an_underscore_is_punctuation_like_a_hyphen() -> None:
+    assert count_column_issue(
+        "near_duplicate_labels", column("Wireless_Mouse", "Wireless Mouse")) == 1
+
+
+def test_labels_of_nothing_but_separators_stay_apart() -> None:
+    assert count_column_issue("near_duplicate_labels", column("_", "-_", "--")) == 0

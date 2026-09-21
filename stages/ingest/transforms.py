@@ -169,7 +169,9 @@ def parse_datetime(df: pd.DataFrame, column: str | None, params: Params) -> Resu
     if date_format is not None and not isinstance(date_format, str):
         raise ValueError("parse_datetime needs format to be text")
     values = series(df, column, "parse_datetime")
-    parsed = column_kinds.as_dates(values, date_format, bool(params.get("dayfirst", False)))
+    # No UTC fallback: this writes the dates into the data (see as_dates).
+    parsed = column_kinds.as_dates(
+        values, date_format, bool(params.get("dayfirst", False)), utc_fallback=False)
     shape = f"as {date_format}" if date_format else "per cell"
     return convert(df, column, params, "parse_datetime", parsed, "invalid_date",
                     "parsed {done} of {present} values " + shape)
@@ -194,8 +196,11 @@ def _cast(values: pd.Series, target: str) -> pd.Series:
     numbers = column_kinds.as_numbers(values)
     if target == "float":
         return numbers
-    # "integer": 3.7 is a failure, not a 4. Only whole numbers convert.
-    return numbers.where(numbers.notna() & (numbers % 1 == 0)).astype("Int64")
+    # "integer": 3.7 is a failure, not a 4. Only whole numbers convert, and only
+    # those an int64 can hold: "1e30" is whole but astype would raise, so it is
+    # a flagged failure like any other cell that does not convert.
+    whole = numbers.notna() & (numbers % 1 == 0) & (numbers >= -(2.0**63)) & (numbers < 2.0**63)
+    return numbers.where(whole).astype("Int64")
 
 
 # --- numbers ----------------------------------------------------------------

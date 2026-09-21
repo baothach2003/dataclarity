@@ -186,3 +186,29 @@ def test_a_clean_column_gains_no_flag_column(action: TransformAction) -> None:
 def test_a_flag_column_is_named_after_its_kind_and_column() -> None:
     assert transforms.flag_column_name("negative", "Unit Price") == "__flag_negative__Unit Price"
     assert transforms.flag_column_name("duplicate_key") == "__flag_duplicate_key"
+
+
+def test_casting_whole_numbers_beyond_int64_to_integer_is_a_flagged_failure_not_a_crash() -> None:
+    # "1e30" and 20 nines are whole numbers but do not fit an int64. pandas
+    # raised "cannot safely cast" instead of leaving the cell missing.
+    data = pd.DataFrame({"c": ["5", "1e30", "99999999999999999999", "2.5", NA]}, dtype="str")
+
+    result, entry = transforms.apply_action("cast_type", data, "c", {"target": "integer"})
+
+    assert result["c"].tolist()[0] == 5
+    assert result["c"].isna().tolist() == [False, True, True, True, True]
+    assert (entry.cells_affected, entry.rows_affected) == (1, 3)  # 1 converted, 3 flagged
+    assert result["__flag_cast_failed__c"].tolist() == [False, True, True, True, False]
+
+
+def test_the_int64_limits_themselves_are_flagged_never_a_crash_or_a_wrong_number() -> None:
+    # Numbers are read as float64, which cannot hold 19-digit integers exactly
+    # (-2**63 is read as -9.223372036854778e18), so a cell at the very edge of
+    # int64 is a flagged failure. What matters is that nothing raises and no
+    # cell receives a value it did not have.
+    data = pd.DataFrame({"c": ["-9223372036854775808", "9223372036854775808"]}, dtype="str")
+
+    result, entry = transforms.apply_action("cast_type", data, "c", {"target": "integer"})
+
+    assert result["c"].isna().tolist() == [True, True]
+    assert entry.rows_affected == 2

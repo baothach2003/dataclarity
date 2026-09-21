@@ -99,7 +99,10 @@ Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
 column appears exactly once; at most one column per canonical field except
 `ignore`; confidence in [0,1]. An issue's `pct` is a number in [0,100] or
 `null` when the profile holds no percentage for that issue (the AI never
-invents one); the key is always present.
+invents one); the key is always present. An issue's `count` is never the AI's
+estimate: it comes from `profile.json` (`missing_values`, `all_null_column`,
+`duplicate_rows`) or is computed by pandas from the raw file, and an issue whose
+count is 0 is left out (`docs/AI_PIPELINE.md` section 11).
 
 ## 4. `plan_proposed.json` and `plan_final.json` (stage 1 steps C and D)
 
@@ -113,7 +116,7 @@ Identical schema; `plan_final.json` additionally records user edits.
   "dataset_actions": [
     {"action": "remove_exact_duplicates", "params": {},
      "rationale": "12 exact duplicate rows found",
-     "alternatives": ["flag_only"], "edited_by_user": false}
+     "alternatives": [], "edited_by_user": false}
   ],
   "column_actions": [
     {"source_name": "Unit Price", "semantic_type": "numeric_continuous",
@@ -127,6 +130,14 @@ Identical schema; `plan_final.json` additionally records user edits.
 `plan_final.json` is what stage 1 executes. The backend validates it against the
 transform catalog and the legality matrix before execution; an invalid plan is
 rejected whole (never partially applied).
+
+Every source column appears exactly once in `column_actions`. `alternatives`
+lists at most 2 other actions, each legal for that column, with no repeats and
+never the chosen action. For a dataset action they are dataset-scope actions
+(`remove_exact_duplicates`, `flag_duplicate_keys`) or empty: `flag_only` needs a
+column, so it is not one (this example used to list it). `semantic_type` and
+`canonical_field` are those of `schema_inference.json`. Columns beyond the 25 the
+AI sees get `flag_only` with a note that they were not analyzed.
 
 ## 5. `cleaning_report.json` (stage 1 output F)
 
@@ -321,3 +332,8 @@ the report defensible.
 - 2026-09-19: section 3's issue `pct` became nullable in place at `1.0` (1C),
   because no `schema_inference.json` had been written yet; the prompt already
   allowed `null`, and the AI must not invent a percentage.
+- 2026-09-21: section 3 says where an issue's `count` comes from and that a count
+  of 0 is omitted, and section 4 now states the rules for `alternatives` and
+  corrects the dataset-action example (1E). No field was added, renamed or
+  changed, so `schema_version` stays `1.0`: these are rules the stage enforces on
+  values the schema already allowed.

@@ -9,6 +9,7 @@ therefore use one definition, so a plan cannot report 12 negatives and fix 11.
 """
 
 import re
+from typing import Any
 
 import pandas as pd
 
@@ -49,18 +50,37 @@ def as_numbers(values: pd.Series) -> pd.Series:
 
 
 def as_dates(
-    values: pd.Series, date_format: str | None = None, dayfirst: bool = False
+    values: pd.Series,
+    date_format: str | None = None,
+    dayfirst: bool = False,
+    utc_fallback: bool = True,
 ) -> pd.Series:
     """The column as timestamps; anything unparseable becomes NaT.
 
     With no `date_format`, pandas parses each cell on its own ("mixed"), which
     is what a column of several formats needs. `dayfirst` then also decides
     "2024-01-05", so it is the caller's (the user's) choice, not a guess.
+
+    Cells written with different UTC offsets cannot share one dtype. A detector
+    (is this a date? which cells are not?) only needs them to parse, so by
+    default they are read as UTC. A caller that writes the result into the data
+    passes `utc_fallback=False`: reading them as UTC moves "2024-01-06 01:00+10:00"
+    to 2024-01-05, a change to a date field that is a product decision, not a
+    default.
     """
     text = as_text(values)
     if date_format is not None:
-        return pd.to_datetime(text, errors="coerce", format=date_format)
-    return pd.to_datetime(text, errors="coerce", format="mixed", dayfirst=dayfirst)
+        options: dict[str, Any] = {"format": date_format}
+    else:
+        options = {"format": "mixed", "dayfirst": dayfirst}
+    try:
+        return pd.to_datetime(text, errors="coerce", **options)
+    except ValueError:
+        # errors="coerce" does not cover mixed offsets. A malformed format fails
+        # again below, with its own message, so nothing is hidden by the retry.
+        if not utc_fallback:
+            raise
+        return pd.to_datetime(text, errors="coerce", utc=True, **options)
 
 
 def present_mask(values: pd.Series) -> pd.Series:

@@ -1,3 +1,4 @@
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -257,3 +258,50 @@ def test_failure_logs_the_reason_but_not_the_error_message(
 
     assert "outcome=network" in caplog.text and "APIConnectionError" in caplog.text
     assert SECRET_SAMPLE not in caplog.text
+
+
+# --- text that cannot be encoded (cycle-3 review) --------------------------------
+# "\\ud800" is valid JSON and decodes to a lone surrogate. It cannot be written
+# as UTF-8, so it crashed the request that echoed it (the retry) and the write of
+# the contract that stored it, with an error no degraded path catches.
+
+LONE_SURROGATE_ANSWERS = [
+    '{"value": 3, "note": "\\ud800"}',                # a value the model ignores
+    '{"value": 3, "\\udfff": 1}',                     # a key
+    '{"value": 3, "deep": [{"a": ["x\\ud800y"]}]}',   # nested
+]
+
+
+@pytest.mark.parametrize("bad", LONE_SURROGATE_ANSWERS, ids=["value", "key", "nested"])
+def test_a_lone_surrogate_is_an_invalid_answer_and_uses_the_retry(
+    prompts_dir: Path, bad: str
+) -> None:
+    messages = FakeMessages(FakeResponse(bad), FakeResponse('{"value": 4}'))
+
+    result = call(messages, prompts_dir)
+
+    assert result.value.value == 4
+    retry_prompt = messages.calls[1]["messages"][0]["content"]
+    retry_prompt.encode("utf-8")  # must not raise: nothing the AI wrote is echoed
+    assert "cannot be encoded" in retry_prompt
+
+
+def test_a_lone_surrogate_twice_degrades_instead_of_raising(prompts_dir: Path) -> None:
+    messages = FakeMessages(FakeResponse(LONE_SURROGATE_ANSWERS[0]),
+                            FakeResponse(LONE_SURROGATE_ANSWERS[1]))
+
+    with pytest.raises(AIUnavailable) as caught:
+        call(messages, prompts_dir)
+
+    assert caught.value.reason == "invalid_response"
+
+
+def test_ordinary_non_ascii_text_is_not_mistaken_for_a_surrogate(prompts_dir: Path) -> None:
+    # json.dumps writes the emoji as a surrogate PAIR escape, which is one real
+    # character; accents and Thai are ordinary too.
+    text = json.dumps({"value": 3, "note": "m\u00e1 \U0001f600 \u0e17\u0e35\u0e48"})
+    assert "\\ud83d\\ude00" in text
+
+    result = call(FakeMessages(FakeResponse(text)), prompts_dir)
+
+    assert result.value.value == 3

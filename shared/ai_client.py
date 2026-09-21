@@ -200,6 +200,13 @@ class AIClient:
                 failure = error
         else:
             raise _InvalidAnswer(f"The answer is not valid JSON: {failure}") from None
+        if _has_lone_surrogate(data):
+            # Valid JSON, but no encoder can write it: echoing it in the retry
+            # or storing it in a contract file would raise, and nothing catches
+            # that as a degraded answer. The message repeats none of the text.
+            raise _InvalidAnswer(
+                "The JSON contains a character that cannot be encoded (a lone UTF-16 "
+                "surrogate escape). Use only valid Unicode text.")
         try:
             # Strict: an AI answer gets no coercion help (true is not 1.0, "0.9"
             # is not a number); an int is still accepted where a float is due.
@@ -212,6 +219,25 @@ class AIClient:
             except ValueError as error:
                 raise _InvalidAnswer(f"The answer failed a consistency check:\n{error}") from None
         return value
+
+
+def _has_lone_surrogate(data: Any) -> bool:
+    """Any string or key in the parsed answer that cannot be encoded as UTF-8.
+    Iterative, because json.loads accepts nesting a recursive walk could not."""
+    pending = [data]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, str):
+            try:
+                item.encode("utf-8")
+            except UnicodeEncodeError:
+                return True
+        elif isinstance(item, dict):
+            pending.extend(item.keys())
+            pending.extend(item.values())
+        elif isinstance(item, list):
+            pending.extend(item)
+    return False
 
 
 def _with_rejection(prompt: str, errors: str) -> str:

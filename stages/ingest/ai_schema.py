@@ -23,6 +23,7 @@ from shared.ai_client import AIClient, AIUnavailable, RetryBudget
 from shared.run_registry import run_file
 from stages.ingest.ai_input import MAX_AI_COLUMNS, build_prompt_variables
 from stages.ingest.contract_files import write_contract
+from stages.ingest.issue_recount import recount_issues
 from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
 # A pct the AI copied from the profile may be rounded to one decimal.
@@ -49,7 +50,7 @@ def check_answer(answer: SchemaInferenceAnswer, profile: ProfileContract) -> Non
     expected = [c.name for c in profile.columns[:MAX_AI_COLUMNS]]
     rows = profile.dataset.rows
     problems: list[str] = []
-    resolved = [_resolve_name(c.source_name, expected) for c in answer.columns]
+    resolved = [resolve_name(c.source_name, expected) for c in answer.columns]
     names = Counter(resolved)
     missing = [n for n in expected if n not in names]
     unknown = sorted(
@@ -85,8 +86,8 @@ def _figure_mismatches(
     """Issue figures the profile already holds must match it (a pct within the
     rounding tolerance): the AI reports them, pandas computed them (CLAUDE.md
     3.2). For every other code the profile holds no percentage, so `pct` must
-    be null (CONTRACTS.md section 3); those counts are computed in pandas
-    later (PROJECT_PLAN 1D)."""
+    be null (CONTRACTS.md section 3); those counts are replaced by pandas'
+    once the answer is accepted (issue_recount.py)."""
     problems: list[str] = []
     by_name = {c.name: c for c in profile.columns}
     rows = profile.dataset.rows
@@ -177,24 +178,27 @@ def infer_schema_run(
     by_name = {
         name: c.model_copy(update={"source_name": name})
         for c in answer.columns
-        if (name := _resolve_name(c.source_name, sent)) is not None
+        if (name := resolve_name(c.source_name, sent)) is not None
     }
+    # The AI's counts are estimates for every code the profile holds no figure
+    # for; pandas replaces them (CLAUDE.md 3.2, issue_recount.py).
+    columns, dataset_issues, _ = recount_issues(
+        [by_name[name] for name in sent], answer.dataset_issues, frame)
     contract = SchemaInferenceContract(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
         model_used=result.model,
         domain_confidence=answer.domain_confidence,
         domain_reasoning=answer.domain_reasoning,
-        dataset_issues=answer.dataset_issues,
+        dataset_issues=dataset_issues,
         # File order, whatever order the AI used; then the columns it never saw.
-        columns=[by_name[name] for name in sent]
-        + [_not_inferred(c.name) for c in profile.columns[MAX_AI_COLUMNS:]],
+        columns=columns + [_not_inferred(c.name) for c in profile.columns[MAX_AI_COLUMNS:]],
     )
     write_contract(output_path, contract)
     return contract
 
 
-def _resolve_name(given: str, expected: list[str]) -> str | None:
+def resolve_name(given: str, expected: list[str]) -> str | None:
     """The file's column name the AI meant: an exact match, else the one name
     equal after trimming and case-folding (models tidy " Qty " into "Qty").
     Ambiguous or unknown names resolve to None and fail the check."""

@@ -11,8 +11,10 @@ from typing import Any
 
 import pandas as pd
 
-from contracts.profile import ProfileContract
+from contracts.profile import ProfileContract, SchemaInferenceContract
 from stages.ingest import column_kinds
+from stages.ingest.issue_counts import business_key_columns
+from stages.ingest.transform_catalog import legal_column_actions, legal_dataset_actions
 
 # AI_PIPELINE section 1 allows up to 60; 25 because an answer for more columns
 # does not fit in the 3000 output tokens (1C doubt review, decided by Thach).
@@ -104,15 +106,13 @@ def _first_positions(mask: pd.Series, limit: int) -> list[int]:
     return [int(p) for p in mask.to_numpy().nonzero()[0][:limit]]
 
 
-def build_prompt_variables(profile: ProfileContract, frame: pd.DataFrame) -> dict[str, str]:
-    """The bounded input (AI_PIPELINE section 1): the profile cut to its first
-    25 columns (top values are already capped at 10), at most 30 rows of those
-    columns, and every value cut to 100 characters, so the size is bounded as
-    well as the count. Column names are never cut: the answer must repeat them
-    exactly. The contract header fields are left out as noise."""
+def build_profile_json(profile: ProfileContract) -> str:
+    """The profile cut to its first 25 columns (top values are already capped
+    at 10), every value cut to 100 characters, so the size is bounded as well
+    as the count. Column names are never cut: the answer must repeat them
+    exactly. The contract header fields are left out as noise. Both AI steps
+    send this, so they describe the file the same way."""
     sent = profile.columns[:MAX_AI_COLUMNS]
-    names = [c.name for c in sent]
-    numeric = {c.name for c in sent if c.dtype in _NUMERIC_DTYPES}
     columns = []
     for column in sent:
         dumped = column.model_dump(mode="json")
@@ -125,7 +125,16 @@ def build_prompt_variables(profile: ProfileContract, frame: pd.DataFrame) -> dic
     dataset = profile.dataset.model_dump(mode="json")
     # The dataset figures cover the whole file; say how many columns are listed.
     dataset["columns_described_below"] = len(sent)
-    profile_json = {"dataset": dataset, "columns": columns}
+    return json.dumps({"dataset": dataset, "columns": columns}, ensure_ascii=False)
+
+
+def build_prompt_variables(profile: ProfileContract, frame: pd.DataFrame) -> dict[str, str]:
+    """Schema inference's input (AI_PIPELINE section 1): the bounded profile and
+    at most 30 stratified rows of the same 25 columns, values cut to 100
+    characters."""
+    sent = profile.columns[:MAX_AI_COLUMNS]
+    names = [c.name for c in sent]
+    numeric = {c.name for c in sent if c.dtype in _NUMERIC_DTYPES}
     # Header once plus a value list per row: repeating 25 column names in every
     # one of 30 rows would be a third of the prompt.
     sample = {
@@ -136,8 +145,50 @@ def build_prompt_variables(profile: ProfileContract, frame: pd.DataFrame) -> dic
         ],
     }
     return {
-        "profile_json": json.dumps(profile_json, ensure_ascii=False),
+        "profile_json": build_profile_json(profile),
         "sample_rows": json.dumps(sample, ensure_ascii=False),
+    }
+
+
+def build_plan_variables(
+    profile: ProfileContract, schema: SchemaInferenceContract
+) -> dict[str, str]:
+    """The cleaning-plan step's input (AI_PIPELINE section 2): the profile and
+    the schema inference result, for the same 25 columns.
+
+    The schema result is trimmed to what a plan needs. Its `examples` (row
+    references), `domain_reasoning` and header fields are left out: the plan
+    step cannot use them, and AI text that may echo a cell of the uploaded file
+    is not carried into a second call more than necessary. What stays of it,
+    the issue `detail`, is cut like every other value.
+
+    Two things are added that the AI could otherwise only guess: the actions
+    the catalog allows for each column (so the whitelist is given, not
+    inferred) and the business key `flag_duplicate_keys` has to use.
+    """
+    sent = schema.columns[:MAX_AI_COLUMNS]
+    payload = {
+        "dataset_issues": [
+            {"code": i.code, "count": i.count, "severity": i.severity, "detail": _cut(i.detail)}
+            for i in schema.dataset_issues
+        ],
+        "dataset_legal_actions": legal_dataset_actions(),
+        "business_key": business_key_columns(sent),
+        "columns": [
+            {
+                "source_name": c.source_name,
+                "semantic_type": c.semantic_type,
+                "canonical_field": c.canonical_field,
+                "confidence": c.confidence,
+                "issues": [{"code": i.code, "count": i.count, "pct": i.pct} for i in c.issues],
+                "legal_actions": legal_column_actions(c.semantic_type, c.canonical_field),
+            }
+            for c in sent
+        ],
+    }
+    return {
+        "profile_json": build_profile_json(profile),
+        "schema_inference_json": json.dumps(payload, ensure_ascii=False),
     }
 
 

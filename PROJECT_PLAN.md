@@ -147,13 +147,26 @@ dataclarity/
       (1C checks only missing_values, duplicate_rows and all_null_column), and
       consider sample-row kinds 1C does not pick yet (text in a mostly numeric
       column, whitespace, bad dates)
-- [ ] 1E `stages/ingest/ai_plan.py`: AI stage B (cleaning plan) + catalog/legality
-      validation. Tests with mocked AI
+- [x] 1E `stages/ingest/ai_plan.py`: AI stage B (cleaning plan) + catalog/legality
+      validation. Tests with mocked AI. Also wired the pandas issue counts into
+      `ai_schema.py` (`issue_recount.py`) and defined the business key, as the
+      1D handover asked. The checks are in `plan_checks.py` and the param rules
+      in `transform_params.py` (docs/AI_PIPELINE.md section 11)
 - [ ] 1F `stages/ingest/cleaning.py`: preview (sample) and execute (full) engines
       -> `cleaned.csv` + `cleaning_report.json`. Tests. Emit the SPECS
       section 10 `encoding_fallback` warning in `cleaning_report.warnings`
       when `profile.json` has `encoding_used: "latin-1"` (profile.json has
-      no warnings field; 1B only records the encoding)
+      no warnings field; 1B only records the encoding). Carried over from 1E, the
+      things a plan check cannot see because they depend on the data (AI_PIPELINE
+      section 11): `parse_datetime` on a column of mixed UTC offsets fails (the
+      detectors read them as UTC, but writing UTC into the data would move
+      dates: decide with Thach whether to convert, keep the wall-clock date, or
+      flag the column); a `format` with a year that matches no cell flags every
+      date; `cast_type` to integer beyond int64 is flagged (not raised);
+      `standardize_categories` keys absent from the data; `dayfirst` flips ISO
+      cells too. Also decide what happens to a plan that drops a required field
+      or a business-key column with `drop_column` (the legality matrix allows
+      it; SPECS 4.2 blocks Confirm until the required fields are mapped)
 - [ ] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
       `docs/SPECS.md` section 8. Tests with mocked AI. Decide the code for a
       malformed request (e.g. no `file` part): FastAPI's default 422
@@ -168,7 +181,14 @@ dataclarity/
       `settings.model_reasoning`; map `AIUnavailable` to AI_UNAVAILABLE (200 +
       flag, its `reason` code in `details`); send `domain_confidence < 0.5` to
       the NOT_INVENTORY path (AI_PIPELINE 9.4); keep the run's `RetryBudget`
-      across the schema and plan steps (it spans the run, not one request)
+      across the schema and plan steps (it spans the run, not one request).
+      The plan step is `ai_plan.propose_plan_run` (same `AIUnavailable`
+      mapping); it raises `FileNotFoundError` for a missing input and
+      `ValueError` when `schema_inference.json` no longer matches
+      `profile.json` (map both). The `plan_final.json` validation reuses
+      `transform_catalog.illegality_reason` and `transform_params.params_problem`,
+      not the AI-specific coverage and retry-message code; an alternative
+      carries a name only, so the UI supplies its params when it is picked
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
   deliberately messy fixture CSV
 
@@ -320,20 +340,92 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1D closed 2026-09-20 (uncommitted until
-Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
-(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`). 1D delivered
-`stages/ingest/transforms.py` (the 16 actions), `transform_catalog.py` (the
-legality matrix and the fixed order as data), `changes.py` (the shared
-mechanics), `column_kinds.py` (the detectors) and `issue_counts.py` (the
-pandas counts), plus the three new sample-row kinds in `ai_input.py`.
-It also closed three contradictions in `docs/AI_PIPELINE.md` section 6 (see
-the note below). pytest 1059 passed from the repo root and from `backend/`,
-0 skipped; Vitest 9 passed; `npx tsc -b` and `npm run lint` clean.
-**Next step:** Phase 1E (`stages/ingest/ai_plan.py`), which validates the AI's
-plan against `transform_catalog.illegality_reason` and may wire the computed
-issue counts into `ai_schema.py` (see the 1D notes below).
+**Phase in progress:** Phase 1. 1E closed 2026-09-21 (uncommitted until Thach
+commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2
+(`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`). 1E delivered the
+cleaning-plan step: `stages/ingest/ai_plan.py` (reads `profile.json` and
+`schema_inference.json`, calls the AI, writes `plan_proposed.json`),
+`plan_checks.py` (every check on the answer), `transform_params.py` (plan-time
+param validation), `issue_recount.py` (pandas replaces the AI's issue counts),
+the business key in `issue_counts.py`, `ai_input.build_plan_variables`, a
+rewritten `prompts/cleaning_plan.md`, and a lone-surrogate guard in
+`shared/ai_client.py`. pytest 1383 passed from the repo root and from
+`backend/`, 0 skipped; Vitest 9 passed; `npx tsc -b` and `npm run lint` clean;
+`npm audit` not run (needs the network).
+**Next step:** Phase 1F (`stages/ingest/cleaning.py`, the preview and execute
+engines). Its line above lists what 1E leaves to it.
 **Notes:**
+- 1E decisions (Thach): pandas overwrites the AI's count for every code the
+  profile holds no figure for, with no retry on a difference; a count of 0
+  removes the issue (profile-held codes too); `pct` stays null for computed
+  codes; the business key is sku (else product_name) + transaction_date +
+  transaction_type when mapped, and with no key the count is 0 and
+  `flag_duplicate_keys` cannot be proposed. The cross-model second opinion was
+  offered in every review cycle and skipped each time.
+- 1E choices made without a question, for Thach to veto: the plan input carries
+  each column's `legal_actions`, the `dataset_legal_actions` and the
+  `business_key`, and leaves out the schema result's `examples` and
+  `domain_reasoning`; alternatives of a dataset action are dataset actions only
+  (the CONTRACTS example listed `flag_only`, which needs a column, and was
+  corrected); repeated alternatives and the chosen action are tidied away, not
+  rejected; an omitted or null `params` / `alternatives` / `rationale` defaults,
+  so a slip on one entry does not hide the rest; the `detail` sentence of both
+  dataset issues is generated from the figures (I first kept the AI's
+  `duplicate_rows` sentence, and the review found the AI's own number in it);
+  the retry message states the legal-actions hint once, lists dataset problems
+  first and stays within 3500 characters, saying how many problems it left out;
+  a `parse_datetime` format needs a year (or is `ISO8601`); an `impute_constant`
+  value may not be empty or a word profiling reads as missing.
+- 1E review (doubt-driven, three cycles, fresh-context reviewers, cross-model
+  skipped each time). Cycle 1 (3 high): a plan could drop a column its own
+  `flag_duplicate_keys` needs; a malformed date `format` passed and crashed at
+  execution; a 400-digit `k` raised `OverflowError` past the retry. Cycle 2
+  (11, none high): a lone-surrogate action name crashed the retry request;
+  omitted fields hid other problems; alternatives were rejected before being
+  tidied. Cycle 3 (12, one high): a lone surrogate in free text passed every
+  check and crashed the contract write, in the schema step too; fixed once in
+  `shared/ai_client.py`. Everything actionable is fixed with a test, and the
+  fixes made after cycle 3 (the client guard and the cycle-3 items) were not
+  reviewed again: no fourth cycle, decided by Thach (2026-09-21), because the
+  skill stops at three and those fixes are mechanical and lower risk.
+- Defects in earlier code that 1E found and fixed: `column_kinds.as_dates`
+  raised on mixed UTC offsets (also in the 1C sample-row path, before any AI
+  call); the date counters converted a whole text column (about 4 s per 200k
+  rows per code) and now probe 500 cells first; `cast_type` to integer raised
+  beyond int64; `near_duplicate_labels` deleted combining marks (decomposed
+  Vietnamese, Hindi, Thai) and grouped labels made only of symbols. One existing
+  test changed: `test_a_null_pct_is_accepted` had the AI claim a case issue the
+  data did not have, so its CSV now has one (the assertion is unchanged).
+- Accepted trade-offs (each is in AI_PIPELINE section 11 or a docstring): an
+  impossible issue count (more than the rows) still uses the retry, because
+  relaxing it would weaken two 1C tests; issue counts describe the raw file, so
+  the cleaned file can differ; rows with a missing key part count as sharing the
+  key, as `flag_duplicate_keys` marks them; a pct within 0.1 is kept as the AI
+  wrote it, and `examples` / `domain_reasoning` are not number-checked;
+  `near_duplicate_labels` ignores punctuation as its 1D definition says, so
+  "A+" and "A-" are near-duplicates (say if that should change); a column that
+  only turns into dates after 500 rows is treated as text, and a hostile CSV
+  that opens with 500 dates can still cost about 4 s per date code; the recount
+  has no cost bound (a 300,000-row column of unique text costs about 3 s over
+  all 11 codes, up to 25 columns); an answer wrong in every column reports its
+  first problems and how many are left.
+- Technical debt: `stages/ingest/transforms.py` is 322 lines, over the ~300 of
+  CLAUDE.md section 5 (it was 317 at the end of 1D). Left as it is by decision
+  (Thach, 2026-09-21); split it (say, the casts and flags into their own module)
+  when 1F next touches it, not before.
+- The plan prompt met the real model once (2026-09-21, Thach ran a throwaway
+  script on a 25-row CSV with planted dirt, two real calls, a few cents).
+  Reported result: no retry was needed in either call; no imputation of a
+  required field; `flag_duplicate_keys` used exactly SKU / Date / Type; every
+  rationale cited a figure that was in the input. pandas gave `Qty` a
+  `near_duplicate_labels` count of 1 ("-2" vs "2" differ only by punctuation)
+  and the AI left it out of the plan, which is sensible but luck-dependent: the
+  "A+ vs A-" question stays open, not urgent. One 25-row file is a smoke test,
+  not coverage: a wider or dirtier file, or the golden-path test in Phase 5,
+  would say more.
+- Tooling: heredocs through the Bash tool collapse `\\` to `\`, so a script
+  that writes escape sequences (`\ud800`, regexes) must be written with the
+  file-writing tool, not a heredoc.
 - 1D found three readings of `AI_PIPELINE` section 6 and Thach decided all
   three in the same session; section 6 was rewritten so none of them can be
   read two ways again (`docs/SPECS.md` change log, 2026-09-20). (a)
@@ -360,16 +452,10 @@ issue counts into `ai_schema.py` (see the 1D notes below).
   `normalize_case` modes title / lower / upper; both are data in
   `transform_catalog.py` for 1E to validate a plan against. Casting "3.7" to
   integer is a flagged failure, never a 4.
-- 1D issue counts: every one of the 15 issue codes now has a source for its
-  number. Three come from `profile.json` (`missing_values`,
-  `all_null_column`, `duplicate_rows`, checked in 1C), eleven from
-  `issue_counts.count_column_issue`, and `duplicate_business_key` from
-  `count_duplicate_business_key`, which needs the key columns and so can only
-  run after the AI has named the canonical fields. 1E/1F wires this into
-  `ai_schema.py`: after `check_answer` passes, replace each issue's `count`
-  with the computed one. `pct` is deliberately untouched, so the 1C rule (a
-  percentage only where the profile holds one) still holds; whether a
-  computed `pct` should be filled in is a decision for that session.
+- 1D issue counts: every one of the 15 issue codes has a source for its number:
+  three come from `profile.json`, eleven from `issue_counts.count_column_issue`
+  and `duplicate_business_key` from `count_duplicate_business_key`. 1E wired
+  them into `ai_schema.py` through `issue_recount.py` (see the 1E notes).
 - 1D counting definitions worth knowing: `invalid_dates` and
   `mixed_date_formats` count 0 unless more than half the column's values
   parse as dates (otherwise every product-name column would report its whole

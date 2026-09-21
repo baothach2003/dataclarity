@@ -166,3 +166,14 @@ def test_a_limit_of_zero_or_less_sends_nothing(limit: int) -> None:
     data = frame([["A1", "3"], ["B2", "4"]], ["sku", "qty"])
 
     assert select_sample_rows(data, numeric_columns={"qty"}, limit=limit) == []
+
+
+def test_sample_rows_survive_a_column_of_mixed_utc_offsets() -> None:
+    # More than 30 rows, so the problem masks run; this used to raise
+    # "Mixed timezones detected" before any AI call was made.
+    stamps = ["2024-01-05T10:00:00Z", "2024-01-05 10:00:00+01:00"] * 20
+    data = frame([[stamp, str(i)] for i, stamp in enumerate(stamps)], ["when", "qty"])
+
+    rows = select_sample_rows(data, numeric_columns={"qty"})
+
+    assert len(rows) == 30

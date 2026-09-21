@@ -2,6 +2,7 @@
 (stages/ingest/column_kinds.py). Every expectation is hand-calculated."""
 
 import pandas as pd
+import pytest
 
 from stages.ingest.column_kinds import (
     as_dates,
@@ -180,3 +181,53 @@ def test_every_detector_survives_an_empty_column() -> None:
     assert outlier_mask(EMPTY).empty
     assert date_format_labels(EMPTY).empty
     assert iqr_bounds(EMPTY) is None
+
+
+# --- cells written with different UTC offsets (found in 1E) -----------------
+# pandas refuses one column of mixed offsets even with errors="coerce", which
+# used to crash the sample rows, the issue counts and parse_datetime.
+
+
+MIXED_OFFSETS = column("2024-01-05T10:00:00Z", "2024-01-05 10:00:00+01:00", "not a date")
+
+
+def test_dates_with_different_utc_offsets_parse_instead_of_raising() -> None:
+    parsed = as_dates(MIXED_OFFSETS)
+
+    # Both offsets are read: 10:00 UTC and 10:00 at +01:00 (= 09:00 UTC).
+    assert parsed.notna().tolist() == [True, True, False]
+    assert parsed.iloc[0].hour == 10 and parsed.iloc[1].hour == 9
+
+
+def test_a_column_of_mixed_offsets_is_mostly_dates_and_the_text_is_the_invalid_cell() -> None:
+    assert is_mostly_dates(MIXED_OFFSETS)
+    assert invalid_date_mask(MIXED_OFFSETS).tolist() == [False, False, True]
+
+
+def test_an_explicit_format_with_offsets_survives_too() -> None:
+    offsets = column("2024-01-05 10:00 +0100", "2024-01-05 10:00 +0000")
+
+    parsed = as_dates(offsets, "%Y-%m-%d %H:%M %z")
+
+    assert parsed.notna().all()
+
+
+def test_a_malformed_format_is_still_an_error_not_a_silent_utc_retry() -> None:
+    with pytest.raises(ValueError, match="bad directive"):
+        as_dates(column("2024-01-05"), "%Y-%m-%d %Q")
+
+
+def test_the_utc_retry_can_be_switched_off_for_a_caller_that_changes_data() -> None:
+    with pytest.raises(ValueError, match="Mixed timezones"):
+        as_dates(MIXED_OFFSETS, utc_fallback=False)
+
+
+def test_parse_datetime_still_refuses_mixed_offsets_rather_than_pick_a_time_zone() -> None:
+    # Reading them as UTC is right for a detector (is it a date?), but it moves
+    # "2024-01-06 01:00+10:00" to 2024-01-05: a silent change to a date field.
+    # Whether the column should be UTC or keep its wall-clock date is a product
+    # decision (1F / Thach), so the transform fails loudly as it did before.
+    from stages.ingest import transforms
+
+    with pytest.raises(ValueError, match="Mixed timezones"):
+        transforms.apply_action("parse_datetime", MIXED_OFFSETS.to_frame("d"), "d", {})

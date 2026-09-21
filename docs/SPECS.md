@@ -301,6 +301,31 @@ before building; never invent layout or tokens.
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
 
+### 2026-09-21 - Cleaning plan validation and issue counts (Phase 1E)
+- What: `docs/AI_PIPELINE.md` gains section 11 (issue counts computed by pandas,
+  the business key, the cleaning-plan checks and what they leave to 1F) and a
+  pointer from section 6. `docs/CONTRACTS.md` section 3 says where an issue's
+  `count` comes from, section 4 states the rules for `alternatives` and corrects
+  its dataset-action example, and section 10 records both. `prompts/cleaning_plan.md`
+  now lists each action's params, the per-column `legal_actions`, the business key
+  and the dataset-action rules.
+- Why: 1C could only check the three counts the profile holds, and 1D had
+  computed the rest without a home. Decided by Thach in 1E: pandas overwrites the
+  AI's count without a retry and a count of 0 removes the issue; `pct` stays null
+  for computed codes; the business key is sku (else product name) + transaction
+  date + transaction type when there is one. Found while implementing: the
+  CONTRACTS example gave a dataset action the alternative `flag_only`, which the
+  legality matrix (and `transforms.flag_only`, which needs a column) rules out.
+- Also: `shared/ai_client.py` now treats an answer holding a lone UTF-16
+  surrogate as invalid (AI_PIPELINE section 3), found by the 1E review: it
+  crashed the retry request and the contract write, in the schema step as well.
+- Files: `docs/AI_PIPELINE.md`, `docs/CONTRACTS.md`, `docs/SPECS.md`,
+  `prompts/cleaning_plan.md`, `PROJECT_PLAN.md`.
+- Unchanged on purpose: the 16 actions, the legality matrix and the required-field
+  rule (1D), the 4-call / 1-retry budget, max tokens 3000, `schema_version` `1.0`.
+  AI_PIPELINE section 4 asks for a golden-path re-run after a template change;
+  that test arrives in Phase 5, so the change is covered by the mocked tests only.
+
 ### 2026-09-20 - Transform catalog legality (Phase 1D)
 - What: `docs/AI_PIPELINE.md` section 6 no longer contradicts itself.
   `impute_constant` is "categorical/text/boolean" in the table, matching the

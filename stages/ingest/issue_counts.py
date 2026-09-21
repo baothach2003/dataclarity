@@ -8,27 +8,29 @@ every other code the AI's number is an estimate from at most 30 sample rows.
 CLAUDE.md 3.2 says no number in the report may come from the AI, so this module
 computes the other twelve over the whole file.
 
-How `ai_schema.py` will use it (a later session, 1E): after the answer passes
-`check_answer`, walk the accepted issues and replace `count` with
-`count_column_issue(...)` / `count_duplicate_business_key(...)` for every code
-in `COMPUTED_COLUMN_CODES` / `COMPUTED_DATASET_CODES`, leaving the codes in
-`PROFILED_CODES` as 1C already checks them. The AI then contributes the
-judgement (which issues matter, how severe) and pandas contributes every
-number. `pct` is not touched here: the 1C rule (a percentage only where the
-profile holds one, otherwise null) still stands.
+How `ai_schema.py` uses it (1E): after the answer passes `check_answer`,
+`issue_recount.recount_issues` replaces `count` with `count_column_issue(...)` /
+`count_duplicate_business_key(...)` for every code in `COMPUTED_COLUMN_CODES` /
+`COMPUTED_DATASET_CODES`, leaving the codes in `PROFILED_CODES` as 1C already
+checks them. The AI then contributes the judgement (which issues matter, how
+severe) and pandas contributes every number. `pct` is not touched: the 1C rule
+(a percentage only where the profile holds one, otherwise null) still stands.
 
 `duplicate_business_key` needs the key columns, which only exist once the AI has
-named the canonical fields, so it takes them as an argument.
+named the canonical fields, so it takes them as an argument;
+`business_key_columns` says which columns those are.
 
 Every count is a number of cells (`duplicate_business_key`: rows), matching the
 `count` field's meaning in docs/CONTRACTS.md section 3.
 """
 
 import re
+import unicodedata
+from collections.abc import Sequence
 
 import pandas as pd
 
-from contracts.profile import IssueCode
+from contracts.profile import ColumnInference, IssueCode
 from stages.ingest import column_kinds
 
 # Already measured by profiling.py and checked in ai_schema.check_answer.
@@ -54,7 +56,6 @@ COMPUTED_DATASET_CODES: frozenset[IssueCode] = frozenset({"duplicate_business_ke
 
 # Everything a label can differ by and still mean the same product: case,
 # surrounding and inner spacing, and punctuation ("Coca-Cola", "coca cola").
-_PUNCTUATION = re.compile(r"[^\w\s]+")
 _SPACES = re.compile(r"\s+")
 
 
@@ -77,6 +78,27 @@ def count_column_issue(code: IssueCode, values: pd.Series, dayfirst: bool = Fals
     if code not in COMPUTED_COLUMN_CODES:
         raise KeyError(f"{code} is not computed here; see PROFILED_CODES")
     return _COUNTERS[code](values, dayfirst)
+
+
+def business_key_columns(columns: Sequence[ColumnInference]) -> list[str]:
+    """The columns that identify one transaction: the sku (the product name when
+    the file has none), the transaction date, and the transaction type when the
+    file has one. Decided by Thach in 1E; docs/AI_PIPELINE.md section 6.
+
+    Including the type keeps a stock-in and a stock-out of the same product on
+    the same day from being reported as one collision. Without an identity
+    column and a date there is no key, and the answer is empty rather than an
+    error: such a file simply has no business-key issue.
+    """
+    by_field = {c.canonical_field: c.source_name for c in columns if c.canonical_field != "ignore"}
+    identity = by_field.get("sku", by_field.get("product_name"))
+    date = by_field.get("transaction_date")
+    if identity is None or date is None:
+        return []
+    key = [identity, date]
+    if "transaction_type" in by_field:
+        key.append(by_field["transaction_type"])
+    return key
 
 
 def count_duplicate_business_key(frame: pd.DataFrame, keys: list[str]) -> int:
@@ -116,10 +138,23 @@ def _inconsistent_case(values: pd.Series, dayfirst: bool) -> int:
     return int(column_kinds.case_variant_mask(values).sum())
 
 
+def _is_a_date_column(values: pd.Series, dayfirst: bool) -> bool:
+    """Mostly dates, decided on the first `PROBE_ROWS` cells before the whole
+    column is converted. A text column fails the probe in milliseconds; parsing
+    all of it as dates cost about 4 s per 200k rows, per code, and the AI may
+    list a date code on any column. The price is the trade-off profiling's
+    numeric probe already makes: a column that only turns into dates after the
+    probe is treated as text and reports no date issue."""
+    head = values.head(column_kinds.PROBE_ROWS)
+    return column_kinds.is_mostly_dates(head, dayfirst) and column_kinds.is_mostly_dates(
+        values, dayfirst
+    )
+
+
 def _invalid_dates(values: pd.Series, dayfirst: bool) -> int:
     """Only a column that is mostly dates has invalid dates; in a product name
     column every cell would qualify, which says nothing."""
-    if not column_kinds.is_mostly_dates(values, dayfirst):
+    if not _is_a_date_column(values, dayfirst):
         return 0
     return int(column_kinds.invalid_date_mask(values, dayfirst).sum())
 
@@ -127,7 +162,7 @@ def _invalid_dates(values: pd.Series, dayfirst: bool) -> int:
 def _mixed_date_formats(values: pd.Series, dayfirst: bool) -> int:
     """Date cells not written in the column's most common format. One format
     is not a mixture, so a tidy column counts 0."""
-    if not column_kinds.is_mostly_dates(values, dayfirst):
+    if not _is_a_date_column(values, dayfirst):
         return 0
     labels = column_kinds.date_format_labels(values).dropna()
     counts = labels.value_counts()
@@ -170,7 +205,9 @@ def _near_duplicate_labels(values: pd.Series, dayfirst: bool) -> int:
     groups: dict[str, dict[str, int]] = {}
     for spelling, count in sorted((str(v), int(c)) for v, c in counts.items()):
         folded = spelling.casefold()
-        by_case = groups.setdefault(_normalize_label(spelling), {})
+        # A label with no letter or digit ("$", "+") normalizes to "" and would
+        # join every other such label ("€", "-"): keep it apart, by itself.
+        by_case = groups.setdefault(_normalize_label(spelling) or f"\0{folded}", {})
         by_case[folded] = by_case.get(folded, 0) + count
     total = 0
     for by_case in groups.values():
@@ -183,7 +220,19 @@ def _near_duplicate_labels(values: pd.Series, dayfirst: bool) -> int:
 
 
 def _normalize_label(value: str) -> str:
-    return _SPACES.sub(" ", _PUNCTUATION.sub(" ", value.casefold())).strip()
+    """Case, spacing and punctuation ignored. Punctuation is what Unicode calls
+    punctuation or a symbol, plus the underscore. It is not "anything that is not
+    \\w": that pattern also deletes combining marks, so the Vietnamese "ma",
+    "má", "mà", "mã" written in decomposed form (what a macOS export produces)
+    all became "ma". Text is put in composed form first, so an accent written
+    either way is one letter."""
+    text = unicodedata.normalize("NFC", value).casefold()
+    spaced = "".join(" " if _is_separator(char) else char for char in text)
+    return _SPACES.sub(" ", spaced).strip()
+
+
+def _is_separator(char: str) -> bool:
+    return char == "_" or unicodedata.category(char)[0] in "PS"
 
 
 _COUNTERS = {

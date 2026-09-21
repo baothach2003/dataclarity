@@ -143,7 +143,10 @@ def test_an_issue_count_above_the_row_count_is_rejected(tmp_path: Path) -> None:
 
 
 def test_a_null_pct_is_accepted(tmp_path: Path) -> None:
-    run_id = profiled_run(tmp_path)
+    # Row 2 spells "mug" in lower case, so the case issue the AI reports is real
+    # (pandas counts 1) and survives the recount; the rest is CSV as usual.
+    run_id = profiled_run(
+        tmp_path, b"sku,name,qty,price\nA1,Mug,3,9.99\nB2,mug,-1,12.50\nA1,Mug,3,9.99\nC3,,5,\n")
     columns = [column(n, CANONICAL[n]) for n in COLUMNS]
     columns[1]["issues"] = [{"code": "inconsistent_case", "count": 1, "pct": None,
                              "examples": ["row 2"]}]
