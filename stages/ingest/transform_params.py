@@ -82,11 +82,18 @@ def _flag(value: Any) -> str | None:
 
 
 def _text_mapping(value: Any) -> str | None:
-    if isinstance(value, dict) and all(
-        isinstance(key, str) and isinstance(label, str) for key, label in value.items()
+    if not (
+        isinstance(value, dict)
+        and all(isinstance(key, str) and isinstance(label, str) for key, label in value.items())
     ):
-        return None
-    return f"must map text to text, got {_show(value)}"
+        return f"must map text to text, got {_show(value)}"
+    for label in value.values():
+        # Only what a label becomes matters. Merged into "NA" or an empty text it
+        # would read back as missing the next time cleaned.csv is read.
+        if not label.strip() or label in NA_TOKENS:
+            return (f"must not map a label to text that would read back as missing "
+                    f"(an empty text, NA, N/A, NULL...), got {_show(label)}")
+    return None
 
 
 def _key_list(value: Any) -> str | None:

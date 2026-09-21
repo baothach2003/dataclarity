@@ -310,3 +310,20 @@ def test_the_mixed_keyword_is_not_a_format() -> None:
     problem = params_problem("parse_datetime", {"format": "mixed"})
 
     assert problem is not None and "leave format out" in problem
+
+
+# --- a label mapped to something that reads back as missing (1F review) ---------------------
+# profiling reads "", "NA", "N/A", "NULL"... as missing, so a category merged into one
+# of them would turn back into a gap the next time cleaned.csv is read.
+
+
+@pytest.mark.parametrize("target", ["", "  ", "NA", "N/A", "NULL", "null", "nan", "None"])
+def test_a_mapping_may_not_send_a_label_to_a_missing_value_token(target: str) -> None:
+    problem = params_problem("standardize_categories", {"mapping": {"foo": target}})
+
+    assert problem is not None and "read back as missing" in problem
+
+
+def test_a_mapping_to_ordinary_labels_and_from_any_text_is_fine() -> None:
+    # Only what a label becomes matters; the labels being replaced can be anything.
+    assert params_problem("standardize_categories", {"mapping": {"NA": "Unknown", "": "Unknown", "cafe": "Cafe"}}) is None

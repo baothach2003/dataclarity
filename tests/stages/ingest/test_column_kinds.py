@@ -1,10 +1,13 @@
 """Detectors shared by the transforms, the issue counts and the sample rows
 (stages/ingest/column_kinds.py). Every expectation is hand-calculated."""
 
+from typing import Any
+
 import pandas as pd
 import pytest
 
 from stages.ingest.column_kinds import (
+    Offsets,
     as_dates,
     as_numbers,
     case_variant_mask,
@@ -217,17 +220,225 @@ def test_a_malformed_format_is_still_an_error_not_a_silent_utc_retry() -> None:
         as_dates(column("2024-01-05"), "%Y-%m-%d %Q")
 
 
-def test_the_utc_retry_can_be_switched_off_for_a_caller_that_changes_data() -> None:
+def test_mixed_offsets_can_be_refused_outright() -> None:
     with pytest.raises(ValueError, match="Mixed timezones"):
-        as_dates(MIXED_OFFSETS, utc_fallback=False)
+        as_dates(MIXED_OFFSETS, offsets="raise")
 
 
-def test_parse_datetime_still_refuses_mixed_offsets_rather_than_pick_a_time_zone() -> None:
-    # Reading them as UTC is right for a detector (is it a date?), but it moves
-    # "2024-01-06 01:00+10:00" to 2024-01-05: a silent change to a date field.
-    # Whether the column should be UTC or keep its wall-clock date is a product
-    # decision (1F / Thach), so the transform fails loudly as it did before.
+# --- offsets: UTC for detectors, wall-clock for what is written (decided by Thach in 1F) ---
+# Reading "2024-01-06 01:00+10:00" as UTC gives 2024-01-05 15:00: the transaction
+# date moves back a day. A store's own date, as written, is what a report by day
+# needs, so a caller that writes dates into the data drops the offset instead.
+
+SHIFTED = column("2024-01-06 01:00:00+10:00", "2024-01-05 10:00:00-05:00")
+
+
+def test_a_detector_reads_offsets_as_utc_by_default() -> None:
+    assert as_dates(SHIFTED).iloc[0].day == 5  # the shift wall-clock mode exists to avoid
+
+
+def test_wall_clock_keeps_the_date_and_time_as_written() -> None:
+    parsed = as_dates(SHIFTED, offsets="wall_clock")
+
+    assert parsed.tolist() == [pd.Timestamp("2024-01-06 01:00"), pd.Timestamp("2024-01-05 10:00")]
+    assert parsed.dt.tz is None
+
+
+def test_wall_clock_reads_z_fractions_and_a_bad_cell_next_to_each_other() -> None:
+    cells = column("2024-01-05T10:00:00Z", "2024-01-05 10:00:00.250+01:00", "2024-01-05 10:00-0500",
+                   "not a date", NA)
+
+    parsed = as_dates(cells, offsets="wall_clock")
+
+    assert parsed.iloc[0] == pd.Timestamp("2024-01-05 10:00:00")
+    assert parsed.iloc[1] == pd.Timestamp("2024-01-05 10:00:00.250")
+    assert parsed.iloc[2] == pd.Timestamp("2024-01-05 10:00:00")
+    assert parsed.isna().tolist() == [False, False, False, True, True]
+
+
+def test_wall_clock_on_one_shared_offset_also_drops_the_zone() -> None:
+    parsed = as_dates(column("2024-01-05 10:00+01:00", "2024-01-06 11:30+01:00"), offsets="wall_clock")
+
+    assert parsed.dt.tz is None
+    assert parsed.tolist() == [pd.Timestamp("2024-01-05 10:00"), pd.Timestamp("2024-01-06 11:30")]
+
+
+def test_wall_clock_never_eats_the_day_of_a_plain_date() -> None:
+    # "-05" at the end of "2024-01-05" looks like an offset and is not one.
+    plain = column("2024-01-05", "2024-03-04", "05/01/2024")
+
+    assert as_dates(plain, offsets="wall_clock").tolist() == as_dates(plain).tolist()
+
+
+def test_wall_clock_with_an_explicit_format_that_has_an_offset() -> None:
+    cells = column("2024-01-05 10:00 +0100", "2024-01-05 10:00 +0000")
+
+    parsed = as_dates(cells, "%Y-%m-%d %H:%M %z", offsets="wall_clock")
+
+    assert parsed.tolist() == [pd.Timestamp("2024-01-05 10:00")] * 2
+
+
+def test_has_utc_offset_finds_offsets_and_only_offsets() -> None:
+    from stages.ingest.column_kinds import has_utc_offset
+
+    assert has_utc_offset(column("2024-01-05 10:00+01:00"))
+    assert has_utc_offset(column("2024-01-05T10:00:00Z"))
+    assert has_utc_offset(column("2024-01-05 10:00:00.5-0500"))
+    assert not has_utc_offset(column("2024-01-05", "05/01/2024 10:00", "2024-01-05 10:00:00", NA))
+
+
+def test_parse_datetime_keeps_the_written_date_and_says_so() -> None:
     from stages.ingest import transforms
 
-    with pytest.raises(ValueError, match="Mixed timezones"):
-        transforms.apply_action("parse_datetime", MIXED_OFFSETS.to_frame("d"), "d", {})
+    result, entry = transforms.apply_action("parse_datetime", SHIFTED.to_frame("d"), "d", {})
+
+    assert result["d"].tolist() == [pd.Timestamp("2024-01-06 01:00"), pd.Timestamp("2024-01-05 10:00")]
+    assert "UTC offsets dropped" in entry.detail
+    assert (entry.cells_affected, entry.rows_affected) == (2, 0)
+
+
+def test_parse_datetime_does_not_mention_offsets_when_there_are_none() -> None:
+    from stages.ingest import transforms
+
+    _, entry = transforms.apply_action("parse_datetime", column("2024-01-05").to_frame("d"), "d", {})
+
+    assert "offset" not in entry.detail
+
+
+# --- what is not a date (found in the 1F review) ---------------------------------------------
+# pandas reads "now" as the moment the run happens, "10:30" as 10:30 today and "Jan 5"
+# as the year 1: the same plan on the same file gave a different cleaned.csv every
+# run, or a date no report could use, with nothing flagged.
+
+MODES = ["utc", "wall_clock"]
+
+
+@pytest.mark.parametrize("mode", MODES)
+@pytest.mark.parametrize(
+    "cell",
+    ["now", "today", "Now", "TODAY", " now ", "10:30", "00:00", "10:30:15", "10:30:15.5", "9:05", "10:30 pm"],
+)
+def test_a_cell_with_no_date_in_it_is_not_a_date(cell: str, mode: Offsets) -> None:
+    parsed = as_dates(column(cell, "2024-01-05"), offsets=mode)
+
+    assert parsed.isna().tolist() == [True, False]
+
+
+@pytest.mark.parametrize("cell", ["Jan 5", "5 Jan", "12/31", "1/2"])
+def test_a_date_with_no_year_is_not_a_date(cell: str) -> None:
+    assert as_dates(column(cell, "2024-01-05")).isna().tolist() == [True, False]
+
+
+@pytest.mark.parametrize("cell", ["1850-01-01", "2150-01-01", "0099-01-05", "0001-01-01"])
+def test_a_year_outside_1900_to_2100_is_not_a_date(cell: str) -> None:
+    assert as_dates(column(cell, "2024-01-05")).isna().tolist() == [True, False]
+
+
+def test_the_first_and_last_day_of_the_range_are_dates() -> None:
+    parsed = as_dates(column("1900-01-01", "2100-12-31"))
+
+    assert parsed.notna().all()
+
+
+def test_a_detector_agrees_with_the_transform_that_these_are_invalid() -> None:
+    assert invalid_date_mask(column("2024-01-05", "now", "10:30", "Jan 5")).tolist() == [
+        False, True, True, True]
+
+
+def test_the_same_column_read_twice_gives_the_same_dates() -> None:
+    cells = column("2024-01-05", "now", "today", "10:30")
+
+    assert as_dates(cells).equals(as_dates(cells))
+
+
+# --- offsets written the way people write them ------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        ["2024-01-06 01:00 +10", "2024-01-05 10:30 -5"],
+        ["2024-01-06 01:00 UTC", "2024-01-05 10:30 +01:00"],
+        ["2024-01-06 01:00 GMT+2", "2024-01-05 10:30Z"],
+        ["2024-01-06 01:00 +05", "2024-01-05 10:30 -0530"],
+        ["2024-01-06 01:00 UTC+1", "2024-01-05 10:30 GMT"],
+    ],
+    ids=["hour-only", "utc-word", "gmt-plus", "short-and-long", "utc-plus"],
+)
+def test_common_offset_forms_are_dropped_and_the_date_kept(cells: list[str]) -> None:
+    parsed = as_dates(column(*cells), offsets="wall_clock")
+
+    assert parsed.tolist() == [pd.Timestamp("2024-01-06 01:00"), pd.Timestamp("2024-01-05 10:30")]
+
+
+def test_has_utc_offset_knows_the_same_forms() -> None:
+    from stages.ingest.column_kinds import has_utc_offset
+
+    for cell in ("2024-01-06 01:00 +10", "2024-01-05 10:30 -5", "2024-01-06 01:00 UTC",
+                 "2024-01-06 01:00 GMT+2"):
+        assert has_utc_offset(column(cell)), cell
+
+
+def test_a_time_followed_by_text_that_is_not_an_offset_is_left_alone() -> None:
+    from stages.ingest.column_kinds import has_utc_offset
+
+    assert not has_utc_offset(column("2024-01-05 10:30 PM", "2024-01-05 10:30 sharp"))
+
+
+# --- the change log only claims what happened ----------------------------------------------------------
+
+
+def test_offsets_are_not_reported_dropped_when_a_format_made_every_offset_cell_fail() -> None:
+    from stages.ingest import transforms
+
+    cells = column("2024-01-05 10:30+10:00", "2024-01-06 01:00-05:00").to_frame("d")
+
+    result, entry = transforms.apply_action("parse_datetime", cells, "d", {"format": "%Y-%m-%d %H:%M"})
+
+    assert result["d"].isna().all() and entry.rows_affected == 2  # both flagged
+    assert "offset" not in entry.detail
+
+
+def test_offsets_are_reported_dropped_when_the_format_reads_them() -> None:
+    from stages.ingest import transforms
+
+    cells = column("2024-01-05 10:30 +1000", "2024-01-06 01:00 -0500").to_frame("d")
+
+    _, entry = transforms.apply_action("parse_datetime", cells, "d", {"format": "%Y-%m-%d %H:%M %z"})
+
+    assert "UTC offsets dropped" in entry.detail
+
+
+# --- a column of words is not converted to dates (1F review: 400 columns cost seconds) ---------
+
+
+def test_a_column_with_no_digit_in_it_is_never_tried_as_dates(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Every date has a digit. Converting 500 words to dates takes 5 ms on pandas'
+    # slow path, per column, and a wide file has hundreds of columns.
+    from stages.ingest import column_kinds
+
+    tried: list[int] = []
+    real = column_kinds.as_dates
+
+    def spy(values: pd.Series, *args: object, **kwargs: Any) -> pd.Series:
+        tried.append(len(values))
+        return real(values, *args, **kwargs)
+
+    monkeypatch.setattr(column_kinds, "as_dates", spy)
+
+    assert column_kinds.probably_dates(column(*["apple", "pear", "plum"] * 200)) is False
+    assert tried == []
+
+
+def test_a_column_of_dates_and_a_column_with_digits_are_still_probed() -> None:
+    from stages.ingest.column_kinds import probably_dates
+
+    assert probably_dates(column(*["2024-01-05"] * 50)) is True
+    assert probably_dates(column(*["Item 5", "Item 6"] * 50)) is False  # probed, and not dates
+    assert probably_dates(column(*[None, None, "2024-01-05"] * 40)) is True  # gaps do not hide a date
+
+
+def test_a_date_after_many_words_is_still_found_when_it_is_in_the_first_hundred_cells() -> None:
+    from stages.ingest.column_kinds import probably_dates
+
+    assert probably_dates(column(*["n/a"] * 3, *["2024-01-05"] * 200)) is True

@@ -82,7 +82,30 @@ def read_csv_text(raw: bytes) -> ParsedCsv:
     if len(frame.index) == 0:
         # SPECS section 10: a header-only file is rejected like an empty one.
         raise EmptyCsvError("The file has a header row but no data rows.")
+    if not isinstance(frame.index, pd.RangeIndex):
+        frame = _without_extra_field(text, delimiter, frame)
     return ParsedCsv(frame=frame, encoding=encoding, delimiter=delimiter)
+
+
+def _without_extra_field(text: str, delimiter: str, shifted: pd.DataFrame) -> pd.DataFrame:
+    """The data rows have one field more than the header, and pandas answered by
+    using the first column as the index: every value sits one column to the left.
+
+    A trailing delimiter ("a,b,c," on every row) leaves that extra field empty, and
+    reading with `index_col=False` puts everything back. A field that holds data is
+    a different file (an unquoted comma, a missing header name), and `index_col=False`
+    would drop it without a word, so the file is rejected instead.
+    """
+    if shifted.iloc[:, -1].notna().any():
+        raise CsvParseError("Rows have more fields than the header row.")
+    return pd.read_csv(
+        io.StringIO(text),
+        sep=delimiter,
+        dtype=str,
+        keep_default_na=False,
+        na_values=NA_TOKENS,
+        index_col=False,
+    )
 
 
 def _decode(raw: bytes) -> tuple[str, str]:

@@ -136,8 +136,11 @@ lists at most 2 other actions, each legal for that column, with no repeats and
 never the chosen action. For a dataset action they are dataset-scope actions
 (`remove_exact_duplicates`, `flag_duplicate_keys`) or empty: `flag_only` needs a
 column, so it is not one (this example used to list it). `semantic_type` and
-`canonical_field` are those of `schema_inference.json`. Columns beyond the 25 the
-AI sees get `flag_only` with a note that they were not analyzed.
+`canonical_field` are those of `schema_inference.json` in `plan_proposed.json`; in
+`plan_final.json` they are the user's, who may have changed either. Columns beyond
+the 25 the AI sees get `flag_only` with a note that they were not analyzed.
+`plan_final.json` is written by the execution together with `cleaned.csv` and
+`cleaning_report.json` (section 5), and is the plan exactly as it ran.
 
 ## 5. `cleaning_report.json` (stage 1 output F)
 
@@ -149,9 +152,9 @@ AI sees get `flag_only` with a note that they were not analyzed.
   "changes": [
     {"action": "impute_median", "column": "Unit Price", "cells_affected": 6402,
      "rows_affected": 0, "params": {}, "detail": "filled with 8.5"},
-    {"action": "drop_rows_missing", "column": "transaction_date",
+    {"action": "drop_rows_missing", "column": "Prod Name",
      "cells_affected": 0, "rows_affected": 430, "params": {},
-     "detail": "dropped rows with unparseable dates"}
+     "detail": "dropped 430 rows with no Prod Name"}
   ],
   "warnings": [
     {"code": "encoding_fallback", "detail": "file decoded as latin-1"}
@@ -159,6 +162,23 @@ AI sees get `flag_only` with a note that they were not analyzed.
   "column_mapping": {"Prod Name": "product_name", "Qty": "quantity"}
 }
 ```
+
+Rules for the values (no field changed):
+- `changes` holds every action of the plan, in the order it ran (the fixed order of
+  `docs/AI_PIPELINE.md` section 6), one entry each even when it changed nothing.
+- `rows_in` and `columns_in` describe `raw.csv`; `rows_out` and `columns_out`
+  describe `cleaned.csv`, so `columns_out` also counts the `__flag_*` columns the run
+  added.
+- `column_mapping` lists the columns that are in `cleaned.csv` and mapped to a
+  canonical field other than `ignore`: an ignored or dropped column is not there.
+- `encoding_fallback` is warned, with the detail "file decoded as latin-1", when the
+  file was not UTF-8. `cleaned.csv` is always UTF-8. `text_reads_as_missing` is warned,
+  with the count and the columns, when cells hold text that reads back as missing
+  once the file is read again (an empty text, NA, N/A, NULL...).
+- A flag column that would be all False is not in `cleaned.csv`, and a flag never
+  overwrites a source column of the same name (it takes `_2`, `_3`...).
+- `cleaned.csv` keeps the source column names, writes dates as ISO 8601 and holds the
+  flag columns (`__flag_<kind>__<column>`, `__flag_duplicate_key`).
 
 ## 6. `metrics.json` (stage 2 output)
 
@@ -337,3 +357,11 @@ the report defensible.
   corrects the dataset-action example (1E). No field was added, renamed or
   changed, so `schema_version` stays `1.0`: these are rules the stage enforces on
   values the schema already allowed.
+- 2026-09-21: section 5 states how the values are built and section 4 that
+  `plan_final.json` is written by the execution and carries the user's types and
+  mapping (1F). No field was added, renamed or changed, so `schema_version` stays
+  `1.0`.
+- 2026-09-21: section 5 gains the `text_reads_as_missing` warning and two rules for
+  the flag columns, and its example no longer shows an entry the stage cannot
+  produce (`drop_rows_missing` acts on a source column and drops missing cells, not
+  unparseable dates) (1F review). No field changed; `schema_version` stays `1.0`.

@@ -103,7 +103,7 @@ def replace(
     cells = int(changed.sum())
     if cells == 0:
         return df, entry(action, column, params, detail=detail)
-    result = df.copy()
+    result = df.copy(deep=False)  # copy-on-write: only the column assigned below is new
     result[column] = set_cells(df[column], changed, new_values[changed])
     return result, entry(action, column, params, cells=cells, detail=detail)
 
@@ -138,7 +138,7 @@ def convert(
     failed = present & converted.isna()
     done = int((present & converted.notna()).sum())
     detail = detail_template.format(done=done, present=int(present.sum()))
-    result = df.copy()
+    result = df.copy(deep=False)
     result[column] = converted
     result, flag_detail = mark(result, column, failed, flag_kind)
     return result, entry(action, column, params, cells=done, rows=int(failed.sum()),
@@ -160,6 +160,18 @@ def flag(
                          detail=detail + flag_detail)
 
 
+def _free_name(df: pd.DataFrame, name: str) -> str:
+    """`name`, or `name_2`, `name_3`... when the frame already has a column of that
+    name. A source column called `__flag_...` (a cleaned.csv uploaded again has
+    them) must never be overwritten by a flag."""
+    if name not in df.columns:
+        return name
+    number = 2
+    while f"{name}_{number}" in df.columns:
+        number += 1
+    return f"{name}_{number}"
+
+
 def mark(
     df: pd.DataFrame, column: str | None, marked: pd.Series, flag_kind: str
 ) -> tuple[pd.DataFrame, str]:
@@ -167,7 +179,7 @@ def mark(
     all-False column would be a column of noise in every clean file."""
     if not marked.any():
         return df, ""
-    name = flag_column_name(flag_kind, column)
-    result = df.copy()
+    name = _free_name(df, flag_column_name(flag_kind, column))
+    result = df.copy(deep=False)
     result[name] = marked
     return result, f"; flagged in {name}"

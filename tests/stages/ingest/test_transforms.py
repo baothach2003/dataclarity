@@ -243,3 +243,68 @@ def test_standardize_categories_leaves_unmapped_labels_alone() -> None:
 def test_standardize_categories_refuses_a_mapping_that_is_not_text_to_text() -> None:
     with pytest.raises(ValueError, match="mapping of text to text"):
         transforms.standardize_categories(frame(s=column("a")), "s", {"mapping": {"a": 1}})
+
+
+# --- a cell of only spaces counts as missing here (decided by Thach in 1F) ---------------------
+# A blank product name is no more a product name than an empty one, and trimming it
+# (one action per column) would leave an empty cell in the file instead of dropping
+# the row. Only this action reads it that way: profiling and the imputations still
+# treat "missing" as the NA tokens.
+
+
+def test_drop_rows_missing_also_drops_a_cell_of_only_spaces() -> None:
+    data = frame(qty=column("1", "   ", NA, "3"), shop=column("a", "b", "c", "d"))
+
+    result, entry = transforms.drop_rows_missing(data, "qty", {})
+
+    assert result["qty"].tolist() == ["1", "3"]
+    assert result["shop"].tolist() == ["a", "d"]  # the whole row goes
+    assert (entry.cells_affected, entry.rows_affected) == (0, 2)
+    assert entry.detail == "dropped 2 rows with no qty (1 of them only spaces)"
+
+
+def test_every_kind_of_whitespace_counts_as_blank() -> None:
+    data = frame(name=column("\t", " \n ", "\u00a0", "\u2003 ", "x"))
+
+    result, entry = transforms.drop_rows_missing(data, "name", {})
+
+    assert result["name"].tolist() == ["x"]
+    assert entry.rows_affected == 4
+
+
+def test_a_cell_with_spaces_around_a_value_is_not_blank() -> None:
+    data = frame(name=column(" Mug ", "Cup", "  a b  "))
+
+    result, entry = transforms.drop_rows_missing(data, "name", {})
+
+    assert result["name"].tolist() == [" Mug ", "Cup", "  a b  "]  # left for trim_whitespace
+    assert entry.rows_affected == 0
+
+
+def test_the_detail_is_unchanged_when_no_cell_is_blank() -> None:
+    _, entry = transforms.drop_rows_missing(frame(qty=column("1", NA, "3")), "qty", {})
+
+    assert entry.detail == "dropped 1 rows with no qty"
+
+
+def test_numbers_and_dates_are_never_mistaken_for_blank() -> None:
+    # After parse_datetime or a cast the column is not text any more.
+    data = pd.DataFrame({
+        "day": pd.to_datetime(["2024-01-05", None]),
+        "n": pd.array([1, None], dtype="Int64"),
+        "f": [1.5, None],
+        "b": pd.array([True, None], dtype="boolean"),
+    })
+
+    for name in data.columns:
+        result, entry = transforms.drop_rows_missing(data, name, {})
+        assert (len(result), entry.rows_affected) == (1, 1), name
+        assert "only spaces" not in entry.detail
+
+
+def test_a_whole_column_of_blanks_drops_every_row_and_an_empty_frame_is_fine() -> None:
+    result, entry = transforms.drop_rows_missing(frame(qty=column(" ", "  ")), "qty", {})
+
+    assert (len(result), entry.rows_affected) == (0, 2)
+    empty, entry = transforms.drop_rows_missing(frame(qty=column()), "qty", {})
+    assert (len(empty), entry.rows_affected) == (0, 0)

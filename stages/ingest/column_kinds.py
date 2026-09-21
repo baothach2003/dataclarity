@@ -9,8 +9,9 @@ therefore use one definition, so a plan cannot report 12 negatives and fix 11.
 """
 
 import re
-from typing import Any
+from typing import Any, Literal
 
+import numpy as np
 import pandas as pd
 
 # A column counts as numeric / date when more than this share of its non-missing
@@ -20,6 +21,7 @@ DEFAULT_IQR_K = 1.5  # AI_PIPELINE section 6
 # Rows a "what kind of column is this?" probe reads before the caller decides
 # to convert the whole column (SPECS section 11: stage 1 stays inside 3 s).
 PROBE_ROWS = 500
+DIGIT_PROBE_CELLS = 100  # non-missing cells looked at for a digit before a date probe
 
 # Recognised written date formats, tried in order; the first match names the
 # cell's format. Only the shapes a spreadsheet export produces are listed - a
@@ -35,6 +37,25 @@ _DATE_FORMATS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("compact", re.compile(r"^\d{8}$")),
 )
 OTHER_DATE_FORMAT = "other"
+# A UTC offset after a time of day, in the forms people write: "10:00+01:00",
+# "10:00:00.250-0500", "10:00Z", "10:00 +10", "10:00 -5", "10:00 UTC", "10:00 GMT+2".
+# The time in front is required, so the "-05" at the end of "2024-01-05" is
+# never taken for an offset. Group 1 is the seconds and fraction, kept when the
+# offset is cut off.
+_UTC_OFFSET = re.compile(
+    r"(?<=\d{2}:\d{2})((?::\d{2})?(?:\.\d+)?)"
+    r"\s*(?:Z|UTC|GMT|(?:UTC|GMT)?[+-]\d{1,2}(?::?\d{2})?)$"
+)
+# Cells with no date in them. pandas reads "now" and "today" as the moment the run
+# happens and "10:30" as 10:30 today, so the same file gave a different cleaned.csv
+# on another day.
+_NO_DATE_WORDS = frozenset({"now", "today"})
+_TIME_ONLY = re.compile(r"\d{1,2}:\d{2}(?::\d{2}(?:\.\d+)?)?\s*(?:am|pm)?")
+# A parsed year outside this range is not a date: pandas turns "Jan 5" into the
+# year 1, and a date in 2150 or 1850 is a typo or a code in a sales file.
+MIN_YEAR = 1900
+MAX_YEAR = 2100
+Offsets = Literal["utc", "wall_clock", "raise"]
 
 
 def as_text(values: pd.Series) -> pd.Series:
@@ -45,15 +66,20 @@ def as_text(values: pd.Series) -> pd.Series:
 def as_numbers(values: pd.Series) -> pd.Series:
     """The column as numbers; text that is not a number becomes NaN, so a
     missing cell and a non-numeric cell are indistinguishable here. Use
-    `non_numeric_mask` when the difference matters."""
-    return pd.to_numeric(as_text(values), errors="coerce")
+    `non_numeric_mask` when the difference matters.
+
+    Only finite numbers count, as in profiling: "inf", "Infinity" and "1e999" are
+    text here. Read as infinity they would turn a mean into infinity and an
+    absolute value into infinity, and be written to cleaned.csv."""
+    numbers = pd.to_numeric(as_text(values), errors="coerce")
+    return numbers.where(np.isfinite(numbers))
 
 
 def as_dates(
     values: pd.Series,
     date_format: str | None = None,
     dayfirst: bool = False,
-    utc_fallback: bool = True,
+    offsets: Offsets = "utc",
 ) -> pd.Series:
     """The column as timestamps; anything unparseable becomes NaT.
 
@@ -61,26 +87,60 @@ def as_dates(
     is what a column of several formats needs. `dayfirst` then also decides
     "2024-01-05", so it is the caller's (the user's) choice, not a guess.
 
-    Cells written with different UTC offsets cannot share one dtype. A detector
-    (is this a date? which cells are not?) only needs them to parse, so by
-    default they are read as UTC. A caller that writes the result into the data
-    passes `utc_fallback=False`: reading them as UTC moves "2024-01-06 01:00+10:00"
-    to 2024-01-05, a change to a date field that is a product decision, not a
-    default.
+    Cells written with different UTC offsets cannot share one dtype, so
+    `offsets` says what to do with them:
+
+    * "utc" (the default, for detectors: is this a date? which cells are not?)
+      reads every cell as UTC. Only whether a cell parses matters there.
+    * "wall_clock" (for what writes dates into the data) drops the offset and
+      keeps the date and time as written. Reading "2024-01-06 01:00+10:00" as UTC
+      would move it to 2024-01-05, and a report by day needs the store's own
+      date (decided by Thach in 1F). The result is never time-zone aware.
+    * "raise" lets pandas' error through.
     """
-    text = as_text(values)
+    text = _dated_cells(as_text(values))
     if date_format is not None:
         options: dict[str, Any] = {"format": date_format}
     else:
         options = {"format": "mixed", "dayfirst": dayfirst}
     try:
-        return pd.to_datetime(text, errors="coerce", **options)
+        parsed = pd.to_datetime(text, errors="coerce", **options)
     except ValueError:
         # errors="coerce" does not cover mixed offsets. A malformed format fails
         # again below, with its own message, so nothing is hidden by the retry.
-        if not utc_fallback:
+        if offsets == "raise":
             raise
-        return pd.to_datetime(text, errors="coerce", utc=True, **options)
+        if offsets == "wall_clock":
+            parsed = _wall_clock(text, date_format, options)
+        else:
+            parsed = pd.to_datetime(text, errors="coerce", utc=True, **options)
+    if offsets == "wall_clock" and parsed.dt.tz is not None:
+        parsed = parsed.dt.tz_localize(None)  # one shared offset: same rule, zone dropped
+    return parsed.where(parsed.dt.year.between(MIN_YEAR, MAX_YEAR))
+
+
+def _dated_cells(text: pd.Series) -> pd.Series:
+    """The text with the cells that have no date in them made missing, so pandas
+    never invents one for them."""
+    folded = text.str.strip().str.casefold()
+    return text.mask(folded.isin(_NO_DATE_WORDS) | folded.str.fullmatch(_TIME_ONLY, na=False))
+
+
+def _wall_clock(text: pd.Series, date_format: str | None, options: dict[str, Any]) -> pd.Series:
+    """The same cells with their offsets cut off, parsed as plain date-times. A
+    format with an offset directive loses it too, or nothing would match."""
+    stripped = text.str.replace(_UTC_OFFSET, r"\1", regex=True)
+    if date_format is not None:
+        options = {"format": re.sub(r"\s*%z", "", date_format)}
+    return pd.to_datetime(stripped, errors="coerce", **options)
+
+
+def has_utc_offset(values: pd.Series) -> bool:
+    """Whether any cell is written with a UTC offset ("+01:00", "-0500", "Z")."""
+    text = as_text(values)
+    # A cell that has an offset is a cell the strip changes (str.contains would
+    # warn about the capture group).
+    return bool((text.str.replace(_UTC_OFFSET, r"\1", regex=True).ne(text) & text.notna()).any())
 
 
 def present_mask(values: pd.Series) -> pd.Series:
@@ -136,7 +196,15 @@ def probably_numeric(values: pd.Series, probe: int = PROBE_ROWS) -> bool:
 
 
 def probably_dates(values: pd.Series, probe: int = PROBE_ROWS) -> bool:
-    return is_mostly_dates(values.head(probe))
+    """A cheap majority test over the head of a column. A date has a digit in it,
+    so a column whose first cells hold none is not tried: converting 500 words on
+    pandas' slow date path costs about 5 ms, per column, and a wide file has
+    hundreds of columns."""
+    head = values.head(probe)
+    first_cells = head.dropna().head(DIGIT_PROBE_CELLS)
+    if not first_cells.str.contains(r"\d", na=False).any():
+        return False
+    return is_mostly_dates(head)
 
 
 def iqr_bounds(values: pd.Series, k: float = DEFAULT_IQR_K) -> tuple[float, float] | None:

@@ -1,6 +1,7 @@
 """The transform catalog: what each of the 16 cleaning actions does
 (docs/AI_PIPELINE.md section 6). Which action is legal where, and in which
-order a plan runs, is data in `transform_catalog.py`.
+order a plan runs, is data in `transform_catalog.py`. The two type conversions,
+`parse_datetime` and `cast_type`, are in `transform_types.py`.
 
 Every action is a pure function `apply(df, column, params) -> (df, entry)`: it
 returns a new frame and the `ChangeLogEntry` that goes into
@@ -50,7 +51,6 @@ from stages.ingest.changes import (
     Params,
     Result,
     choice,
-    convert,
     entry,
     flag,
     flag_column_name,
@@ -61,12 +61,13 @@ from stages.ingest.changes import (
     series,
     show,
 )
-from stages.ingest.transform_catalog import CASE_MODES, CAST_TARGETS, NEGATIVE_STRATEGIES
+from stages.ingest.transform_catalog import CASE_MODES, NEGATIVE_STRATEGIES
+from stages.ingest.transform_types import cast_type, parse_datetime
 
-__all__ = ["ACTIONS", "FLAG_PREFIX", "apply_action", "flag_column_name"]
-
-BOOLEAN_TRUE = frozenset({"true", "t", "yes", "y", "1"})
-BOOLEAN_FALSE = frozenset({"false", "f", "no", "n", "0"})
+# `parse_datetime` and `cast_type` live in `transform_types.py` (300-line
+# guideline) and are re-exported here, where the catalog and its tests look.
+__all__ = ["ACTIONS", "FLAG_PREFIX", "apply_action", "cast_type", "flag_column_name",
+           "parse_datetime"]
 
 
 # --- missing values ---------------------------------------------------------
@@ -98,10 +99,19 @@ def impute_constant(df: pd.DataFrame, column: str | None, params: Params) -> Res
 
 
 def drop_rows_missing(df: pd.DataFrame, column: str | None, params: Params) -> Result:
-    missing = series(df, column, "drop_rows_missing").isna()
-    dropped = int(missing.sum())
+    values = series(df, column, "drop_rows_missing")
+    missing = values.isna()
+    # A cell of only spaces is missing here too (decided by Thach in 1F): a blank
+    # product name is no more a product name than an empty one, and a column has
+    # one action, so it cannot be trimmed and dropped both. Only this action reads
+    # it so; profiling and the imputations still take "missing" to be the NA tokens.
+    blank = ~missing & column_kinds.as_text(values).str.strip().eq("")
+    dropped = int(missing.sum() + blank.sum())
     detail = f"dropped {dropped} rows with no {column}"
-    return df[~missing], entry("drop_rows_missing", column, params, rows=dropped, detail=detail)
+    if blank.any():
+        detail += f" ({int(blank.sum())} of them only spaces)"
+    return df[~(missing | blank)], entry(
+        "drop_rows_missing", column, params, rows=dropped, detail=detail)
 
 
 # --- structure --------------------------------------------------------------
@@ -159,48 +169,6 @@ def standardize_categories(df: pd.DataFrame, column: str | None, params: Params)
     changed = values.notna() & text.ne(merged)
     detail = f"merged {int(changed.sum())} cells into {len(set(mapping.values()))} labels"
     return replace(df, column, params, "standardize_categories", merged, changed, detail)
-
-
-# --- types ------------------------------------------------------------------
-
-
-def parse_datetime(df: pd.DataFrame, column: str | None, params: Params) -> Result:
-    date_format = params.get("format")
-    if date_format is not None and not isinstance(date_format, str):
-        raise ValueError("parse_datetime needs format to be text")
-    values = series(df, column, "parse_datetime")
-    # No UTC fallback: this writes the dates into the data (see as_dates).
-    parsed = column_kinds.as_dates(
-        values, date_format, bool(params.get("dayfirst", False)), utc_fallback=False)
-    shape = f"as {date_format}" if date_format else "per cell"
-    return convert(df, column, params, "parse_datetime", parsed, "invalid_date",
-                    "parsed {done} of {present} values " + shape)
-
-
-def cast_type(df: pd.DataFrame, column: str | None, params: Params) -> Result:
-    target = choice(params, "target", "cast_type", CAST_TARGETS)
-    values = series(df, column, "cast_type")
-    return convert(df, column, params, "cast_type", _cast(values, target), "cast_failed",
-                    "cast {done} of {present} values to " + target)
-
-
-def _cast(values: pd.Series, target: str) -> pd.Series:
-    """The column in the target type, with every value that does not convert
-    left missing - never rounded, never coerced into a stand-in value."""
-    if target == "string":
-        return column_kinds.as_text(values)
-    if target == "boolean":
-        folded = column_kinds.as_text(values).str.strip().str.casefold()
-        true, false = folded.isin(BOOLEAN_TRUE), folded.isin(BOOLEAN_FALSE)
-        return pd.Series(True, index=values.index).where(true).mask(false, False).astype("boolean")
-    numbers = column_kinds.as_numbers(values)
-    if target == "float":
-        return numbers
-    # "integer": 3.7 is a failure, not a 4. Only whole numbers convert, and only
-    # those an int64 can hold: "1e30" is whole but astype would raise, so it is
-    # a flagged failure like any other cell that does not convert.
-    whole = numbers.notna() & (numbers % 1 == 0) & (numbers >= -(2.0**63)) & (numbers < 2.0**63)
-    return numbers.where(whole).astype("Int64")
 
 
 # --- numbers ----------------------------------------------------------------

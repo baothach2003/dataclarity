@@ -12,7 +12,7 @@ from typing import Any
 import pandas as pd
 
 from contracts.profile import ProfileContract, SchemaInferenceContract
-from stages.ingest import column_kinds
+from stages.ingest import problem_rows
 from stages.ingest.issue_counts import business_key_columns
 from stages.ingest.transform_catalog import legal_column_actions, legal_dataset_actions
 
@@ -36,7 +36,7 @@ def select_sample_rows(
     """Up to `limit` rows, "stratified to include problematic rows" (the prompt).
 
     Deterministic, so tests can check it by hand: up to `PER_PROBLEM_KIND`
-    rows for each kind of dirt in `_problem_masks` (a missing cell, an exact
+    rows for each kind of dirt in `problem_rows.problem_masks` (a missing cell, an exact
     duplicate, a negative number, text in a column of numbers, padded
     whitespace, an unparseable date), then evenly spaced rows up to the limit
     (fewer when an evenly spaced row was already picked as a problem row).
@@ -52,8 +52,8 @@ def select_sample_rows(
         chosen = set(range(count))
     else:
         chosen = set()
-        for mask in _problem_masks(frame, numeric_columns):
-            chosen.update(_first_positions(mask, PER_PROBLEM_KIND))
+        for mask in problem_rows.problem_masks(frame, numeric_columns):
+            chosen.update(problem_rows.first_positions(mask, PER_PROBLEM_KIND))
         # Three kinds of problem rows can already exceed the limit on their own.
         chosen = set(sorted(chosen)[:limit])
         for position in (i * (count - 1) // (limit - 1) for i in range(limit)):
@@ -70,40 +70,6 @@ def select_sample_rows(
         }
         for position in sorted(chosen)
     ]
-
-
-def _problem_masks(frame: pd.DataFrame, numeric_columns: Collection[str]) -> list[pd.Series]:
-    """One mask per kind of dirt worth showing the AI. The kinds match the
-    issue codes it is asked to report (`issue_counts.py`), so the sample holds
-    an example of what the schema answer has to describe.
-
-    A column is scanned for numbers or for dates only when its head looks that
-    way: converting all 25 columns both ways would cost more than the whole
-    profiling step.
-    """
-    nothing = pd.Series(False, index=frame.index)
-    negative, non_numeric, whitespace, bad_date = (nothing.copy() for _ in range(4))
-    for name in frame.columns:
-        values = frame[name]
-        whitespace |= column_kinds.whitespace_mask(values)
-        if name in numeric_columns or column_kinds.probably_numeric(values):
-            negative |= column_kinds.as_numbers(values) < 0
-            # Text in a column of numbers: the "n/a" the AI must not average.
-            non_numeric |= column_kinds.non_numeric_mask(values)
-        elif column_kinds.probably_dates(values):
-            bad_date |= column_kinds.invalid_date_mask(values)
-    return [
-        frame.isna().any(axis=1),
-        frame.duplicated(keep=False),
-        negative,
-        non_numeric,
-        whitespace,
-        bad_date,
-    ]
-
-
-def _first_positions(mask: pd.Series, limit: int) -> list[int]:
-    return [int(p) for p in mask.to_numpy().nonzero()[0][:limit]]
 
 
 def build_profile_json(profile: ProfileContract) -> str:

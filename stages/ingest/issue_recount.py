@@ -45,6 +45,7 @@ from stages.ingest.issue_counts import (
     count_column_issue,
     count_duplicate_business_key,
 )
+from stages.ingest.transform_catalog import TEXTUAL_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,12 @@ logger = logging.getLogger(__name__)
 _COLUMN_LEVEL_CODES: frozenset[IssueCode] = COMPUTED_COLUMN_CODES | {
     "missing_values", "all_null_column"}
 _DATASET_LEVEL_CODES: frozenset[IssueCode] = COMPUTED_DATASET_CODES | {"duplicate_rows"}
+# near_duplicate_labels ignores punctuation, which is right for "Coca-Cola" and
+# "coca cola" and wrong for a number: "-2" and "2" are not one label (the 1E run
+# on real data counted exactly that in a quantity column). So it is only reported
+# for text and categorical columns (decided by Thach in 1F). An identifier, a date
+# and a boolean are outside it too, by the same decision.
+_NEAR_DUPLICATE_TYPES = TEXTUAL_TYPES
 
 
 @dataclass(frozen=True)
@@ -74,6 +81,10 @@ def recount_issues(
         seen: set[IssueCode] = set()
         for issue in column.issues:
             if issue.code in seen or issue.code not in _COLUMN_LEVEL_CODES:
+                dropped += 1
+                continue
+            near = issue.code == "near_duplicate_labels"
+            if near and column.semantic_type not in _NEAR_DUPLICATE_TYPES:
                 dropped += 1
                 continue
             seen.add(issue.code)

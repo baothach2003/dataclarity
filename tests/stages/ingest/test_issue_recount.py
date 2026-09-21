@@ -340,3 +340,54 @@ def test_a_duplicate_rows_issue_with_a_count_of_zero_is_dropped_too() -> None:
         KEYED_COLUMNS, [dataset_issue("duplicate_rows", 0)], KEYED)
 
     assert dataset == [] and stats.dropped == 1
+
+
+# --- near_duplicate_labels is for text and categorical columns only (Q2, decided in 1F) ----------
+# Ignoring punctuation is right for "Coca-Cola" and "coca cola" and wrong for a number:
+# "-2" and "2" are not one label. The real run of 1E showed it on a quantity column.
+
+
+def typed(
+    name: str, semantic_type: Any, values: list[str], count: int = 5
+) -> tuple[ColumnInference, pd.DataFrame]:
+    column = ColumnInference(
+        source_name=name, semantic_type=semantic_type, canonical_field="ignore",
+        confidence=0.9,
+        issues=[issue("near_duplicate_labels", count)],
+    )
+    return column, frame(**{name: values})
+
+
+@pytest.mark.parametrize("semantic_type", ["text", "categorical_nominal", "categorical_ordinal"])
+def test_near_duplicate_labels_is_kept_for_text_and_categorical_columns(semantic_type: str) -> None:
+    column, data = typed("name", semantic_type, ["Coca-Cola", "coca cola", "Fanta"])
+
+    result, _, stats = recount_issues([column], [], data)
+
+    assert [(i.code, i.count) for i in result[0].issues] == [("near_duplicate_labels", 1)]
+    assert stats.replaced == 1  # the AI said 5
+
+
+@pytest.mark.parametrize(
+    "semantic_type",
+    ["numeric_discrete", "numeric_continuous", "datetime", "boolean", "identifier"],
+)
+def test_near_duplicate_labels_is_dropped_for_every_other_type(semantic_type: str) -> None:
+    # "-2" and "2" differ only by punctuation, so pandas counts 1 and the AI may list it.
+    column, data = typed("qty", semantic_type, ["-2", "2", "5"])
+
+    result, _, stats = recount_issues([column], [], data)
+
+    assert result[0].issues == [] and stats.dropped == 1
+
+
+def test_only_the_near_duplicate_issue_of_a_numeric_column_is_dropped() -> None:
+    column = ColumnInference(
+        source_name="qty", semantic_type="numeric_discrete", canonical_field="quantity",
+        confidence=0.9,
+        issues=[issue("near_duplicate_labels", 1), issue("negative_values", 9)],
+    )
+
+    result, _, _ = recount_issues([column], [], frame(qty=["-2", "2", "5"]))
+
+    assert [(i.code, i.count) for i in result[0].issues] == [("negative_values", 1)]

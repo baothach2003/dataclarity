@@ -198,15 +198,18 @@ def test_the_order_holds_every_action_exactly_once() -> None:
 def test_the_order_is_the_documented_one() -> None:
     # AI_PIPELINE section 6: drop_column -> remove_exact_duplicates ->
     # trim_whitespace -> normalize_case -> parse_datetime / cast_type ->
-    # missing-value handling -> standardize_categories -> fix_negative /
-    # clip_outliers_iqr -> flags.
+    # drop_rows_missing -> imputation -> standardize_categories ->
+    # fix_negative / clip_outliers_iqr -> flags. drop_rows_missing was one group
+    # with the imputations until 1F (decided by Thach): a median is then taken
+    # over the rows that stay, whatever order the columns are in.
     assert [sorted(group) for group in EXECUTION_ORDER] == [
         ["drop_column"],
         ["remove_exact_duplicates"],
         ["trim_whitespace"],
         ["normalize_case"],
         ["cast_type", "parse_datetime"],
-        ["drop_rows_missing", "impute_constant", "impute_mean", "impute_median", "impute_mode"],
+        ["drop_rows_missing"],
+        ["impute_constant", "impute_mean", "impute_median", "impute_mode"],
         ["standardize_categories"],
         ["clip_outliers_iqr", "fix_negative"],
         ["flag_duplicate_keys", "flag_only"],
@@ -221,7 +224,12 @@ def test_the_order_is_the_documented_one() -> None:
         # Trimming before merging labels, or " Cafe" never joins "Cafe".
         ("trim_whitespace", "normalize_case"),
         ("normalize_case", "parse_datetime"),
-        ("cast_type", "impute_median"),
+        ("cast_type", "impute_median"),  # unchanged by the 1F reorder, and still true
+        ("cast_type", "drop_rows_missing"),
+        # A median over rows that a later drop removes is not the median of the
+        # data that is kept (and it would depend on the order of the columns).
+        ("drop_rows_missing", "impute_median"),
+        ("drop_rows_missing", "impute_constant"),
         ("impute_median", "standardize_categories"),
         ("standardize_categories", "fix_negative"),
         ("clip_outliers_iqr", "flag_only"),

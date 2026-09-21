@@ -212,6 +212,8 @@ warning in the import summary when it would go negative).
 | AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stages 3-4 still write their computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` sections 7-8) | AI_UNAVAILABLE (200 + flag) |
 | Stage called out of order | rejected | INVALID_STATE (409) |
 | Plan contains an unknown or illegal action | whole plan rejected | INVALID_PLAN (422) |
+| Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
+| A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded | rejected | RATE_LIMITED (429) |
 | Run expired by retention | rejected with re-upload hint | EXPIRED (410) |
@@ -300,6 +302,40 @@ before building; never invent layout or tokens.
 
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
+
+### 2026-09-21 - Preview, execution and the order of a plan (Phase 1F)
+- What: `docs/AI_PIPELINE.md` section 12 (re-validating the plan, executing,
+  previewing, mixed UTC offsets), a rewritten fixed order in section 6
+  (`drop_rows_missing` before the imputations) and the `parse_datetime` row.
+  `docs/CONTRACTS.md` sections 4 and 5 state how `plan_final.json` and the report's
+  values are built. Section 10 of this file gains one INVALID_PLAN row.
+- Why: decided by Thach in 1F. A date with a UTC offset keeps the date as written
+  (read as UTC it moves a day, and a report by day needs the store's date). The
+  missing-value step was one group, so a median depended on the order of the
+  columns in the plan; dropping first makes it the median of the rows that stay.
+  A plan that drops a required field cannot feed stages 2-5, and Confirm is locked
+  until they are mapped (4.2), so the execution rejects it. Also: the execution
+  writes `plan_final.json` (CONTRACTS lists it as stage 1 output D, and no
+  sub-phase owned it).
+- Decided by Thach at the end of 1F: `drop_rows_missing` also drops a cell of only
+  spaces; `near_duplicate_labels` is reported only for text and categorical columns;
+  the date range 1900-2100 stays; one action per column stays until the review screen
+  (6B) shows what is needed; CLEANING_FAILED (422) is the code for a run that fails on
+  its data (the row added to section 10 above); a limit on the number of columns is
+  left to 8A.
+- Review (one doubt-driven cycle, cross-model skipped by Thach): 17 findings, all
+  actionable ones fixed and listed in AI_PIPELINE section 12. The preview budget
+  (SPECS section 11: 3 s) is met only when the caller keeps the parsed file in
+  memory and only up to about a hundred columns; execution meets 30 s everywhere.
+  Two changes reach outside the stage: profiling now rejects a file whose rows have
+  more fields than the header when the extra field holds data (PARSE_FAILED), and
+  a date outside 1900-2100 is treated as not a date (a range chosen in 1F, for
+  Thach to confirm).
+- Files: `docs/AI_PIPELINE.md`, `docs/CONTRACTS.md`, `docs/SPECS.md`,
+  `stages/ingest/transform_catalog.py`, `stages/ingest/profiling.py`,
+  `PROJECT_PLAN.md`.
+- Unchanged on purpose: the 16 actions, the legality matrix, `schema_version` `1.0`,
+  and every field of every contract file.
 
 ### 2026-09-21 - Cleaning plan validation and issue counts (Phase 1E)
 - What: `docs/AI_PIPELINE.md` gains section 11 (issue counts computed by pandas,

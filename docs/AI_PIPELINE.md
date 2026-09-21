@@ -114,9 +114,9 @@ ChangeLogEntry: `{action, column, cells_affected, rows_affected, params, detail}
 | impute_mean | numeric | - | fill NaN with mean |
 | impute_mode | categorical/text/boolean | - | fill NaN with mode |
 | impute_constant | categorical/text/boolean | value | fill NaN with an explicit value |
-| drop_rows_missing | any | - | drop rows null in this column |
+| drop_rows_missing | any | - | drop rows null, or holding only spaces, in this column (1F) |
 | drop_column | any | - | remove the column |
-| parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged |
+| parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged; a UTC offset is dropped and the date and time kept as written (1F) |
 | cast_type | any | target | safe cast; failures flagged, never silently coerced |
 | trim_whitespace | text/categorical/identifier | - | strip surrounding whitespace |
 | normalize_case | text/categorical/identifier | mode: title/lower/upper | consistent casing |
@@ -147,14 +147,19 @@ read two ways before (1D):
   stays legal, so transaction_date is still parsed and product_name is still
   trimmed
 
-- flag_duplicate_keys: `keys` must be the business key, defined in section 11
-  (the count reported for `duplicate_business_key` and the rows this flags then
-  describe the same thing)
+- flag_duplicate_keys: in the AI's proposal `keys` must be the business key, defined
+  in section 11 (the count reported for `duplicate_business_key` and the rows this
+  flags then describe the same thing); a plan the user edited may use any columns of
+  the file (section 12)
 
 **Fixed execution order** (not AI-controlled, because order changes results):
 drop_column -> remove_exact_duplicates -> trim_whitespace -> normalize_case ->
-parse_datetime / cast_type -> missing-value handling -> standardize_categories ->
-fix_negative / clip_outliers_iqr -> flags.
+parse_datetime / cast_type -> drop_rows_missing -> imputation ->
+standardize_categories -> fix_negative / clip_outliers_iqr -> flags.
+`drop_rows_missing` runs before the imputations (decided by Thach in 1F), so a
+median, mean or mode is taken over the rows that stay and the result does not
+depend on the order of the columns in the plan. Inside a group the plan's own
+order is kept (dataset actions first, then columns as listed).
 
 ## 7. Root cause step (stage 3)
 
@@ -231,6 +236,12 @@ rewrites it:
   code cannot describe (`duplicate_rows` under a column, `negative_values` on
   the dataset) and a code repeated for one column are dropped: they have no
   source for their number.
+- `near_duplicate_labels` is reported only for text and categorical columns
+  (decided by Thach in 1F). It ignores punctuation, which is right for "Coca-Cola" and
+  "coca cola" and wrong for a number: "-2" and "2" are not one label, and the 1E run on
+  real data counted exactly that in a quantity column. An identifier, a date and a boolean
+  are outside it by the same decision. In a text column "A+" and "A-" still count as
+  near-duplicates; that was accepted.
 - `pct` is not filled in for computed codes: only a percentage the profile holds
   is legal (CONTRACTS section 3), so a replaced count cannot contradict a stale
   percentage. The `detail` sentence of both dataset issues is rewritten from the
@@ -291,6 +302,119 @@ cells (every date is flagged), `standardize_categories` keys absent from the
 data, a `cast_type` to integer on values beyond int64 (flagged, not raised),
 `dayfirst` (pandas applies it to every ambiguous cell, ISO-written ones included,
 so it is right only for a column written day-first throughout), and
-`parse_datetime` on a column of mixed UTC offsets, which fails rather than pick a
-time zone (a decision for 1F). An alternative carries a name only: its params are
-supplied when the user picks it.
+a plan that drops a column the data needs elsewhere (checked at execution, section 12).
+An alternative carries a name only: its params are supplied when the user picks it.
+
+## 12. Previewing and executing a plan (1F)
+
+**The plan the user submits is checked again** (`plan_validation.validate_final_plan`),
+by the preview and by the execution, against the file itself. Nothing the client
+sends is trusted, and a plan that was valid when the AI proposed it is not assumed
+to still be. What differs from the AI's answer (section 11): the plan's own
+`semantic_type` and `canonical_field` decide what is legal (the user may have
+changed either); `flag_duplicate_keys` may use any columns of the file, not only the
+business key; `alternatives` are not checked, since they are never executed; names
+must match the file exactly. The whitelist and the legality matrix are the shared
+`illegality_reason` and `params_problem`. Rejected: an action outside the catalog or
+illegal for its column, bad params, a column missing, unknown or planned twice, a
+canonical field mapped by more than one column, a dataset action that is not
+dataset scope or is listed twice, `flag_duplicate_keys` on a column that is not in
+the file or that the plan drops. All of them are reported together
+(`InvalidPlanError.problems`, INVALID_PLAN, 422). Executing also requires
+`product_name`, `transaction_date` and `quantity` to be mapped and kept: a plan that
+drops a column mapped to one of them is rejected (decided by Thach in 1F). The
+preview does not require it, because it refreshes while the user is still mapping.
+
+**Order.** `cleaning.apply_plan` runs the plan in the fixed order of section 6, the
+one place a plan runs, for both the preview and the execution. `drop_rows_missing`
+is its own step before the imputations (decided by Thach in 1F).
+
+**Executing** (`cleaning.execute_run`) re-reads `raw.csv`, checks the plan, applies
+it and writes `cleaned.csv`, `plan_final.json` (the plan that ran) and
+`cleaning_report.json`. `cleaned.csv` keeps the source column names, writes dates
+as ISO 8601 (2024-01-05, or 2024-01-05T10:30:00 when there is a time) and holds the
+`__flag_*` columns the run added. The three files are written to temp files first
+and renamed into place only when all exist, the report last, so a report on disk
+means the run finished. Each existing file is moved aside before its replacement is
+renamed in, and if anything fails (a full disk, a file another process holds open,
+which Windows refuses to replace) every file is put back as it was, or removed if it
+did not exist, with no temp or backup file left; a restore that fails is added to the
+error. Files are flushed to disk before the rename. Two concurrent executions of
+one run are not prevented here: the caller claims the run first (SPECS section 3). An action that fails on the data is a `CleaningError` naming the action and the
+column, and a plan that leaves no row is refused (`CleaningError`); nothing is
+written in either case, and the run is reported as CLEANING_FAILED (422, SPECS
+section 10; decided by Thach at the end of 1F). `encoding_fallback` is warned when the file was decoded as
+latin-1. The output is always UTF-8.
+
+**Previewing** (`preview.preview_run`) runs the same engine on a bounded sample and
+writes nothing. A file of up to 500 rows is previewed whole, and then the result is
+exactly what the execution writes. A larger file gets a deterministic 500-row
+sample: the problem rows found in the first 50,000 rows (up to 40 of each kind) plus
+rows spread evenly over the whole file, first and last included. Anything computed
+from the data (a median, exact-duplicate detection) is then the sample's, so on a
+large file the figures are indicative. Of the sample, 20 rows are shown: every kind
+of effect (each changed column, a dropped row, a flag) before any repeats, then the
+other affected rows, then unaffected rows spread over the sample. Each shows its
+cells before and after and which columns changed; a dropped row shows no after.
+Per column, the missing share and the number of distinct values before and after.
+A cell is cut at 200 characters for display; a change beyond the cut is still seen.
+
+**Mixed UTC offsets.** A date column written with offsets ("2024-01-06T01:00+10:00")
+keeps the date and time as written and drops the offset (decided by Thach in 1F):
+read as UTC that cell would become 2024-01-05, and a report by day needs the
+store's own date. The detectors (is this a date?) still read offsets as UTC, since
+they only need a cell to parse. The change log says when offsets were dropped.
+
+Measured on this machine (SPECS section 11 budgets: preview 3 s, execution 30 s):
+
+| file | preview (reads the file) | preview on a parsed frame | execution |
+|---|---|---|---|
+| 9 columns, 710,000 rows, 60 MB | 1.9 s | about 0.6 s | 6.8 s |
+| 40 columns, 500,000 rows, 54 MB | 3.9 s | 1.1 s | 6.7 s |
+| 100 columns, 200,000 rows, 54 MB | 3.9 s | about 1.3 s | 7.4 s |
+| 400 columns, 50,000 rows, 53 MB | 7.5 s | about 4.5 s | 12.6 s |
+
+Execution is inside its budget everywhere. `preview_run` re-reads and re-parses
+`raw.csv` on every call, which alone takes 2.6 s for 54 MB and 40 columns, so it
+misses 3 s for a wide file near the ceiling, and the stage cannot remove that. The
+preview refreshes on every edit, so the caller (1G) should keep the parsed frame in
+memory per run and call `preview_frame` on it; that meets the budget up to about a
+hundred columns. Files of hundreds of columns are slower still (the AI sees 25). The
+cost of finding problem rows is bounded by cells (2,000,000), not only by rows.
+
+**Defects the 1F review found, and what changed** (`docs/SPECS.md` change log):
+- A file whose data rows end with an extra delimiter used to be read with every
+  value one column to the left (pandas uses the first column as the index): the
+  profile and the cleaned file were wrong and the preview crashed. Now the extra
+  field is dropped when it is empty, and the file is rejected (PARSE_FAILED) when it
+  holds data.
+- A source column named like a flag (`__flag_...`, which a cleaned.csv uploaded again
+  has) is never overwritten: the flag takes the next free name (`_2`, `_3`). A flag
+  column that ends up all False because a later action dropped the flagged rows is
+  removed; the change log still says what happened at that step.
+- Only finite numbers are numbers: `inf`, `Infinity` and `1e999` are text, as in
+  profiling, so a mean or an absolute value can no longer become infinity.
+- A cell with no date in it (`now`, `today`, a bare time such as `10:30`) is not a
+  date, and neither is one whose year is outside 1900-2100 (pandas read `Jan 5` as the
+  year 1): they are flagged like any cell that does not parse. Before, `now` gave the
+  time of the run and `10:30` today's date, so the same file gave a different result
+  on another day. UTC offsets are recognised in the forms people write (`+10`, `-5`,
+  `UTC`, `GMT+2`) as well as `+01:00` and `Z`, and the change log says offsets were
+  dropped only when they were.
+- A `standardize_categories` mapping may not send a label to an empty text or a
+  missing-value token, and the report warns (`text_reads_as_missing`) how many cells
+  hold text that would read back as missing once `cleaned.csv` is read again (a
+  trimmed " N/A ", a trimmed "   ").
+- On a sampled file the written date format (date only, or with a time) is decided on
+  the sample, so a preview can show `2024-01-05` where the execution writes
+  `2024-01-05T00:00:00`.
+
+**Known limits** (open, decisions for later): a plan has one action per column, so a
+column cannot be both trimmed and have its blank rows dropped (a cell of only spaces
+is dropped by `drop_rows_missing` itself, which covers the required fields), and the
+plan cannot say that `transaction_date` must be parsed. Thach decided to keep one
+action per column until the review screen (6B) shows what is needed, rather than change
+the contract on a guess. Cells beyond microsecond precision are truncated when a date
+column is written. A file of hundreds of columns makes the preview slow, and there is no
+limit on the number of columns; that is left to 8A.
+

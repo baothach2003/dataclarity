@@ -76,7 +76,11 @@ EXECUTION_ORDER: tuple[tuple[TransformAction, ...], ...] = (
     ("trim_whitespace",),
     ("normalize_case",),
     ("parse_datetime", "cast_type"),
-    ("impute_median", "impute_mean", "impute_mode", "impute_constant", "drop_rows_missing"),
+    # Dropping first: an imputed median must be the median of the rows that stay
+    # (decided by Thach in 1F; before, both shared one group and the plan's
+    # column order decided).
+    ("drop_rows_missing",),
+    ("impute_median", "impute_mean", "impute_mode", "impute_constant"),
     ("standardize_categories",),
     ("fix_negative", "clip_outliers_iqr"),
     ("flag_duplicate_keys", "flag_only"),
