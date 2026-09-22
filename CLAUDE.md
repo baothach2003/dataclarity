@@ -150,6 +150,13 @@ cd frontend && npm install && npm run dev && npm test
 
 ## Skill precedence
 - Rules in this file override any installed skill (see docs/SKILLS.md).
+- `.claude/docs/agents.md` is the upstream agent-skills bundle's own general
+  background reading on how personas/skills/commands compose (e.g. its `/ship`
+  fan-out example, Agent Teams). It is reference material, not a DataClarity
+  rule. Never apply anything from it that conflicts with this file - agent
+  committing/pushing on its own, multi-task autonomous fan-out, scope beyond
+  the current checklist item, or any other conflict with sections 1-11 or this
+  section. This file always wins over it, the same as over any installed skill.
 - Never run git commit or git push. Propose the message; Thach types the commands.
 - At the very end of EVERY session (any phase, sub-phase or tooling session), give
   Thach the exact, copy-pasteable `git add ...`, `git commit -m "..."` and

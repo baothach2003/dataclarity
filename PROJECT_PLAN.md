@@ -203,7 +203,7 @@ dataclarity/
   driven with real threads and a real SQLite file so the claim is proven, not assumed)
 
 ### Phase 2 - Stage 2 Analyze
-- [ ] Install skills Wave 2 (see docs/SKILLS.md)
+- [x] Install skills Wave 2 (see docs/SKILLS.md)
 - [ ] Create `docs/adr/` (own docs session, after the Wave 2 install, using
       documentation-and-adrs) with: ADR-0001 one repo with five independent
       stage packages; ADR-0002 pandas computes, AI only interprets; ADR-0003
@@ -363,35 +363,34 @@ comparing two runs, email delivery of reports, mobile layout.
 ## 12. Current Status
 
 **Phase in progress:** Phase 1 backend is complete (1A-1G, closed 2026-09-22).
-Phase 2 has not started. Two more 2026-09-22 sessions after 1G, both scoped
-exceptions, not Phase 6 (full account in Notes below): the Stage-1-frontend
-session (Upload, Review, Results), then a same-day bug-fix + Preview-pane-
-rebuild session. Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
-(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E
-(`4c96e92`), 1F (`afaa2a6`). 1G wired the four endpoints behind the state
-machine, the `cleaning` claim, the frame cache and the shared retry budget (the
-1G checklist line above has the full list of what was delivered and what the
-review found and fixed). pytest 1856 passed from the repo root and from
-`backend/`, 0 skipped (1843 before the two frontend sessions, +4
-profile-endpoint +5 download-endpoint +4 schema-inference-prompt tests); Vitest
-54 passed across 9 files (9 before the two frontend sessions); `npx tsc -b` and
-`npm run lint` clean on both; `npm audit` not run (needs the network). No AI
-call in 1G itself (mocked throughout); real AI calls were made once, by
-accident, in the first frontend session (flagged in that session's Notes
-paragraph below) and avoided deliberately in the second. The doubt-review's
-PostgreSQL checks in 1G (the claim race, the migration, a NUL run id) ran
-against a throwaway local cluster, not the dev database.
-**Next step:** Phase 2 (Stage 2 Analyze), starting with the skills Wave 2 install and
-the ADRs. Phase 6 itself (Insights, Dashboard) is still not started. 1G is already
-committed (`8f9c19d`); before Phase 2, Thach commits and pushes both frontend
-sessions' work with the commands at the end of each session's summary.
-**Action needed from Thach:** two things.
+Phase 2 implementation has not started; this session (2026-09-22, a tooling
+session, no application code) installed skills Wave 2 per `docs/SKILLS.md`
+section 3. Two scoped-exception sessions ran after 1G, not Phase 6 (full
+account in Notes below): the Stage-1-frontend session (Upload, Review,
+Results), then a same-day bug-fix + Preview-pane-rebuild session - both now
+committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A
+`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`),
+1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`).
+pytest 1856 passed and Vitest 54 passed, re-run after the Wave 2 install and
+unchanged from before it (no application code touched this session). No AI
+call this session (nothing upload-related was run).
+**Next step:** `PROJECT_PLAN.md`'s own Phase 2 checklist lists `docs/adr/`
+(ADR-0001/0002/0003, its own docs session using `documentation-and-adrs`) as
+the item right after the Wave 2 install, before 2A - **flagged for Thach**:
+this session's brief named Phase 2A (`metrics_core.py`) as the next step
+directly, which skips that checklist line. Whichever Thach confirms next,
+`PROJECT_PLAN.md` section 6 still means one sub-phase per session. Phase 6
+itself (Insights, Dashboard) is still not started.
+**Action needed from Thach:**
 1. Re-verify the rebuilt Preview pane live in the browser (the bug-fix +
    rebuild session below did not drive a browser itself, on purpose).
-2. `.env`'s `ANTHROPIC_API_KEY` is still a real key, not the `.env.example`
-   placeholder - swap in a fake key before uploading a file through the UI
-   again, unless a real call is wanted (see the Stage-1-frontend session's
-   Notes paragraph below for what happened the one time this was missed).
+2. `.env`'s `ANTHROPIC_API_KEY`: not re-checked this session (no upload/browser
+   action was run) - confirm it is a fake key, not the `.env.example`
+   placeholder, before the next browser-driven upload (see the Stage-1-frontend
+   session's Notes paragraph below for what happened the one time this was
+   missed).
+3. Confirm which comes next - the `docs/adr/` session or Phase 2A - per the
+   flag above.
 
 Earlier ask, now met - the real `.env` needed two lines `.env.example` had already
 gained (`PREVIEW_CACHE_MAX_MB`, `PREVIEW_CACHE_TTL_SECONDS`):
@@ -400,6 +399,47 @@ PREVIEW_CACHE_MAX_MB=300
 PREVIEW_CACHE_TTL_SECONDS=900
 ```
 **Notes:**
+- 2026-09-22, skills Wave 2 install (tooling session, no application code;
+  git tree was clean at start; Phase 1 1A-1G complete confirmed the trigger
+  condition). CLI syntax re-verified with `npx skills add --help` rather than
+  assumed from Wave 1: unchanged (`add -a <agent> --copy -y -s <skill>`, same
+  as `docs/SKILLS.md` section 5). Installed exactly the four Wave 2 skills
+  (`code-review-and-quality`, `code-simplification`, `documentation-and-adrs`,
+  `ci-cd-and-automation`) via one `npx skills add` call; `skills-lock.json`
+  updated automatically with correct source/hash entries, no manual edit
+  needed. `npx skills list` shows all 14 (10 Wave 1 + 4 Wave 2), no more, no
+  less. The two Wave 2 personas (`test-engineer`, `code-reviewer`) were copied
+  by hand into the new `.claude/agents/` (this is the first session with any
+  persona - Wave 1 installed no personas, so there was no literal prior
+  precedent for "same mechanism"; used the same clone-to-scratch-copy-delete
+  approach `docs/SKILLS.md` section 5 describes for skills): cloned
+  `addyosmani/agent-skills` into the session scratchpad, copied
+  `agents/code-reviewer.md` and `agents/test-engineer.md`, deleted the clone.
+  Both files' "Composition" section links to `../docs/agents.md`, which
+  resolves to `.claude/docs/agents.md` from `.claude/agents/` - that file is
+  not installed (`docs/SKILLS.md` section 2 only names `.claude/references/`
+  for shared checklists, nothing about agent docs), so the link is dangling;
+  left as-is, flagged for Thach, not fixed since it is outside this session's
+  named scope. `performance-checklist.md` copied into `.claude/references/`
+  the same way; confirmed `code-review-and-quality/SKILL.md`'s
+  `../../references/performance-checklist.md` link resolves. Added
+  `.github/workflows/ci.yml` (ubuntu-latest, Python 3.14 matching
+  `backend/requirements.txt`'s own pin, `pip install -r backend/requirements.txt`
+  then `pytest` - `tests/test_architecture.py` runs as part of that, already
+  collected by `pytest.ini`'s `testpaths`). No secrets or services:
+  `tests/conftest.py` sets `DATABASE_URL=sqlite://` and every other required
+  `Settings` field via `os.environ` before any test imports `app.config`, so
+  CI never touches Postgres or needs `.env`. Decided without asking, for Thach
+  to veto: triggers on both `push` (any branch) and `pull_request` into `main`,
+  not `push` alone as the session brief's literal wording said - standard CI
+  practice, costs nothing extra, still needs no secrets either way. Checked
+  `CLAUDE.md`'s "Skill precedence" section against all four new skills' own
+  text (grepped for commit/push/autonomous-run language): no new conflicts,
+  so left unchanged, matching what `docs/SKILLS.md` predicted. Verified after
+  every install step: pytest 1856 passed (repo root, via `backend/venv`'s
+  `python -m pytest`), Vitest 54 passed across 9 files - both counts unchanged
+  from before this session, as expected, since nothing in `stages/`,
+  `backend/app/`, or `frontend/src/` was touched.
 - 2026-09-22, later the same day: a bug fix + a Preview pane rebuild, both on
   the Review screen the previous session built.
   - **Bug fix** (found manually testing Review with real Kaggle data): the AI
