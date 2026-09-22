@@ -220,8 +220,11 @@ dataclarity/
 - [x] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
       velocity + stockout projection. Tests. `days_to_stockout` at zero
       velocity needs a contract decision first (same reason as 2A)
-- [ ] 2D Assemble `metrics.json` contract + `POST /api/runs/{id}/analyze`. Tests
+- [x] 2D Assemble `metrics.json` contract + `POST /api/runs/{id}/analyze`. Tests
 - **DoD:** numbers in `metrics.json` verified by hand against the fixture data
+  (met 2026-09-22: `by_dimension.category`'s contribution_pct formula reproduces
+  both worked-example figures in docs/CONTRACTS.md section 6 exactly, UK 57.1%
+  and Home Decor 41.4%, computed from core's own revenue_current/previous)
 
 ### Phase 3 - Stage 3 Diagnose
 - [ ] 3A `decomposition.py`: revenue = customers x frequency x AOV, period-over-
@@ -365,54 +368,68 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2 (Stage 2 Analyze) is underway. 2C closed
-2026-09-22: `stages/analyze/metrics_products.py`, the `products` block of
-`metrics.json` (Pareto concentration, top products, biggest decliners,
-velocity + stockout projection). Pure pandas, no AI call in this stage
-(docs/adr/0002). 2A and 2B (`metrics_core.py`/`metrics_customers.py`, the
-`period`/`core` and `customers` blocks) closed earlier the same day and were
-committed together as `d5fceea` (their own two sessions never got to run
-their proposed git commands before this one started, so they landed as one
-combined commit rather than two - see that commit's own message for why).
-**2C's own git commands have NOT been run yet** - given at the end of this
-session, still pending. **Stage 2 is NOT complete end-to-end yet despite all
-three metrics_*.py modules now existing**: 2D (`Assemble metrics.json
-contract + POST /api/runs/{id}/analyze`) is still unchecked on the Phase 2
-list below and is the piece that actually calls all three modules together,
-assembles the `by_dimension` block (not yet built anywhere), writes
-metrics.json to runs/<run_id>/, and exposes the endpoint - nothing does any
-of that today. This session's own brief asked to record Stage 2 as complete
-here; flagged back instead of writing something the checklist immediately
-below contradicts. Before 2A/2B: Phase 1 backend is complete (1A-1G, closed
-2026-09-22). Two scoped-exception sessions ran after 1G, not Phase 6 (full
-account in Notes below): the Stage-1-frontend session (Upload, Review,
-Results), then a same-day bug-fix + Preview-pane-rebuild session - both
-committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A
-`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`),
-1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`),
-skills Wave 2 (`69697a9`). pytest 1925 passed (up from 1910: 15 new tests
-across `test_metrics_products.py` and
-`test_metrics_products_declines_and_velocity.py`, 4 more from this session's
-doubt-review fix-up, no existing test touched or weakened); Vitest not
+**Phase in progress:** Phase 2 (Stage 2 Analyze) is DONE, closed 2026-09-22
+with 2D: `stages/analyze/metrics_dimensions.py` (the `by_dimension` block -
+revenue by category, current vs previous period; `country` always reports
+`[]`, no canonical field carries country data, Thach's decision) and
+`stages/analyze/assemble.py` (calls all four blocks' builders - `period`/
+`core` from `metrics_core.py`, `customers` from `metrics_customers.py`,
+`products` from `metrics_products.py`, `by_dimension` from this session -
+validates the combined result against `contracts/metrics.py` and writes
+`metrics.json` to the run directory atomically). `POST /api/runs/{id}/analyze`
+wired (`backend/app/services/metrics.py` + `runs.py`): `cleaned` (or an
+already-`analyzed` run) -> `analyzed`, no AI call anywhere in this stage
+(docs/adr/0002), so no retry budget, no AI client, and no transient claim
+status the way `execute`'s `cleaning` is - the computation is pure and
+deterministic and metrics.json is written atomically, so a concurrent second
+call is simply refused (`RunWork.execution`, reused as-is) rather than raced,
+verified with a real `threading`-based test mirroring `test_api_races.py`. A
+new error code, `ANALYSIS_FAILED` (422, added to `docs/SPECS.md` section 10
+and `backend/app/errors.py`), covers both ways stage 2 cannot compute metrics
+(a required canonical field, realistically `unit_price`, never mapped; or the
+file was flagged NOT_INVENTORY at schema inference) - unlike CLEANING_FAILED
+this does NOT fail the run, since `cleaned.csv` stays valid and downloadable
+and only the optional stages 2-5 enrichment is unavailable (decided directly,
+not asked, mirroring how a NOT_INVENTORY run already keeps its `cleaned`
+status elsewhere; flagged for Thach to veto). `analyzed` needed no migration:
+it was already in `RunStatus`, the first `runs` migration's CHECK constraint,
+and `get_profile`'s own allowed-statuses list from day one - the session
+brief's own recollection that it "wasn't defined" was stale, same class of
+mistake as 2B's "SPECS section 5.1" reference. 2A-2C (`metrics_core.py`/
+`metrics_customers.py`/`metrics_products.py`) closed earlier, committed as
+`d5fceea` (2A+2B) and `4fb0f86` (2C). Before that: Phase 1 backend complete
+(1A-1G, closed 2026-09-22). Two scoped-exception sessions ran after 1G, not
+Phase 6 (full account in Notes below): the Stage-1-frontend session (Upload,
+Review, Results), then a same-day bug-fix + Preview-pane-rebuild session -
+both committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0
+(0A `b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B
+(`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`),
+1G (`8f9c19d`), skills Wave 2 (`69697a9`). pytest 1941 passed (up from 1925:
+8 new tests across `test_metrics_dimensions.py`/`test_assemble.py`, 7 more in
+`tests/backend/test_api_analyze.py`, one existing test extended -
+`tests/backend/test_errors.py`'s hardcoded SPECS-section-10 mirror table
+gained the new `ANALYSIS_FAILED` row, which is what a pre-existing test
+(`test_every_code_maps_to_its_specs_status`) caught and required, not a
+weakening; no test deleted, skipped or had an assertion removed); Vitest not
 re-run (no frontend code touched this session). No AI call this session
-(Stage 2 makes none, ever).
-**Next step:** Phase 2D, assembling `metrics.json` (all four blocks -
-`period`, `core`, `customers`, `products`, plus the not-yet-built
-`by_dimension`) and wiring `POST /api/runs/{id}/analyze`. This is the actual
-completion of Stage 2 end-to-end. `by_dimension`'s scope question (below) is
-now resolved by Thach - a short session ran between 2C and 2D solely to
-settle it, no application code touched (git tree was already dirty with 2C's
-own uncommitted changes at both the start and end of that session; nothing
-about that changed). Thach then held on starting 2D itself until a full
-session brief, same pattern as every other sub-phase.
-`by_dimension` belongs in 2D, not its own sub-phase (Thach, 2026-09-22): it
-is pure pandas KPI computation like the `core`/`customers`/`products` blocks,
-not assembly/endpoint work, so it is built alongside `metrics.json`
-assembly rather than separately.
+(Stage 2 makes none, ever). **No doubt-driven review cycle run this session**
+(judgment call the brief asked for, explained in this session's Notes entry
+below): the new arithmetic (`by_dimension.contribution_pct`) was verified to
+reproduce both figures in docs/CONTRACTS.md section 6's own worked example
+exactly, and the backend wiring composes already-reviewed primitives
+(`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
+one genuinely new runtime behavior (concurrent-call refusal) was verified
+with a real multi-threaded test, not just read for plausibility.
+**Next step:** Phase 3 (Stage 3 Diagnose) - `decomposition.py` (3A):
+revenue = customers x frequency x AOV, period-over-period attribution,
+contribution by segment/country/product group. Read that checklist line's
+own "country" mention against this session's `by_dimension.country` finding
+before assuming it means something different there - if Diagnose also wants
+country-level attribution, it hits the exact same missing-canonical-field gap.
 Phase 6 (Insights, Dashboard) is still not started.
 **Action needed from Thach:**
-1. Run 2C's git commands (see this session's own summary in chat for the
-   exact commands; uses a message file, not inline `-m`).
+1. Run this session's git commands (see this session's own summary in chat
+   for the exact commands; uses a message file, not inline `-m`).
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -420,6 +437,121 @@ Phase 6 (Insights, Dashboard) is still not started.
    key, not the `.env.example` placeholder, before the next browser-driven
    upload (see the Stage-1-frontend session's Notes paragraph below for what
    happened the one time this was missed).
+- 2026-09-22, Phase 2D (closes Phase 2): `stages/analyze/metrics_dimensions.py`
+  + `stages/analyze/assemble.py` + `backend/app/services/metrics.py` +
+  `backend/app/schemas.py` (`AnalyzeResponse`) + `backend/app/errors.py` +
+  `backend/app/services/stage_errors.py` (`ANALYSIS_FAILED`) +
+  `backend/app/routers/runs.py` (`POST /analyze`) +
+  `tests/stages/analyze/test_metrics_dimensions.py` +
+  `tests/stages/analyze/test_assemble.py` + `tests/backend/test_api_analyze.py`
+  (8 + 7 = 15 new tests, hand-calculated / real-threaded, plus 1 existing test
+  extended - see above). Read `CLAUDE.md`, `PROJECT_PLAN.md` section 12
+  (including 2C's own notes on the 2D scope gap), `docs/CONTRACTS.md` section 6
+  in full, `docs/SPECS.md` sections 3 and 8, and `metrics_core.py`/
+  `metrics_customers.py`/`metrics_products.py` (2A-2C) before writing anything,
+  per the session's own brief.
+  - Two things the brief itself got wrong were caught before writing any code,
+    both flagged back rather than acted on as stated:
+    1. **`analyzed` needs no migration.** The brief said the state machine
+       "wasn't defined" for Stage 2 completion and asked to confirm whether
+       `analyzed` needs adding. It was already there: `RunStatus.ANALYZED` in
+       `backend/app/models/run.py`, the very first migration's CHECK
+       constraint (`2a9492d9af49_create_runs_table.py`, `2026-09-19`, before
+       Stage 1 was even finished), `docs/SPECS.md` section 3's own state
+       machine text (`uploaded -> profiled -> planned -> cleaned -> analyzed
+       -> imported`), and `get_profile`'s own allowed-statuses list. Nothing
+       to invent; just wire the transition. Same class of mistake as 2B's
+       "docs/SPECS.md section 5.1" reference (a prior session's own notes,
+       not the current docs, misremembered).
+    2. **`by_dimension.country` has no data source at all**, a bigger gap
+       than anything 2A-2C hit: `contracts/profile.py`'s `CanonicalField` has
+       no `country` (product_name, sku, category, transaction_date, quantity,
+       unit_price, transaction_type, supplier, customer, note, ignore -
+       `category` is real, `country` never was), and `docs/SPECS.md` section 9
+       never defined one either. Put to Thach before implementing: `country`
+       always reports `[]` (the recommended, and only offered, option) rather
+       than fabricate an attribution from an unrelated field; `category`
+       computes normally. Revisit only if a country canonical field is added
+       to the schema - a stage-1 change, out of scope here.
+  - `contribution_pct`'s formula (docs/CONTRACTS.md section 6: "share of the
+    total change attributable to that dimension member, signed, not share of
+    revenue") was reverse-engineered by hand from the worked example before
+    writing any code, then confirmed by the implementation reproducing both
+    figures exactly: total_change = core.revenue_current - core.revenue_previous
+    (-140000 in the example); member_change / total_change * 100 gives UK
+    (940000-1020000)/-140000*100 = 57.14... ~= 57.1, and Home Decor
+    (210000-268000)/-140000*100 = 41.43... ~= 41.4 - both match the documented
+    figures to one decimal place. This is why `compute_dimension_metrics`
+    takes `core: CoreMetrics` directly, unlike `compute_customer_metrics`/
+    `compute_product_metrics` (2B/2C), which only needed `period`: the
+    denominator is core's own total, not a locally-recomputed one, a real
+    dependency the contract text itself names.
+  - Not asked, decided directly: a category value is stripped and
+    case-folded before grouping, the same pattern 2C's own doubt-review
+    established for product identity (`metrics_dimensions.py`'s own
+    `_dimension_changes`) - applied proactively this time since the bug
+    class (formatting noise silently fragmenting one real value into
+    several) was already proven, not just theorized; a blank category value
+    is excluded, same "missing" definition `metrics_core.is_blank` already
+    uses for `customer`; `by_dimension.category` is unbounded and includes a
+    member with revenue in only one of the two periods (no positivity
+    filter, unlike products' top_products - a category dropping to $0, or
+    newly appearing, is exactly what this block exists to show).
+  - `metrics_core.RequiredColumnMissingError` gained a structured
+    `canonical_field` attribute (was message-text-only) so the backend layer
+    can report which field is missing without parsing a sentence - needed
+    for `ANALYSIS_FAILED`'s `details`, the first time a caller outside
+    `stages/analyze` needed to inspect this exception programmatically.
+  - metrics.json's write is a small, local atomic single-file helper in
+    `assemble.py` (temp file, fsync, `os.replace`), not a reuse of
+    `stages/ingest/contract_files.py`'s `write_files_atomically` - that
+    would be a cross-stage import (CLAUDE.md 3.1), and this session only
+    ever writes one file, so the multi-file rollback that helper also
+    handles is more than 2D needs. Flagged, not acted on: stages 3-5 will
+    each hit this same "one atomic file write" need again, and duplicating
+    a ~15-line helper three more times is a real DRY smell worth revisiting
+    (moving the single-file case to `shared/`) when stage 3 starts, not
+    decided unilaterally this session since it would mean touching stage 1's
+    already-shipped, tested code for a stage-2 session's convenience.
+  - `POST /analyze` needs no transient claim status the way `execute`'s
+    `cleaning` is (decided directly, not asked): the computation is pure and
+    deterministic (no AI, docs/adr/0002) and metrics.json's write is atomic,
+    so a crash mid-computation leaves the run exactly as it was - never
+    "stuck" the way an abandoned `cleaning` claim could be. `RunWork.execution`
+    (already-built "one piece of work at a time per run" infrastructure) is
+    reused as-is to refuse a concurrent second call outright rather than let
+    both redundantly compute; verified with a real `threading.Event`-based
+    test mirroring `tests/backend/test_api_races.py`'s own technique for
+    `execute`, not just asserted.
+  - `ANALYSIS_FAILED` does NOT move the run to `failed`, unlike the seemingly
+    parallel `CLEANING_FAILED` (decided directly, not asked, flagged for
+    Thach to veto): `cleaned.csv` is still valid and downloadable when stage 2
+    can't compute metrics (a missing `unit_price` mapping, or a NOT_INVENTORY
+    file), so failing the whole run would be harsher than the situation
+    warrants - mirrors how a NOT_INVENTORY run already keeps its `cleaned`
+    status and downloads elsewhere in the product (docs/SPECS.md section 10).
+    A NOT_INVENTORY file reaching `/analyze` at all is now checked explicitly
+    (reusing `analysis.is_not_inventory`/`not_inventory_notice`, already built
+    for stage 1), not left to surface as a confusing generic
+    "missing canonical field" error.
+  - **No doubt-driven review cycle run** (2A skipped, 2B and 2C each ran one
+    that found real bugs; this session's own brief asked to decide and
+    explain, given it mixes new arithmetic with mostly-assembly work): skipped,
+    because every piece of genuinely new logic was independently verified by a
+    stronger method than adversarial reading would add on top - the
+    `contribution_pct` arithmetic against the documented worked example's own
+    numbers (not just internally-consistent hand math, actual published
+    figures), and the concurrency behavior against a real multi-threaded race,
+    not a single-threaded mock. What's left (`assemble.py`, the router, the
+    schema) is thin composition of already-reviewed pieces (2A-2C's builders;
+    `run_state`, `RunWork`, `stage_errors` from 1G), not novel algorithmic
+    surface like 2B's two-pass RFM re-snapshot or 2C's implied-stock
+    derivation - both of which is exactly where those sessions' review cycles
+    found real, non-obvious bugs. If a future session finds a bug in this
+    session's code, this reasoning - not the size of the diff - is the thing
+    to revisit.
+  - pytest 1941 passed (up from 1925), `tests/test_architecture.py` included,
+    no existing test touched or weakened (one extended, per above).
 - 2026-09-22, Phase 2C: `stages/analyze/metrics_products.py` +
   `tests/stages/analyze/test_metrics_products.py` +
   `tests/stages/analyze/test_metrics_products_declines_and_velocity.py` +

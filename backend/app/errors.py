@@ -26,6 +26,12 @@ ErrorCode = Literal[
     "INVALID_STATE",
     "INVALID_PLAN",
     "CLEANING_FAILED",
+    # Added by 2D (SPECS section 10 had no row for it): the cleaned data
+    # lacks what stage 2 needs (a required canonical field never mapped, or
+    # the file was flagged NOT_INVENTORY at schema inference). Unlike
+    # CLEANING_FAILED this does not fail the run: `cleaned.csv` is still
+    # valid and downloadable, only the optional stages 2-5 enrichment is not.
+    "ANALYSIS_FAILED",
     "EXPIRED",
     "RATE_LIMITED",
     # Added by 1G (SPECS section 10 had no row for them): a run id that names
@@ -43,6 +49,7 @@ STATUS_BY_CODE: dict[ErrorCode, int] = {
     "INVALID_STATE": 409,
     "INVALID_PLAN": 422,
     "CLEANING_FAILED": 422,
+    "ANALYSIS_FAILED": 422,
     "EXPIRED": 410,
     "RATE_LIMITED": 429,
     "NOT_FOUND": 404,

@@ -39,7 +39,18 @@ class RequiredColumnMissingError(ValueError):
     """cleaned.csv has no column mapped to a canonical field this module
     needs. transaction_date and quantity are stage 1 required fields, so this
     is defensive for them; unit_price is not required by stage 1
-    (docs/AI_PIPELINE.md section 11), so it is the realistic case."""
+    (docs/AI_PIPELINE.md section 11), so it is the realistic case.
+
+    `canonical_field` is structured (not just the message text) so a caller
+    outside this stage - 2D's API endpoint - can report which field is
+    missing without parsing a sentence."""
+
+    def __init__(self, canonical_field: str) -> None:
+        self.canonical_field = canonical_field
+        super().__init__(
+            f"cleaned.csv has no column mapped to '{canonical_field}'; "
+            "stage 2 metrics cannot be computed without it"
+        )
 
 
 @dataclass(frozen=True)
@@ -203,10 +214,7 @@ def _format_year_month(year_month: tuple[int, int]) -> str:
 def require_column(reverse: dict[str, str], canonical_field: str) -> str:
     column = reverse.get(canonical_field)
     if column is None:
-        raise RequiredColumnMissingError(
-            f"cleaned.csv has no column mapped to '{canonical_field}'; "
-            "stage 2 core metrics cannot be computed without it"
-        )
+        raise RequiredColumnMissingError(canonical_field)
     return column
 
 

@@ -4,7 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from contracts import CleaningPlanContract, CleaningReportContract, SchemaInferenceContract
+from contracts import CleaningPlanContract, CleaningReportContract, MetricsContract, SchemaInferenceContract
 from stages.ingest.preview import PreviewResult
 
 
@@ -44,4 +44,15 @@ class ExecuteResponse(BaseModel):
     run_id: str
     status: Literal["cleaned"]
     report: CleaningReportContract
+    notices: list[Notice] = Field(default_factory=list)
+
+
+class AnalyzeResponse(BaseModel):
+    run_id: str
+    status: Literal["analyzed"]
+    metrics: MetricsContract
+    # Stage 2 has no AI and no degraded path (docs/adr/0002): a run that
+    # cannot be analyzed is ANALYSIS_FAILED, not a 200 with a notice, so this
+    # is always empty. Kept for response-shape consistency with the other
+    # stage endpoints.
     notices: list[Notice] = Field(default_factory=list)

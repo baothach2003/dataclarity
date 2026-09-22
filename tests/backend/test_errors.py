@@ -56,6 +56,9 @@ STATUS_TABLE = {
     "INVALID_STATE": 409,
     "INVALID_PLAN": 422,
     "CLEANING_FAILED": 422,
+    # Not in SPECS section 10 before 2D: stage 2 has no AI and no degraded
+    # path, so a run it cannot compute metrics for is an error, not a notice.
+    "ANALYSIS_FAILED": 422,
     "EXPIRED": 410,
     "RATE_LIMITED": 429,
     # Not in SPECS section 10 before 1G: every response is inside the envelope.

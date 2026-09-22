@@ -14,8 +14,8 @@ from app.dependencies import (
     get_retry_budgets,
     get_run_work,
 )
-from app.schemas import AnalyzeSchemaResponse, ExecuteResponse, PlanResponse, PreviewResponse
-from app.services import analysis, downloads, plan_execution
+from app.schemas import AnalyzeResponse, AnalyzeSchemaResponse, ExecuteResponse, PlanResponse, PreviewResponse
+from app.services import analysis, downloads, metrics, plan_execution
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
@@ -130,3 +130,8 @@ def execute_plan(
 ) -> ExecuteResponse:
     return plan_execution.execute_plan(
         session, run_id, body, settings=settings, cache=cache, budgets=budgets, work=work)
+
+
+@router.post("/{run_id}/analyze")
+def analyze(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> AnalyzeResponse:
+    return metrics.analyze(session, run_id, settings=settings, work=work)

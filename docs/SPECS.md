@@ -224,6 +224,19 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
   are kept in memory too. All of it is per process and lost on restart; see
   `backend/app/services/run_memory.py`.
 - `POST /api/runs/{id}/analyze` -> `metrics.json`
+  - As built in 2D (200): `{run_id, status: "analyzed", metrics, notices}`.
+    `notices` is always `[]`: stage 2 has no AI and no degraded path
+    (`docs/adr/0002`), so a run it cannot compute metrics for is
+    ANALYSIS_FAILED (section 10), never a 200 with a flag. Allowed from
+    `cleaned` or `analyzed` (a re-run overwrites only metrics.json,
+    `docs/CONTRACTS.md` section 1); out of order is INVALID_STATE. No
+    transient claim status the way `execute`'s `cleaning` is: the
+    computation is pure and deterministic (no AI, docs/adr/0002) and
+    metrics.json is written atomically, so a concurrent second call for the
+    same run is simply refused (`RunWork.execution`, the same
+    "one piece of work at a time per run" guard 1G built) rather than
+    raced or claimed - there is no partial-write state a crash could leave
+    the run stuck in.
 - `POST /api/runs/{id}/diagnose` -> `diagnosis.json`
 - `POST /api/runs/{id}/predict` -> `forecast.json`
 - `POST /api/runs/{id}/report` -> `report.json` + html download url
@@ -268,6 +281,7 @@ warning in the import summary when it would go negative).
 | Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
+| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable; the message names the missing field or the domain reasoning | ANALYSIS_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
 | Run expired by retention, or its files are gone | rejected with re-upload hint | EXPIRED (410) |

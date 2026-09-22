@@ -33,6 +33,16 @@ def invalid_plan(error: InvalidPlanError) -> ApiError:
         {"problems": error.problems[:MAX_PROBLEMS], "problem_count": len(error.problems)})
 
 
+def analysis_failed(message: str, details: dict[str, Any] | None = None) -> ApiError:
+    """Stage 2 cannot compute metrics for this run: a required canonical
+    field was never mapped, or the file was flagged NOT_INVENTORY at schema
+    inference. Unlike cleaning_failed, the caller does not fail the run -
+    cleaned.csv stays valid and downloadable, only the optional analysis is
+    unavailable (Thach, 2D, mirrors how a NOT_INVENTORY run already keeps
+    its cleaned status and downloads elsewhere)."""
+    return ApiError("ANALYSIS_FAILED", message, details)
+
+
 def cleaning_failed(error: CleaningError) -> ApiError:
     # Only what is known: a plan that leaves no row fails as a whole, on no one action.
     details: dict[str, Any] = {
