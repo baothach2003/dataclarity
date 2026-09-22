@@ -112,7 +112,66 @@ Open issues:
 - Forecast: 13 weekly actuals, WMA forecast ~$22.1k/week, no seasonality
   (fewer than two cycles, SPECS 7.5).
 
-## 7. Handoff notes for developers
+## 7. Preview pane (revised, 2026-09-22)
+
+`design/mockups/Review.png` was re-exported with a redesigned preview pane, but
+this file was not updated alongside it until now - written from that PNG plus
+the frame `Review` (`3:2`) it replaces. Supersedes the two-table Before/After
+layout the first build of this section implied.
+
+- **One table**, not two side by side. A pinned `Row` column on the left holds
+  the source row number (1-based in the file, not the sample's position). A
+  dropped row shows a short reason next to its number in the severity/high
+  color (e.g. "No qty", "Duplicate") when one can be determined - see below.
+- **Only columns with at least one changed cell in the displayed sample are
+  shown by default.** The rest are named above the table ("Hidden: sku,
+  comments (no changes in sample)") behind a "Show unchanged columns (N)"
+  button; when opened, they are appended after the changed columns, in
+  `columns_after` order.
+- **Diff styling**, all on the one value shown (there is no separate Before
+  column any more): changed cell = `diff/changed` fill + dotted underline on
+  the value; filled-in cell (was missing, now has a value) = `diff/added` fill
+  + dotted underline; dropped row = `diff/removed` fill + strikethrough on
+  every cell. The dotted underline is the required non-color signal (SPECS
+  section 11: color is never the only signal) for a changed/filled cell; the
+  strikethrough is that signal for a dropped row.
+- **The original value on hover AND on keyboard focus** (`tabindex="0"`,
+  `aria-describedby`, not hover-only): "Before: `<value>`" then the action
+  that ran on that column (e.g. "Parse dates"). Every underlined cell is
+  reachable by Tab.
+- **Numbers**: right-aligned, tabular numerals, a whole number written as a
+  float shows without the trailing ".0".
+- **Row count chip**: the projected full-file count ("Rows 12,480 → 12,301
+  (full file, projected)"), never the displayed sample size - `rows_in_file`
+  and `rows_after` already describe the whole file even when the preview
+  itself sampled it (`stages/ingest/preview.py`).
+
+Not carried over from the mockup, because `PreviewResult`
+(`docs/CONTRACTS.md` section 8) does not carry the data (CLAUDE.md 3.2: not
+invented client-side):
+- The mockup's `parsed 97.5% -> 100%` framing for a datetime column's delta
+  chip. The delta chips keep the missing-% / unique-count framing from the
+  previous build (`ColumnDelta` has no separate "parsed" figure).
+- The exact per-row reason text ("No qty", "Duplicate") is not returned by
+  the API (a dropped `PreviewRow`'s `changed` is empty). The frontend instead
+  *derives* a reason from data it already has - the currently-submitted plan
+  plus the row's own "before" values - which is not the same as inventing
+  one:
+  - "Duplicate" when `remove_exact_duplicates` is in the plan's
+    `dataset_actions` and another row in the displayed sample has identical
+    "before" values (execution order runs this before any column action, so
+    a true duplicate is caught first regardless of what else is wrong with
+    the row: `docs/AI_PIPELINE.md` section 6).
+  - Otherwise "No `<field>`" when a column mapped to a required canonical
+    field (`product_name`, `transaction_date`, `quantity`) has
+    `drop_rows_missing` as its action and that row's "before" value for it is
+    blank.
+  - Otherwise "Dropped", with no further reason claimed (a duplicate whose
+    pair fell outside the displayed 20 rows, or a non-required column with
+    `drop_rows_missing`, are both real cases this cannot always resolve from
+    what is on screen).
+
+## 8. Handoff notes for developers
 
 - Header and action bar on Review are fixed on scroll (set in Figma Prototype tab).
 - Tinted fills (badge 12%, notice 8%, low-confidence row 8%) are the variable color
@@ -124,7 +183,7 @@ Open issues:
 - Return rate KPI: SPECS does not define how returns are identified
   (transaction_type is in|out = stock movement). Decide before Phase 6.
 
-## 8. Design principles (agreed)
+## 9. Design principles (agreed)
 
 - Clarity over aesthetics: internal-tool feel, scannable tables, minimal clicks
 - The Review screen is where the user spends most of their time: optimize for

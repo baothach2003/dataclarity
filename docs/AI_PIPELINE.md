@@ -95,7 +95,14 @@ whitelist, legality, column coverage) lives in the stage packages.
 - `semantic_type`: numeric_continuous | numeric_discrete | categorical_nominal |
   categorical_ordinal | datetime | identifier | boolean | text
 - `canonical_field`: product_name | sku | category | transaction_date |
-  quantity | unit_price | transaction_type | supplier | customer | note | ignore
+  quantity | unit_price | transaction_type | supplier | customer | note | ignore.
+  `transaction_type` is the stock movement direction only, `in` or `out`
+  (`docs/SPECS.md` section 9) - never a payment method, a sales channel, or an
+  order/shipping status. `prompts/schema_inference.md`'s "CANONICAL FIELD NOTES"
+  spells this out for the model with a negative example (a "Payment Method"
+  column), because the field's own name is a false friend for those (2026-09-22,
+  a real Kaggle file mapped one there; nothing downstream caught it since the
+  value is syntactically a valid string either way)
 - issue `code`: missing_values | invalid_dates | mixed_date_formats |
   negative_values | zero_values | inconsistent_case | trailing_whitespace |
   near_duplicate_labels | outliers_iqr | mixed_types | constant_column |

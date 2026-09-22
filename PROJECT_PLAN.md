@@ -363,29 +363,36 @@ comparing two runs, email delivery of reports, mobile layout.
 ## 12. Current Status
 
 **Phase in progress:** Phase 1 backend is complete (1A-1G, closed 2026-09-22).
-Phase 2 has not started. This session (2026-09-22, after 1G) did the scoped
-Stage-1-frontend exception described under Phase 6 above and in Notes below:
-Upload, Review and Results, wired to the real 1G API. Earlier: Phase 0 (0A
-`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C
-(`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`). 1G wired the four
-endpoints behind the state machine, the `cleaning` claim, the frame cache and the
-shared retry budget (the 1G checklist line above has the full list of what was
-delivered and what the review found and fixed). pytest 1852 passed from the repo
-root and from `backend/`, 0 skipped (1843 before this session, +4 profile-endpoint
-+5 download-endpoint tests); Vitest 36 passed across 7 files (9 before this
-session); `npx tsc -b` and `npm run lint` clean on both; `npm audit` not run
-(needs the network). No AI call in 1G itself (mocked throughout); this session's
-own AI calls are flagged below (real, not mocked - a manual browser check, not
-the test suite). The doubt-review's PostgreSQL checks in 1G (the claim race, the
-migration, a NUL run id) ran against a throwaway local cluster, not the dev
-database.
+Phase 2 has not started. Two more 2026-09-22 sessions after 1G, both scoped
+exceptions, not Phase 6 (full account in Notes below): the Stage-1-frontend
+session (Upload, Review, Results), then a same-day bug-fix + Preview-pane-
+rebuild session. Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A
+(`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E
+(`4c96e92`), 1F (`afaa2a6`). 1G wired the four endpoints behind the state
+machine, the `cleaning` claim, the frame cache and the shared retry budget (the
+1G checklist line above has the full list of what was delivered and what the
+review found and fixed). pytest 1856 passed from the repo root and from
+`backend/`, 0 skipped (1843 before the two frontend sessions, +4
+profile-endpoint +5 download-endpoint +4 schema-inference-prompt tests); Vitest
+54 passed across 9 files (9 before the two frontend sessions); `npx tsc -b` and
+`npm run lint` clean on both; `npm audit` not run (needs the network). No AI
+call in 1G itself (mocked throughout); real AI calls were made once, by
+accident, in the first frontend session (flagged in that session's Notes
+paragraph below) and avoided deliberately in the second. The doubt-review's
+PostgreSQL checks in 1G (the claim race, the migration, a NUL run id) ran
+against a throwaway local cluster, not the dev database.
 **Next step:** Phase 2 (Stage 2 Analyze), starting with the skills Wave 2 install and
 the ADRs. Phase 6 itself (Insights, Dashboard) is still not started. 1G is already
-committed (`8f9c19d`); before Phase 2, Thach commits and pushes this session's work
-with the commands at the end of this session's summary.
-**Action needed from Thach:** `.env`'s `ANTHROPIC_API_KEY` is a real key, not the
-`.env.example` placeholder - see the first Notes paragraph below before opening the
-app in a browser again; swap in a fake key first unless a real call is wanted.
+committed (`8f9c19d`); before Phase 2, Thach commits and pushes both frontend
+sessions' work with the commands at the end of each session's summary.
+**Action needed from Thach:** two things.
+1. Re-verify the rebuilt Preview pane live in the browser (the bug-fix +
+   rebuild session below did not drive a browser itself, on purpose).
+2. `.env`'s `ANTHROPIC_API_KEY` is still a real key, not the `.env.example`
+   placeholder - swap in a fake key before uploading a file through the UI
+   again, unless a real call is wanted (see the Stage-1-frontend session's
+   Notes paragraph below for what happened the one time this was missed).
+
 Earlier ask, now met - the real `.env` needed two lines `.env.example` had already
 gained (`PREVIEW_CACHE_MAX_MB`, `PREVIEW_CACHE_TTL_SECONDS`):
 ```
@@ -393,6 +400,70 @@ PREVIEW_CACHE_MAX_MB=300
 PREVIEW_CACHE_TTL_SECONDS=900
 ```
 **Notes:**
+- 2026-09-22, later the same day: a bug fix + a Preview pane rebuild, both on
+  the Review screen the previous session built.
+  - **Bug fix** (found manually testing Review with real Kaggle data): the AI
+    mapped a "Payment Method" column (Cash / Credit Card / Digital Wallet) to
+    canonical_field `transaction_type`, which `docs/SPECS.md` section 9
+    defines as stock movement direction (`in`/`out`) - an unrelated concept
+    the field's own name (containing "type" and "transaction") invites
+    confusing it with. Nothing downstream would have caught it: the mapped
+    value is an ordinary string either way, so this would have silently
+    corrupted `current_stock` once Phase 7 exists. Fixed in
+    `prompts/schema_inference.md` (new "CANONICAL FIELD NOTES" section: the
+    definition, what it is not, a concrete negative example mapped to
+    `ignore`) and `docs/AI_PIPELINE.md` section 5 (same clarification,
+    inline). Regression test: `tests/stages/ingest/test_schema_inference_prompt.py`
+    (4 tests, mirrors the existing `test_cleaning_plan_prompt.py` pattern of
+    testing a prompt's own content, since the fix is prompt wording and there
+    is no code to unit-test). A real-API check that the model now avoids the
+    wrong mapping (like 1C's one-off) was not run this session - offered to
+    Thach, not done, given the token-spend note two bullets down.
+  - **Preview pane rebuild**: `design/mockups/Review.png` was re-exported
+    (file-modified today) but `docs/FIGMA_DESIGN_NOTES.md` was not updated
+    alongside it (unchanged since 2026-09-19, no "Preview pane" section). The
+    missing section 7 was written from the new PNG plus Thach's own
+    description before building against it (old section 7 "Handoff notes" ->
+    8, "Design principles" -> 9; nothing elsewhere in the repo references
+    either by number). `frontend/src/components/PreviewPane.tsx` rebuilt as
+    one table (was Before/After side by side): a pinned Row column, only
+    columns changed in the displayed sample shown by default (the rest behind
+    "Show unchanged columns (N)"), a dotted underline as the non-color signal
+    on a changed/filled cell (SPECS section 11), the original value and the
+    action that ran in a tooltip on hover AND keyboard focus
+    (`tabindex="0"`, `aria-describedby`), numeric columns right-aligned with
+    a trailing ".0" dropped, the row-count chip labeled "(full file,
+    projected)". New domain module `frontend/src/domain/previewDisplay.ts`.
+    Dropped-row reasons ("No qty", "Duplicate") are real now, not the
+    fabricated-vs-honest tradeoff the previous session's Notes flagged -
+    `PreviewResult` still carries no reason field, but the reason is now
+    *derived* from the plan actually submitted plus the row's own "before"
+    values (both already available once `PreviewPane` takes the `plan` as a
+    prop): "Duplicate" when `remove_exact_duplicates` is planned and another
+    displayed row has identical "before" values (checked first, since that
+    action runs before any column action in the fixed execution order,
+    `docs/AI_PIPELINE.md` section 6); otherwise "No `<field>`" when a
+    required field's column has `drop_rows_missing` and this row is blank
+    there; otherwise "Dropped", claiming nothing further, when neither is
+    determinable from the 20 rows on screen (a duplicate whose pair fell
+    outside them, or a non-required column's `drop_rows_missing`). 12 new
+    domain tests + 6 new component tests
+    (`frontend/src/domain/previewDisplay.test.ts`,
+    `frontend/src/components/PreviewPane.test.tsx`).
+  - Checked, as asked: whether "no cells appeared visually tinted" in the old
+    preview was a pre-existing bug. The old component's code did set the
+    `preview-cell--changed`/`--added`/`--removed` classes correctly, and the
+    previous session's own live-browser screenshot (before this rebuild)
+    showed yellow/green/red cells rendering. Does not look like a code bug;
+    moot now regardless, since that component no longer exists - if it
+    recurs with real data after this rebuild, it needs its own look with the
+    exact file that showed it.
+  - **No AI tokens spent this session** (contrast with the paragraph below):
+    `.env`'s `ANTHROPIC_API_KEY` was checked before touching anything
+    upload-related, and no browser/upload flow was driven this time - Thach
+    asked to re-verify live himself. Both dev servers were started only to
+    confirm a clean boot (`/health`, then left running for Thach to check),
+    never driven past that.
 - 2026-09-22 Stage-1 frontend session (scoped exception, not Phase 6 - see the note
   under Phase 6 above): built `frontend/src/pages/{Upload,Analyzing,Review,Results}Page.tsx`
   wired to the real 1G API, per `docs/FIGMA_DESIGN_NOTES.md` frames `Upload` (`7:851`),

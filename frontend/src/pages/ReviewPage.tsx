@@ -284,7 +284,7 @@ export function ReviewPage({
           onActionChange={handleActionChange}
         />
 
-        <PreviewPane preview={preview} loading={previewLoading} />
+        <PreviewPane preview={preview} loading={previewLoading} plan={previewedPlan ?? plan} />
 
         {previewError !== null &&
           (() => {
