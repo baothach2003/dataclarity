@@ -16,7 +16,7 @@ from app.models import Run, RunStatus
 from app.schemas import AnalyzeSchemaResponse, Notice, PlanResponse
 from app.services import run_state, stage_errors
 from app.services.run_memory import RetryBudgets, RunWork
-from contracts import SchemaInferenceContract
+from contracts import ProfileContract, SchemaInferenceContract
 from shared.ai_client import AIClient, AIUnavailable
 from shared.run_registry import RunNotFoundError, run_file
 from stages.ingest.ai_plan import propose_plan_run
@@ -149,6 +149,22 @@ def propose_plan(
         raise ApiError("INVALID_STATE", str(error)) from error
     return PlanResponse(
         run_id=run_id, status="planned", plan=plan, notices=_notices(None, schema))
+
+
+def get_profile(session: Session, run_id: str, *, settings: Settings) -> ProfileContract:
+    """profile.json for the run (SPECS section 8: GET /api/runs/{id}/profile). Read-only:
+    no work claim, since nothing here can race a step that changes the run's status."""
+    run = run_state.load_run(session, run_id)
+    run_state.require_status(
+        run,
+        RunStatus.PROFILED, RunStatus.PLANNED, RunStatus.CLEANING,
+        RunStatus.CLEANED, RunStatus.ANALYZED, RunStatus.IMPORTED,
+        step="load the profile",
+    )
+    path = run_file(settings.runs_dir, run_id, PROFILE_FILENAME)
+    if not path.exists():
+        raise stage_errors.files_gone()
+    return ProfileContract.model_validate_json(path.read_text(encoding="utf-8"))
 
 
 def read_schema(runs_root: Path, run_id: str) -> SchemaInferenceContract | None:

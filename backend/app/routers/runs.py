@@ -1,6 +1,7 @@
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Body, Depends, UploadFile
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -14,11 +15,12 @@ from app.dependencies import (
     get_run_work,
 )
 from app.schemas import AnalyzeSchemaResponse, ExecuteResponse, PlanResponse, PreviewResponse
-from app.services import analysis, plan_execution
+from app.services import analysis, downloads, plan_execution
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
 from app.services.uploads import max_upload_bytes
+from contracts import ProfileContract
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -60,6 +62,21 @@ SettingsDep = Annotated[Settings, Depends(get_app_settings)]
 # outside the catalog is INVALID_PLAN (SPECS section 10) and not INVALID_REQUEST.
 PlanBody = Annotated[dict[str, Any], Body()]
 WorkDep = Annotated[RunWork, Depends(get_run_work)]
+
+
+@router.get("/{run_id}/profile")
+def get_profile(run_id: str, settings: SettingsDep, session: SessionDep) -> ProfileContract:
+    return analysis.get_profile(session, run_id, settings=settings)
+
+
+@router.get("/{run_id}/download/cleaned.csv")
+def download_cleaned_csv(run_id: str, settings: SettingsDep, session: SessionDep) -> Response:
+    file = downloads.download_cleaned_csv(session, run_id, settings=settings)
+    return Response(
+        content=file.content,
+        media_type=file.media_type,
+        headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
+    )
 
 
 @router.post("/{run_id}/analyze-schema")

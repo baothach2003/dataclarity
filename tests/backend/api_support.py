@@ -89,6 +89,9 @@ class Api:
     def post(self, run_id: str, step: str, body: Any = None) -> httpx.Response:
         return self.client.post(f"/api/runs/{run_id}/{step}", json=body)
 
+    def get(self, run_id: str, step: str) -> httpx.Response:
+        return self.client.get(f"/api/runs/{run_id}/{step}")
+
     def status(self, run_id: str) -> RunStatus:
         with Session(self.engine) as session:
             return session.scalars(select(Run.status).where(Run.id == run_id)).one()

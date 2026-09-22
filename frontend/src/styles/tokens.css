@@ -1,0 +1,95 @@
+/* Design tokens (docs/FIGMA_DESIGN_NOTES.md section 4). Values are copied from
+   Figma, never invented: change them there first, then here. */
+:root {
+  --bg-page: #f7f8fa;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f0f2f5;
+
+  --text-primary: #1a1d21;
+  --text-secondary: #6b7280;
+
+  --accent: #2563eb;
+  --accent-pressed: #1d4ed8;
+  --accent-subtle: #eff6ff;
+  --text-on-accent: #ffffff;
+
+  --severity-low: #6b7280;
+  --severity-medium: #d97706;
+  --severity-high: #dc2626;
+
+  --status-healthy: #16a34a;
+  --status-warning: #f59e0b;
+  --status-critical: #dc2626;
+
+  --diff-changed: #fef3c7;
+  --diff-removed: #fee2e2;
+  --diff-added: #dcfce7;
+
+  --low-confidence-row-bg: rgb(217 119 6 / 8%);
+
+  --border: #e5e7eb;
+  --divider: #e5e7eb;
+
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: 'Roboto Mono', ui-monospace, monospace;
+
+  /* size / line-height / weight */
+  --type-h1-size: 28px;
+  --type-h1-line: 36px;
+  --type-h1-weight: 600;
+  --type-h2-size: 20px;
+  --type-h2-line: 28px;
+  --type-h2-weight: 600;
+  --type-h3-size: 16px;
+  --type-h3-line: 24px;
+  --type-h3-weight: 600;
+  --type-body-size: 14px;
+  --type-body-line: 20px;
+  --type-body-weight: 400;
+  --type-label-size: 13px;
+  --type-label-line: 18px;
+  --type-label-weight: 500;
+  --type-caption-size: 12px;
+  --type-caption-line: 16px;
+  --type-caption-weight: 400;
+  --type-metric-size: 32px;
+  --type-metric-line: 40px;
+  --type-metric-weight: 600;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --radius-card: 10px;
+  --radius-button: 10px;
+  --radius-badge: 6px;
+  --radius-modal: 16px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 6%);
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: var(--type-body-size);
+  line-height: var(--type-body-line);
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}

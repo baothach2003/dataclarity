@@ -266,6 +266,12 @@ dataclarity/
 - **DoD:** the HTML report is readable standalone and matches the contract data
 
 ### Phase 6 - Frontend
+> Not started. A scoped, deliberate exception pulled 3 of these screens (Upload,
+> Review, Results - the Stage 1 screens, whose backend was already built and
+> manually verified) forward into their own session, ahead of phase order and
+> without the Wave 3 skills. Insights (6E) and Dashboard (6F) still wait for
+> Phase 2-5, whose data they need. Full account in section 12 Notes, dated
+> 2026-09-22.
 - [ ] Install skills Wave 3 (see docs/SKILLS.md)
 - [ ] 6A Upload page + analyzing states (SPECS 4.1); decide how the
       client-side size check learns `MAX_UPLOAD_MB` without a second source of
@@ -356,27 +362,132 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1 is complete (1A-1G), closed 2026-09-22 (uncommitted
-until Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A (`83eccbf`),
-1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F
-(`afaa2a6`). 1G wired the four endpoints behind the state machine, the `cleaning` claim,
-the frame cache and the shared retry budget (the 1G checklist line above has the full
-list of what was delivered and what the review found and fixed). pytest 1843 passed
-from the repo root and from `backend/`, 0 skipped (1591 before this session); Vitest 9
-passed; `npx tsc -b` and `npm run lint` clean; `npm audit` not run (needs the network).
-No AI call in 1G (mocked throughout); the doubt-review's PostgreSQL checks (the claim
-race, the migration, a NUL run id) ran against a throwaway local cluster, not the dev
+**Phase in progress:** Phase 1 backend is complete (1A-1G, closed 2026-09-22).
+Phase 2 has not started. This session (2026-09-22, after 1G) did the scoped
+Stage-1-frontend exception described under Phase 6 above and in Notes below:
+Upload, Review and Results, wired to the real 1G API. Earlier: Phase 0 (0A
+`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C
+(`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`). 1G wired the four
+endpoints behind the state machine, the `cleaning` claim, the frame cache and the
+shared retry budget (the 1G checklist line above has the full list of what was
+delivered and what the review found and fixed). pytest 1852 passed from the repo
+root and from `backend/`, 0 skipped (1843 before this session, +4 profile-endpoint
++5 download-endpoint tests); Vitest 36 passed across 7 files (9 before this
+session); `npx tsc -b` and `npm run lint` clean on both; `npm audit` not run
+(needs the network). No AI call in 1G itself (mocked throughout); this session's
+own AI calls are flagged below (real, not mocked - a manual browser check, not
+the test suite). The doubt-review's PostgreSQL checks in 1G (the claim race, the
+migration, a NUL run id) ran against a throwaway local cluster, not the dev
 database.
 **Next step:** Phase 2 (Stage 2 Analyze), starting with the skills Wave 2 install and
-the ADRs. Before that, Thach commits and pushes 1G with the commands at the end of
-this session's summary (1F was already committed, `afaa2a6`, before this session).
-**Action needed from Thach:** the real `.env` (repo root, gitignored) needs two new
-lines before the server will start - see `.env.example`:
+the ADRs. Phase 6 itself (Insights, Dashboard) is still not started. 1G is already
+committed (`8f9c19d`); before Phase 2, Thach commits and pushes this session's work
+with the commands at the end of this session's summary.
+**Action needed from Thach:** `.env`'s `ANTHROPIC_API_KEY` is a real key, not the
+`.env.example` placeholder - see the first Notes paragraph below before opening the
+app in a browser again; swap in a fake key first unless a real call is wanted.
+Earlier ask, now met - the real `.env` needed two lines `.env.example` had already
+gained (`PREVIEW_CACHE_MAX_MB`, `PREVIEW_CACHE_TTL_SECONDS`):
 ```
 PREVIEW_CACHE_MAX_MB=300
 PREVIEW_CACHE_TTL_SECONDS=900
 ```
 **Notes:**
+- 2026-09-22 Stage-1 frontend session (scoped exception, not Phase 6 - see the note
+  under Phase 6 above): built `frontend/src/pages/{Upload,Analyzing,Review,Results}Page.tsx`
+  wired to the real 1G API, per `docs/FIGMA_DESIGN_NOTES.md` frames `Upload` (`7:851`),
+  `Upload - Analyzing` (`7:955`), `Review` and its 4 variant frames, `Results` (`7:1098`),
+  using the design tokens in that file's section 4 (`frontend/src/styles/tokens.css`).
+  No router: `App.tsx` is a small screen state machine (Upload -> Analyzing -> Review ->
+  Results), since only these 3 screens exist and Insights/Dashboard need Phase 2-5 data
+  that does not exist yet. 33 Vitest tests (up from 9): upload validation, the
+  plan-edit-to-preview debounce (fake timers), required-field gating, NOT_INVENTORY
+  mapping-disabled mode, error-state rendering per `design/mockups/Errors.png`, and an
+  `App.test.tsx` integration path including the branch that must skip `POST /plan`
+  when the schema step came back AI_UNAVAILABLE (no `schema_inference.json` written,
+  so `/plan` would itself answer INVALID_STATE). `npx tsc -b` and `npm run lint` clean.
+- **Real AI tokens were spent, by accident.** The repo's real `.env` (not `.env.example`)
+  already held a real `ANTHROPIC_API_KEY`, not the placeholder. Manual browser
+  verification of the Upload -> Review flow (CLAUDE.md "Definition of Done": verify at
+  runtime, not only via tests) was run without first checking the key, so the one
+  upload made 2 real calls (schema inference, cleaning plan) against Thach's account -
+  small (this project's earlier 1C real-call note: about 3 cents for one call), but a
+  real miss of CLAUDE.md section 8 / the DoD item ("run with a fake `ANTHROPIC_API_KEY`
+  ... real tokens are spent only when Thach asks"). Flagged to Thach the moment it was
+  noticed, mid-session; no further AI-triggering action (re-upload, "Try AI again") was
+  taken afterward - the rest of the manual check (editing the plan, the debounced
+  preview, Confirm & Clean, the Results downloads) used `/preview` and `/execute`,
+  neither of which calls the AI. Lesson for every future session: check which key is in
+  the real `.env` before the first browser-driven upload.
+- Two gaps in the built API were found while building the screens the API is supposed
+  to serve, and fixed rather than worked around, since both are already implied by
+  `docs/SPECS.md` section 8 and needed by SPECS section 4.2/4.3, not new scope:
+  - `GET /api/runs/{id}/profile` (`app/services/analysis.py:get_profile`,
+    `tests/backend/test_api_profile.py`, 4 tests): the Review screen's dataset summary
+    strip (SPECS 4.2 A: rows, columns, duplicate rows, missing %) and the Analyzing
+    screen's row/column count need `profile.json`, which no endpoint returned;
+    `schema_inference.json` cannot substitute (capped at 25 columns, no dataset
+    totals). Read-only, no work claim; INVALID_STATE before the run is profiled,
+    EXPIRED if the file is gone.
+  - `GET /api/runs/{id}/download/cleaned.csv` (`app/services/downloads.py`,
+    `tests/backend/test_api_downloads.py`, 5 tests): the Results screen's CSV download
+    (SPECS 4.3) - `execute`'s response never carried `cleaned.csv` itself, only the
+    report (SPECS 8 already says "download urls" belong on that response; 1G did not
+    build them). The uploaded filename is user-supplied and only its extension was
+    checked at upload (SEC-1), so the download filename is sanitized to
+    `[A-Za-z0-9._-]` before it reaches the `Content-Disposition` header (a test proves
+    a filename with `"`, `;` and CRLF cannot inject a header). `cleaning_report.json`
+    needed no endpoint: `execute`'s response already carries the full report, so its
+    download button serializes that in the browser.
+  These were decided without asking, for Thach to veto: both are thin, read-only,
+  reuse the existing state-machine/error patterns (`run_state.require_status`,
+  `stage_errors.files_gone`), and were each given the same test coverage a 1G endpoint
+  got.
+- UI simplifications versus the mockups, decided without asking, for Thach to veto:
+  - The Action cell's params editor is inline under the dropdown, not a floating
+    popover (`design/mockups/Review - Edit Action.png`); `fix_negative` is one dropdown
+    entry ("Fix negative values") with an inline strategy select, not the mockup's two
+    entries ("Flag negatives (keep)" / "Fix negative values..."). Same data submitted
+    either way - the difference is only how many clicks reach the params.
+  - The mockup's "abs" strategy label is "Set to 0"; the transform actually replaces a
+    negative with its absolute value (-5 -> 5), never 0
+    (`stages/ingest/transforms.py fix_negative`, `strategy="abs"`). Built as "Make
+    positive (absolute value)" instead of copying a label that misdescribes the data.
+    Flagged for Thach to fix the mockup text or confirm the behavior is what he wants.
+  - The preview pane's dropped-row reasons ("No qty", "Dup. row") and the "What ran"
+    table's expanded row (specific row numbers, "Reason recorded per row:
+    missing_required_field(quantity)") in the mockups are not data
+    `PreviewResult`/`ChangeLogEntry` actually carry (`stages/ingest/preview.py`: a
+    dropped row's `changed` is forced empty, with no reason code; `ChangeLogEntry` has
+    no row list). Built honestly instead of invented: the preview shows "Row dropped"
+    with no reason, and a "What ran" row only expands when it has real params to show.
+    Worth a contract addition later if Thach wants the mockup's level of detail.
+  - `drop_column` entries are shown one per column (`docs/CONTRACTS.md` section 5: one
+    `ChangeLogEntry` per column dropped), not aggregated into the mockup's single
+    "4 columns" row - aggregating would need grouping rules the contract does not
+    define.
+  - Column issue badge severity (low/medium/high, the badge color) is a client-side
+    heuristic (`frontend/src/domain/issueSeverity.ts`): `ColumnIssue`
+    (`docs/CONTRACTS.md` section 3) carries no severity, only `DatasetIssue` does. The
+    rule: `missing_values` is high on a required field or at >= 5% elsewhere (the same
+    5% line SPECS section 6 uses for impute-vs-Unknown), medium below that; cosmetic
+    codes (whitespace, case, near-duplicates, exact duplicates) are low; codes that can
+    corrupt a column or drop data unnoticed (`all_null_column`,
+    `non_numeric_in_numeric`) are high; everything else is medium. Matches every badge
+    color in `design/mockups/Review.png`'s sample data by construction, but is a rule
+    this session invented, not one SPECS or CONTRACTS states - for Thach to veto or
+    move into SPECS if it should bind the backend too.
+  - Upload's client-side size check uses the SPECS section 1 ceiling (50MB), not the
+    server's actual configured `MAX_UPLOAD_MB` (open question left by the original 6A
+    line: no second source of truth for the real, possibly lower, limit exists on the
+    frontend). A file over 50MB is rejected before upload; a file the server's real
+    limit rejects (if lower than 50MB) still gets the server's real FILE_TOO_LARGE
+    answer, shown the same way. `frontend/src/domain/upload.ts` has the reasoning.
+- Not built this session (deliberately out of scope, per the session's own brief):
+  dataset-actions editing (`remove_exact_duplicates` / `flag_duplicate_keys` are shown
+  nowhere in the UI; a manually-built plan always starts with none, an AI plan keeps
+  whatever it proposed); an accessibility or Vitest coverage pass beyond what the tests
+  above already exercise; i18n (none needed, SPECS 11 says English only).
 - 1G decisions (Thach): none asked mid-session; the design choices (profiling folded
   into `analyze-schema`, preview/execute allowed from `profiled` for a hand-built plan,
   the NOT_INVENTORY waiver, byte-budgeted cache over a cell-budgeted one, a per-run
