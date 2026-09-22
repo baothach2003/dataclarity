@@ -210,12 +210,12 @@ dataclarity/
       model choice per task (reasoning model vs bulk model via `MODEL_REASONING`
       / `MODEL_BULK`, never the largest model at runtime; no model ids in the
       ADR). ADRs hold the "why"; existing docs keep the rule and link to the ADR
-- [ ] 2A `metrics_core.py`: revenue by period, MoM growth, orders, active
+- [x] 2A `metrics_core.py`: revenue by period, MoM growth, orders, active
       customers, AOV, return rate. Tests with hand-calculated expected values.
       Zero denominators (`revenue_change_pct` with no previous revenue, `aov`
       and return rate with no orders) need a contract decision first: the 1.0
       contract requires a number there
-- [ ] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
+- [x] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
       Loyal, At-risk, Hibernating, New). Tests
 - [ ] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
       velocity + stockout projection. Tests. `days_to_stockout` at zero
@@ -365,35 +365,222 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1 backend is complete (1A-1G, closed 2026-09-22).
-Phase 2 implementation has not started; two 2026-09-22 tooling/docs sessions
-ran after 1G and before it, no application code in either: skills Wave 2
-install per `docs/SKILLS.md` section 3, then this session, `docs/adr/`
-(ADR-0001/0002/0003, using `documentation-and-adrs`, per the Phase 2 checklist
-line that names it) - Thach confirmed Phase 2A is next right after this one.
-Two scoped-exception sessions also ran after 1G, not Phase 6 (full account in
-Notes below): the Stage-1-frontend session (Upload, Review, Results), then a
-same-day bug-fix + Preview-pane-rebuild session - both committed and pushed
-(`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A `b790448` ... 0D
-`24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D
-(`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`), skills Wave 2
-(`69697a9`). pytest 1856 passed and Vitest 54 passed, re-run after the ADR
-session and unchanged from before it (no application code touched). No AI call
-this session.
-**Next step:** Phase 2A, `stages/analyze/metrics_core.py` (revenue by period,
-MoM growth, orders, active customers, AOV, return rate) - confirmed by Thach
-as the step right after this ADR session. The zero-denominator contract
-decision that checklist line already flags (`revenue_change_pct` with no
-previous revenue, `aov`/return rate with no orders) still needs deciding
-first. Phase 6 itself (Insights, Dashboard) is still not started.
+**Phase in progress:** Phase 2 (Stage 2 Analyze) is underway. 2B closed
+2026-09-22: `stages/analyze/metrics_customers.py`, the `customers` block of
+`metrics.json` (RFM scoring + segment assignment). Pure pandas, no AI call in
+this stage (docs/adr/0002). 2A (`metrics_core.py`, the `period`/`core` blocks)
+closed the same day, earlier. **Neither 2A's nor 2B's git commands have been
+run yet** - both sessions ended by proposing `git add`/`commit -F`/`push`, but
+`git status` at the start of THIS session still showed 2A's changes
+uncommitted, and that is still true now: `stages/analyze/` and
+`tests/stages/analyze/` are untracked, `PROJECT_PLAN.md` modified, nothing
+staged. Run 2A's commit before 2B's, in order, or squash deliberately - don't
+let them land out of order. Before 2A: Phase 1 backend is complete (1A-1G,
+closed 2026-09-22). Two scoped-exception sessions ran after 1G, not Phase 6
+(full account in Notes below): the Stage-1-frontend session (Upload, Review,
+Results), then a same-day bug-fix + Preview-pane-rebuild session - both
+committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A
+`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`),
+1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`),
+skills Wave 2 (`69697a9`). pytest 1910 passed (up from 1873: 33 new tests in
+`test_metrics_customers.py`, 4 more added during this session's doubt-review
+fix-up, no existing test touched or weakened); Vitest not re-run (no frontend
+code touched this session). No AI call this session (Stage 2 makes none,
+ever).
+**Next step:** Phase 2C, `stages/analyze/metrics_products.py` (Pareto
+concentration, top/bottom movers, velocity + stockout projection). The
+`days_to_stockout` zero-velocity contract decision that checklist line
+already flags still needs deciding first. Phase 6 itself (Insights,
+Dashboard) is still not started.
 **Action needed from Thach:**
-1. Re-verify the rebuilt Preview pane live in the browser (the bug-fix +
-   rebuild session below did not drive a browser itself, on purpose).
-2. `.env`'s `ANTHROPIC_API_KEY`: not re-checked in either tooling/docs session
-   since (no upload/browser action was run in them) - confirm it is a fake
+1. Run 2A's AND 2B's git commands, in order (see each session's own summary
+   in chat for the exact commands; both used a message file, not inline `-m`).
+2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
+   from before 2A; not touched by either Stage 2 session).
+3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
+   session (no upload/browser action has run since) - confirm it is a fake
    key, not the `.env.example` placeholder, before the next browser-driven
    upload (see the Stage-1-frontend session's Notes paragraph below for what
    happened the one time this was missed).
+- 2026-09-22, Phase 2B: `stages/analyze/metrics_customers.py` +
+  `tests/stages/analyze/test_metrics_customers.py` (33 tests, hand-calculated,
+  then 4 more from the doubt-review cycle below - 37 total). Read `CLAUDE.md`,
+  `PROJECT_PLAN.md` section 12, `docs/CONTRACTS.md` section 6 (the `customers`
+  block), `docs/SPECS.md` section 7.3, and 2A's `metrics_core.py` before
+  writing anything, per the session's own brief.
+  - The brief's own `docs/SPECS.md` section 5.1 reference for segment
+    thresholds does not exist - section 5 is entirely the stage-1 confirmation
+    contract, and section 7.3 is the *only* RFM text anywhere in the docs
+    ("RFM scoring uses quintiles on the run's own data; the reference date is
+    max(transaction_date) + 1 day"). The exact R/F thresholds Thach listed in
+    the brief are not written down anywhere in the current docs (grepped
+    `PROJECT_PLAN.md`, `docs/AI_PIPELINE.md`, `prompts/strategy.md` too - only
+    the five segment *names* appear, in the Phase 2 checklist line and the AI
+    strategy prompt's mapping-logic examples, never the thresholds) - same
+    "confirm before assuming the old design is current" situation 2A hit.
+  - Four decisions were put to Thach before implementing, all four answered
+    with the recommended option:
+    1. **Segment coverage**: the five given rules (Champions R>=4&F>=4, Loyal
+       R>=3&F>=3, At-risk R<=2&F>=3, Hibernating R<=2&F<=2, New R>=4&F<=1)
+       leave 4 of the 25 R x F combinations unclassified - (3,1), (3,2),
+       (4,2), (5,2), a customer who is reasonably recent but
+       low-to-middling frequency. A 6th catch-all segment, "Needs Attention",
+       covers them; `segment` is a plain string in the contract, so a sixth
+       value validates fine.
+    2. **customers_previous**: docs/CONTRACTS.md's `SegmentSummary` has this
+       field ("period-over-period comparison") but nothing says what
+       "previous" means for a segment count, since RFM is normally one
+       whole-history snapshot. Re-runs the same RFM pipeline restricted to
+       transactions through the end of the previous period, anchored the day
+       after it, and counts customers per segment under that earlier
+       snapshot - shows real segment migration, matching the worked example
+       (129 Champions last period -> 118 now).
+    3. **Return-only customer**: a customer whose only-ever revenue-counted
+       row is a return (negative quantity, 2A's convention) is scored and
+       segmented like anyone else - no special case; their Monetary is
+       honestly negative.
+    4. **N=1 customer**: with 2-4 distinct customers, rank-based quintiles
+       already spread them across 1-5 without error (verified empirically
+       before asking, not assumed). With exactly one customer in the whole
+       file, pandas' `qcut` cannot form bins at all (nothing to rank
+       against); that lone customer scores 5 and 5 (best available).
+  - Not asked, decided directly: RFM (Recency/Frequency/Monetary/segment) is
+    one whole-file snapshot anchored at `metrics_core`'s own `Period.data_end
+    + 1 day` (directly reused, not recomputed - confirmed this matches
+    docs/CONTRACTS.md section 6's own worked example exactly: data_end
+    2011-12-09 -> rfm_reference_date 2011-12-10), not scoped to
+    current/previous period, since section 7.3 says "the run's own data" and
+    a real quintile requires one full, stable population to bin against;
+    quintiles use `.rank(method="first")` before `qcut` so ties spread across
+    all 5 buckets instead of collapsing into one (a genuine "quintile" needs
+    five equal-sized groups) - decided directly rather than asked, since it
+    follows from the word "quintile" itself, not a business judgment call; no
+    mapped `customer` column degrades the whole block to
+    `segments: []`/`new_vs_returning` all zero rather than raise, mirroring
+    2A's `active_customers = 0` in the same situation (`rfm_reference_date`
+    is still computed - it doesn't depend on `customer`).
+  - `metrics_core.py` refactored (2A's own tests re-run unchanged after, all
+    still green) to extract `ParsedTransactions`/`parse_transactions`: the
+    row-parsing and revenue-scope logic 2A already had, now a function both
+    modules call instead of `metrics_customers.py` re-deriving it - same
+    stage package, so importing it is not a cross-stage dependency (CLAUDE.md
+    3.1). `compute_core_metrics`'s own behavior is unchanged; `select_period`
+    also reused as-is.
+  - **Doubt-driven review cycle run** (Thach's call was left to judgment,
+    given this module's two-pass "previous snapshot" re-computation, rank-based
+    tie-breaking and date-boundary arithmetic have more surface area for a
+    subtle, hard-to-notice bug than 2A's did): one fresh-context adversarial
+    cycle, cross-model offered and declined (neither `gemini` nor `codex` CLI
+    is installed here). 4 findings, reconciled against the artifact text
+    (not rubber-stamped):
+    - Fixed: `NewVsReturning`'s "empty" result was a single mutable
+      module-level singleton returned by reference from three call sites
+      (`ContractModel` is not frozen) - an in-place mutation on one run's
+      degraded result could have leaked into every other run's for the rest
+      of the process's life. Now a fresh instance per call
+      (`_empty_new_vs_returning()`).
+    - Fixed: a whitespace-only `customer` cell was not treated as missing
+      (only a true null was), fabricating a phantom customer with their own
+      segment row - more consequential here than in 2A's mere off-by-one
+      count. `docs/AI_PIPELINE.md` already defines "missing" as "null, or
+      holding only spaces" elsewhere, so the fix (a shared `is_blank` helper
+      in `metrics_core.py`) extends an existing convention rather than
+      inventing one - and was backported into 2A's `_active_customers` too,
+      so both blocks agree on who counts as an identified customer.
+    - Fixed: `revenue_share_pct` divided by the raw signed whole-file total,
+      so a net-negative dataset (returns outweighing sales) flipped every
+      segment's sign - a small revenue-*positive* segment showed a negative
+      share while the loss-making one showed over 100%. Now divides by the
+      magnitude (`abs(total_monetary)`), a no-op for the ordinary all-positive
+      case, sign-consistent otherwise.
+    - Not fixed, classified as noise (already-decided in 2A, not a new bug):
+      a missing `unit_price` mapping makes `parse_transactions` raise
+      `RequiredColumnMissingError`, same as 2A's `compute_core_metrics` - this
+      module correctly inherits that rather than fabricating a 0 Monetary or
+      a misleadingly-empty customers block. Documented explicitly in the
+      module docstring since the reviewer's question ("is this really
+      intended") was fair even though the answer was already settled.
+    - All 3 fixes are each pinned by a new hand-calculated regression test;
+      the 50 pre-existing tests (2A's 17 + 2B's 33) were re-run unchanged
+      after every fix and stayed green throughout.
+  - pytest 1910 passed (up from 1873), `tests/test_architecture.py` included,
+    no existing test touched, none weakened.
+- 2026-09-22, Phase 2A: `stages/analyze/metrics_core.py` + `tests/stages/analyze/
+  test_metrics_core.py` (17 tests, all hand-calculated). Read `CLAUDE.md`,
+  `PROJECT_PLAN.md` section 12, `docs/CONTRACTS.md` section 6, `docs/adr/0002`,
+  `CONSTRAINTS.md`, `contracts/metrics.py`, `docs/SPECS.md` section 9,
+  `docs/FIGMA_DESIGN_NOTES.md`'s flagged open question, `docs/AI_PIPELINE.md`
+  sections 5/11/12 and `tests/test_architecture.py` before writing anything, per
+  the session's own brief.
+  - Four decisions were flagged as genuinely unresolved (no config.yaml exists,
+    no period field in `Settings`, and FIGMA_DESIGN_NOTES.md section 8 explicitly
+    says "SPECS does not define how returns are identified... decide before Phase
+    6") and put to Thach before implementing, all four answered:
+    1. **Period selection** (no config anywhere; must come from the data itself,
+       since stages stay framework-free and runnable standalone): `current` is the
+       latest calendar month fully elapsed by `data_end` (`select_period` in
+       `metrics_core.py`); `previous` is the month before it. Reproduces
+       docs/CONTRACTS.md section 6's own worked example exactly (data_end
+       2011-12-09 -> current 2011-11, the partial December excluded) - a
+       dedicated test pins this. Falls back to `now`'s month when the data holds
+       no parseable date at all.
+    2. **Revenue scope**: an "in"-type row (stock coming back, e.g. a supplier
+       restock) is excluded from revenue/orders/AOV entirely, never subtracted -
+       `transaction_type` is stock movement direction only (docs/AI_PIPELINE.md
+       section 5), never a returns concept, so folding it into a signed sum would
+       misreport a restock as negative revenue. Unmapped transaction_type, or an
+       unrecognised per-row value, defaults to "out" (docs/SPECS.md section 9).
+    3. **Return detection**: a return is a revenue-counted row with negative
+       quantity (the common POS convention of a negative-quantity sale line).
+       `return_rate` = count of those rows / count of revenue-counted rows in the
+       period. Works whether or not `transaction_type` is mapped, since it only
+       depends on quantity's sign - the safer "always 0.0, deferred" alternative
+       was offered and not chosen.
+    4. **Zero denominators**: `revenue_change_pct` with `revenue_previous == 0`,
+       and `aov`/`return_rate` with `orders == 0`, all report `0.0` - never a
+       manufactured "100% growth from nothing" figure. A dedicated test
+       (`test_zero_orders_in_the_previous_period_...`) pins this against the
+       rejected alternative.
+  - Not asked, decided directly (lower-stakes, no real alternative to weigh):
+    `orders` = count of revenue-counted rows (the canonical schema has no
+    invoice/order-id field to group by, so a row is the only unit available);
+    `active_customers` = count of distinct `customer` values among
+    revenue-counted rows in the period, `0` when `customer` isn't mapped (same
+    "no signal -> 0" pattern as the return-rate design, just not one FIGMA_DESIGN
+    _NOTES.md had already flagged); `unit_price` not being mapped (legal at stage
+    1 - only `product_name`/`transaction_date`/`quantity` are required fields,
+    docs/AI_PIPELINE.md section 11) raises `RequiredColumnMissingError`, since
+    revenue cannot be computed without a price and pandas must not invent one
+    (docs/adr/0002); a row whose date, quantity or price does not parse is
+    excluded from every period-based number rather than guessed at (a real gap:
+    docs/AI_PIPELINE.md section 12 notes a plan cannot require `transaction_date`
+    to be parsed, so cleaned.csv's date column is not guaranteed to be ISO 8601)
+    - `select_period`'s `data_start`/`data_end` still use every parseable date in
+    the file, not just revenue-counted rows, since they describe the dataset's
+    own span, not revenue's.
+  - `compute_core_metrics(df, column_mapping, now=None)` is pure (no disk I/O);
+    `core_metrics_for_run(runs_root, run_id, now=None)` reads `cleaned.csv` +
+    `cleaning_report.json` via `shared/run_registry` and calls it - mirrors
+    `profiling.py`'s `profile_csv`/`profile_run` split. Neither writes anything:
+    assembling and writing the full `metrics.json` (the `customers`, `products`
+    and `by_dimension` blocks too) is 2B-2D. `cleaned.csv` is read with
+    `dtype=str` and every needed column converted explicitly in this module
+    (`pd.to_datetime`/`pd.to_numeric`, `errors="coerce"`), the same "read every
+    value as raw text" approach `profiling.py` uses for `raw.csv`, since nothing
+    guarantees stage 1 already cast these columns.
+  - No doubt-driven review cycle run: the session's own brief said to skip it if
+    the hand-checked tests alone gave confidence once implemented, and 17 tests
+    covering every branch (both zero-denominator paths, unmapped
+    transaction_type/customer, case/whitespace-insensitive type matching, an
+    unrecognised type value, unparseable dates/quantities/prices, a fully empty
+    dataframe, all three required-column-missing paths, and the exact CONTRACTS.md
+    worked example) did.
+  - A pandas gotcha hit and fixed during testing, not part of any design
+    decision: `df[type_col].str...` raised `AttributeError` on an empty or
+    all-missing column, because an empty/NaN-only column can read back as
+    `float64`, and `.str` only works on object/string dtype. Fixed with
+    `.astype(object)` before `.str`; a dedicated empty-dataframe test still
+    passes.
 
 Earlier ask, now met - the real `.env` needed two lines `.env.example` had already
 gained (`PREVIEW_CACHE_MAX_MB`, `PREVIEW_CACHE_TTL_SECONDS`):
