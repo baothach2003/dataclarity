@@ -24,6 +24,8 @@ TEST_ENV = {
     # Settings can ever write into the real, gitignored runs/ folder.
     "RUNS_DIR": str(Path(tempfile.gettempdir()) / "dataclarity-test-runs"),
     "RETENTION_HOURS": "24",
+    "PREVIEW_CACHE_MAX_MB": "300",
+    "PREVIEW_CACHE_TTL_SECONDS": "900",
 }
 os.environ.update(TEST_ENV)
 

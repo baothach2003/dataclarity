@@ -9,6 +9,14 @@ from pathlib import Path
 from pydantic import BaseModel
 
 
+class StaleInputError(ValueError):
+    """A contract file that a step needs describes other data than the file it is
+    checked against (the file was profiled again after the schema was inferred).
+    A ValueError so existing callers keep working; the backend answers INVALID_STATE
+    (409) and needs it apart from the other ValueErrors, a pydantic ValidationError
+    among them."""
+
+
 def write_contract(target: Path, contract: BaseModel) -> None:
     """Write atomically (see `write_files_atomically`): a later stage reads the
     previous file or the complete new one, never half of it."""

@@ -164,40 +164,43 @@ dataclarity/
       that drops a required field. Still open, in AI_PIPELINE section 12 "Known limits":
       one action per column (kept by decision until the review screen, 6B, shows what
       is needed), a plan cannot require `transaction_date` to be parsed
-- [ ] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
-      `docs/SPECS.md` section 8. Tests with mocked AI. Decide the code for a
-      malformed request (e.g. no `file` part): FastAPI's default 422
-      `{"detail": [...]}` breaks the section 8 error envelope, and section 10
-      has no code for it. The same holds for an unexpected server error (e.g.
-      the database is down during `POST /api/runs`): today it is FastAPI's
-      plain 500, outside the envelope. Map `stages.ingest.profiling`
-      errors by their `.code` (`EmptyCsvError` -> EMPTY_FILE, `CsvParseError`
-      -> PARSE_FAILED, both 400) when the profile step is wired to an endpoint.
-      Wire schema inference: build the client with
-      `AIClient.from_api_key(settings.anthropic_api_key...)` and pass
-      `settings.model_reasoning`; map `AIUnavailable` to AI_UNAVAILABLE (200 +
-      flag, its `reason` code in `details`); send `domain_confidence < 0.5` to
-      the NOT_INVENTORY path (AI_PIPELINE 9.4); keep the run's `RetryBudget`
-      across the schema and plan steps (it spans the run, not one request).
-      The plan step is `ai_plan.propose_plan_run` (same `AIUnavailable`
-      mapping); it raises `FileNotFoundError` for a missing input and
-      `ValueError` when `schema_inference.json` no longer matches
-      `profile.json` (map both). The `plan_final.json` validation reuses
-      `transform_catalog.illegality_reason` and `transform_params.params_problem`,
-      not the AI-specific coverage and retry-message code; an alternative
-      carries a name only, so the UI supplies its params when it is picked.
-      Execute and preview: `cleaning.execute_run(runs_root, run_id, plan)` and
-      `preview.preview_run(...)`. Map `plan_validation.InvalidPlanError` (INVALID_PLAN,
-      422, its `problems` in `details`), `cleaning.CleaningError` (the run goes to
-      `failed`, CLEANING_FAILED, 422; the SPECS section 10 row exists since 1F),
-      `FileNotFoundError` and the profiling errors. `execute_run` has no lock: claim the
-      run first, moving its status to `cleaning` in one atomic step, so a second call
-      gets INVALID_STATE (409). Keep the parsed `raw.csv` in memory per run and call
-      `preview.preview_frame` for repeated previews (reading the file alone is 2.6 s for
-      54 MB against the 3 s budget). Execute writes `plan_final.json` itself; the
-      backend sets the plan's `source`
+- [x] 1G Endpoints wiring: `/analyze-schema`, `/plan`, `/preview`, `/execute` per
+      `docs/SPECS.md` section 8 (now updated with the built response shapes and the
+      state table). Delivered: `app/schemas.py` (response models, `Notice`), `app/errors.py`
+      (the envelope now also covers FastAPI's own 422/404/405 and an unexpected exception,
+      via `RequestValidationError`/`StarletteHTTPException` handlers and an in-CORS
+      middleware for `Exception`, so a 500 still carries CORS headers),
+      `app/services/run_state.py` (the state machine: `load_run`/`load_live_run`,
+      `require_status`, `advance`/`fail`, `claim_for_cleaning` with a compare-and-swap
+      retry loop, `release`, `recover_claim`), `app/services/run_memory.py` (`FrameCache`
+      bounded by measured bytes and idle time, one read lock per run so a slow parse of
+      one run never blocks another; `RetryBudgets`, one `RetryBudget` per run shared by
+      the schema and plan steps; `RunWork`, one piece of work at a time per run and a
+      3-attempt cap per AI step, RATE_LIMITED past that), `app/services/analysis.py`
+      (`analyze_schema`, `propose_plan`), `app/services/plan_execution.py`
+      (`preview_plan`, `execute_plan`), `app/services/stage_errors.py` (every stage
+      exception -> its SPECS section 10 code). A new `cleaning` run status (Alembic
+      migration `5c1e7b3d9a42`) is the claim `execute` holds; a run left in it by a dead
+      process or a lost status write is freed by the next call that reaches it
+      (`load_live_run`), `cleaned` if its report exists, else `planned` - never a
+      background sweep, since v1 runs one process. `execute_run` gained
+      `require_required_fields=False` for a NOT_INVENTORY run (generic cleaning has
+      nothing to map). Doubt-driven review (one cycle, fresh reviewer, cross-model
+      declined by Thach) found 5 high-severity issues before anything was reviewed a
+      second time: a missing prompt file leaking a server path as a false INVALID_STATE;
+      a run strandable in `cleaning` forever; the AI callable an unbounded number of
+      times per run (and a race where a slow request's answer could overwrite a
+      concurrent one's, or claim a status the run no longer has); and one slow preview
+      able to block every other request behind a single global parse lock. All fixed,
+      each with a reproducing test, then verified by mutation testing (every mutant of
+      the fix killed). `test_config.py`/`.env.example` gain `PREVIEW_CACHE_MAX_MB` and
+      `PREVIEW_CACHE_TTL_SECONDS`, both required like every other setting: an existing
+      `.env` needs the two lines added or the backend will not start
 - **DoD:** full stage 1 works end-to-end via API only (no UI), verified on a
-  deliberately messy fixture CSV
+  deliberately messy fixture CSV (met 2026-09-22: upload -> analyze-schema -> plan ->
+  preview -> execute driven through the API with the AI mocked, state transitions and
+  409s on out-of-order calls asserted; concurrent-execute and concurrent-AI-step races
+  driven with real threads and a real SQLite file so the claim is proven, not assumed)
 
 ### Phase 2 - Stage 2 Analyze
 - [ ] Install skills Wave 2 (see docs/SKILLS.md)
@@ -304,9 +307,13 @@ dataclarity/
       outcome, see 1A2);
       the run-state transition for a rate-limited AI step (SEC-2); the
       trusted-proxy setting that yields the client IP (SEC-2; 9A sets the
-      Render value); AI call budget per run; retention
-      cleanup job; startup `ALLOWED_ORIGINS` checks per SEC-5;
-      `DATABASE_URL` handled as a secret so it never reaches logs (SEC-4)
+      Render value); AI call budget per run (1G added a per-run, per-step attempt cap,
+      `RunWork`, RATE_LIMITED after 3; SEC-2's IP-based limit is still open); retention
+      cleanup job (also frees a run 1G's `load_live_run` never touched, and reads
+      `RunWork`/`FrameCache`/`RetryBudgets` for one process only - 8B decides what
+      changes if the backend ever runs more than one); startup `ALLOWED_ORIGINS`
+      checks per SEC-5; `DATABASE_URL` handled as a secret so it never reaches logs
+      (SEC-4)
 - [ ] 8C Test sweep + coverage review on `stages/` and `backend/app/services/`
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -349,17 +356,50 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 1. 1F closed 2026-09-21 (uncommitted until Thach
-commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2
-(`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`). 1F
-delivered the two engines: `cleaning.py` (`apply_plan`, `execute_run`), `preview.py`,
-`plan_validation.py`, `transform_types.py`, `problem_rows.py`, and
-`contract_files.write_files_atomically`; it also fixed defects the review found in
-`profiling.py`, `changes.py`, `column_kinds.py` and `transforms.py`. pytest 1591 passed
-from the repo root and from `backend/`, 0 skipped; Vitest 9 passed; `npx tsc -b` and
-`npm run lint` clean; `npm audit` not run (needs the network). No AI call in 1F.
-**Next step:** Phase 1G (the endpoints). Its line above lists what 1E and 1F leave to it.
+**Phase in progress:** Phase 1 is complete (1A-1G), closed 2026-09-22 (uncommitted
+until Thach commits). Earlier: Phase 0 (0A `b790448` ... 0D `24307c3`), 1A (`83eccbf`),
+1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F
+(`afaa2a6`). 1G wired the four endpoints behind the state machine, the `cleaning` claim,
+the frame cache and the shared retry budget (the 1G checklist line above has the full
+list of what was delivered and what the review found and fixed). pytest 1843 passed
+from the repo root and from `backend/`, 0 skipped (1591 before this session); Vitest 9
+passed; `npx tsc -b` and `npm run lint` clean; `npm audit` not run (needs the network).
+No AI call in 1G (mocked throughout); the doubt-review's PostgreSQL checks (the claim
+race, the migration, a NUL run id) ran against a throwaway local cluster, not the dev
+database.
+**Next step:** Phase 2 (Stage 2 Analyze), starting with the skills Wave 2 install and
+the ADRs. Before that, Thach commits and pushes 1G with the commands at the end of
+this session's summary (1F was already committed, `afaa2a6`, before this session).
+**Action needed from Thach:** the real `.env` (repo root, gitignored) needs two new
+lines before the server will start - see `.env.example`:
+```
+PREVIEW_CACHE_MAX_MB=300
+PREVIEW_CACHE_TTL_SECONDS=900
+```
 **Notes:**
+- 1G decisions (Thach): none asked mid-session; the design choices (profiling folded
+  into `analyze-schema`, preview/execute allowed from `profiled` for a hand-built plan,
+  the NOT_INVENTORY waiver, byte-budgeted cache over a cell-budgeted one, a per-run
+  per-step AI attempt cap) are explained in the 1G checklist line and in `docs/SPECS.md`
+  section 3's new state table for Thach to veto.
+- 1G review (one doubt-driven cycle, fresh reviewer, cross-model declined by Thach):
+  5 high-severity findings (a leaked server path, a run strandable in `cleaning`, an
+  unbounded AI call count with a state-mismatch race, one preview able to starve the
+  server) and 6 medium (the cache counted cells not bytes; an evict during a read could
+  restore a stale frame; a NUL byte in a run id reached PostgreSQL as a 500; a
+  concurrent `analyze-schema` on a fresh run read a stale status; `MemoryError`/`OSError`
+  wrongly failed the run for good; the real `.env` needed updating). All fixed, each
+  with a reproducing test (`tests/backend/test_api_hardening.py`,
+  `test_api_recovery.py`, `test_run_state_hardening.py`); the fixes were then checked by
+  mutation testing (every mutant killed), not reviewed a second time, by the same
+  one-cycle decision as 1C/1F.
+- One bug found while splitting long test files after the review (not in the reviewed
+  code itself): Python 3.14 defers annotation evaluation (PEP 649), so a missing
+  `import` used only in a type hint or inside a lambda is not a `NameError` until that
+  code actually runs - a test with a stray missing import can pass for the wrong reason
+  if the code under test also happens to answer 500. Fixed by pinning the real cause
+  with `caplog` in `test_a_missing_prompt_template_is_a_500_that_shows_no_server_path`.
+- Old 1F notes (kept for history):
 - 1F decisions (Thach): a date written with a UTC offset keeps its date and time as
   written and drops the offset; `drop_rows_missing` is its own step before the
   imputations (`EXECUTION_ORDER`, AI_PIPELINE section 6); execute rejects a plan that

@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from stages.ingest import transforms
-from stages.ingest.cleaning import apply_plan
+from stages.ingest.cleaning import CleaningError, apply_plan
 from stages.ingest.column_kinds import as_numbers, non_numeric_mask
 from stages.ingest.profiling import read_csv_text
 from tests.stages.ingest.cleaning_fixtures import column_action, make_plan
@@ -132,3 +132,38 @@ def test_a_row_whose_required_cell_is_only_spaces_is_dropped_by_the_plan() -> No
     assert cleaned["sku"].tolist() == ["A1"]
     dropped = next(c for c in changes if c.action == "drop_rows_missing")
     assert dropped.rows_affected == 1 and "only spaces" in dropped.detail
+
+
+# --- a failure of the machine is not a verdict on the data (1G review) ---------------------------
+
+
+def raising(error: Exception) -> object:
+    def apply_action(*_: object) -> object:
+        raise error
+
+    return apply_action
+
+
+@pytest.mark.parametrize("error", [MemoryError("Unable to allocate"), OSError("disk full")])
+def test_running_out_of_memory_or_disk_is_not_a_cleaning_error(
+    monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    # A CleaningError ends the run for good (SPECS section 10); these can work on a retry.
+    monkeypatch.setattr(transforms, "apply_action", raising(error))
+    frame = frame_of("sku,name,qty,price,day\nA1,Mug,3,9.99,2024-01-05\n")
+
+    with pytest.raises(type(error)):
+        apply_plan(frame, make_plan())
+
+
+def test_any_other_failure_of_an_action_is_still_a_cleaning_error_naming_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(transforms, "apply_action", raising(ArithmeticError("no median")))
+    frame = frame_of("sku,name,qty,price,day\nA1,Mug,3,9.99,2024-01-05\n")
+
+    with pytest.raises(CleaningError) as caught:
+        apply_plan(frame, make_plan())
+
+    assert caught.value.action == "trim_whitespace"
+    assert caught.value.column == "sku"

@@ -1,11 +1,22 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Body, Depends, UploadFile
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.dependencies import get_app_settings, get_db_session
+from app.dependencies import (
+    get_ai_client_factory,
+    get_app_settings,
+    get_db_session,
+    get_frame_cache,
+    get_retry_budgets,
+    get_run_work,
+)
+from app.schemas import AnalyzeSchemaResponse, ExecuteResponse, PlanResponse, PreviewResponse
+from app.services import analysis, plan_execution
+from app.services.analysis import AiClientFactory
+from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
 from app.services.uploads import max_upload_bytes
 
@@ -38,3 +49,67 @@ def create_run(
     return RunCreated(
         run_id=run.id, filename=run.filename, size_bytes=run.size_bytes, status="uploaded"
     )
+
+
+# The four steps after the upload. Routers hold no logic (CLAUDE.md 3.4): each one
+# hands the request to a service and returns what it gives back.
+
+SessionDep = Annotated[Session, Depends(get_db_session)]
+SettingsDep = Annotated[Settings, Depends(get_app_settings)]
+# A plan is validated by the service, not by FastAPI, so that a body with an action
+# outside the catalog is INVALID_PLAN (SPECS section 10) and not INVALID_REQUEST.
+PlanBody = Annotated[dict[str, Any], Body()]
+WorkDep = Annotated[RunWork, Depends(get_run_work)]
+
+
+@router.post("/{run_id}/analyze-schema")
+def analyze_schema(
+    run_id: str,
+    settings: SettingsDep,
+    session: SessionDep,
+    make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
+    budgets: Annotated[RetryBudgets, Depends(get_retry_budgets)],
+    work: WorkDep,
+) -> AnalyzeSchemaResponse:
+    return analysis.analyze_schema(
+        session, run_id, settings=settings, make_client=make_client, budgets=budgets, work=work)
+
+
+@router.post("/{run_id}/plan")
+def propose_plan(
+    run_id: str,
+    settings: SettingsDep,
+    session: SessionDep,
+    make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
+    budgets: Annotated[RetryBudgets, Depends(get_retry_budgets)],
+    work: WorkDep,
+) -> PlanResponse:
+    return analysis.propose_plan(
+        session, run_id, settings=settings, make_client=make_client, budgets=budgets, work=work)
+
+
+@router.post("/{run_id}/preview")
+def preview_plan(
+    run_id: str,
+    body: PlanBody,
+    settings: SettingsDep,
+    session: SessionDep,
+    cache: Annotated[FrameCache, Depends(get_frame_cache)],
+    work: WorkDep,
+) -> PreviewResponse:
+    return plan_execution.preview_plan(
+        session, run_id, body, settings=settings, cache=cache, work=work)
+
+
+@router.post("/{run_id}/execute")
+def execute_plan(
+    run_id: str,
+    body: PlanBody,
+    settings: SettingsDep,
+    session: SessionDep,
+    cache: Annotated[FrameCache, Depends(get_frame_cache)],
+    budgets: Annotated[RetryBudgets, Depends(get_retry_budgets)],
+    work: WorkDep,
+) -> ExecuteResponse:
+    return plan_execution.execute_plan(
+        session, run_id, body, settings=settings, cache=cache, budgets=budgets, work=work)

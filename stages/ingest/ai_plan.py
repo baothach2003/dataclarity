@@ -21,7 +21,7 @@ from shared.run_registry import run_file
 from stages.ingest.ai_input import MAX_AI_COLUMNS, build_plan_variables
 from stages.ingest.ai_schema import OUTPUT_FILENAME as SCHEMA_FILENAME
 from stages.ingest.ai_schema import resolve_name
-from stages.ingest.contract_files import write_contract
+from stages.ingest.contract_files import StaleInputError, write_contract
 from stages.ingest.plan_checks import (
     CleaningPlanAnswer,
     ColumnActionAnswer,
@@ -83,7 +83,7 @@ def propose_plan_run(
         run_file(runs_root, run_id, SCHEMA_FILENAME).read_text(encoding="utf-8"))
     if [c.name for c in profile.columns] != [c.source_name for c in schema.columns]:
         # Stale: the file was profiled again after the schema was inferred.
-        raise ValueError(
+        raise StaleInputError(
             f"{SCHEMA_FILENAME} does not match {PROFILE_FILENAME}; infer the schema again")
     sent = schema.columns[:MAX_AI_COLUMNS]
 

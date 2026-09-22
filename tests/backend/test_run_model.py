@@ -83,9 +83,10 @@ def test_naive_timestamps_are_rejected(session: Session) -> None:
 
 
 def test_every_specs_state_is_a_run_status() -> None:
-    # SPECS section 3 state machine, plus failed and expired.
+    # SPECS section 3 state machine, plus `cleaning` (the claim held while a
+    # plan executes, 1G), failed and expired.
     assert [s.value for s in RunStatus] == [
-        "uploaded", "profiled", "planned", "cleaned", "analyzed", "imported",
+        "uploaded", "profiled", "planned", "cleaning", "cleaned", "analyzed", "imported",
         "failed", "expired",
     ]
 

@@ -11,11 +11,14 @@ from app.models.base import Base, UtcDateTime
 
 
 class RunStatus(StrEnum):
-    """SPECS section 3 state machine, plus failed and expired."""
+    """SPECS section 3 state machine, plus failed and expired. `cleaning` is not
+    a step the user sees: it is the claim a run holds while its plan executes, so
+    a second execute for the same run is refused instead of racing (1G)."""
 
     UPLOADED = "uploaded"
     PROFILED = "profiled"
     PLANNED = "planned"
+    CLEANING = "cleaning"
     CLEANED = "cleaned"
     ANALYZED = "analyzed"
     IMPORTED = "imported"

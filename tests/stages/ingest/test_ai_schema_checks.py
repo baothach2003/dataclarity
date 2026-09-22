@@ -15,6 +15,7 @@ from stages.ingest.ai_schema import (
     check_answer,
     infer_schema_run,
 )
+from stages.ingest.contract_files import StaleInputError
 from stages.ingest.profiling import profile_csv, read_csv_text
 from tests.ai_fakes import FakeMessages
 from tests.stages.ingest.schema_answers import (
@@ -276,3 +277,11 @@ def test_all_null_column_accepts_the_profiles_own_percentage() -> None:
                                                     "pct": pct, "examples": []}])], [])
 
         check_answer(answer_model, profile)  # no error
+
+
+def test_a_stale_profile_is_the_named_stale_input_error(tmp_path: Path) -> None:
+    run_id = profiled_run(tmp_path)
+    (tmp_path / run_id / "raw.csv").write_bytes(CSV + b"D4,Jug,1,5.00\n")
+
+    with pytest.raises(StaleInputError):
+        run(tmp_path, run_id, FakeMessages())

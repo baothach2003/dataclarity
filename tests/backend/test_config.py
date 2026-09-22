@@ -65,3 +65,19 @@ def test_the_api_key_is_stored_without_surrounding_whitespace() -> None:
     settings = Settings(_env_file=None, anthropic_api_key="  sk-ant-test\n")  # type: ignore[call-arg]  # remaining fields come from env
 
     assert settings.anthropic_api_key.get_secret_value() == "sk-ant-test"
+
+
+# The preview cache bounds (services/run_memory.py): with no positive bound the
+# cache would hold everything, or nothing, so a bad value stops startup.
+
+
+@pytest.mark.parametrize("name", ["preview_cache_max_mb", "preview_cache_ttl_seconds"])
+@pytest.mark.parametrize("value", ["0", "-5"])
+def test_a_preview_cache_bound_that_is_not_positive_stops_startup(name: str, value: str) -> None:
+    with pytest.raises(ValidationError, match=name):
+        Settings(_env_file=None, **{name: value})  # type: ignore[call-arg]  # remaining fields come from env
+
+
+def test_the_preview_cache_bounds_come_from_the_environment(settings: Settings) -> None:
+    assert settings.preview_cache_max_mb > 0
+    assert settings.preview_cache_ttl_seconds > 0

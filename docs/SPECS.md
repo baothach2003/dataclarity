@@ -62,6 +62,32 @@ State machine: `uploaded -> profiled -> planned -> cleaned -> analyzed ->
 imported`, plus `failed(reason)` from any state and `expired` after retention.
 Transitions enforced server-side; out-of-order calls return 409.
 
+How stage 1 moves through it (1G):
+
+| Call | Allowed from | Moves the run to |
+|---|---|---|
+| `POST /analyze-schema` | `uploaded`, `profiled` | `profiled` (profiling happens here when the run is `uploaded`; the run stays `profiled` whatever the AI does; an answer already given is final, INVALID_STATE; a call that got no answer may be repeated, up to 3 attempts a step, then RATE_LIMITED) |
+| `POST /plan` | `profiled`, and `schema_inference.json` must exist | `planned`; stays `profiled` when the AI is unavailable |
+| `POST /preview` | `profiled`, `planned` | no change |
+| `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
+
+`cleaning` is not a step the user sees: it is the claim a run holds while its plan
+executes, taken by one atomic conditional UPDATE, so a second `execute` (or a
+`preview`) for the same run gets INVALID_STATE (409) instead of racing the first.
+Preview and execute are allowed from `profiled` on purpose: with the AI
+unavailable, or a file that is not inventory data, the run never reaches `planned`
+and the user builds the plan by hand (section 10). An invalid plan releases the
+claim (the run is as it was); a valid plan that fails on the data moves the run to
+`failed` with CLEANING_FAILED; an unexpected error also releases the claim, and so
+does running out of memory or disk (`MemoryError` / `OSError` are not a verdict on the
+data, so they are not CLEANING_FAILED).
+
+One piece of work runs at a time per run (an AI step or an execution): a second one gets
+INVALID_STATE (409, `details.reason: "step_in_progress"`). A run left in `cleaning` that
+nothing in the server is executing (the process died, or the write of its final status
+failed) is freed by the next call that reaches it: `cleaned` when its report exists,
+otherwise `planned`. One process only (v1).
+
 ## 4. Screens
 
 ### 4.1 Upload page
@@ -172,6 +198,31 @@ again. This is why the product can claim AI assistance without AI opacity.
   column deltas (sample execution, max 500 rows)
 - `POST /api/runs/{id}/execute` (body: final plan) -> `cleaning_report.json` +
   download urls
+
+As built in 1G (200 responses; the run id is always in the URL and repeated in the body):
+- `analyze-schema` -> `{run_id, status: "profiled", schema_inference | null, notices}`
+- `plan` -> `{run_id, status: "profiled" | "planned", plan | null, notices}`
+- `preview` -> `{run_id, preview: {rows_in_file, sample_rows, sampled, rows_after,
+  columns_after, rows, deltas}}`
+- `execute` -> `{run_id, status: "cleaned", report, notices}`
+- `notices` holds the section 10 cases that are a 200 with a flag, each as
+  `{code, message, details?}` like an error: `AI_UNAVAILABLE` (`details.reason`
+  is the AI client's reason code) and `NOT_INVENTORY` (`details.domain_confidence`,
+  `details.domain_reasoning`). `schema_inference` / `plan` are `null` exactly when
+  the AI produced no accepted answer.
+- The body of `preview` and `execute` is the plan as `plan_proposed.json` has it,
+  as the user edited it. It is validated as a contract by the backend, so an action
+  outside the catalog is INVALID_PLAN, not INVALID_REQUEST. The backend sets the
+  plan's `source` itself: `ai` when the plan equals the proposal, `user_edited`
+  when it differs, `manual` when there is no proposal.
+- The download urls of `execute` are not part of 1G (no download endpoint exists
+  yet); the report is in the response.
+- A run's `raw.csv`, parsed, is kept in memory between previews, bounded in bytes
+  (`PREVIEW_CACHE_MAX_MB`, measured on the frame, not estimated from its cell count) and
+  by idle time (`PREVIEW_CACHE_TTL_SECONDS`); it is dropped when the run is executed or
+  fails. The run's one shared AI retry, its AI attempt counts and the work in progress
+  are kept in memory too. All of it is per process and lost on restart; see
+  `backend/app/services/run_memory.py`.
 - `POST /api/runs/{id}/analyze` -> `metrics.json`
 - `POST /api/runs/{id}/diagnose` -> `diagnosis.json`
 - `POST /api/runs/{id}/predict` -> `forecast.json`
@@ -211,12 +262,15 @@ warning in the import summary when it would go negative).
 | Not inventory data (domain_confidence < 0.5) | say so plainly; offer generic cleaning with downloads only; disable mapping-dependent import and stages 2-5 | NOT_INVENTORY (200 + flag) |
 | AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stages 3-4 still write their computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` sections 7-8) | AI_UNAVAILABLE (200 + flag) |
 | Stage called out of order | rejected | INVALID_STATE (409) |
-| Plan contains an unknown or illegal action | whole plan rejected | INVALID_PLAN (422) |
+| Run id that names no run (unknown, or not a UUID) | rejected | NOT_FOUND (404) |
+| Malformed request (no `file` part, a body that is not a JSON object, a wrong type) | rejected; the message lists where, never the value sent | INVALID_REQUEST (400) |
+| Unexpected server error (a database that is down, a bug) | generic message, nothing of the exception; logged on the server | INTERNAL_ERROR (500) |
+| Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
-| Rate limit exceeded | rejected | RATE_LIMITED (429) |
-| Run expired by retention | rejected with re-upload hint | EXPIRED (410) |
+| Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
+| Run expired by retention, or its files are gone | rejected with re-upload hint | EXPIRED (410) |
 
 ## 11. Non-Functional Requirements
 
@@ -302,6 +356,29 @@ before building; never invent layout or tokens.
 
 Newest first. One entry per documentation session that changes a
 source-of-truth file.
+
+### 2026-09-22 - The stage 1 endpoints (Phase 1G)
+- What: section 3 gains the table of how the four calls move a run and the `cleaning`
+  claim; section 8 the response shapes and the `notices` convention; section 10 three
+  rows (NOT_FOUND, INVALID_REQUEST, INTERNAL_ERROR) and two reworded ones
+  (INVALID_PLAN also covers a body that is not a valid plan; EXPIRED also covers files
+  that are gone). `.env.example` gains `PREVIEW_CACHE_MAX_MB` and
+  `PREVIEW_CACHE_TTL_SECONDS`, both required like every setting: an existing `.env`
+  must get the two lines or the backend will not start.
+- Why: 1G wired the endpoints. The new codes close the gap 1A named: FastAPI's own
+  422 `{"detail": [...]}` and the plain 500 were outside the section 8 envelope.
+- Decided without asking (Thach may veto): profiling runs inside `analyze-schema`;
+  `preview` and `execute` are allowed from `profiled` (the hand-built plan path);
+  `execute` of a run the AI called NOT_INVENTORY waives the required-field rule
+  (`execute_run(require_required_fields=False)`), which is what makes "generic
+  cleaning with downloads" possible; a plan body is validated by the service.
+- Added after the 1G doubt-review (one cycle, cross-model skipped by Thach): one piece
+  of work at a time per run and at most 3 AI attempts a step (a schema already inferred
+  is not asked for again); the state of a run is re-checked after an AI step and the
+  answer never claims one it no longer has; a run stuck in `cleaning` is freed by the
+  next call (see section 3); the frame cache is charged in bytes, read per run, and a
+  run evicted during a read is not stored; a run id that is not a canonical UUID is
+  NOT_FOUND before the database is asked; RATE_LIMITED gains its first use.
 
 ### 2026-09-21 - Preview, execution and the order of a plan (Phase 1F)
 - What: `docs/AI_PIPELINE.md` section 12 (re-validating the plan, executing,

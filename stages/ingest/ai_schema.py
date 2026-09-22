@@ -22,7 +22,7 @@ from contracts.profile import (
 from shared.ai_client import AIClient, AIUnavailable, RetryBudget
 from shared.run_registry import run_file
 from stages.ingest.ai_input import MAX_AI_COLUMNS, build_prompt_variables
-from stages.ingest.contract_files import write_contract
+from stages.ingest.contract_files import StaleInputError, write_contract
 from stages.ingest.issue_recount import recount_issues
 from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
@@ -152,7 +152,7 @@ def infer_schema_run(
         or profile.dataset.rows != len(frame)
     ):
         # Stale profile: its figures would be checked against different data.
-        raise ValueError(f"{PROFILE_FILENAME} does not match {RAW_FILENAME}; profile again")
+        raise StaleInputError(f"{PROFILE_FILENAME} does not match {RAW_FILENAME}; profile again")
 
     # Resolved before the call: looking it up in the failure path could raise
     # its own error and hide the AIUnavailable the caller must see.

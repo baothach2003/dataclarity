@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     max_upload_mb: Annotated[int, Field(gt=0, le=MAX_UPLOAD_MB_CEILING)]
     runs_dir: Path
     retention_hours: int
+    # The parsed-frame cache behind the preview (services/run_memory.py): megabytes of
+    # memory across all cached files, and seconds a file may sit unused.
+    preview_cache_max_mb: Annotated[int, Field(gt=0)]
+    preview_cache_ttl_seconds: Annotated[int, Field(gt=0)]
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

@@ -75,6 +75,10 @@ def apply_plan(
     for action, column, params in plan_steps(plan):
         try:
             current, entry = transforms.apply_action(action, current, column, params)
+        except (MemoryError, OSError):
+            # Not this data's fault: another attempt, with more memory or a working
+            # disk, can succeed. Wrapped as a CleaningError it would end the run.
+            raise
         except Exception as error:
             # Any exception, not only ValueError: pandas can raise others on
             # data no plan check could see, and the caller needs to know which
@@ -159,9 +163,16 @@ def execute_run(
     run_id: str,
     plan: CleaningPlanContract,
     now: datetime | None = None,
+    *,
+    require_required_fields: bool = True,
 ) -> CleaningReportContract:
     """runs/<run_id>/raw.csv + the submitted plan -> cleaned.csv, plan_final.json
     and cleaning_report.json.
+
+    `require_required_fields=False` is for a file that is not inventory data (SPECS
+    section 10, NOT_INVENTORY): generic cleaning has nothing to map to the canonical
+    fields, so the rule that they are mapped and kept is waived. Every other check of
+    the plan still applies.
 
     Raises InvalidPlanError (the plan is checked against the file first),
     CleaningError (an action failed, or no row is left), FileNotFoundError, or what
@@ -182,7 +193,9 @@ def execute_run(
         raise FileNotFoundError(f"{RAW_FILENAME} is missing for run {run_id}")
     parsed = read_csv_text(raw_path.read_bytes())
     frame = parsed.frame
-    validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=True)
+    # `for_execution` switches on the required-field rules and nothing else.
+    validate_final_plan(
+        plan, [str(name) for name in frame.columns], for_execution=require_required_fields)
 
     cleaned, changes = apply_plan(frame, plan)
     if cleaned.empty:

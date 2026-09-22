@@ -379,7 +379,11 @@ Execution is inside its budget everywhere. `preview_run` re-reads and re-parses
 misses 3 s for a wide file near the ceiling, and the stage cannot remove that. The
 preview refreshes on every edit, so the caller (1G) should keep the parsed frame in
 memory per run and call `preview_frame` on it; that meets the budget up to about a
-hundred columns. Files of hundreds of columns are slower still (the AI sees 25). The
+hundred columns. Files of hundreds of columns are slower still (the AI sees 25). 1G keeps the frame per
+run (`FrameCache`, bounded by a budget in bytes and an idle time; a frame bigger than
+the whole budget is previewed from the file every time) and calls `preview_frame`. Its
+size was first budgeted in cells: a cell is 16 bytes for a short value and 5,000 for a
+5 KB one, so only measured bytes bound the memory. The
 cost of finding problem rows is bounded by cells (2,000,000), not only by rows.
 
 **Defects the 1F review found, and what changed** (`docs/SPECS.md` change log):

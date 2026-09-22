@@ -12,6 +12,7 @@ from contracts import CleaningPlanContract
 from shared.ai_client import AIClient, AIUnavailable, RetryBudget
 from shared.run_registry import create_run
 from stages.ingest.ai_plan import propose_plan_run
+from stages.ingest.contract_files import StaleInputError
 from tests.ai_fakes import FakeMessages, FakeResponse
 from tests.stages.ingest.plan_answers import (
     SCHEMA_COLUMNS,
@@ -342,3 +343,14 @@ def test_repeated_and_restated_alternatives_are_tidied_in_the_written_plan(tmp_p
 
     price = next(a for a in returned.column_actions if a.source_name == "price")
     assert price.alternatives == ["impute_mean", "drop_rows_missing"]
+
+
+def test_a_stale_schema_is_the_named_stale_input_error(tmp_path: Path) -> None:
+    # The backend answers 409 for this and must not confuse it with the other
+    # ValueErrors (a pydantic ValidationError is one too).
+    stale = make_schema([schema_column("sku", "identifier", "sku"), *SCHEMA_COLUMNS[2:]])
+    run_id = planned_run(tmp_path, CSV, stale)
+
+    with pytest.raises(StaleInputError):
+        propose_plan_run(tmp_path, run_id, AIClient(FakeMessages()), model="m",
+                         retry_budget=RetryBudget(), now=NOW)

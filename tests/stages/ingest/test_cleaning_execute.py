@@ -316,3 +316,42 @@ def test_preview_works_on_the_same_file_and_numbers_its_rows(tmp_path: Path) -> 
 
     assert result.rows_in_file == 40 and result.rows[0].row == 1
     assert result.rows[0].before["name"] == "Mug0"
+
+
+# --- a file that is not inventory data (1G): generic cleaning has no required fields ------------
+
+
+def unmapped(plan: CleaningPlanContract) -> CleaningPlanContract:
+    """The plan of a file that is not inventory data: nothing maps to a canonical field."""
+    columns = [{**a.model_dump(), "canonical_field": "ignore"} for a in plan.column_actions]
+    return CleaningPlanContract.model_validate({**plan.model_dump(), "column_actions": columns})
+
+
+def test_a_plan_that_maps_no_required_field_is_refused_by_default(tmp_path: Path) -> None:
+    run_id = raw_run(tmp_path)
+
+    with pytest.raises(InvalidPlanError, match="required field product_name is not mapped"):
+        execute_run(tmp_path, run_id, unmapped(make_plan()))
+
+    assert written(tmp_path, run_id) == {}
+
+
+def test_generic_cleaning_runs_without_the_required_fields_when_asked(tmp_path: Path) -> None:
+    run_id = raw_run(tmp_path)
+
+    report = execute_run(tmp_path, run_id, unmapped(DEDUPLICATING),
+                         now=NOW, require_required_fields=False)
+
+    assert sorted(written(tmp_path, run_id)) == sorted(OUTPUTS)
+    assert report.rows_out == 4  # the same result as the mapped plan: only the guard is waived
+    assert report.column_mapping == {}  # nothing maps, so later stages find nothing to read
+
+
+def test_waiving_the_required_fields_does_not_waive_the_other_plan_rules(tmp_path: Path) -> None:
+    run_id = raw_run(tmp_path)
+    illegal = edited(unmapped(make_plan()), "price", action="normalize_case", params={"case": "lower"})
+
+    with pytest.raises(InvalidPlanError, match="normalize_case is not legal"):
+        execute_run(tmp_path, run_id, illegal, require_required_fields=False)
+
+    assert written(tmp_path, run_id) == {}
