@@ -12,16 +12,18 @@ stages 2-5 run on the approved clean data.
 Roadmap and session rules: `PROJECT_PLAN.md` (re-read section 12 every session).
 Functional source of truth: `docs/SPECS.md`. Stage input/output schemas:
 `docs/CONTRACTS.md`. AI internals: `docs/AI_PIPELINE.md`. Frontend must follow
-`docs/FIGMA_DESIGN_NOTES.md`. Measurable quality bar: `CONSTRAINTS.md`. If this
-file conflicts with those, stop and reconcile with Thach - never silently pick
-one.
+`docs/FIGMA_DESIGN_NOTES.md`. Measurable quality bar: `CONSTRAINTS.md`. Why
+behind the key architecture decisions: `docs/adr/` (Architecture Decision
+Records). If this file conflicts with those, stop and reconcile with Thach -
+never silently pick one.
 
 ## 2. Tech stack (do not deviate without asking)
 
 - Python 3.11+, FastAPI, pandas, SQLAlchemy + Alembic, PostgreSQL
 - statsmodels or pandas rolling statistics for forecasting - no ML frameworks
 - Anthropic API; model ids from config/env only. Runtime: `claude-sonnet-5`
-  (reasoning steps), `claude-haiku-4-5` (bulk cheap tasks)
+  (reasoning steps), `claude-haiku-4-5` (bulk cheap tasks). Policy and why:
+  `docs/adr/0003-model-selection-policy.md`
 - React + Vite + TypeScript (no plain .js), Recharts
 - pytest / Vitest; AI is ALWAYS mocked in tests
 - No Docker, no Celery, no Polars/Spark, no auth in v1. Files cap at 50MB and
@@ -38,9 +40,8 @@ whose schemas live in `docs/CONTRACTS.md` and whose Pydantic models live in
 `contracts/`. `tests/test_architecture.py` parses imports and fails the build on
 any violation - treat a failure there as a blocker, never as a test to relax.
 
-Why: hard boundaries keep each stage independently testable and replaceable, and
-leave the door open to splitting into separate repos later without the version
-sync cost of doing it today.
+Why, the alternative considered (five separate repos) and the trade-offs
+accepted: `docs/adr/0001-stage-isolation-single-repo.md`.
 
 ### 3.2 pandas computes, AI interprets
 - The AI never receives raw file contents beyond the bounded sample defined in
@@ -49,6 +50,8 @@ sync cost of doing it today.
   final report comes from a tested pandas function.
 - AI output is untrusted input: validate against Pydantic schemas, reject any
   action outside the transform catalog, retry once, then degrade gracefully.
+
+Why: `docs/adr/0002-pandas-computes-ai-interprets.md`.
 
 ### 3.3 The user is the final authority (stage 1)
 Nothing is executed until the user confirms the plan. The execute endpoint runs

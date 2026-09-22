@@ -42,8 +42,8 @@ Each stage is a **self-contained Python package** that:
 
 This boundary is enforced by an automated test (`tests/test_architecture.py`)
 that parses imports with `ast` and fails the build on any cross-stage import.
-Rationale: hard module boundaries and the option to split into separate repos
-later, without paying the version-sync cost of 5 repos today.
+Full rationale, the alternative considered (five separate repos) and the
+trade-offs accepted: `docs/adr/0001-stage-isolation-single-repo.md`.
 
 ```
 [React frontend] --HTTP--> [FastAPI backend] --calls--> [stages/*]
@@ -204,7 +204,7 @@ dataclarity/
 
 ### Phase 2 - Stage 2 Analyze
 - [x] Install skills Wave 2 (see docs/SKILLS.md)
-- [ ] Create `docs/adr/` (own docs session, after the Wave 2 install, using
+- [x] Create `docs/adr/` (own docs session, after the Wave 2 install, using
       documentation-and-adrs) with: ADR-0001 one repo with five independent
       stage packages; ADR-0002 pandas computes, AI only interprets; ADR-0003
       model choice per task (reasoning model vs bulk model via `MODEL_REASONING`
@@ -359,38 +359,41 @@ comparing two runs, email delivery of reports, mobile layout.
 - Runtime: `claude-sonnet-5` for schema inference, cleaning plan, root cause and
   strategy; `claude-haiku-4-5` for cheap bulk tasks. Model ids from config only.
 - Budget: max 4 AI calls per run (1 per AI step) + 1 shared retry.
+- Full policy (why two settings, not a hardcoded id; why never the largest
+  model at runtime) and the trade-offs accepted:
+  `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
 
 **Phase in progress:** Phase 1 backend is complete (1A-1G, closed 2026-09-22).
-Phase 2 implementation has not started; this session (2026-09-22, a tooling
-session, no application code) installed skills Wave 2 per `docs/SKILLS.md`
-section 3. Two scoped-exception sessions ran after 1G, not Phase 6 (full
-account in Notes below): the Stage-1-frontend session (Upload, Review,
-Results), then a same-day bug-fix + Preview-pane-rebuild session - both now
-committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A
-`b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`),
-1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`).
-pytest 1856 passed and Vitest 54 passed, re-run after the Wave 2 install and
-unchanged from before it (no application code touched this session). No AI
-call this session (nothing upload-related was run).
-**Next step:** `PROJECT_PLAN.md`'s own Phase 2 checklist lists `docs/adr/`
-(ADR-0001/0002/0003, its own docs session using `documentation-and-adrs`) as
-the item right after the Wave 2 install, before 2A - **flagged for Thach**:
-this session's brief named Phase 2A (`metrics_core.py`) as the next step
-directly, which skips that checklist line. Whichever Thach confirms next,
-`PROJECT_PLAN.md` section 6 still means one sub-phase per session. Phase 6
-itself (Insights, Dashboard) is still not started.
+Phase 2 implementation has not started; two 2026-09-22 tooling/docs sessions
+ran after 1G and before it, no application code in either: skills Wave 2
+install per `docs/SKILLS.md` section 3, then this session, `docs/adr/`
+(ADR-0001/0002/0003, using `documentation-and-adrs`, per the Phase 2 checklist
+line that names it) - Thach confirmed Phase 2A is next right after this one.
+Two scoped-exception sessions also ran after 1G, not Phase 6 (full account in
+Notes below): the Stage-1-frontend session (Upload, Review, Results), then a
+same-day bug-fix + Preview-pane-rebuild session - both committed and pushed
+(`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A `b790448` ... 0D
+`24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`), 1C (`3d5d9d7`), 1D
+(`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`), skills Wave 2
+(`69697a9`). pytest 1856 passed and Vitest 54 passed, re-run after the ADR
+session and unchanged from before it (no application code touched). No AI call
+this session.
+**Next step:** Phase 2A, `stages/analyze/metrics_core.py` (revenue by period,
+MoM growth, orders, active customers, AOV, return rate) - confirmed by Thach
+as the step right after this ADR session. The zero-denominator contract
+decision that checklist line already flags (`revenue_change_pct` with no
+previous revenue, `aov`/return rate with no orders) still needs deciding
+first. Phase 6 itself (Insights, Dashboard) is still not started.
 **Action needed from Thach:**
 1. Re-verify the rebuilt Preview pane live in the browser (the bug-fix +
    rebuild session below did not drive a browser itself, on purpose).
-2. `.env`'s `ANTHROPIC_API_KEY`: not re-checked this session (no upload/browser
-   action was run) - confirm it is a fake key, not the `.env.example`
-   placeholder, before the next browser-driven upload (see the Stage-1-frontend
-   session's Notes paragraph below for what happened the one time this was
-   missed).
-3. Confirm which comes next - the `docs/adr/` session or Phase 2A - per the
-   flag above.
+2. `.env`'s `ANTHROPIC_API_KEY`: not re-checked in either tooling/docs session
+   since (no upload/browser action was run in them) - confirm it is a fake
+   key, not the `.env.example` placeholder, before the next browser-driven
+   upload (see the Stage-1-frontend session's Notes paragraph below for what
+   happened the one time this was missed).
 
 Earlier ask, now met - the real `.env` needed two lines `.env.example` had already
 gained (`PREVIEW_CACHE_MAX_MB`, `PREVIEW_CACHE_TTL_SECONDS`):
@@ -399,6 +402,44 @@ PREVIEW_CACHE_MAX_MB=300
 PREVIEW_CACHE_TTL_SECONDS=900
 ```
 **Notes:**
+- 2026-09-22, `docs/adr/` session (docs-only, no application code; git tree
+  clean at start), using `documentation-and-adrs` (Wave 2). Read
+  `PROJECT_PLAN.md` section 2 and the Phase 0/1 history, `docs/CONTRACTS.md`
+  section 1 and `docs/AI_PIPELINE.md` sections 1-3 first, rather than
+  summarizing from memory. Wrote exactly the three ADRs the Phase 2 checklist
+  line names, in `docs/adr/` (the location that line and this session's brief
+  both name; the skill's own default is `docs/decisions/`, but its own
+  instructions say an established convention overrides that default, and
+  `docs/adr/` was already established by the checklist line before this
+  session ran):
+  - `0001-stage-isolation-single-repo.md`: cites the 0A session's own
+    Notes bullet ("ONE repo with five independent stage packages... instead
+    of five separate repos... Splitting into separate repos later stays
+    possible precisely because of that boundary") as the decision record,
+    and section 2's rationale line, for the alternative-considered section
+    the brief asked for.
+  - `0002-pandas-computes-ai-interprets.md`: sourced from `CLAUDE.md` 3.2 and
+    `docs/AI_PIPELINE.md` sections 1 and 3 (bounded input, the whitelisted
+    transform catalog, the validate-retry-degrade policy).
+  - `0003-model-selection-policy.md`: sourced from `docs/AI_PIPELINE.md`
+    section 2 (`MODEL_REASONING`/`MODEL_BULK` split, `MODEL_BULK` unused in
+    v1 but required like every other setting) and `backend/app/config.py` /
+    `backend/app/services/analysis.py` (confirmed by reading the code, not
+    assumed, that both of v1's stage-1 AI calls pass `settings.model_reasoning`
+    today). States the policy, not a model id, as the brief asked.
+  Each ADR uses the skill's own template (Status, Date, Context, Decision,
+  Alternatives Considered, Consequences), with Consequences split into
+  Benefits and Trade-offs accepted per the brief - the skill's default
+  template does not separate them, this session's brief explicitly asked to.
+  Linked from both `CLAUDE.md` (section 1's doc index, section 2's model line,
+  3.1's and 3.2's "Why" paragraphs now point at the matching ADR instead of
+  restating the rationale inline) and `PROJECT_PLAN.md` (section 2 and
+  section 7), per the "docs hold the rule, ADRs hold the why" split the Phase
+  2 checklist line itself states. Both checklist items now ticked (Wave 2
+  install; `docs/adr/`). pytest 1856 / Vitest 54 re-run and unchanged (no
+  application code touched). Thach confirmed in chat: Phase 2A is the next
+  step right after this session, resolving the ambiguity the Wave 2 session
+  had flagged between this checklist line and Phase 2A.
 - 2026-09-22, skills Wave 2 install (tooling session, no application code;
   git tree was clean at start; Phase 1 1A-1G complete confirmed the trigger
   condition). CLI syntax re-verified with `npx skills add --help` rather than
