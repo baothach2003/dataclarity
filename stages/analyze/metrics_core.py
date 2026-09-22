@@ -55,8 +55,11 @@ class ParsedTransactions:
     quantities: pd.Series  # float, NaN where unparseable
     prices: pd.Series  # float, NaN where unparseable
     revenue_amounts: pd.Series  # quantities * prices
-    # Valid (date/quantity/price all present) AND counts toward revenue per
-    # 2A's decision (below): excludes only rows explicitly "in".
+    # date/quantity/price all present, regardless of transaction_type.
+    valid: pd.Series
+    # `valid` AND counts toward revenue per 2A's decision (below): excludes
+    # only rows explicitly "in". `valid & ~counted` is every explicit "in"
+    # row (metrics_products.py's stock-in side).
     counted: pd.Series
 
 
@@ -66,9 +69,9 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     transaction_date, quantity or unit_price has no mapped column."""
     reverse = {field: source for source, field in column_mapping.items()}
 
-    date_col = _require_column(reverse, "transaction_date")
-    quantity_col = _require_column(reverse, "quantity")
-    price_col = _require_column(reverse, "unit_price")
+    date_col = require_column(reverse, "transaction_date")
+    quantity_col = require_column(reverse, "quantity")
+    price_col = require_column(reverse, "unit_price")
 
     # utc=True avoids a crash on a file mixing offset and offset-less
     # datetimes (pandas otherwise refuses to build one Series from both); the
@@ -97,6 +100,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         quantities=quantities,
         prices=prices,
         revenue_amounts=quantities * prices,
+        valid=valid,
         counted=valid & counts_as_sale,
     )
 
@@ -141,7 +145,7 @@ def compute_core_metrics(
     core = CoreMetrics(
         revenue_current=revenue_current,
         revenue_previous=revenue_previous,
-        revenue_change_pct=_pct_change(revenue_current, revenue_previous),
+        revenue_change_pct=pct_change(revenue_current, revenue_previous),
         orders_current=orders_current,
         orders_previous=orders_previous,
         active_customers_current=customers_current,
@@ -196,7 +200,7 @@ def _format_year_month(year_month: tuple[int, int]) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def _require_column(reverse: dict[str, str], canonical_field: str) -> str:
+def require_column(reverse: dict[str, str], canonical_field: str) -> str:
     column = reverse.get(canonical_field)
     if column is None:
         raise RequiredColumnMissingError(
@@ -241,7 +245,7 @@ def _safe_divide(numerator: float, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
 
 
-def _pct_change(current: float, previous: float) -> float:
+def pct_change(current: float, previous: float) -> float:
     return (current - previous) / previous * 100 if previous else 0.0
 
 

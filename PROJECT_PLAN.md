@@ -217,7 +217,7 @@ dataclarity/
       contract requires a number there
 - [x] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
       Loyal, At-risk, Hibernating, New). Tests
-- [ ] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
+- [x] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
       velocity + stockout projection. Tests. `days_to_stockout` at zero
       velocity needs a contract decision first (same reason as 2A)
 - [ ] 2D Assemble `metrics.json` contract + `POST /api/runs/{id}/analyze`. Tests
@@ -365,43 +365,159 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2 (Stage 2 Analyze) is underway. 2B closed
-2026-09-22: `stages/analyze/metrics_customers.py`, the `customers` block of
-`metrics.json` (RFM scoring + segment assignment). Pure pandas, no AI call in
-this stage (docs/adr/0002). 2A (`metrics_core.py`, the `period`/`core` blocks)
-closed the same day, earlier. **Neither 2A's nor 2B's git commands have been
-run yet** - both sessions ended by proposing `git add`/`commit -F`/`push`, but
-`git status` at the start of THIS session still showed 2A's changes
-uncommitted, and that is still true now: `stages/analyze/` and
-`tests/stages/analyze/` are untracked, `PROJECT_PLAN.md` modified, nothing
-staged. Run 2A's commit before 2B's, in order, or squash deliberately - don't
-let them land out of order. Before 2A: Phase 1 backend is complete (1A-1G,
-closed 2026-09-22). Two scoped-exception sessions ran after 1G, not Phase 6
-(full account in Notes below): the Stage-1-frontend session (Upload, Review,
+**Phase in progress:** Phase 2 (Stage 2 Analyze) is underway. 2C closed
+2026-09-22: `stages/analyze/metrics_products.py`, the `products` block of
+`metrics.json` (Pareto concentration, top products, biggest decliners,
+velocity + stockout projection). Pure pandas, no AI call in this stage
+(docs/adr/0002). 2A and 2B (`metrics_core.py`/`metrics_customers.py`, the
+`period`/`core` and `customers` blocks) closed earlier the same day and were
+committed together as `d5fceea` (their own two sessions never got to run
+their proposed git commands before this one started, so they landed as one
+combined commit rather than two - see that commit's own message for why).
+**2C's own git commands have NOT been run yet** - given at the end of this
+session, still pending. **Stage 2 is NOT complete end-to-end yet despite all
+three metrics_*.py modules now existing**: 2D (`Assemble metrics.json
+contract + POST /api/runs/{id}/analyze`) is still unchecked on the Phase 2
+list below and is the piece that actually calls all three modules together,
+assembles the `by_dimension` block (not yet built anywhere), writes
+metrics.json to runs/<run_id>/, and exposes the endpoint - nothing does any
+of that today. This session's own brief asked to record Stage 2 as complete
+here; flagged back instead of writing something the checklist immediately
+below contradicts. Before 2A/2B: Phase 1 backend is complete (1A-1G, closed
+2026-09-22). Two scoped-exception sessions ran after 1G, not Phase 6 (full
+account in Notes below): the Stage-1-frontend session (Upload, Review,
 Results), then a same-day bug-fix + Preview-pane-rebuild session - both
 committed and pushed (`4d88e27`, `2694511`, `26bee96`). Earlier: Phase 0 (0A
 `b790448` ... 0D `24307c3`), 1A (`83eccbf`), 1A2 (`ee5d7c9`), 1B (`f9b12d7`),
 1C (`3d5d9d7`), 1D (`8ed0a19`), 1E (`4c96e92`), 1F (`afaa2a6`), 1G (`8f9c19d`),
-skills Wave 2 (`69697a9`). pytest 1910 passed (up from 1873: 33 new tests in
-`test_metrics_customers.py`, 4 more added during this session's doubt-review
-fix-up, no existing test touched or weakened); Vitest not re-run (no frontend
-code touched this session). No AI call this session (Stage 2 makes none,
-ever).
-**Next step:** Phase 2C, `stages/analyze/metrics_products.py` (Pareto
-concentration, top/bottom movers, velocity + stockout projection). The
-`days_to_stockout` zero-velocity contract decision that checklist line
-already flags still needs deciding first. Phase 6 itself (Insights,
-Dashboard) is still not started.
+skills Wave 2 (`69697a9`). pytest 1925 passed (up from 1910: 15 new tests
+across `test_metrics_products.py` and
+`test_metrics_products_declines_and_velocity.py`, 4 more from this session's
+doubt-review fix-up, no existing test touched or weakened); Vitest not
+re-run (no frontend code touched this session). No AI call this session
+(Stage 2 makes none, ever).
+**Next step:** Phase 2D, assembling `metrics.json` (all four blocks -
+`period`, `core`, `customers`, `products`, plus the not-yet-built
+`by_dimension`) and wiring `POST /api/runs/{id}/analyze`. This is the actual
+completion of Stage 2 end-to-end. `by_dimension`'s scope question (below) is
+now resolved by Thach - a short session ran between 2C and 2D solely to
+settle it, no application code touched (git tree was already dirty with 2C's
+own uncommitted changes at both the start and end of that session; nothing
+about that changed). Thach then held on starting 2D itself until a full
+session brief, same pattern as every other sub-phase.
+`by_dimension` belongs in 2D, not its own sub-phase (Thach, 2026-09-22): it
+is pure pandas KPI computation like the `core`/`customers`/`products` blocks,
+not assembly/endpoint work, so it is built alongside `metrics.json`
+assembly rather than separately.
+Phase 6 (Insights, Dashboard) is still not started.
 **Action needed from Thach:**
-1. Run 2A's AND 2B's git commands, in order (see each session's own summary
-   in chat for the exact commands; both used a message file, not inline `-m`).
+1. Run 2C's git commands (see this session's own summary in chat for the
+   exact commands; uses a message file, not inline `-m`).
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
-   from before 2A; not touched by either Stage 2 session).
+   from before 2A; not touched by any Stage 2 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
    session (no upload/browser action has run since) - confirm it is a fake
    key, not the `.env.example` placeholder, before the next browser-driven
    upload (see the Stage-1-frontend session's Notes paragraph below for what
    happened the one time this was missed).
+- 2026-09-22, Phase 2C: `stages/analyze/metrics_products.py` +
+  `tests/stages/analyze/test_metrics_products.py` +
+  `tests/stages/analyze/test_metrics_products_declines_and_velocity.py` +
+  `tests/stages/analyze/products_fixtures.py` (shared test builders, same
+  pattern as `tests/stages/ingest/cleaning_fixtures.py`; the test file was
+  split in two - `products_fixtures.py` 26 lines, the two test files 237 and
+  104 - to stay under CLAUDE.md section 5's ~300-line guideline after the
+  doubt-review fix-up added more tests). 15 tests, hand-calculated, then 4
+  more from the doubt-review cycle below - 19 total. Read `CLAUDE.md`,
+  `PROJECT_PLAN.md` section 12, `docs/CONTRACTS.md` section 6 (the `products`
+  block) and `metrics_core.py` (2A/2B) before writing anything, per the
+  session's own brief.
+  - Confirmed, same pattern as 2A/2B: `docs/SPECS.md` has no section defining
+    Pareto/velocity beyond one line under section 4.5 ("last N=14 days"), and
+    that line is for the live Dashboard (Phase 7, DB-backed, querying real
+    "now") - a different surface than this per-run file analysis. Neither
+    `top_products` nor `biggest_decliners` has a documented list-size cap
+    anywhere either (the Dashboard's own "top-5" bar chart, also section 4.5,
+    is that different surface's own number).
+  - The most consequential gap, bigger than anything 2A/2B hit: `days_to_stockout`
+    needs a current-stock-on-hand figure per product, but Stage 2 has no such
+    canonical field at all, and SPECS section 9's only stock formula ("net in
+    minus out, floored at 0") is textually scoped to Phase 7's DB import, not
+    this stage - without resolving this, `days_to_stockout` cannot be computed
+    by any method. Four decisions were put to Thach before implementing, all
+    four answered with the recommended option:
+    1. **Stockout data**: derive the same "net in minus out, floored at 0"
+       balance from cleaned.csv's own whole-file transaction history instead
+       of a DB - every "in" row adds, every counted/"out" row subtracts (a
+       return's negative quantity nets back in automatically, same sign logic
+       as 2A's revenue). Self-contained pandas, no DB, no cross-stage
+       dependency.
+    2. **Velocity window**: `period.current` (the calendar month every other
+       block already uses), not the Dashboard's fixed 14-day window - a
+       static file upload has no "now" to anchor a rolling window to.
+    3. **Zero velocity**: a product with no measurable current-period
+       velocity is omitted from `velocity` entirely (not a placeholder) -
+       also answers the "only ever an 'in' row" edge case from the brief.
+    4. **List size**: `top_products` and `biggest_decliners` are each capped
+       at the 10 highest-ranked entries, ties broken by product name.
+       `velocity` stays unbounded (a stockout-risk inventory, not a
+       leaderboard) - decided directly, not asked, since the brief's list-size
+       question was specifically about the two ranked lists.
+  - Not asked, decided directly: product identity is the row's `sku` value
+    when present, else `product_name` (docs/AI_PIPELINE.md section 11's
+    business-key precedent, extended here to a per-row fallback since a
+    mapped sku column can still have blank cells row by row); `top_products`
+    excludes a net-negative-revenue product (not a "top" performer);
+    `biggest_decliners`' population is exactly products with nonzero
+    previous-period revenue, reusing `metrics_core.pct_change`'s own
+    zero-denominator convention rather than a new one; ties in both ranked
+    lists break on product name for a deterministic, hand-checkable order.
+  - `metrics_core.py` touched again (2A/2B's own 54 tests re-run unchanged
+    after, all still green): `ParsedTransactions` gained a `valid` field
+    (date/quantity/price present, regardless of transaction_type - needed to
+    isolate "in" rows for the stock derivation, since `counted` alone can't
+    be inverted back to "in" without it); `_require_column`/`_pct_change`
+    promoted to public `require_column`/`pct_change` so this module reuses
+    them verbatim instead of redefining "what's a valid decline" or "what
+    happens when a required column is unmapped."
+  - **Doubt-driven review cycle run** (this module introduces a genuinely new
+    kind of computation - deriving an implied stock balance from transaction
+    history, no precedent anywhere else in the codebase - plus several
+    interacting groupby operations across current/previous/all-time row
+    subsets and two different cap/tie-break implementations; comparable
+    complexity to 2B, which found real bugs): one fresh-context adversarial
+    cycle, cross-model offered and declined again (no gemini/codex CLI
+    installed here). 4 findings, all reconciled as valid and fixed:
+    - Fixed: product identity mixed `sku` and `product_name` values in one
+      flat string namespace with no normalization - a SKU that happened to
+      read the same as an unrelated product's name would silently merge
+      them, and whitespace/case noise on the same real SKU
+      ("SKU1"/" SKU1"/"sku1") fragmented one product into several duplicate
+      rows. Fixed by stripping+case-folding the identity value before
+      grouping (the same pattern `metrics_core.py` already uses for
+      transaction_type matching) and keeping the sku- and name-sourced halves
+      in separate namespaces (`sku:`/`name:` prefixes) so they can never
+      collide.
+    - Fixed: `TopProduct.units` used `int()`, which truncates a fractional
+      summed quantity toward zero (a systematic downward bias) rather than
+      rounding to the nearest whole unit - quantity is not guaranteed
+      integral anywhere in the schema. Now uses `round()`.
+    - Fixed: `Pareto`'s population (every product with any current-period
+      revenue, including net-negative or net-zero) disagreed with
+      `top_products`' population (revenue > 0 only) - two numbers in the same
+      contract object that a reader would expect to relate to each other
+      could describe different sets of products, understating concentration
+      by more than half in the reviewer's reproduction. Pareto now applies
+      the same revenue > 0 filter.
+    - The reviewer investigated and explicitly dropped a fifth candidate (period
+      drift between `product_metrics_for_run`'s own `select_period` call and
+      core's) after verifying it is not practically reproducible - noted here
+      only because it shows the review actually ran code rather than pattern-matching.
+    - All 4 fixes are each pinned by a new hand-calculated regression test;
+      the 15 pre-existing tests were re-run unchanged after every fix and
+      stayed green throughout.
+  - pytest 1925 passed (up from 1910), `tests/test_architecture.py` included,
+    no existing test touched, none weakened.
 - 2026-09-22, Phase 2B: `stages/analyze/metrics_customers.py` +
   `tests/stages/analyze/test_metrics_customers.py` (33 tests, hand-calculated,
   then 4 more from the doubt-review cycle below - 37 total). Read `CLAUDE.md`,
