@@ -12,8 +12,9 @@ wins until Thach approves a change.
   and editing with before/after preview, deterministic execution, clean CSV +
   change report
 - Stage 2 Analyze: KPIs, RFM segments, product Pareto, velocity
-- Stage 3 Diagnose: revenue decomposition + AI root cause with ruled-out
-  hypotheses
+- Stage 3 Diagnose: an 8-step diagnostic engine (data-trust gate, calendar
+  adjustment, signal-vs-noise, Shapley metric tree, localization, a fixed
+  hypothesis catalog with verdicts) whose conclusions the AI only narrates
 - Stage 4 Predict: interpretable forecast + AI recommendations with expected
   impact and measurement plan
 - Stage 5 Report: assembled 3-layer report (numbers, causes, actions) as HTML +
@@ -174,9 +175,18 @@ again. This is why the product can claim AI assistance without AI opacity.
 
 - 7.1 Every KPI is computed in pandas and covered by a test with a hand-checked
   expected value. No KPI is ever produced by the AI.
-- 7.2 Revenue decomposition uses sequential substitution over
-  revenue = customers x frequency x AOV, and contributions must sum to the total
-  change within rounding tolerance (asserted in tests).
+- 7.2 Revenue attribution uses the **Shapley value**, never sequential
+  substitution, over `revenue = customers x frequency x AOV` and every other
+  multiplicative decomposition in stage 3. Contributions must sum to the total
+  change exactly (relative tolerance 1e-9, asserted in tests). Sequential
+  substitution is banned because its answer depends on the order a developer
+  picked: `docs/adr/0004-shapley-attribution.md`. Full engine:
+  `docs/AI_PIPELINE.md` section 7.
+- 7.2a Stage 3 tests a **fixed hypothesis catalog**, written before any run and
+  identical for every run; every hypothesis is reported including the ones
+  ruled out, and the AI may not choose, add, remove or re-rank them
+  (`docs/adr/0005-pre-registered-hypothesis-catalog.md`). Causes the schema
+  cannot reach are listed as not testable rather than omitted.
 - 7.3 RFM scoring uses quintiles on the run's own data; the reference date is
   max(transaction_date) + 1 day unless configured otherwise.
 - 7.4 Forecasting is interpretable: weighted moving average plus a monthly

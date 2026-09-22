@@ -227,15 +227,56 @@ dataclarity/
   and Home Decor 41.4%, computed from core's own revenue_current/previous)
 
 ### Phase 3 - Stage 3 Diagnose
-- [ ] 3A `decomposition.py`: revenue = customers x frequency x AOV, period-over-
-      period attribution, contribution by segment/country/product group. Tests.
-      Decide the insufficient-data path (one month of data, zero previous
-      customers or orders): CONTRACTS section 7 requires `decomposition`
-- [ ] 3B `ai_root_cause.py`: AI reads decomposition output only, returns driver +
-      evidence + ruled-out hypotheses, validated. Tests with mocked AI
-- [ ] 3C Assemble `diagnosis.json` + `POST /api/runs/{id}/diagnose`. Tests
-- **DoD:** for a fixture with a deliberately planted cause (e.g. one segment
-  collapsing), the pipeline identifies that cause and rules out two decoys
+
+> Seven sessions, not three. The original 3A-3C plan (sequential substitution,
+> the AI choosing which hypotheses to rule out) was replaced by the diagnostic
+> engine in `docs/DIAGNOSE_DESIGN.md` - approved by Thach as the full engine,
+> not the reduced MVP. 3A-3G below are sessions 1-7 of that file's section 11.
+> Facts now live in `docs/CONTRACTS.md` section 7 and `docs/AI_PIPELINE.md`
+> section 7; DIAGNOSE_DESIGN.md remains the record of *why*. Only 3F spends
+> API credit.
+
+- [x] 3A SPECS UPDATE (docs only, no application code): CONTRACTS section 7
+      rewritten to the 8-block `diagnosis.json`, AI_PIPELINE section 7 rewritten
+      to the 8-step engine + threshold list, `prompts/root_cause.md` rewritten
+      for narration only (+ the prompt test that never existed), this checklist
+      split, ADR-0004 (Shapley) and ADR-0005 (pre-registered catalog)
+- [ ] 3B Foundations and checks: move the shared transaction parsing
+      (`ParsedTransactions`, `parse_transactions`, `require_column`,
+      `pct_change`, `is_blank`) from `stages/analyze/metrics_core.py` to
+      `shared/` so stage 3 never imports stage 2 (CLAUDE.md 3.1), then steps 1-4
+      (frame, trust gate D1-D3, calendar, XmR signals). Includes the stage 2 /
+      stage 3 consistency test: every figure recomputed from `cleaned.csv` that
+      also exists in `metrics.json` must match it exactly. All existing stage 2
+      tests must pass with no test edited. May raise: behaviour below 8 months
+      of history. Split into 3B1/3B2 if long
+- [ ] 3C Metric tree (AI_PIPELINE 7.6): Shapley levels 1 and 2 with the
+      `orders*aov` fallback, masked-shift alert, customer bridge for both
+      transitions, returns lens, product PVM. Every decomposition reconciles to
+      its own total at 1e-9, enforced by tests. Doubt-review: yes
+- [ ] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
+      removed members, mix vs rate, breadth. Doubt-review: yes
+- [ ] 3E Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the fixed catalog,
+      verdicts, the 7 headline rules, the fixed-seed scenario generator and the
+      S0-S10 suite with its acceptance criteria. Doubt-review: yes.
+      **Also the trigger for the Figma Insights frame** (trust badge, normal-
+      variation state, hypothesis list with verdict labels): the shapes those
+      need are final only once this session lands (Thach, 3A)
+- [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
+      not-tested validator, degraded mode, one real API check (a few cents - the
+      only session in Phase 3 that spends credit). Doubt-review: yes
+- [ ] 3G Assembly and endpoint: full `diagnosis.json` written atomically,
+      `POST /api/runs/{id}/diagnose`, state machine. Decide then whether a
+      `diagnosed` status is added (Alembic migration) or `analyzed` + the file's
+      existence is enough - note `analyzed` needed no migration in 2D because
+      every status including `imported` was already in the first migration's
+      CHECK constraint, so check there before assuming one is needed.
+      Doubt-review: optional
+- **DoD:** the S0-S10 planted-cause suite passes its acceptance criteria - every
+  scenario produces its expected headline or verdict, S0 produces zero
+  `supported` hypotheses, and the whole suite produces at most one `supported`
+  hypothesis not implied by its planted cause. Headline accuracy, decoy count
+  and false-alarm count are printed by the tests and quoted in the README
 
 ### Phase 4 - Stage 4 Predict
 - [ ] 4A `forecast.py`: interpretable forecast (rolling/weighted trend +
@@ -368,7 +409,29 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2 (Stage 2 Analyze) is DONE, closed 2026-09-22
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3A of 7 closed
+2026-09-22: the SPECS UPDATE, documentation only, no application code. Phase 3
+was re-planned from 3 sessions to 7 against `docs/DIAGNOSE_DESIGN.md` (Thach
+chose the full engine, not the reduced MVP), and the old 3A-3C plan - sequential
+substitution, the AI choosing which hypotheses to rule out - is gone. This
+session rewrote `docs/CONTRACTS.md` section 7 (the 8-block `diagnosis.json`,
+amended in place at `1.0` with a change-log entry), `docs/AI_PIPELINE.md`
+section 7 (the 8-step engine, the fixed hypothesis catalog, the 7 headline
+rules, the threshold table) and `prompts/root_cause.md` (narration only), split
+the Phase 3 checklist into 3A-3G, and added ADR-0004 (Shapley attribution) and
+ADR-0005 (pre-registered hypothesis catalog). **Only `prompts/root_cause.md`
+and its new test are executable; no application code changed, and the full
+suite passes unchanged apart from the 9 new prompt tests.** Four things worth
+carrying forward: (1) the brief said to "update the root_cause prompt test",
+but no such test existed - it was created, mirroring the two existing prompt
+tests, so the rewritten prompt is not unpinned; (2) `run_id` from
+DIAGNOSE_DESIGN section 6's skeleton was deliberately dropped, since no sibling
+stage output carries it (only `report.json`, which is downloaded standalone);
+(3) `docs/CONTRACTS.md` section 7 and `contracts/diagnosis.py` now deliberately
+disagree until 3C rewrites the model - recorded in the section 10 change log
+because CLAUDE.md section 1 forbids leaving a doc/code conflict silent; (4)
+`YOY_MODE_MIN_MONTHS` is now derived, not a literal - see the Notes entry.
+**Phase 2 (Stage 2 Analyze) is DONE**, closed 2026-09-22
 with 2D: `stages/analyze/metrics_dimensions.py` (the `by_dimension` block -
 revenue by category, current vs previous period; `country` always reports
 `[]`, no canonical field carries country data, Thach's decision) and
@@ -420,23 +483,100 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 (Stage 3 Diagnose) - `decomposition.py` (3A):
-revenue = customers x frequency x AOV, period-over-period attribution,
-contribution by segment/country/product group. Read that checklist line's
-own "country" mention against this session's `by_dimension.country` finding
-before assuming it means something different there - if Diagnose also wants
-country-level attribution, it hits the exact same missing-canonical-field gap.
-Phase 6 (Insights, Dashboard) is still not started.
+**Next step:** Phase 3 session 3B (Foundations and checks): move the shared
+transaction parsing out of `stages/analyze/metrics_core.py` into `shared/` so
+stage 3 never imports stage 2, then build steps 1-4 (frame, trust gate,
+calendar, XmR signals) plus the stage 2 / stage 3 consistency test. The move
+must leave every existing stage 2 test passing with no test edited - that is
+the safety check the design names for it. Phase 6 (Insights, Dashboard) is
+still not started; its Insights frame now waits on 3E (see
+`docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
 1. Run this session's git commands (see this session's own summary in chat
    for the exact commands; uses a message file, not inline `-m`).
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
-   from before 2A; not touched by any Stage 2 session).
+   from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
    session (no upload/browser action has run since) - confirm it is a fake
    key, not the `.env.example` placeholder, before the next browser-driven
    upload (see the Stage-1-frontend session's Notes paragraph below for what
-   happened the one time this was missed).
+   happened the one time this was missed). Phase 3 spends real credit only in
+   session 3F.
+4. Second demo dataset (decided 3A, no work done yet): Online Retail II,
+   customer-sampled with a fixed seed to about 40MB, keeping every row of each
+   selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
+   so the customer bridge's `unattributed` term has real data to exercise. The
+   sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-22, Phase 3 session 3A (SPECS UPDATE, docs only): `docs/CONTRACTS.md`
+  section 7 + section 10 change log, `docs/AI_PIPELINE.md` sections 2, 7 and 9,
+  `prompts/root_cause.md`, `docs/adr/0004-shapley-attribution.md`,
+  `docs/adr/0005-pre-registered-hypothesis-catalog.md`,
+  `docs/FIGMA_DESIGN_NOTES.md` header, the Phase 3 checklist above, and
+  `tests/stages/diagnose/test_root_cause_prompt.py` (9 tests). Read `CLAUDE.md`,
+  `docs/DIAGNOSE_DESIGN.md` in full, CONTRACTS 7, AI_PIPELINE 7,
+  `prompts/root_cause.md`, `contracts/diagnosis.py` and `docs/adr/` first.
+  - Six places where DIAGNOSE_DESIGN.md (written outside the repo) or the
+    session brief disagreed with what is actually here, all flagged before
+    writing rather than chosen silently:
+    1. **No `root_cause` prompt test existed** to "update" - only
+       `cleaning_plan` and `schema_inference` had one. Created, mirroring their
+       pattern, so the rewritten prompt is pinned.
+    2. **`run_id`** in the section 6 skeleton has no sibling precedent; dropped.
+    3. **Docs now deliberately disagree with `contracts/diagnosis.py`** until
+       3C. Recorded in CONTRACTS section 10, not left implicit.
+    4. **AI_PIPELINE section 9 named the deleted `decomposition` block**; fixed,
+       and split so stage 3's degraded mode (every deterministic block still
+       written, including the code-written headline) reads differently from
+       stage 4's.
+    5. **C4 predates the "Needs Attention" segment** that 2B's doubt-review
+       added. Not broken - it and "New" count towards neither group by design -
+       but now stated in the catalog so 3E does not read it as an omission.
+    6. **R3 and stage 2's `products.velocity` both report stockouts by
+       different methods** and can legitimately disagree about one product.
+       CONTRACTS section 7 now says which is which; stage 5 must not merge them.
+  - Five decisions asked one at a time (DIAGNOSE_DESIGN section 12):
+    1. **Thresholds**: accepted as written, with the
+       `HISTORY_MAX_MONTHS`/`YOY_MODE_MIN_MONTHS` interaction documented.
+    2. **Lapse window**: one period, keeping the customer-bridge identity exact.
+       The 3-month alternative was rejected *because* it breaks that identity -
+       a customer who bought two months ago would be neither lapsed nor
+       retained, leaving their `prev` revenue unaccounted for. Output says
+       "lapsed this period", never "churned".
+    3. **ADR**: split into two, 0004 (Shapley) and 0005 (catalog), rather than
+       one combined ADR - Thach's call, against the brief's singular wording.
+    4. **Figma Insights frame**: after 3E, before Phase 6, recorded in
+       FIGMA_DESIGN_NOTES.md's own pending list.
+    5. **Second demo dataset**: Online Retail II, customer-sampled to ~40MB
+       (full file is ~85-95MB as CSV, over the 50MB upload ceiling, so it would
+       be rejected with FILE_TOO_LARGE before reaching stage 3). Thach added:
+       keep no-Customer-ID rows too, invoice-sampled at the same rate, so the
+       bridge's `unattributed` term has real data.
+  - **`YOY_MODE_MIN_MONTHS` became a derived expression**, Thach's correction
+    to the design doc and the one substantive change to section 9's table. A
+    flat 25 would have excluded the very dataset chosen to demonstrate YoY mode:
+    Online Retail II runs 2009-12-01 to 2011-12-09, which is 24 complete months
+    (2011-12 is partial, so `current` is 2011-11). Both his claims were checked
+    rather than taken on trust, and both hold. The derivation, verified
+    independently: index complete months 1..N with `current` = N; a YoY point at
+    month `m` needs month `m-12`, so YoY-capable baseline months run 13..N-1,
+    giving `N - 13` points; requiring `XMR_MIN_BASELINE_POINTS` of them gives
+    `N >= 12 + XMR_MIN_BASELINE_POINTS + 1` = 21. Written in code as that
+    expression, not as `21`, so raising the baseline requirement cannot silently
+    leave the YoY gate behind. At N=24 the dataset yields 11 YoY baseline
+    points; the 26-month scenario suite is unaffected either way.
+  - DIAGNOSE_DESIGN section 1.1's decomposition figures were re-derived from
+    scratch before being quoted in ADR-0004, not copied: for the
+    customers 1,000->600 / frequency 2.0->2.4 / AOV 50->70 example, sequential
+    substitution gives customers anywhere in -40,000..-67,200 (68% spread) and
+    AOV +24,000..+48,000 (exactly 2x) depending only on ordering, while Shapley
+    gives -53,066.67 / +18,933.33 / +34,933.33 summing to exactly the +800
+    change. All confirmed.
+  - No doubt-review (DIAGNOSE_DESIGN section 11 marks session 1 "no"): this
+    session wrote no algorithm - the arithmetic it quotes was verified by
+    execution, and the design itself was already reviewed and approved by Thach
+    before the session started.
+  - pytest 1950 passed (up from 1941: the 9 new prompt tests), no existing test
+    touched, none weakened. Vitest not re-run (no frontend code).
 - 2026-09-22, Phase 2D (closes Phase 2): `stages/analyze/metrics_dimensions.py`
   + `stages/analyze/assemble.py` + `backend/app/services/metrics.py` +
   `backend/app/schemas.py` (`AnalyzeResponse`) + `backend/app/errors.py` +

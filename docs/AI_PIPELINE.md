@@ -29,7 +29,7 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 |---|---|---|---|---|---|---|
 | 1 | ingest | schema inference | `prompts/schema_inference.md` | `claude-sonnet-5` | profile + sample rows | `schema_inference.json` |
 | 2 | ingest | cleaning plan | `prompts/cleaning_plan.md` | `claude-sonnet-5` | profile + schema inference | `plan_proposed.json` |
-| 3 | diagnose | root cause | `prompts/root_cause.md` | `claude-sonnet-5` | metrics + decomposition | `diagnosis.ai_findings` |
+| 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output | `diagnosis.ai_findings` |
 | 4 | predict | strategy | `prompts/strategy.md` | `claude-sonnet-5` | metrics + diagnosis + forecast | `forecast.recommendations` |
 
 Shared retry budget: 1 per run. Max tokens 3000 per call. JSON only; the
@@ -168,17 +168,340 @@ median, mean or mode is taken over the rows that stay and the result does not
 depend on the order of the columns in the plan. Inside a group the plan's own
 order is kept (dataset actions first, then columns as listed).
 
-## 7. Root cause step (stage 3)
+## 7. Diagnostic engine (stage 3)
 
-Input to the AI: `metrics.json` plus the computed `decomposition` block
-(`docs/CONTRACTS.md` section 7). The decomposition itself is computed in pandas
-by sequential substitution, and tests assert the factor contributions sum to the
-total change within tolerance.
+Eight steps. **Steps 1-7 are deterministic pandas; only step 8 calls the AI.**
+The AI narrates conclusions the engine has already reached: it may not choose,
+add, remove or re-rank hypotheses, and may not upgrade a verdict. Output shape:
+`docs/CONTRACTS.md` section 7. Rationale for the two design rules that shape
+everything below: `docs/adr/0004-shapley-attribution.md` (order-independent
+attribution) and `docs/adr/0005-pre-registered-hypothesis-catalog.md` (a fixed
+catalog the AI cannot pick from). Full derivation, worked numbers and sources:
+`docs/DIAGNOSE_DESIGN.md`.
 
-Required output: headline, root_cause (driver, evidence, secondary), ruled_out
-(at least two hypotheses with the figure that rules each out). Rejecting
-hypotheses with evidence is mandatory - it is the main defence against
-plausible-sounding but unsupported narratives.
+| Step | Question | Block |
+|---|---|---|
+| 1 Frame | What is compared with what? | `frame` |
+| 2 Trust gate | Can the data be trusted? | `trust` |
+| 3 Calendar | How much of the change is calendar only? | `calendar` |
+| 4 Signal vs noise | Is the change unusual? | `signals` |
+| 5 Metric tree | Which lever moved? | `tree` |
+| 6 Localization | Where did it happen? | `localization` |
+| 7 Hypotheses | Which fixed hypotheses hold? | `hypotheses`, `not_testable`, `headline` |
+| 8 Narration | How is it said in words? | `ai_findings` |
+
+If step 2 returns `blocked`, steps 3-6 are skipped, their blocks are `null`, and
+the headline reports the data problem (rule 1).
+
+### 7.1 Inputs and degradation
+
+Reads `metrics.json`, `cleaned.csv` and `cleaning_report.json` from the run
+directory. Stage 3 must not import `stages/analyze`: the shared transaction
+parsing (`ParsedTransactions`, `parse_transactions`, `require_column`,
+`pct_change`, `is_blank`) moves to `shared/` first, so both stages compute
+revenue, orders and "revenue-counted rows" from one definition. Every figure
+stage 3 recomputes that also exists in `metrics.json` must match it exactly; a
+dedicated test enforces this, because two stages disagreeing on a definition
+would make the report contradict itself.
+
+| Field | Missing consequence |
+|---|---|
+| `transaction_date`, `quantity` | stage cannot run (already enforced upstream) |
+| `unit_price` | ANALYSIS_FAILED already at stage 2, so stage 3 is never reached |
+| `category` | category localization skipped; `mix_rate` is `null`; P2 uses product-level mix only |
+| `customer` | lever falls back to `orders*aov`; `tree.customers` is `null`; C1-C4 become `not_testable` |
+| `transaction_type` | all rows treated as `out` (the 2A rule) |
+| country | no canonical field exists; X6, never evaluated |
+
+### 7.2 Step 1: Frame
+
+Comparison pair is `metrics.json`'s own `period` (latest complete month vs the
+month before, per 2A). The year-ago pair is those two months one year earlier,
+when both exist. History window: all complete months strictly before `current`,
+capped at the `HISTORY_MAX_MONTHS` most recent.
+
+### 7.3 Step 2: Trust gate
+
+Three checks, each `ok | caution | blocked | inconclusive`.
+
+- **D1 coverage.** `zero_days` = calendar days in a period with no
+  revenue-counted rows. The store's normal zero-day rate `z` comes from the
+  history window, so a shop that closes Sundays is not accused of missing data:
+  `excess_zero_days(cur) = max(0, zero_days(cur) - z * days_in_month(cur))`.
+  `caution` at `D1_CAUTION_DAYS` or `D1_CAUTION_SHARE`; `blocked` at
+  `D1_BLOCK_SHARE`. Estimated gap = `excess_zero_days x mean revenue per active
+  day in prev`.
+- **D2 uniform price-level shift.** Products sold in both periods with at least
+  `D2_MIN_ROWS` rows each (at least `D2_MIN_PRODUCTS` of them, else
+  `inconclusive`). Per product, `median unit_price(cur) / median
+  unit_price(prev)`. If `D2_CLUSTER_SHARE` of ratios sit within
+  `D2_CLUSTER_WIDTH` of their common median and that median is outside
+  `D2_NEUTRAL_BAND`, return `caution`. **Never `blocked`**: the engine cannot
+  tell a unit or currency error from a deliberate repricing, and must not claim
+  to.
+- **D3 flagged-row concentration.** Share of rows carrying any `__flag_*`
+  column, per period. `caution` when the current share is `D3_RATIO` times the
+  previous and at least `D3_MIN_SHARE`.
+
+Verdict: `blocked` if any check blocks, else `caution` if any cautions, else
+`trusted`. Stated limitation, carried in `trust.limitations`: rows removed by
+`drop_rows_missing` in stage 1 are not in `cleaned.csv`, so they cannot be
+assigned to a period. Fixing that needs dropped-row counts per month in
+`cleaning_report.json` - a stage 1 contract change, in the Backlog, not Phase 3.
+
+### 7.4 Step 3: Calendar adjustment
+
+Needs `CALENDAR_MIN_WEEKS` of history, else `method = "day_count"`. Weekday
+weight `w_d` = mean revenue per calendar date of weekday `d` across the history
+window, **including zero-revenue dates** so regular closing days are reflected;
+dates inside a D1 excess gap are excluded. `E(m) = sum_d count_d(m) * w_d`;
+`calendar_effect = revenue_prev * (E(cur)/E(prev) - 1)`;
+`calendar_adjusted_change = change_abs - calendar_effect`.
+
+### 7.5 Step 4: Signal vs noise
+
+Series: revenue, orders, active customers, frequency, AOV, units per order,
+price per unit, return rate. XmR limits from the series' own history separate
+routine variation from a real move, so a point-to-point comparison cannot raise
+a false alarm on its own.
+
+- **Mode.** Year-over-year % change when at least `YOY_MODE_MIN_MONTHS` complete
+  months exist (it removes seasonality), else level.
+- **Baseline.** Points before `current` in the history window; fewer than
+  `XMR_MIN_BASELINE_POINTS` gives `insufficient_history` for that series.
+- **Limits.** `center = mean(baseline)`, `mR_bar = mean(|x_t - x_(t-1)|)`,
+  `limits = center +/- XMR_FACTOR * mR_bar`.
+- **Rules, deliberately only two.** Rule 1: the current point is outside the
+  limits. Rule 2: the current point and the `XMR_RUN_LENGTH - 1` before it are
+  all on the same side of the centre line. More rules would make the engine
+  cry wolf.
+
+A YoY point at month `m` needs month `m-12` to exist, but that lag month is
+only an input to the calculation - it is not itself a baseline point and may
+sit outside the history window. This is why `YOY_MODE_MIN_MONTHS` is derived,
+not chosen: see 7.10.
+
+### 7.6 Step 5: Metric tree
+
+Every decomposition reconciles to its own total exactly (relative tolerance
+1e-9, enforced by tests).
+
+- **Shapley.** For `F = x_1 * ... * x_n`, factor `i`'s contribution is its
+  average marginal effect over all `n!` orderings. With `n <= 3` all orderings
+  are enumerated. Contributions sum exactly to `F(cur) - F(prev)`, and unlike
+  sequential substitution the answer does not depend on an order someone picked
+  (`docs/adr/0004-shapley-attribution.md`).
+- **Lever level 1.** `revenue = customers * frequency * AOV`, or `orders * AOV`
+  when `customer` is unmapped.
+- **Lever level 2.** `AOV = units_per_order * price_per_unit`, converted into
+  revenue units proportionally (`phi_AOV * phi_k / delta_AOV`), which stays
+  exact because the level-2 contributions sum to `delta_AOV`. `null` when net
+  units are not positive in both periods.
+- **Masked-shift alert.** `gross_to_net = sum(|phi_i|) / |delta_revenue|` over
+  level 1. Alert when it reaches `MASKED_GROSS_TO_NET` and at least one
+  component has a step-4 signal. This is the case a naive "did revenue move?"
+  report misses entirely: a flat total hiding large offsetting movements.
+- **Customer bridge (additive, exact).** Classify every customer active in
+  `prev` or `cur` as new, resurrected, retained or **lapsed** - never
+  "churned": in retail, not buying this month is not leaving forever. Identity:
+  `delta_revenue = new + resurrected + expansion - contraction - lapsed +
+  unattributed`, where `unattributed` is the change from rows with a blank
+  customer. The **lapse window is one period**, matching 2A's periods: a
+  customer active in `prev` and not in `cur` is lapsed *this period*. A
+  three-month definition was considered and rejected because it breaks the
+  identity above - a customer who bought two months ago would be neither lapsed
+  nor retained, leaving their `prev` revenue unaccounted for. The same bridge is
+  computed for the previous transition when history allows, so C1-C3 can compare
+  flows. If `cur` falls in the first `LEFT_CENSOR_MONTHS` months of the file,
+  "new" is unreliable and C1/C3 return `inconclusive`.
+- **Returns lens.** `delta_net = delta_gross - delta_returns`.
+- **Product lens (PVM, exact).** Partition products into L (in both periods), N
+  (new) and X (discontinued). `delta_gross = delta_gross_L + gross_N(cur) -
+  gross_X(prev)`; for L, three-player Shapley over volume, mix and price.
+
+### 7.7 Step 6: Localization
+
+Fixed dimensions: category (if mapped), product, and customer type from the
+bridge. RFM segment localization is excluded - per-customer segments live in
+stage 2; segment movement is covered by hypothesis C4 from `metrics.json`'s
+aggregate counts. Members below `MEMBER_MIN_REVENUE_SHARE` of `prev` revenue
+and under `MEMBER_MIN_ORDERS` orders in both periods collapse into "Other"; at
+most `MEMBERS_PER_DIMENSION` named members per dimension, ranked by `|delta|`;
+new and removed members listed separately.
+
+**Mix vs rate.** For whichever of AOV or price per unit moved more in relative
+terms, two-player Shapley on `sum_c(share_c * value_c)` splits the move into a
+mix effect and a rate effect. This is the Simpson's-paradox guard: every
+category's price can rise while the overall average falls, and only this split
+says so.
+
+**Breadth.** `declining_base_share` (share of `prev` revenue held by members
+moving the same way as the total) and `top_member_share`. `broad` at
+`BREADTH_BROAD`, `concentrated` at `BREADTH_CONCENTRATED`, else `mixed`. Broad
+points at calendar, seasonality or a general price move; concentrated points at
+one product or category.
+
+### 7.8 Step 7: Hypothesis evaluation
+
+The catalog is fixed in advance and identical for every run. Every id is
+evaluated and reported, including the ones that come out `ruled_out` -
+`docs/adr/0005-pre-registered-hypothesis-catalog.md` explains why choosing
+hypotheses after seeing the data is the failure mode this prevents.
+
+| Id | Lens | Statement | Contribution or test | Requires |
+|---|---|---|---|---|
+| D1 | data | Days of data are missing | minus the estimated revenue gap | none |
+| D2 | data | Prices shifted uniformly (possible unit or currency issue) | directional: supported when D2 cautions | comparable products |
+| D3 | data | Flagged rows concentrated in the current period | directional: supported when D3 cautions | none |
+| T1 | time | The calendar explains the change | `calendar_effect` | none (day-count fallback) |
+| T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur/LY_prev - 1)` | year-ago pair |
+| T3 | time | The change is routine variation | directional: all series `within`, no masked alert | baseline points for revenue |
+| C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
+| C2 | customers | More customers lapsed | `-(lapsed_rev(t) - lapsed_rev(t-1))` | customer, previous transition |
+| C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
+| C4 | customers | Customers migrated to weaker segments | directional: change in (At-risk + Hibernating) share minus change in (Champions + Loyal) share, from `metrics.json` | customer |
+| B1 | lever | Customers buy less often | level-1 frequency contribution | customer |
+| B2 | lever | Baskets got smaller | level-2 units-per-order contribution | net units > 0 |
+| P1 | product | Like-for-like prices changed | PVM price effect | products in L |
+| P2 | product | Sales mix shifted towards cheaper (or pricier) products | PVM mix effect | products in L |
+| P3 | returns | Returns changed | `-delta_returns` | none |
+| R1 | localization | The change is concentrated in one product or category | directional: breadth `concentrated` and top member moving with the total | none |
+| R2 | product | Products were launched or discontinued | `gross_N(cur) - gross_X(prev)` | none |
+| R3 | product | A top product may have run out of stock | active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, then `R3_MIN_ZERO_RUN_DAYS` consecutive zero days in `cur` while the store traded | none |
+
+C4 compares two named segment groups. Stage 2's catalog has six segments: the
+2B doubt-review added **"Needs Attention"** for the four of twenty-five R x F
+combinations the five named rules leave uncovered. It and "New" count towards
+neither group by design - C4 asks whether customers moved from strong to weak,
+not whether every segment is accounted for.
+
+R3's wording is fixed: **"consistent with a stockout, verify on the shelf"**,
+never "caused by". Point-of-sale data cannot confirm a stockout; published
+POS-only detectors catch roughly 63% of stockouts with about 15% false alerts.
+This is a different signal from stage 2's `products.velocity` projection - see
+`docs/CONTRACTS.md` section 7.
+
+**Verdicts.** `share = contribution / D`, signed, where `D` is the absolute
+total of that hypothesis's own lens (or the sum of absolute contributions when
+the masked-shift alert is on). A hypothesis can only be `supported` if its
+contribution has the same sign as the change it claims to explain.
+
+| Verdict | Rule |
+|---|---|
+| supported | same sign and `share >= SUPPORTED_MIN_SHARE` |
+| partial | same sign and `PARTIAL_MIN_SHARE <= share < SUPPORTED_MIN_SHARE` |
+| ruled_out | opposite sign, or below `PARTIAL_MIN_SHARE`, with sufficient data |
+| inconclusive | data insufficient (history, left-censoring, too few products) |
+| not_testable | no data exists for this cause |
+
+**Headline (code, not AI).** First match wins:
+
+1. Trust `blocked` - state the data problem.
+2. D1 supported with `share >= HEADLINE_CONTEXT_MIN_SHARE` - most of the change
+   is consistent with missing days, with the estimated gap.
+3. T3 supported and no masked-shift alert - within normal variation.
+4. Masked-shift alert - the total looks stable but components shifted strongly,
+   naming the two largest opposing contributions.
+5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
+   state that.
+6. Otherwise the `supported` hypothesis with the largest absolute share, naming
+   its lens.
+7. Nothing supported - no single tested cause explains most of the change,
+   followed by the `partial` ones.
+
+Trust `caution` never changes the headline and is always shown beside it.
+
+**Not testable with this schema** (always listed, never evaluated): X1
+marketing and promotions, X2 competitor actions, X3 weather and macro events,
+X4 traffic and conversion, X5 margin, X6 country or region (no canonical field,
+the 2D finding), X7 sales channel or payment method. Saying what could not be
+tested is part of the answer, not an omission.
+
+### 7.9 Step 8: AI narration (the only AI call in stage 3)
+
+- Input: the complete deterministic output of steps 1-7 as JSON. Never raw rows.
+- Output: a plain-language summary, an explanation of the headline, a short
+  paragraph per `supported` or `partial` hypothesis, and one sentence naming
+  what could not be tested.
+- **The AI may not choose, add, remove or re-rank hypotheses, and may not
+  upgrade a verdict** - an `inconclusive` item may never be described as a
+  cause. This is the ADR-0002 line applied to stage 3: the engine decides what
+  is true, the AI only says it in words.
+- Validator (code): every number in the AI's text must match a number in the
+  evidence within `AI_NUMBER_TOLERANCE` (exact for counts), every hypothesis id
+  referenced must exist, and the not-testable sentence must be present. Failure
+  spends the run's single shared retry, then degraded mode.
+- Degraded mode: `ai_findings` and `model_used` are `null`, and the
+  deterministic headline, hypothesis table and every computed block are still
+  written and shown. Stage 3 never fails because of the AI.
+- Model: `MODEL_REASONING` (`docs/adr/0003-model-selection-policy.md`).
+
+### 7.10 Thresholds (`stages/diagnose/thresholds.py`)
+
+Documented constants inside the stage package, not `.env` settings: stages
+cannot read backend `Settings` (SEC-4), and this project's "no defaults in
+`.env`" rule would otherwise add a mandatory variable per threshold. All values
+are heuristics until calibrated against real data.
+
+| Constant | Default | Used in |
+|---|---|---|
+| `SUPPORTED_MIN_SHARE` / `PARTIAL_MIN_SHARE` | 0.20 / 0.05 | 7.8 |
+| `HEADLINE_CONTEXT_MIN_SHARE` | 0.50 | 7.8 rules 2 and 5 |
+| `MASKED_GROSS_TO_NET` | 3.0 | 7.6 |
+| `XMR_FACTOR` | 2.66 | 7.5 |
+| `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
+| `XMR_RUN_LENGTH` | 8 | 7.5 rule 2 |
+| `YOY_MODE_MIN_MONTHS` | **derived**, see below | 7.5 |
+| `HISTORY_MAX_MONTHS` | 24 | 7.2 |
+| `CALENDAR_MIN_WEEKS` | 8 | 7.4 |
+| `D1_CAUTION_DAYS` / `D1_CAUTION_SHARE` | 3 / 0.10 | 7.3 |
+| `D1_BLOCK_SHARE` | 0.50 | 7.3 |
+| `D2_MIN_PRODUCTS` / `D2_MIN_ROWS` | 20 / 3 | 7.3 |
+| `D2_CLUSTER_SHARE` / `D2_CLUSTER_WIDTH` | 0.80 / 0.02 | 7.3 |
+| `D2_NEUTRAL_BAND` | 0.90 to 1.10 | 7.3 |
+| `D3_RATIO` / `D3_MIN_SHARE` | 2.0 / 0.02 | 7.3 |
+| `MEMBER_MIN_REVENUE_SHARE` / `MEMBER_MIN_ORDERS` | 0.02 / 30 | 7.7 |
+| `MEMBERS_PER_DIMENSION` | 5 | 7.7 |
+| `BREADTH_BROAD` / `BREADTH_CONCENTRATED` | 0.70 / 0.50 | 7.7 |
+| `C4_SUPPORT_POINTS` / `C4_RULE_OUT_POINTS` | 5.0 / 1.0 | 7.8 |
+| `LEFT_CENSOR_MONTHS` | 3 | 7.6 |
+| `R3_MIN_ACTIVE_DAY_RATE` / `R3_MIN_ZERO_RUN_DAYS` | 0.50 / 7 | 7.8 |
+| `AI_NUMBER_TOLERANCE` | 0.005 | 7.9 |
+
+`YOY_MODE_MIN_MONTHS` is **written as an expression, not a number**:
+
+```python
+YOY_MODE_MIN_MONTHS = 12 + XMR_MIN_BASELINE_POINTS + 1  # = 21
+```
+
+Derivation (index complete months 1..N, with `current` = month N): a YoY point
+at month `m` needs month `m-12`, so YoY-capable baseline months run 13..N-1,
+giving `N - 13` points. Requiring `XMR_MIN_BASELINE_POINTS` of them gives
+`N >= 12 + XMR_MIN_BASELINE_POINTS + 1`. Tying the two constants together in
+code stops them drifting apart: raising the baseline requirement must raise the
+months needed to earn YoY mode. A flat 25 was rejected for being arbitrary and
+for excluding the recommended demo dataset, which has exactly 24 complete
+months (2009-12 to 2011-11, since 2011-12 is partial) and would never have
+reached YoY mode - the mode it was chosen to demonstrate.
+
+Note the interaction with `HISTORY_MAX_MONTHS = 24`: the window caps how many
+*baseline points* are used, while `YOY_MODE_MIN_MONTHS` counts how many months
+must *exist* in the file. A file with 24 complete months yields 11 YoY baseline
+points, comfortably above the minimum.
+
+### 7.11 Validation: planted-cause scenarios
+
+A fixed-seed generator builds a synthetic store (26 complete months, ~400
+customers, 6 categories x 10 products, retail weekday weights, a small share of
+returns). Eleven scenarios each plant exactly one cause - S0 nothing, S1
+calendar, S2 like-for-like price cut, S3 mix shift, S4 lapsed customers, S5
+missing days, S6 masked shift, S7 stockout, S8 discontinued products, S9
+seasonality, S10 a x100 price error. Tests fail unless each scenario produces
+its expected headline or verdict, S0 produces zero `supported` hypotheses, and
+the whole suite produces at most one `supported` hypothesis not implied by its
+planted cause. The suite's headline accuracy, decoy count and false-alarm count
+are printed by the tests and quoted in the README: that is the evidence the
+engine works.
 
 ## 8. Strategy step (stage 4)
 
@@ -202,8 +525,11 @@ Mapping logic the prompt enforces:
    appended (shared budget)
 2. Second failure -> `AIUnavailable`:
    - stage 1: degraded mode, user builds the plan manually from the catalog
-   - stages 3 and 4: computed blocks (decomposition, forecast) still produced and
-     shown; narrative sections marked "unavailable" in the report
+   - stage 3: every deterministic block (`frame` through `headline`, section 7)
+     is still produced and shown, including the code-written headline sentence;
+     only `ai_findings` and `model_used` are `null`
+   - stage 4: the computed `forecast` block still produced and shown; narrative
+     sections marked "unavailable" in the report
 3. Timeout or network error -> same as 2; the run keeps its state so a retry is
    possible
 4. `domain_confidence < 0.5` -> NOT_INVENTORY path (SPECS section 10)

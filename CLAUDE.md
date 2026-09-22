@@ -81,7 +81,8 @@ dataclarity/
 │   │              cleaning.py  __main__.py
 │   ├── analyze/   metrics_core.py  metrics_customers.py  metrics_products.py
 │   │              __main__.py
-│   ├── diagnose/  decomposition.py  ai_root_cause.py  __main__.py
+│   ├── diagnose/  thresholds.py  the 8 engine steps + ai narration, split
+│   │              across 3B-3G (docs/AI_PIPELINE.md 7)  __main__.py
 │   ├── predict/   forecast.py  ai_strategy.py  __main__.py
 │   └── report/    builder.py  html_report.py  __main__.py
 ├── shared/        ai_client.py  run_registry.py   # infrastructure, not logic

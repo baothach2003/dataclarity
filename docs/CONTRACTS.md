@@ -227,45 +227,152 @@ member (signed), not share of revenue. Stage 2 never calls the AI.
 
 ## 7. `diagnosis.json` (stage 3 output)
 
+> **Until Phase 3 session 3C, `contracts/diagnosis.py` still holds the previous
+> shape and does not match this section.** That divergence is deliberate and
+> time-boxed: this section was rewritten in the Phase 3 SPECS UPDATE session,
+> which wrote no application code. Session 3C rewrites the Pydantic model and
+> `tests/contracts/test_diagnosis.py` against what is below. See section 10.
+
+Produced by the 8-step diagnostic engine in `docs/AI_PIPELINE.md` section 7.
+Steps 1-7 are deterministic pandas and fill every block below except
+`ai_findings`; step 8 is the only AI call and writes only `ai_findings`. Why
+the attribution is Shapley and why the hypothesis catalog is fixed in advance:
+`docs/adr/0004-shapley-attribution.md` and
+`docs/adr/0005-pre-registered-hypothesis-catalog.md`.
+
 ```json
 {
   "schema_version": "1.0", "generated_at": "...", "model_used": "claude-sonnet-5",
-  "decomposition": {
-    "metric": "revenue", "change_abs": -140000.0, "change_pct": -10.9,
-    "factors": [
-      {"factor": "active_customers", "contribution_abs": -102300.0,
-       "contribution_pct": 73.1, "value_current": 812, "value_previous": 905},
-      {"factor": "purchase_frequency", "contribution_abs": -21400.0,
-       "contribution_pct": 15.3, "value_current": 2.24, "value_previous": 2.15},
-      {"factor": "aov", "contribution_abs": -16300.0, "contribution_pct": 11.6,
-       "value_current": 631.9, "value_previous": 661.5}
-    ],
-    "method": "multiplicative decomposition, sequential substitution"
+  "frame": {"current": "2011-11", "previous": "2011-10",
+            "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
+            "history_months": 23, "history_start": "2009-12", "history_end": "2011-10"},
+  "trust": {
+    "verdict": "caution",
+    "checks": [{"id": "D1", "status": "caution",
+                "evidence": {"zero_days_cur": 6, "excess_zero_days": 5.2,
+                             "estimated_revenue_gap": 18400.0},
+                "message": "6 days of the current month have no rows at all"}],
+    "limitations": ["rows dropped in stage 1 cannot be assigned to a period"]
   },
-  "ai_findings": {
-    "headline": "Revenue fell 10.9% driven mainly by customer count",
-    "root_cause": {
-      "driver": "loss of 93 active customers, concentrated in the At-risk segment",
-      "evidence": "active_customers 905 -> 812; At-risk segment grew 129 -> 168",
-      "secondary": ["AOV down 4.5% in Home Decor"]
+  "calendar": {"method": "weekday_weights", "expected_cur": 1180000.0,
+               "expected_prev": 1210000.0, "calendar_effect": -31900.0,
+               "calendar_adjusted_change": -108100.0,
+               "evidence": {"weights": {"mon": 31200.0, "sat": 52100.0}}},
+  "signals": [{"series": "revenue", "mode": "level", "value_cur": 1150000.0,
+               "center": 1240000.0, "lower": 1090000.0, "upper": 1390000.0,
+               "signal": "within", "rule": null}],
+  "tree": {
+    "method": "shapley",
+    "lever": {
+      "level1": {"formula": "customers*frequency*aov",
+                 "factors": [{"name": "customers", "value_prev": 905.0,
+                              "value_cur": 812.0, "contribution": -102300.0}]},
+      "level2": {"formula": "units_per_order*price_per_unit", "factors": []},
+      "gross_to_net": 1.04, "masked_shift_alert": false
     },
-    "ruled_out": [
-      {"hypothesis": "price increases drove customers away",
-       "evidence_against": "median unit_price unchanged at 8.5"}
-    ]
+    "customers": {"new": 92000.0, "resurrected": 14000.0, "expansion": 61000.0,
+                  "contraction": -88000.0, "lapsed": -219000.0,
+                  "unattributed": 0.0, "previous_transition": {}},
+    "returns": {"gross_prev": 1338000.0, "gross_cur": 1198000.0,
+                "returns_prev": 48000.0, "returns_cur": 48000.0},
+    "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
+                 "new_products": 12000.0, "discontinued_products": -27000.0}
+  },
+  "localization": {
+    "dimensions": [{"name": "category",
+                    "members": [{"name": "Home Decor", "rev_prev": 268000.0,
+                                 "rev_cur": 210000.0, "delta": -58000.0,
+                                 "share_of_change": 0.414}],
+                    "other": {"name": "Other", "rev_prev": 31000.0, "rev_cur": 29500.0,
+                              "delta": -1500.0, "share_of_change": 0.011},
+                    "new_members": [], "removed_members": []}],
+    "mix_rate": {"metric": "aov", "mix": -24450.0, "rate": 3050.0},
+    "breadth": {"declining_base_share": 0.74, "top_member_share": 0.41,
+                "classification": "broad"}
+  },
+  "hypotheses": [{"id": "P2", "family": "price_mix", "lens": "product",
+                  "statement": "Sales mix shifted towards cheaper products",
+                  "verdict": "supported", "contribution": -21000.0, "share": 0.21,
+                  "evidence": {"mix_effect": -21000.0, "delta_gross": -100000.0},
+                  "rule": "same sign and share >= 0.20"}],
+  "not_testable": [{"id": "X1", "statement": "Marketing, promotions, discounts",
+                    "reason": "no campaign data; discount columns are not canonical"}],
+  "headline": {"rule": 6, "hypothesis_id": "P2", "lens": "product",
+               "message": "Most of the decline is consistent with a shift in sales mix towards cheaper products."},
+  "ai_findings": {
+    "summary": "Revenue fell 10.9% this month...",
+    "headline_explanation": "The mix effect accounts for 21% of the drop...",
+    "hypothesis_notes": [{"id": "P2", "text": "Shoppers bought more of the cheaper lines..."}],
+    "not_tested_note": "This data cannot test marketing, competitors, weather or footfall."
   }
 }
 ```
-The AI receives `metrics.json` + the computed `decomposition` block only. It never
-computes the decomposition itself.
+
+**Types.** `frame.current`/`previous`/`year_ago_*`/`history_start`/`history_end`
+are `YYYY-MM` strings; `year_ago_current` and `year_ago_previous` are `null`
+together when the year-ago pair is not in the data. `history_months` is a
+non-negative integer. `trust.verdict` is `trusted | caution | blocked`; each
+check's `status` is `ok | caution | blocked | inconclusive` and its `id` is
+`D1 | D2 | D3`. `signals[].series` is one of `revenue`, `orders`,
+`active_customers`, `frequency`, `aov`, `units_per_order`, `price_per_unit`,
+`return_rate`; `mode` is `level | yoy`; `signal` is
+`above | below | within | insufficient_history`; `rule` is `1 | 2 | null`
+(`null` when no rule fired or the series has insufficient history), and
+`center`/`lower`/`upper`/`value_cur` are `null` under `insufficient_history`.
+`calendar.method` is `weekday_weights | day_count`. `tree.method` is always
+`"shapley"`. `hypotheses[].verdict` is
+`supported | partial | ruled_out | inconclusive | not_testable`; `contribution`
+and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
+carry their test in `evidence` and `rule` instead. `headline.rule` is `1`-`7`
+(`docs/AI_PIPELINE.md` section 7); `hypothesis_id` and `lens` are `null` for
+rules that name no hypothesis (1, 2, 3, 4, 5, 7). Every `evidence` value is a
+free-form JSON object of serialisable scalars and lists, like `params` in
+section 4. All money and share figures are floats; counts are integers.
+`ai_findings` (when present) is `{summary, headline_explanation,
+hypothesis_notes: [{id, text}], not_tested_note}`, all strings;
+`hypothesis_notes` carries one entry per `supported` or `partial` hypothesis
+and every `id` in it must exist in `hypotheses` (enforced by the step 8
+validator, `docs/AI_PIPELINE.md` section 7.9, not by this schema).
+
+**Rules.**
+- `headline.message` is written by code, never by the AI: the report must still
+  state its conclusion when the AI is unavailable. The AI explains that
+  sentence in `ai_findings`, it does not replace it.
+- `hypotheses` always contains every id in the fixed catalog
+  (`docs/AI_PIPELINE.md` section 7), in catalog order, including the ones that
+  came out `ruled_out` or `not_testable` for this run. A cause is never absent
+  because it failed - showing what was tested and rejected is the point
+  (`docs/adr/0005-pre-registered-hypothesis-catalog.md`).
+- `not_testable` lists the X-family causes that DataClarity's schema cannot
+  reach at all. It is constant per run, not data-dependent.
+- Lenses never sum together. The lever and customer lenses each reconcile to
+  `delta_net`, the product lens to `delta_gross`, the returns lens to
+  `delta_net`. A reader must not add shares across lenses, and stage 5 must not
+  present them as one total.
+- `tree.customers` is `null` when no column is mapped to `customer`, and
+  `tree.lever.level1.formula` is then `"orders*aov"`. `tree.lever.level2` is
+  `null` when net units are not positive in both periods (inconclusive).
+  `localization.mix_rate` is `null` when no category column is mapped.
+- When `trust.verdict` is `blocked`, `calendar`, `signals`, `tree` and
+  `localization` are all `null`, every hypothesis outside the D family is
+  `inconclusive`, and `headline.rule` is `1`.
+- Stage 2 also reports stockout risk (`metrics.json` `products.velocity`,
+  section 6), by a different method: an inventory balance projected forward
+  from net in-minus-out. Hypothesis R3 here is a *sales-gap* signal - a product
+  that sold on most days and then stopped while the store kept trading. The two
+  can legitimately disagree about the same product, and stage 5 must label
+  which is which rather than merge them.
 
 When the AI step is unavailable, meaning no AI output was accepted after the
 shared retry (`docs/AI_PIPELINE.md` section 9), stage 3 still writes this file:
-`decomposition` is always filled, and `model_used` and `ai_findings` are both
-`null`. They are either both `null` or both filled, never partially filled. The
-keys are always written: `null` is a value, not a missing key. Minimum counts
-such as "at least two `ruled_out`" (`docs/AI_PIPELINE.md` section 7) are
-enforced by stage 3 before writing, not by this contract.
+every deterministic block is filled as usual, and `model_used` and
+`ai_findings` are both `null`. They are either both `null` or both filled,
+never partially filled. The keys are always written: `null` is a value, not a
+missing key. Stage 3 never fails because of the AI.
+
+The AI receives the complete deterministic output of steps 1-7 as JSON, never
+raw rows, and may not choose, add, remove or re-rank hypotheses, nor upgrade a
+verdict (`docs/AI_PIPELINE.md` section 7, step 8).
 
 ## 8. `forecast.json` (stage 4 output)
 
@@ -365,3 +472,22 @@ the report defensible.
   the flag columns, and its example no longer shows an entry the stage cannot
   produce (`drop_rows_missing` acts on a source column and drops missing cells, not
   unparseable dates) (1F review). No field changed; `schema_version` stays `1.0`.
+- 2026-09-22: section 7 was **replaced in place at `1.0`** (Stage 3 SPECS UPDATE
+  session, from `docs/DIAGNOSE_DESIGN.md`). The single `decomposition` block
+  became the eight blocks of the diagnostic engine (`frame`, `trust`,
+  `calendar`, `signals`, `tree`, `localization`, `hypotheses`, `not_testable`,
+  `headline`), and `ai_findings` changed from the AI choosing hypotheses to the
+  AI narrating hypotheses code already decided. This is a breaking rewrite, not
+  an addition, and it is done without a major bump under the same precedent as
+  the 2026-09-19 entries above: no `diagnosis.json` has ever been written, no
+  stage reads it yet, and `contracts/diagnosis.py` has no data to migrate.
+  **Until session 3 of Phase 3 rewrites `contracts/diagnosis.py`, this section
+  and that Pydantic model deliberately disagree** - the model (and
+  `tests/contracts/test_diagnosis.py`) still describe the old shape. That is a
+  known, time-boxed divergence recorded here because CLAUDE.md section 1
+  requires doc/code conflicts to be reconciled rather than left silent; the
+  session that rewrites the model closes it. `run_id` from
+  `DIAGNOSE_DESIGN.md` section 6's skeleton was deliberately left out: no other
+  stage output carries it (the run id is the directory name), only
+  `report.json` does, because that file is downloaded standalone. Adding it
+  later is a minor bump under the first rule above.
