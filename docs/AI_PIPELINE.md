@@ -217,44 +217,101 @@ would make the report contradict itself.
 
 Comparison pair is `metrics.json`'s own `period` (latest complete month vs the
 month before, per 2A). The year-ago pair is those two months one year earlier,
-when both exist. History window: all complete months strictly before `current`,
-capped at the `HISTORY_MAX_MONTHS` most recent.
+when both exist - both or neither, since a one-sided year-ago comparison gives
+T2 nothing to divide by. History window: all complete months strictly before
+`current`, capped at the `HISTORY_MAX_MONTHS` most recent.
+
+**"Complete month" here is stricter than 2A's** (3B's decision, flagged for
+veto): a month counts only if the file covers it from its first day to its
+last. 2A asks only whether a month has *elapsed* by `data_end`, which is right
+for choosing a comparison period - a shop whose first sale is on the 15th did
+not have half a March, it opened mid-March. A monthly baseline is a different
+question: a first month holding 16 days of data is a low point that never
+happened, and feeding it to an XmR chart widens the limits or fakes a signal.
+So `frame.history_months` can be smaller than the gap between `data_start` and
+`current`, and `history_start`/`history_end` are `null` when the window is
+empty.
 
 ### 7.3 Step 2: Trust gate
 
 Three checks, each `ok | caution | blocked | inconclusive`.
 
 - **D1 coverage.** `zero_days` = calendar days in a period with no
-  revenue-counted rows. The store's normal zero-day rate `z` comes from the
-  history window, so a shop that closes Sundays is not accused of missing data:
-  `excess_zero_days(cur) = max(0, zero_days(cur) - z * days_in_month(cur))`.
+  revenue-counted rows. The expectation is learned **per weekday** from the
+  history window - `zero_rate_d` = share of history dates of weekday `d` with
+  no rows - so `expected_zero_days(m) = sum_d count_d(m) * zero_rate_d` and
+  `excess_zero_days(m) = max(0, zero_days(m) - expected_zero_days(m))`.
+  A per-weekday rate rather than one scalar (Thach, 3B) because closing is a
+  weekday habit, not a daily probability: one scalar leaves a residue that
+  moves with month shape (measured worst case 0.86 days for one closed
+  weekday, 1.43 for two, 1.71 for three - bounded under `D1_CAUTION_DAYS`, so
+  it never raised a false caution, but it also partly absorbs a real Tuesday
+  gap in a shop that never trades Sundays, which the per-weekday rate exposes).
   `caution` at `D1_CAUTION_DAYS` or `D1_CAUTION_SHARE`; `blocked` at
   `D1_BLOCK_SHARE`. Estimated gap = `excess_zero_days x mean revenue per active
-  day in prev`.
+  day in prev`. `inconclusive` when there is no history to learn from.
 - **D2 uniform price-level shift.** Products sold in both periods with at least
-  `D2_MIN_ROWS` rows each (at least `D2_MIN_PRODUCTS` of them, else
-  `inconclusive`). Per product, `median unit_price(cur) / median
-  unit_price(prev)`. If `D2_CLUSTER_SHARE` of ratios sit within
-  `D2_CLUSTER_WIDTH` of their common median and that median is outside
-  `D2_NEUTRAL_BAND`, return `caution`. **Never `blocked`**: the engine cannot
-  tell a unit or currency error from a deliberate repricing, and must not claim
-  to.
+  `D2_MIN_ROWS` rows each. Per product, `median unit_price(cur) / median
+  unit_price(prev)`.
+  - **Cluster rule**, at `D2_MIN_PRODUCTS` comparable products or more: if
+    `D2_CLUSTER_SHARE` of ratios sit within `D2_CLUSTER_WIDTH` of their common
+    median and that median is outside `D2_NEUTRAL_BAND`, return `caution`.
+  - **Small-catalogue rule** (Thach, 3B), between `D2_SMALL_MIN_PRODUCTS` and
+    `D2_MIN_PRODUCTS - 1` comparable products: `caution` only when
+    `D2_SMALL_CLUSTER_SHARE` of ratios are at least `D2_SMALL_RATIO_HIGH` or at
+    most `D2_SMALL_RATIO_LOW`. Returning `inconclusive` for every small shop
+    left a real hole: a cents-as-units error then flows into the product lens
+    and P1 is reported as "like-for-like prices +9,900%", supported and
+    possibly the headline - a step-4 signal does not prevent that. An
+    order-of-magnitude jump is a unit-error signature; ordinary repricing is
+    not, so a tight cluster among a handful of products still does not qualify.
+  - Below `D2_SMALL_MIN_PRODUCTS`, `inconclusive`: with one or two products
+    there is no "uniform" to speak of.
+  - **Never `blocked`**, under either rule: the engine cannot tell a unit or
+    currency error from a deliberate repricing, and must not claim to.
 - **D3 flagged-row concentration.** Share of rows carrying any `__flag_*`
   column, per period. `caution` when the current share is `D3_RATIO` times the
   previous and at least `D3_MIN_SHARE`.
 
-Verdict: `blocked` if any check blocks, else `caution` if any cautions, else
-`trusted`. Stated limitation, carried in `trust.limitations`: rows removed by
+Verdict: `blocked` if any check blocks, else `caution` if any cautions **or is
+`inconclusive`**, else `trusted`. An inconclusive check is not evidence that
+the data is fine (Thach, 3B): reporting "trusted" on a run where two of three
+checks never executed claims a verification that did not happen. Caution never
+changes the headline (7.8), so the cost is one honest badge on thin files.
+D1 also learns only from history months that hold rows - an empty month is
+itself a gap, and letting it set the expectation lets missing data hide missing
+data. Stated limitation, carried in `trust.limitations`: rows removed by
 `drop_rows_missing` in stage 1 are not in `cleaned.csv`, so they cannot be
 assigned to a period. Fixing that needs dropped-row counts per month in
 `cleaning_report.json` - a stage 1 contract change, in the Backlog, not Phase 3.
 
 ### 7.4 Step 3: Calendar adjustment
 
-Needs `CALENDAR_MIN_WEEKS` of history, else `method = "day_count"`. Weekday
-weight `w_d` = mean revenue per calendar date of weekday `d` across the history
-window, **including zero-revenue dates** so regular closing days are reflected;
-dates inside a D1 excess gap are excluded. `E(m) = sum_d count_d(m) * w_d`;
+Needs `CALENDAR_MIN_WEEKS` of history, measured as calendar days in the history
+window (`CALENDAR_MIN_WEEKS * 7`), else `method = "day_count"`. In practice the
+fallback is rare: two complete months of history already clear it, so a file
+needs barely any history to earn weekday weights - unlike the XmR baselines in
+7.5, which need `XMR_MIN_BASELINE_POINTS` whole months and therefore go
+`insufficient_history` on files that still get real weekday weights. A six-month
+file is the common case of exactly that split. Weekday
+weight `w_d` = **median** revenue per calendar date of weekday `d` across the
+history window, **including zero-revenue dates** so regular closing days are
+reflected.
+
+An earlier draft said to exclude dates inside a D1 excess gap. That is not
+definable: D1 measures excess *against* the history window's own pattern, so
+within history there is nothing to call excess by construction. A first attempt
+argued the mean was safe anyway, because a hole drags every weekday down by the
+same factor and the ratio below cancels it; 3B's doubt-review disproved that
+with numbers. Any run of days whose length is not a multiple of seven hits
+weekdays unevenly, and the cancellation needs `count_d(cur) == count_d(prev)` -
+exactly the case where this step has nothing to say. A shop whose POS was down
+on Saturdays for three history months had 12.6% of its month's movement
+invented as real decline. The **median** gets what the exclusion was reaching
+for without needing to identify the gap: a minority of ruined dates does not
+move it at all.
+
+`E(m) = sum_d count_d(m) * w_d`;
 `calendar_effect = revenue_prev * (E(cur)/E(prev) - 1)`;
 `calendar_adjusted_change = change_abs - calendar_effect`.
 
@@ -265,16 +322,40 @@ price per unit, return rate. XmR limits from the series' own history separate
 routine variation from a real move, so a point-to-point comparison cannot raise
 a false alarm on its own.
 
-- **Mode.** Year-over-year % change when at least `YOY_MODE_MIN_MONTHS` complete
-  months exist (it removes seasonality), else level.
+- **Mode, decided per series.** Year-over-year % change when the file has at
+  least `YOY_MODE_MIN_MONTHS` complete months **and** that series' YoY values
+  actually yield `XMR_MIN_BASELINE_POINTS` usable baseline points; otherwise
+  level. The month count alone is not enough (3B): one zero or missing month in
+  the file's first year leaves a YoY point undefined, and at the threshold that
+  is the difference between eight baseline points and seven - so adding a month
+  of history could turn a correctly detected collapse into "we cannot say".
+  Deciding per series also keeps `mode` honest per row rather than labelling
+  every series `yoy` while only some have limits.
 - **Baseline.** Points before `current` in the history window; fewer than
   `XMR_MIN_BASELINE_POINTS` gives `insufficient_history` for that series.
 - **Limits.** `center = mean(baseline)`, `mR_bar = mean(|x_t - x_(t-1)|)`,
   `limits = center +/- XMR_FACTOR * mR_bar`.
 - **Rules, deliberately only two.** Rule 1: the current point is outside the
-  limits. Rule 2: the current point and the `XMR_RUN_LENGTH - 1` before it are
-  all on the same side of the centre line. More rules would make the engine
-  cry wolf.
+  limits by more than the margin below. Rule 2: the current point and the
+  `XMR_RUN_LENGTH - 1` months immediately before it are all on the same side of
+  the centre line (consecutive months, not the non-null points that remain
+  after gaps are dropped - a gap breaks the run). More rules would make the
+  engine cry wolf.
+- **Margin.** A point counts as outside a limit only if it clears it by
+  `max(XMR_REL_TOLERANCE * |centre|, the series' absolute floor)`. A baseline
+  that never varied gives zero-width limits, and without a margin a rounding
+  cent - or the 4.4e-16 a month of cancelling sales and returns leaves behind -
+  reads as statistically outside them. The relative term cannot protect a
+  series centred on zero, which `return_rate` usually is, so the floor does
+  that: `XMR_ABS_FLOOR_RATE` for rate series, `XMR_ABS_FLOOR_DEFAULT` for money
+  and counts.
+- **Known limit, owned by 3D2.** The centre line is the mean of a baseline that
+  contains the run rule 2 tests, so one anomalous month re-fires the same
+  rule-2 signal every month until it leaves the window, and an extreme outlier
+  (a near-zero month producing a vast YoY value) widens the limits enough to
+  silence the series. Step-change detection and re-baselining fix both and are
+  scheduled before 3E. Until then every signal carries its `rule` number so
+  step 7 can tell a rule-2-only signal apart.
 
 A YoY point at month `m` needs month `m-12` to exist, but that lag month is
 only an input to the calculation - it is not itself a baseline point and may
@@ -451,6 +532,9 @@ are heuristics until calibrated against real data.
 | `XMR_FACTOR` | 2.66 | 7.5 |
 | `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
 | `XMR_RUN_LENGTH` | 8 | 7.5 rule 2 |
+| `XMR_REL_TOLERANCE` | 0.001 | 7.5 margin (3B) |
+| `XMR_ABS_FLOOR_RATE` / `XMR_ABS_FLOOR_DEFAULT` | 0.01 / 1e-6 | 7.5 margin (3B) |
+| `YOY_LAG_MONTHS` | 12 | 7.2, 7.5, and `YOY_MODE_MIN_MONTHS` |
 | `YOY_MODE_MIN_MONTHS` | **derived**, see below | 7.5 |
 | `HISTORY_MAX_MONTHS` | 24 | 7.2 |
 | `CALENDAR_MIN_WEEKS` | 8 | 7.4 |
@@ -459,6 +543,8 @@ are heuristics until calibrated against real data.
 | `D2_MIN_PRODUCTS` / `D2_MIN_ROWS` | 20 / 3 | 7.3 |
 | `D2_CLUSTER_SHARE` / `D2_CLUSTER_WIDTH` | 0.80 / 0.02 | 7.3 |
 | `D2_NEUTRAL_BAND` | 0.90 to 1.10 | 7.3 |
+| `D2_SMALL_MIN_PRODUCTS` / `D2_SMALL_CLUSTER_SHARE` | 3 / 0.80 | 7.3 (3B) |
+| `D2_SMALL_RATIO_HIGH` / `D2_SMALL_RATIO_LOW` | 5.0 / 0.2 | 7.3 (3B) |
 | `D3_RATIO` / `D3_MIN_SHARE` | 2.0 / 0.02 | 7.3 |
 | `MEMBER_MIN_REVENUE_SHARE` / `MEMBER_MIN_ORDERS` | 0.02 / 30 | 7.7 |
 | `MEMBERS_PER_DIMENSION` | 5 | 7.7 |
@@ -493,10 +579,15 @@ points, comfortably above the minimum.
 
 A fixed-seed generator builds a synthetic store (26 complete months, ~400
 customers, 6 categories x 10 products, retail weekday weights, a small share of
-returns). Eleven scenarios each plant exactly one cause - S0 nothing, S1
+returns). Twelve scenarios each plant exactly one cause - S0 nothing, S1
 calendar, S2 like-for-like price cut, S3 mix shift, S4 lapsed customers, S5
 missing days, S6 masked shift, S7 stockout, S8 discontinued products, S9
-seasonality, S10 a x100 price error. Tests fail unless each scenario produces
+seasonality, S10 a x100 price error, S11 the same build truncated to its last
+6 complete months. S11 plants no cause and still must not produce headline
+rule 3: with every signal `insufficient_history` and T3 `inconclusive`, "within
+normal variation" would assert a verdict the data cannot support. It is the
+matched pair to S0, which plants nothing over 26 months and *is* expected to
+produce rule 3. Tests fail unless each scenario produces
 its expected headline or verdict, S0 produces zero `supported` hypotheses, and
 the whole suite produces at most one `supported` hypothesis not implied by its
 planted cause. The suite's headline accuracy, decoy count and false-alarm count

@@ -25,7 +25,8 @@ from app.services.analysis import is_not_inventory, not_inventory_notice, read_s
 from app.services.run_memory import RunWork
 from shared.run_registry import RunNotFoundError, run_file
 from stages.analyze.assemble import analyze_run
-from stages.analyze.metrics_core import CLEANED_FILENAME, CLEANING_REPORT_FILENAME, RequiredColumnMissingError
+from shared.transactions import RequiredColumnMissingError
+from stages.analyze.metrics_core import CLEANED_FILENAME, CLEANING_REPORT_FILENAME
 
 # `analyzed` is allowed too: re-running overwrites only this stage's own
 # output (docs/CONTRACTS.md section 1), same as re-profiling in 1B/1G.

@@ -40,7 +40,7 @@ Design decisions (Thach, Phase 2D):
 import pandas as pd
 
 from contracts.metrics import CoreMetrics, DimensionBreakdown, DimensionChange, Period
-from stages.analyze.metrics_core import ParsedTransactions, is_blank, parse_transactions
+from shared.transactions import ParsedTransactions, is_blank, parse_transactions
 
 
 def compute_dimension_metrics(

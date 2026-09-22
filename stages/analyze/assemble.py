@@ -5,8 +5,6 @@ writes it to runs/<run_id>/. Pure pandas; no AI call anywhere in this stage
 client involved, unlike stage 1.
 """
 
-import os
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -14,6 +12,7 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import MetricsContract
+from shared.contract_files import write_atomically
 from shared.run_registry import run_file
 from stages.analyze.metrics_core import CLEANED_FILENAME, CLEANING_REPORT_FILENAME, compute_core_metrics
 from stages.analyze.metrics_customers import compute_customer_metrics
@@ -58,27 +57,7 @@ def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None) -> Me
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     metrics = assemble_metrics(frame, report.column_mapping, now)
-    _write_atomically(
+    write_atomically(
         run_file(runs_root, run_id, METRICS_FILENAME), metrics.model_dump_json(indent=2).encode("utf-8")
     )
     return metrics
-
-
-def _write_atomically(target: Path, data: bytes) -> None:
-    """A later reader sees the previous metrics.json or the complete new
-    one, never half of it (same technique as
-    stages/ingest/contract_files.py's write_contract; not imported from
-    there since it is a different stage, CLAUDE.md 3.1 - and only one file
-    is ever written here, so that helper's multi-file rollback is more than
-    this needs)."""
-    handle, temp_name = tempfile.mkstemp(dir=target.parent, prefix=".stage-", suffix=".tmp")
-    temp = Path(temp_name)
-    try:
-        with os.fdopen(handle, "wb") as out:
-            out.write(data)
-            out.flush()
-            os.fsync(out.fileno())
-        os.replace(temp, target)
-    except BaseException:
-        temp.unlink(missing_ok=True)
-        raise

@@ -1,0 +1,158 @@
+"""Reading cleaned.csv's transaction columns: one definition, shared by every
+stage that measures them.
+
+Infrastructure, not analysis (CLAUDE.md section 4): this module decides what a
+row *is* - whether its date, quantity and price parse, and whether it counts
+towards revenue - and nothing about what any KPI means. Stage 2 computes
+metrics.json from it (`stages/analyze/`), stage 3 recomputes the same figures
+while diagnosing (`stages/diagnose/`), and the two must agree exactly; a stage
+may not import another stage (CLAUDE.md 3.1, docs/adr/0001), so the definition
+lives here rather than in either of them.
+
+The revenue-scope rules below were decided in Phase 2A against
+docs/SPECS.md section 9 and docs/AI_PIPELINE.md section 5, and moved here
+unchanged in Phase 3 session 3B:
+
+- `transaction_type` is stock movement direction only, never a returns concept.
+  A row counts towards revenue only when its type is not explicitly "in":
+  "in" rows (stock coming back, e.g. a supplier restock) are excluded from
+  revenue entirely, never subtracted. No mapped column at all, or an
+  unrecognised per-row value, defaults to "out" (SPECS section 9:
+  "in|out, default out").
+- A return is a counted row with negative quantity, the common POS convention
+  of a negative-quantity sale line. The canonical schema has no returns field,
+  so this is the one signal available, and it does not depend on
+  transaction_type being mapped.
+"""
+
+from dataclasses import dataclass
+
+import pandas as pd
+
+
+class RequiredColumnMissingError(ValueError):
+    """cleaned.csv has no column mapped to a canonical field a stage needs.
+    transaction_date and quantity are stage 1 required fields, so raising for
+    them is defensive; unit_price is not required by stage 1
+    (docs/AI_PIPELINE.md section 11), so it is the realistic case.
+
+    `canonical_field` is structured (not just the message text) so a caller
+    outside the stage - the API endpoints - can report which field is missing
+    without parsing a sentence."""
+
+    def __init__(self, canonical_field: str) -> None:
+        self.canonical_field = canonical_field
+        super().__init__(
+            f"cleaned.csv has no column mapped to '{canonical_field}'; "
+            "metrics cannot be computed without it"
+        )
+
+
+@dataclass(frozen=True)
+class ParsedTransactions:
+    """cleaned.csv's transaction columns, parsed once and typed."""
+
+    reverse: dict[str, str]  # canonical field -> source column name
+    dates: pd.Series  # tz-naive datetime64, NaT where unparseable
+    quantities: pd.Series  # float, NaN where unparseable
+    prices: pd.Series  # float, NaN where unparseable
+    revenue_amounts: pd.Series  # quantities * prices
+    # date/quantity/price all present, regardless of transaction_type.
+    valid: pd.Series
+    # `valid` AND counts towards revenue per the module docstring: excludes
+    # only rows explicitly "in". `valid & ~counted` is every explicit "in"
+    # row (metrics_products.py's stock-in side).
+    counted: pd.Series
+
+
+def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
+    """`column_mapping` is cleaning_report.json's mapping of source column
+    name -> canonical field. Raises RequiredColumnMissingError if
+    transaction_date, quantity or unit_price has no mapped column."""
+    reverse = {field: source for source, field in column_mapping.items()}
+
+    date_col = require_column(reverse, "transaction_date")
+    quantity_col = require_column(reverse, "quantity")
+    price_col = require_column(reverse, "unit_price")
+
+    # utc=True avoids a crash on a file mixing offset and offset-less
+    # datetimes (pandas otherwise refuses to build one Series from both); the
+    # result is dropped back to naive for period/month grouping.
+    dates = pd.to_datetime(df[date_col], format="mixed", errors="coerce", utc=True).dt.tz_localize(None)
+    quantities = pd.to_numeric(df[quantity_col], errors="coerce")
+    prices = pd.to_numeric(df[price_col], errors="coerce")
+
+    # A row with no parseable date, quantity or price cannot be measured or
+    # placed in a period; it is left out rather than guessed at.
+    valid = dates.notna() & quantities.notna() & prices.notna()
+
+    type_col = reverse.get("transaction_type")
+    if type_col is None:
+        counts_as_sale = pd.Series(True, index=df.index)
+    else:
+        # astype(object): an empty or all-missing column can read back as
+        # float64, and .str only works on an object/string dtype. NaN (a
+        # per-row missing type) compares False to "in", so it also defaults
+        # to "out", matching the column-level default.
+        counts_as_sale = ~df[type_col].astype(object).str.strip().str.lower().eq("in")
+
+    return ParsedTransactions(
+        reverse=reverse,
+        dates=dates,
+        quantities=quantities,
+        prices=prices,
+        revenue_amounts=quantities * prices,
+        valid=valid,
+        counted=valid & counts_as_sale,
+    )
+
+
+def require_column(reverse: dict[str, str], canonical_field: str) -> str:
+    column = reverse.get(canonical_field)
+    if column is None:
+        raise RequiredColumnMissingError(canonical_field)
+    return column
+
+
+def is_blank(values: pd.Series) -> pd.Series:
+    """True where a cell is missing or holds only whitespace - the same
+    definition of "missing" docs/AI_PIPELINE.md section 6 uses for
+    drop_rows_missing, applied to optional columns (`customer`, `sku`,
+    `category`) stage 1 has no reason to have trimmed."""
+    return values.isna() | (values.astype(object).str.strip() == "")
+
+
+def pct_change(current: float, previous: float) -> float:
+    """Signed percentage change, 0.0 when there is no previous value to
+    compare against (Phase 2A's zero-denominator decision: the 1.0 contracts
+    require a number, and an invented "infinite growth" figure would be
+    worse than saying nothing moved)."""
+    return (current - previous) / previous * 100 if previous else 0.0
+
+
+def normalize_text(values: pd.Series) -> pd.Series:
+    """Strip and case-fold for grouping. astype(object): an all-missing column
+    can read back as float64, and .str only works on an object/string dtype.
+    NaN propagates through strip/lower/concat unharmed."""
+    return values.astype(object).str.strip().str.lower()
+
+
+def product_identity(
+    df: pd.DataFrame, product_name_col: str, sku_col: str | None
+) -> pd.Series:
+    """The key that decides whether two rows are the same product: this row's
+    `sku` when it has one, else its `product_name` (docs/AI_PIPELINE.md
+    section 11's business-key precedent, extended to a per-row fallback since a
+    mapped sku column can still have blank cells row by row).
+
+    Values are stripped and case-folded, so "SKU1", " SKU1" and "sku1" are one
+    product; the sku-sourced and name-sourced halves live in separate
+    namespaces (`sku:`/`name:`) so a SKU that happens to read the same as an
+    unrelated product's name can never merge them. Both fixes came out of 2C's
+    doubt-review. The key is never displayed - callers resolve a human-readable
+    name separately."""
+    normalized_name = "name:" + normalize_text(df[product_name_col])
+    if sku_col is None:
+        return normalized_name
+    sku = df[sku_col]
+    return ("sku:" + normalize_text(sku)).where(~is_blank(sku), normalized_name)

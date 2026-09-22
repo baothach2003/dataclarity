@@ -5,23 +5,18 @@ full metrics.json contract (the `customers`, `products` and `by_dimension`
 blocks) and writing it to disk are later sub-phases (2B-2D); this module only
 computes these two blocks from cleaned.csv.
 
-Design decisions (Thach, Phase 2A - `transaction_type` is stock movement
-direction only, docs/AI_PIPELINE.md section 5, never a returns concept):
-- A row counts toward revenue only when its transaction_type is "out" (a
-  sale); "in" rows (stock coming back, e.g. a supplier restock) are excluded
-  from revenue entirely, never subtracted. A row with no transaction_type
-  column mapped at all, or an unrecognised per-row value, defaults to "out"
-  (docs/SPECS.md section 9: "in|out, default out").
-- A return is a counted row with negative quantity (the common POS
-  convention of a negative-quantity sale line). The canonical schema has no
-  dedicated returns field, so this is the one signal available, and it does
-  not depend on transaction_type being mapped.
-- Zero-denominator metrics (revenue_change_pct with no previous revenue; aov
-  and return_rate with no orders) report 0.0.
+What a row *is* - whether it parses, and whether it counts towards revenue -
+is not decided here: `shared/transactions.py` owns that, so stage 3 can
+recompute the same figures without importing this stage (CLAUDE.md 3.1). The
+Phase 2A decisions behind it (transaction_type is stock movement direction
+only; a return is a negative-quantity counted row) are documented there.
+
+Design decision that stays here, because it is about this contract's own
+fields: zero-denominator metrics (revenue_change_pct with no previous
+revenue; aov and return_rate with no orders) report 0.0.
 """
 
 import calendar
-from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 
@@ -30,90 +25,26 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CoreMetrics, MonthlyRevenue, Period
 from shared.run_registry import run_file
+from shared.transactions import (
+    # Re-exported deliberately: this error is part of what calling stage 2
+    # can raise, and both the backend and this stage's tests catch it here.
+    RequiredColumnMissingError,
+    is_blank,
+    parse_transactions,
+    pct_change,
+)
+
+__all__ = [
+    "CLEANED_FILENAME",
+    "CLEANING_REPORT_FILENAME",
+    "RequiredColumnMissingError",
+    "compute_core_metrics",
+    "core_metrics_for_run",
+    "select_period",
+]
 
 CLEANED_FILENAME = "cleaned.csv"
 CLEANING_REPORT_FILENAME = "cleaning_report.json"
-
-
-class RequiredColumnMissingError(ValueError):
-    """cleaned.csv has no column mapped to a canonical field this module
-    needs. transaction_date and quantity are stage 1 required fields, so this
-    is defensive for them; unit_price is not required by stage 1
-    (docs/AI_PIPELINE.md section 11), so it is the realistic case.
-
-    `canonical_field` is structured (not just the message text) so a caller
-    outside this stage - 2D's API endpoint - can report which field is
-    missing without parsing a sentence."""
-
-    def __init__(self, canonical_field: str) -> None:
-        self.canonical_field = canonical_field
-        super().__init__(
-            f"cleaned.csv has no column mapped to '{canonical_field}'; "
-            "stage 2 metrics cannot be computed without it"
-        )
-
-
-@dataclass(frozen=True)
-class ParsedTransactions:
-    """cleaned.csv's transaction columns, parsed once and typed. Every other
-    module in this stage that needs revenue-scoped rows (metrics_customers,
-    later metrics_products) builds on this instead of re-parsing cleaned.csv
-    or re-deciding what counts as a sale - same stage package, so importing
-    it is not a cross-stage dependency (CLAUDE.md 3.1)."""
-
-    reverse: dict[str, str]  # canonical field -> source column name
-    dates: pd.Series  # tz-naive datetime64, NaT where unparseable
-    quantities: pd.Series  # float, NaN where unparseable
-    prices: pd.Series  # float, NaN where unparseable
-    revenue_amounts: pd.Series  # quantities * prices
-    # date/quantity/price all present, regardless of transaction_type.
-    valid: pd.Series
-    # `valid` AND counts toward revenue per 2A's decision (below): excludes
-    # only rows explicitly "in". `valid & ~counted` is every explicit "in"
-    # row (metrics_products.py's stock-in side).
-    counted: pd.Series
-
-
-def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
-    """`column_mapping` is cleaning_report.json's mapping of source column
-    name -> canonical field. Raises RequiredColumnMissingError if
-    transaction_date, quantity or unit_price has no mapped column."""
-    reverse = {field: source for source, field in column_mapping.items()}
-
-    date_col = require_column(reverse, "transaction_date")
-    quantity_col = require_column(reverse, "quantity")
-    price_col = require_column(reverse, "unit_price")
-
-    # utc=True avoids a crash on a file mixing offset and offset-less
-    # datetimes (pandas otherwise refuses to build one Series from both); the
-    # result is dropped back to naive for period/month grouping.
-    dates = pd.to_datetime(df[date_col], format="mixed", errors="coerce", utc=True).dt.tz_localize(None)
-    quantities = pd.to_numeric(df[quantity_col], errors="coerce")
-    prices = pd.to_numeric(df[price_col], errors="coerce")
-
-    # A row with no parseable date, quantity or price cannot be measured or
-    # placed in a period; it is left out rather than guessed at.
-    valid = dates.notna() & quantities.notna() & prices.notna()
-
-    type_col = reverse.get("transaction_type")
-    if type_col is None:
-        counts_as_sale = pd.Series(True, index=df.index)
-    else:
-        # astype(object): an empty or all-missing column can read back as
-        # float64, and .str only works on an object/string dtype. NaN (a
-        # per-row missing type) compares False to "in", so it also defaults
-        # to "out", matching the column-level default.
-        counts_as_sale = ~df[type_col].astype(object).str.strip().str.lower().eq("in")
-
-    return ParsedTransactions(
-        reverse=reverse,
-        dates=dates,
-        quantities=quantities,
-        prices=prices,
-        revenue_amounts=quantities * prices,
-        valid=valid,
-        counted=valid & counts_as_sale,
-    )
 
 
 def core_metrics_for_run(
@@ -211,13 +142,6 @@ def _format_year_month(year_month: tuple[int, int]) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def require_column(reverse: dict[str, str], canonical_field: str) -> str:
-    column = reverse.get(canonical_field)
-    if column is None:
-        raise RequiredColumnMissingError(canonical_field)
-    return column
-
-
 def _bucket(
     df: pd.DataFrame,
     reverse: dict[str, str],
@@ -240,21 +164,8 @@ def _active_customers(df: pd.DataFrame, reverse: dict[str, str], mask: pd.Series
     return int(values[~is_blank(values)].nunique())
 
 
-def is_blank(values: pd.Series) -> pd.Series:
-    """True where a cell is missing or holds only whitespace - the same
-    definition of "missing" docs/AI_PIPELINE.md section 6 uses for
-    drop_rows_missing, applied here to an optional column (`customer`) stage
-    1 has no reason to have trimmed. Shared with metrics_customers.py so both
-    blocks agree on who counts as an identified customer."""
-    return values.isna() | (values.astype(object).str.strip() == "")
-
-
 def _safe_divide(numerator: float, denominator: int) -> float:
     return numerator / denominator if denominator else 0.0
-
-
-def pct_change(current: float, previous: float) -> float:
-    return (current - previous) / previous * 100 if previous else 0.0
 
 
 def _revenue_by_month(months: pd.Series, amounts: pd.Series) -> list[MonthlyRevenue]:

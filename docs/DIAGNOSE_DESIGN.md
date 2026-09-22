@@ -517,6 +517,19 @@ only what its cause requires.
 | S8 | 3 products discontinued in `cur` | R2 supported |
 | S9 | every December x1.6 in all years; `cur` = January, `prev` = December | T2 supported; headline rule 5 (seasonal) |
 | S10 | all prices x100 in `cur` (cents entered as units) | D2 flagged; trust `caution` |
+| S11 | no planted cause; the build is truncated to its last 6 complete months | every signal `insufficient_history`; calendar `weekday_weights`; T3 `inconclusive`; headline must NOT be rule 3 (normal variation); no hypothesis `supported` |
+
+S11 is the only scenario that plants nothing and still must not produce rule 3.
+S0 plants nothing either, but S0 has 26 months behind it, so "within normal
+variation" is a true statement there and the expected headline. On a six-month
+file the engine has no baseline to call anything normal by: every series is
+`insufficient_history` and T3 is `inconclusive`, so rule 3 would be asserting a
+verdict the data cannot support. The two scenarios are therefore a matched
+pair - same planted cause, opposite expected headline - and the difference
+between them is the whole point: the engine has to know when to stay silent.
+Note that the split inside S11 is real and not a bug: step 3 needs 56 calendar
+days of history and step 4 needs 8 whole months, so the same file legitimately
+gets true weekday weights while every XmR series reports no baseline.
 
 Acceptance criteria (tests fail otherwise):
 

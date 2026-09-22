@@ -241,24 +241,40 @@ dataclarity/
       to the 8-step engine + threshold list, `prompts/root_cause.md` rewritten
       for narration only (+ the prompt test that never existed), this checklist
       split, ADR-0004 (Shapley) and ADR-0005 (pre-registered catalog)
-- [ ] 3B Foundations and checks: move the shared transaction parsing
+- [x] 3B Foundations and checks: moved the shared transaction parsing
       (`ParsedTransactions`, `parse_transactions`, `require_column`,
-      `pct_change`, `is_blank`) from `stages/analyze/metrics_core.py` to
-      `shared/` so stage 3 never imports stage 2 (CLAUDE.md 3.1), then steps 1-4
-      (frame, trust gate D1-D3, calendar, XmR signals). Includes the stage 2 /
-      stage 3 consistency test: every figure recomputed from `cleaned.csv` that
-      also exists in `metrics.json` must match it exactly. All existing stage 2
-      tests must pass with no test edited. May raise: behaviour below 8 months
-      of history. Split into 3B1/3B2 if long
+      `pct_change`, `is_blank`, and - beyond the listed five - `normalize_text`
+      and `product_identity`) from `stages/analyze/metrics_core.py` to
+      `shared/transactions.py` so stage 3 never imports stage 2 (CLAUDE.md 3.1),
+      plus `shared/contract_files.py` for the atomic write; then steps 1-4
+      (frame, trust gate D1-D3, calendar, XmR signals) and `thresholds.py`.
+      Stage 2 / stage 3 consistency test included: revenue, orders and active
+      customers recomputed in stage 3 equal `metrics.json` exactly. All 1950
+      stage 2 tests passed with no test file edited (`git diff -- tests/` empty).
+      Doubt-review: 11 findings, 9 fixed here, 2 scheduled as 3D2
 - [ ] 3C Metric tree (AI_PIPELINE 7.6): Shapley levels 1 and 2 with the
       `orders*aov` fallback, masked-shift alert, customer bridge for both
       transitions, returns lens, product PVM. Every decomposition reconciles to
       its own total at 1e-9, enforced by tests. Doubt-review: yes
 - [ ] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
       removed members, mix vs rate, breadth. Doubt-review: yes
+- [ ] 3D2 Step-change detection and re-baselining (**prerequisite of 3E**,
+      Thach, 3B doubt-review). The XmR centre line is the mean of a baseline
+      that contains the very run rule 2 tests, so a file of 13-20 months in
+      level mode re-fires the same rule-2 signal every month after one December
+      spike, and one near-zero month produces a YoY outlier wide enough to
+      silence a series (finding 3a). Rule 2 feeds T3 and the masked-shift
+      alert, which drive headlines - so this is not an edge case and must not
+      slip past 3E. Deliverables: a written spec in AI_PIPELINE 7.5 before any
+      code, step-change detection, a re-baselining rule, and hand-checked tests
+      covering the December-spike re-fire and the near-zero-month outlier.
+      Until it lands, every signal carries its `rule` number so 3E can tell a
+      rule-2-only signal apart. Doubt-review: yes
 - [ ] 3E Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the fixed catalog,
       verdicts, the 7 headline rules, the fixed-seed scenario generator and the
-      S0-S10 suite with its acceptance criteria. Doubt-review: yes.
+      S0-S11 suite with its acceptance criteria - including **S11, the
+      6-month truncated build**, whose headline must NOT be rule 3 (normal
+      variation). Doubt-review: yes.
       **Also the trigger for the Figma Insights frame** (trust badge, normal-
       variation state, hypothesis list with verdict labels): the shapes those
       need are final only once this session lands (Thach, 3A)
@@ -272,9 +288,10 @@ dataclarity/
       every status including `imported` was already in the first migration's
       CHECK constraint, so check there before assuming one is needed.
       Doubt-review: optional
-- **DoD:** the S0-S10 planted-cause suite passes its acceptance criteria - every
+- **DoD:** the S0-S11 planted-cause suite passes its acceptance criteria - every
   scenario produces its expected headline or verdict, S0 produces zero
-  `supported` hypotheses, and the whole suite produces at most one `supported`
+  `supported` hypotheses, S11 produces no `supported` hypothesis and does not
+  use headline rule 3, and the whole suite produces at most one `supported`
   hypothesis not implied by its planted cause. Headline accuracy, decoy count
   and false-alarm count are printed by the tests and quoted in the README
 
@@ -409,8 +426,42 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3A of 7 closed
-2026-09-22: the SPECS UPDATE, documentation only, no application code. Phase 3
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3B of 7 closed
+2026-09-22: foundations and steps 1-4, the first Stage 3 application code. The
+cross-stage refactor landed first and safely - `ParsedTransactions`,
+`parse_transactions`, `require_column`, `pct_change`, `is_blank` and (beyond
+the five the brief listed) `normalize_text` and `product_identity` moved to
+`shared/transactions.py`, and 2D's private atomic writer to
+`shared/contract_files.py`, with **all 1950 pre-existing tests passing and
+`git diff -- tests/` empty**, which is the safety condition the design names.
+Then `stages/diagnose/`: `thresholds.py` (every constant from AI_PIPELINE 7.10,
+with `YOY_MODE_MIN_MONTHS` written as `YOY_LAG_MONTHS +
+XMR_MIN_BASELINE_POINTS + 1` so it cannot drift from the parts it is made of),
+`inputs.py`, `frame.py` (step 1), `trust.py` (step 2, D1-D3 + gate),
+`calendar_effect.py` (step 3) and `signals.py` (step 4, XmR), plus the five
+new blocks in `contracts/diagnosis.py` so every one of those outputs is
+validated from day one. The stage 2 / stage 3 consistency test is exact, not
+approximate: revenue, orders and active customers recomputed in stage 3 equal
+`metrics.json` to the cent. **One doubt-review cycle ran** (the brief's
+recommendation, and the right call - the artifact mixed a refactor with new
+statistics): **11 findings, all reproduced by execution before being fixed**,
+9 fixed in-session and 2 scheduled as the new **3D2, a prerequisite of 3E**.
+Three needed Thach's decision and got it: `inconclusive` now downgrades the
+trust verdict to `caution`; the XmR margin is `max(relative, absolute floor)`
+because a purely relative margin is zero for a series centred on zero, which
+`return_rate` is; and re-baselining is scheduled rather than deferred
+open-ended, with every signal carrying its `rule` number until it lands. The
+one finding worth remembering: **my own justification for a simplification was
+disproved with numbers** - I had written, in a code docstring *and* in
+AI_PIPELINE 7.4, that using the mean for weekday weights was safe because a
+history gap "drags every weekday down by the same factor and the ratio
+cancels". It does not; any run of days not a multiple of seven hits weekdays
+unevenly, and a shop whose POS was down on Saturdays had 12.6% of its month's
+movement invented as real decline. The median fixes it and needs no gap
+detection. pytest 1992 passed (up from 1950 after the refactor: 42 new stage 3
+tests). No AI call (Stage 3 spends credit only in 3F); Vitest not re-run, no
+frontend code touched. Previously, session 3A closed the SPECS UPDATE,
+documentation only, no application code. Phase 3
 was re-planned from 3 sessions to 7 against `docs/DIAGNOSE_DESIGN.md` (Thach
 chose the full engine, not the reduced MVP), and the old 3A-3C plan - sequential
 substitution, the AI choosing which hypotheses to rule out - is gone. This
@@ -483,12 +534,14 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session 3B (Foundations and checks): move the shared
-transaction parsing out of `stages/analyze/metrics_core.py` into `shared/` so
-stage 3 never imports stage 2, then build steps 1-4 (frame, trust gate,
-calendar, XmR signals) plus the stage 2 / stage 3 consistency test. The move
-must leave every existing stage 2 test passing with no test edited - that is
-the safety check the design names for it. Phase 6 (Insights, Dashboard) is
+**Next step:** Phase 3 session 3C (Metric tree, AI_PIPELINE 7.6): Shapley
+levels 1 and 2 with the `orders*aov` fallback, the masked-shift alert, the
+customer bridge for both transitions, the returns lens and the product PVM,
+every decomposition reconciling to its own total at 1e-9 and enforced by
+tests. Doubt-review: yes (the checklist already marks it). Note that **3D2
+(step-change detection and re-baselining) must land before 3E**, not after -
+it is now in the checklist as an explicit prerequisite. Phase 6 (Insights,
+Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
@@ -507,6 +560,60 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-22, Phase 3 session 3B (foundations and steps 1-4): new -
+  `shared/transactions.py`, `shared/contract_files.py`,
+  `stages/diagnose/{thresholds,inputs,frame,trust,calendar_effect,signals}.py`,
+  `tests/stages/diagnose/{diagnose_fixtures,test_frame_and_trust,
+  test_calendar_and_signals}.py`; edited - `contracts/diagnosis.py` (five new
+  models, `DiagnosisContract` untouched), `docs/AI_PIPELINE.md` 7.2-7.5 + 7.10,
+  and the six stage-2 files that now import from `shared/`.
+  - **Four judgment calls made rather than asked, flagged here for Thach to
+    veto:**
+    1. **Stage 3's "complete month" is stricter than stage 2's.** 2A picks the
+       latest month fully elapsed by `data_end`; stage 3 additionally requires
+       the month to be covered first-day-to-last, because a half-January in an
+       XmR baseline invents a dip that the chart then reports as a signal. The
+       two definitions therefore differ on purpose. Stage 3 still takes its
+       `current`/`previous` pair from `metrics.json`, so the stages cannot
+       disagree about *what* is being compared - only about which months are
+       fit to be baseline.
+    2. **`RequiredColumnMissingError` is re-exported from `metrics_core.py`**
+       (with an `__all__` documenting it as deliberate). Four existing test
+       files import it from there, and the brief's safety condition forbade
+       editing any test. The alternative was editing tests to prove the
+       refactor was safe, which would have destroyed the proof.
+    3. **`normalize_text` and `product_identity` moved too**, beyond the five
+       helpers the brief listed. `product_identity` (SKU else product name) is
+       a row-level *definition* of what counts as one product, not a metric -
+       if stage 3 re-implemented it, D2 and the product PVM could silently
+       group differently from stage 2's Pareto over the same file.
+    4. **The brief's own expectation about the calendar fallback is wrong**,
+       and the code follows the spec rather than the brief: it says a 6-month
+       file should fall back to `day_count`, but 6 months is about 150 history
+       days, far past `CALENDAR_MIN_WEEKS`, so it correctly uses weekday
+       weights. Only about two months of history triggers `day_count`. The
+       test was written to the spec; say if the spec is what should change.
+  - **An instruction from 3A was dropped and is only now recorded: scenario
+    S11.** In the same 3A message where Thach accepted the threshold defaults,
+    he asked for S11 (a 6-month file) to be added to the planted-cause suite.
+    The other two items in that message were applied; S11 was not, and nothing
+    in the repo recorded it, so a later session reading the docs would have
+    found a suite of S0-S10 that looked complete and deliberate. It is now in
+    DIAGNOSE_DESIGN section 8, AI_PIPELINE 7.11 and this checklist, with
+    implementation in 3E. The lesson is about multi-item messages: when one
+    message carries several instructions, each one needs its own landing place
+    in the repo before the session closes, because a dropped item leaves no
+    trace to notice later. This entry is the trace.
+  - The three decisions Thach made during the doubt-review (inconclusive ->
+    caution, the absolute margin floor, 3D2 scheduled not deferred) are now
+    documented in AI_PIPELINE 7.3, 7.5 and 7.10 respectively, so the reasoning
+    survives this session.
+  - One test failure was a **bad fixture, not a bug**: `test_a_clean_file_is_
+    trusted` broke when inconclusive started downgrading, because the fixture
+    shop sold a single product and D2 cannot compare a one-product catalogue.
+    The fixture was unrealistic; it gained 20 products. Worth remembering the
+    shape - after a rule change, check whether the fixture or the rule is wrong
+    before touching either.
 - 2026-09-22, Phase 3 session 3A (SPECS UPDATE, docs only): `docs/CONTRACTS.md`
   section 7 + section 10 change log, `docs/AI_PIPELINE.md` sections 2, 7 and 9,
   `prompts/root_cause.md`, `docs/adr/0004-shapley-attribution.md`,
@@ -563,7 +670,10 @@ still not started; its Insights frame now waits on 3E (see
     `N >= 12 + XMR_MIN_BASELINE_POINTS + 1` = 21. Written in code as that
     expression, not as `21`, so raising the baseline requirement cannot silently
     leave the YoY gate behind. At N=24 the dataset yields 11 YoY baseline
-    points; the 26-month scenario suite is unaffected either way.
+    points; the 26-month scenario suite is unaffected either way. S11, added
+    later in the same session's thread, is the one exception: it truncates the
+    build to 6 complete months and therefore sits far below this gate by
+    design, which is the property it exists to test.
   - DIAGNOSE_DESIGN section 1.1's decomposition figures were re-derived from
     scratch before being quoted in ADR-0004, not copied: for the
     customers 1,000->600 / frequency 2.0->2.4 / AOV 50->70 example, sequential

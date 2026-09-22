@@ -60,13 +60,16 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, ProductVelocity, TopProduct
 from shared.run_registry import run_file
+from shared.transactions import (
+    normalize_text,
+    parse_transactions,
+    pct_change,
+    product_identity,
+    require_column,
+)
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
-    is_blank,
-    parse_transactions,
-    pct_change,
-    require_column,
     select_period,
 )
 
@@ -98,7 +101,7 @@ def compute_product_metrics(
     product_name_col = require_column(parsed.reverse, "product_name")
     sku_col = parsed.reverse.get("sku")
 
-    identity = _product_identity(df, product_name_col, sku_col)
+    identity = product_identity(df, product_name_col, sku_col)
     names = pd.DataFrame({"identity": identity, "name": df[product_name_col]}).groupby("identity")["name"].first()
 
     table = pd.DataFrame(
@@ -117,22 +120,6 @@ def compute_product_metrics(
         biggest_decliners=_biggest_decliners(current, previous, names),
         velocity=_velocity(current, all_in, all_out, names, _days_in_month(period.current)),
     )
-
-
-def _product_identity(df: pd.DataFrame, product_name_col: str, sku_col: str | None) -> pd.Series:
-    normalized_name = "name:" + _normalize(df[product_name_col])
-    if sku_col is None:
-        return normalized_name
-    sku = df[sku_col]
-    normalized_sku = "sku:" + _normalize(sku)
-    return normalized_sku.where(~is_blank(sku), normalized_name)
-
-
-def _normalize(values: pd.Series) -> pd.Series:
-    # astype(object): an all-missing column can read back as float64, and
-    # .str only works on an object/string dtype (metrics_core.py hits the
-    # same issue). NaN propagates through strip/lower/concat unharmed.
-    return values.astype(object).str.strip().str.lower()
 
 
 def _pareto(current: pd.DataFrame) -> Pareto:
