@@ -333,8 +333,35 @@ a false alarm on its own.
   every series `yoy` while only some have limits.
 - **Baseline.** Points before `current` in the history window; fewer than
   `XMR_MIN_BASELINE_POINTS` gives `insufficient_history` for that series.
-- **Limits.** `center = mean(baseline)`, `mR_bar = mean(|x_t - x_(t-1)|)`,
-  `limits = center +/- XMR_FACTOR * mR_bar`.
+- **Limits.** `center = mean(baseline)`, `mR = |x_t - x_(t-1)|` over
+  consecutive baseline points,
+  `limits = center +/- XMR_MEDIAN_FACTOR * median(mR)`, falling back to
+  `XMR_FACTOR * mean(mR)` when the median moving range is zero. Which one ran
+  is recorded on every signal as `limits_method`, so a later change of
+  estimator is visible in the file rather than silently changing what every
+  verdict means.
+
+  The median form is the default because one anomalous month contributes two
+  large moving ranges: the average absorbs them and the median does not. On
+  3B's finding 3a - a near-zero month producing a huge year-over-year point -
+  the average-based limits were about 650 units wide and the series could
+  never signal; the median gives about 17.
+
+  The fallback is load-bearing, not a formality. The median moving range is
+  exactly zero whenever half the consecutive pairs are identical, which is
+  ordinary for flat, rounded and small-integer series, and zero-width limits
+  report a 0.2% move as a special cause. Session 3D2 shipped that and measured
+  it before reverting. Where the fallback triggers, the result is bit-for-bit
+  what the average alone produced.
+- **Step 7 acts on rule 1 only.** Rule 2 measures a run against a centre
+  computed from the same points, so one anomalous month re-fires it every
+  month until it leaves the window (3B). Re-baselining was attempted in
+  session 3D2 and the method did not work, so **rule-2 signals stay in the
+  output and a reader can see them, but T3 and the masked-shift alert are
+  decided on rule 1** (Thach, 3D2). This is a contract, not a session
+  convention: step 7 may not promote a rule-2-only signal to a verdict, and
+  the `rule` number every signal carries is what makes the distinction
+  machine-readable.
 - **Rules, deliberately only two.** Rule 1: the current point is outside the
   limits by more than the margin below. Rule 2: the current point and the
   `XMR_RUN_LENGTH - 1` months immediately before it are all on the same side of
@@ -349,13 +376,24 @@ a false alarm on its own.
   series centred on zero, which `return_rate` usually is, so the floor does
   that: `XMR_ABS_FLOOR_RATE` for rate series, `XMR_ABS_FLOOR_DEFAULT` for money
   and counts.
-- **Known limit, owned by 3D2.** The centre line is the mean of a baseline that
-  contains the run rule 2 tests, so one anomalous month re-fires the same
-  rule-2 signal every month until it leaves the window, and an extreme outlier
-  (a near-zero month producing a vast YoY value) widens the limits enough to
-  silence the series. Step-change detection and re-baselining fix both and are
-  scheduled before 3E. Until then every signal carries its `rule` number so
-  step 7 can tell a rule-2-only signal apart.
+- **Known limits, and who owns them now.** The outlier half is fixed above.
+  The re-firing half is not: the centre is still the mean of a baseline that
+  contains the run rule 2 tests. Session 3D2 attempted step-change detection
+  and re-baselining, and the method failed on multi-month seasons, on a
+  business that steps twice, and in year-over-year mode - it is in the Backlog
+  with the failure written down. Step 7 therefore acts on rule 1 only, as
+  above.
+
+  Three further defects in this step are recorded and **not yet fixed**, all
+  of them reachable through rule 1 (session 3D2 doubt-review): a perfectly
+  flat series gives zero-width limits under either estimator, and in YoY mode
+  the centre is 0 so the margin collapses to `XMR_ABS_FLOOR_DEFAULT` - a
+  stable business growing 1% fires rule 1; the margin floors are expressed in
+  money and in fractions rather than in the mode's own units; and mode
+  selection never checks that the *current* month has a year-ago comparator,
+  so a shop shut that month a year ago reports `insufficient_history` on an
+  80% collapse instead of falling back to level mode. Session 3D3 fixes these
+  before 3E, because they make rule 1 itself unreliable.
 
 A YoY point at month `m` needs month `m-12` to exist, but that lag month is
 only an input to the calculation - it is not itself a baseline point and may
@@ -629,7 +667,8 @@ are heuristics until calibrated against real data.
 | `SUPPORTED_MIN_SHARE` / `PARTIAL_MIN_SHARE` | 0.20 / 0.05 | 7.8 |
 | `HEADLINE_CONTEXT_MIN_SHARE` | 0.50 | 7.8 rules 2 and 5 |
 | `MASKED_GROSS_TO_NET` | 3.0 | 7.6 |
-| `XMR_FACTOR` | 2.66 | 7.5 |
+| `XMR_FACTOR` | 2.66 | 7.5, the fallback estimator (3 / d2) |
+| `XMR_MEDIAN_FACTOR` | 3.145 | 7.5, the default estimator (3 / d4) |
 | `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
 | `XMR_RUN_LENGTH` | 8 | 7.5 rule 2 |
 | `XMR_REL_TOLERANCE` | 0.001 | 7.5 margin (3B) |

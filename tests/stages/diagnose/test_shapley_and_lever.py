@@ -24,11 +24,12 @@ def reconciles(parts: list[float], total: float) -> bool:
 
 def signal(series: str, fired: str = "below") -> Signal:
     return Signal(series=series, mode="level", value_cur=1.0, center=2.0, lower=0.5,
-                  upper=3.0, signal=fired, rule=1)
+                  upper=3.0, signal=fired, rule=1, limits_method="median_moving_range")
 
 
 WITHIN = [Signal(series="revenue", mode="level", value_cur=1.0, center=1.0, lower=0.5,
-                 upper=1.5, signal="within", rule=None)]
+                 upper=1.5, signal="within", rule=None,
+                 limits_method="median_moving_range")]
 
 
 # --- the Shapley engine -------------------------------------------------------

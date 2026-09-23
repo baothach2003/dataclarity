@@ -19,6 +19,7 @@ from stages.diagnose.thresholds import (
     XMR_ABS_FLOOR_DEFAULT,
     XMR_ABS_FLOOR_RATE,
     XMR_FACTOR,
+    XMR_MEDIAN_FACTOR,
     XMR_MIN_BASELINE_POINTS,
     XMR_REL_TOLERANCE,
     XMR_RUN_LENGTH,
@@ -86,7 +87,8 @@ def _usable(column: pd.Series, history: list[str]) -> int:
 
 def _no_baseline(name: str, mode: str) -> Signal:
     return Signal(series=name, mode=mode, value_cur=None, center=None, lower=None,
-                  upper=None, signal="insufficient_history", rule=None)
+                  upper=None, signal="insufficient_history", rule=None,
+                  limits_method="mean_moving_range")
 
 
 def monthly_series(data: RunData) -> pd.DataFrame:
@@ -162,18 +164,41 @@ def _signal_for(
         return _no_baseline(name, mode)
 
     center = float(baseline.mean())
-    # The average moving range of consecutive points, which is what makes these
-    # limits robust to a trend: a slow drift inflates the range far less than
-    # the standard deviation of the whole series.
-    moving_range = baseline.diff().abs().dropna()
-    mr_bar = float(moving_range.mean()) if len(moving_range) else 0.0
-    spread = XMR_FACTOR * mr_bar
+    # The moving range of consecutive points is what makes these limits robust
+    # to a trend: a slow drift inflates it far less than the standard deviation
+    # of the whole series would.
+    spread, limits_method = _spread(baseline)
     lower, upper = center - spread, center + spread
     value_cur = float(value_cur)
 
     signal, rule = _classify(name, value_cur, center, lower, upper, column, current, history)
     return Signal(series=name, mode=mode, value_cur=value_cur, center=center, lower=lower,
-                  upper=upper, signal=signal, rule=rule)
+                  upper=upper, signal=signal, rule=rule, limits_method=limits_method)
+
+
+def _spread(baseline: pd.Series) -> tuple[float, str]:
+    """Half the width of the limits, and which estimator produced it.
+
+    The median moving range, because one anomalous month contributes two large
+    moving ranges: the average absorbs them and the median does not. On 3B's
+    finding 3a the average-based limits were about 650 units wide and the
+    series could not signal at all; the median gives about 17.
+
+    Falling back to the average when the median is zero is the load-bearing
+    part, not a nicety. The median moving range is zero whenever half the
+    consecutive pairs are identical - flat, rounded and small-integer series,
+    which are common - and zero-width limits call a 0.2% move a special cause.
+    Session 3D2 shipped exactly that before this fallback existed. On any
+    series where the fallback triggers, the result is bit-for-bit what the
+    average alone produced, so this cannot regress a file that works today.
+    """
+    moving_range = baseline.diff().abs().dropna()
+    if not len(moving_range):
+        return 0.0, "mean_moving_range"
+    median = float(moving_range.median())
+    if median > 0:
+        return XMR_MEDIAN_FACTOR * median, "median_moving_range"
+    return XMR_FACTOR * float(moving_range.mean()), "mean_moving_range"
 
 
 def _classify(

@@ -226,9 +226,18 @@ Series (monthly, one value per complete month): revenue, orders, active customer
   series (removes seasonality); else use level series (`mode = "level"`).
 - **Baseline.** Points before `cur` within the history window. If fewer than 8
   baseline points: `signal = "insufficient_history"` for that series.
-- **XmR limits.** `center = mean(baseline)`,
-  `mR_bar = mean(|x_t - x_(t-1)|)` over consecutive baseline points,
-  `limits = center +/- 2.66 * mR_bar`.
+- **XmR limits.** `center = mean(baseline)`; the half-width is
+  `3.145 * median(|x_t - x_(t-1)|)` over consecutive baseline points, falling
+  back to `2.66 * mean(...)` when that median is zero (session 3D2). The
+  median resists a single anomalous month, which contributes two large moving
+  ranges; the fallback exists because the median is zero whenever half the
+  consecutive pairs are identical, and zero-width limits call a rounding move
+  a special cause.
+- **Rule 2 is reported but not acted on** (Thach, 3D2). It measures a run
+  against a centre computed from the same points, so one anomalous month
+  re-fires it every month. Step 7 decides T3 and the masked-shift alert on
+  rule 1. Re-baselining, which would fix this properly, is in the Backlog with
+  the record of how session 3D2's attempt failed.
 - **Detection rules (deliberately few).** Rule 1: current point outside the
   limits. Rule 2: the current point and the 7 before it all on the same side of
   the center line. More rules create over-reaction.

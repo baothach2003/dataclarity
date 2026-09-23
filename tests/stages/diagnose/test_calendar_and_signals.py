@@ -8,7 +8,7 @@ import pytest
 from stages.diagnose.calendar_effect import compute_calendar
 from stages.diagnose.frame import history_window
 from stages.diagnose.signals import compute_signals, monthly_series
-from stages.diagnose.thresholds import XMR_FACTOR, YOY_MODE_MIN_MONTHS
+from stages.diagnose.thresholds import XMR_MEDIAN_FACTOR, YOY_MODE_MIN_MONTHS
 from tests.stages.diagnose.diagnose_fixtures import (
     MAPPING,
     daily_rows,
@@ -72,16 +72,24 @@ def test_too_little_history_falls_back_to_day_count() -> None:
 # Nine baseline months with a hand-computed centre and moving range, then a
 # tenth month as `current`.
 #   centre  = 900 / 9 = 100
-#   moving ranges = 10, 20, 15, 10, 5, 8, 16, 8 -> mean 92 / 8 = 11.5
-#   limits  = 100 +/- 2.66 * 11.5 = 100 +/- 30.59
+#   moving ranges = 10, 20, 15, 10, 5, 8, 16, 8
+#     sorted 5, 8, 8, 10, 10, 15, 16, 20 -> MEDIAN = (10 + 10) / 2 = 10.0
+#   limits  = 100 +/- 3.145 * 10.0 = 100 +/- 31.45
+#
+# Recomputed by hand in session 3D2, when the SPREAD estimator became the
+# median moving range. The centre is untouched - still the mean, still 100 -
+# and only the half-width moved, from 30.59 to 31.45: the median moving range
+# (10.0) is a little smaller than the average (11.5) while its constant is
+# larger (3.145 = 3/d4 against 2.66 = 3/d2). Nothing was re-fitted to what the
+# code prints.
 BASELINE = {
     "2011-01": 100.0, "2011-02": 110.0, "2011-03": 90.0, "2011-04": 105.0,
     "2011-05": 95.0, "2011-06": 100.0, "2011-07": 108.0, "2011-08": 92.0,
     "2011-09": 100.0,
 }
 CENTER = 100.0
-MR_BAR = 11.5
-SPREAD = XMR_FACTOR * MR_BAR  # 30.59
+MR_MEDIAN = 10.0
+SPREAD = XMR_MEDIAN_FACTOR * MR_MEDIAN  # 31.45
 
 
 def _revenue_signal(current_revenue: float):
@@ -97,11 +105,12 @@ def test_xmr_limits_are_the_hand_computed_ones() -> None:
     assert signal.center == pytest.approx(CENTER)
     assert signal.lower == pytest.approx(CENTER - SPREAD)
     assert signal.upper == pytest.approx(CENTER + SPREAD)
-    assert (signal.lower, signal.upper) == pytest.approx((69.41, 130.59), abs=0.01)
+    assert (signal.lower, signal.upper) == pytest.approx((68.55, 131.45), abs=0.01)
+    assert signal.limits_method == "median_moving_range"
 
 
 def test_a_point_inside_the_limits_is_routine_variation() -> None:
-    signal = _revenue_signal(120.0)  # inside 69.41 .. 130.59
+    signal = _revenue_signal(120.0)  # inside 68.55 .. 131.45
 
     assert signal.signal == "within"
     assert signal.rule is None
@@ -126,10 +135,18 @@ def test_a_long_run_on_one_side_fires_rule_two_without_leaving_the_limits() -> N
 
     Hand-computed. Baseline (12 months): 60, 100, 60, 100, 115, 125, 115, 125,
     115, 125, 118, 122, summing to 1280, so centre = 1280 / 12 = 106.67. The
-    eleven moving ranges are 40, 40, 40, 15, 10, 10, 10, 10, 10, 7, 4, summing
-    to 196, so mR_bar = 196 / 11 = 17.82 and the limits are
-    106.67 +/- 2.66 * 17.82 = 59.3 .. 154.1. The current month, 120, is well
-    inside them - and it is the eighth consecutive point above 106.67.
+    eleven moving ranges are 40, 40, 40, 15, 10, 10, 10, 10, 10, 7, 4; sorted,
+    the sixth of the eleven is 10.0, so the spread is 3.145 * 10.0 = 31.45 and
+    the limits are 106.67 +/- 31.45 = 75.22 .. 138.12. The current month, 120,
+    is well inside them - and it is the eighth consecutive point above 106.67.
+
+    Recomputed by hand in 3D2 for the median spread; the centre and the thing
+    this test exists to prove are unchanged. An earlier attempt in that
+    session replaced this fixture outright, on the argument that the mean
+    centre only fired here because outliers displaced it. That was wrong -
+    there are no outliers in this series, and the centre was displaced by the
+    shop's genuine earlier level, which is exactly what rule 2 is for. The
+    test is restored.
     """
     values = [60.0, 100.0, 60.0, 100.0, 115.0, 125.0, 115.0, 125.0, 115.0, 125.0, 118.0, 122.0]
     months = {f"2011-{index + 1:02d}": value for index, value in enumerate(values)}
@@ -140,7 +157,7 @@ def test_a_long_run_on_one_side_fires_rule_two_without_leaving_the_limits() -> N
     signal = next(s for s in signals if s.series == "revenue")
 
     assert signal.center == pytest.approx(1280 / 12)
-    assert (signal.lower, signal.upper) == pytest.approx((59.3, 154.1), abs=0.1)
+    assert (signal.lower, signal.upper) == pytest.approx((75.22, 138.12), abs=0.01)
     assert signal.lower < signal.value_cur < signal.upper  # no single month is unusual
     assert (signal.signal, signal.rule) == ("above", 2)
 

@@ -43,9 +43,27 @@ RECONCILE_REL_TOLERANCE = 1e-9
 
 # --- Signal vs noise, XmR (7.5) -----------------------------------------------
 
-# Wheeler's constant for process behaviour charts: 3-sigma limits estimated
-# from the average moving range (3 / d2, d2 = 1.128 for n = 2).
+# Wheeler's two constants for 3-sigma limits on a process behaviour chart:
+# 3 / d2 with the AVERAGE moving range (d2 = 1.128 for n = 2), and 3 / d4 with
+# the MEDIAN moving range (d4 = 0.954). Both are standard XmR practice.
+#
+# The median form is preferred because one anomalous month contributes two
+# large moving ranges, which the average absorbs and the median does not. On
+# the case 3B recorded as finding 3a - a near-zero month producing a huge
+# year-over-year point - the average-based limits came out about 650 units
+# wide and silenced the series completely, against about 17 for the median.
+#
+# The average form is kept as the FALLBACK, and it is not a formality. The
+# median moving range is exactly zero whenever half the consecutive pairs are
+# identical, which is ordinary for flat, rounded or small-integer series
+# rather than a degenerate corner - and zero-width limits report a 0.2% move
+# as a special cause. Session 3D2 shipped that and measured it: a flat shop at
+# 500 went from quiet (limits 485.7 .. 524.3) to firing rule 1 on a move of
+# one unit. Falling back to the average is bit-for-bit the behaviour those
+# series had before, so the robustness is gained where it helps and nothing
+# regresses where it does not.
 XMR_FACTOR = 2.66
+XMR_MEDIAN_FACTOR = 3.145
 
 # Fewer baseline points than this and the limits are too unstable to act on,
 # so the series reports insufficient_history instead of a false verdict.

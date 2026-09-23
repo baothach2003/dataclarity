@@ -45,7 +45,8 @@ def diagnosis_payload() -> dict[str, Any]:
         },
         "signals": [{"series": "revenue", "mode": "level", "value_cur": 1150000.0,
                      "center": 1240000.0, "lower": 1090000.0, "upper": 1390000.0,
-                     "signal": "within", "rule": None}],
+                     "signal": "within", "rule": None,
+                     "limits_method": "median_moving_range"}],
         "tree": {
             "method": "shapley",
             "lever": {

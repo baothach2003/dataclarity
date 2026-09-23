@@ -96,9 +96,21 @@ class Signal(ContractModel):
     signal: Literal["above", "below", "within", "insufficient_history"]
     # Which detection rule fired: 1 = outside the limits, 2 = a run on one side
     # of the centre line. Null when the series is within limits or has no
-    # baseline. Kept in the output even when a signal is rule 2 only, so step 7
-    # can tell those apart until re-baselining lands (session 3D2).
+    # baseline.
+    #
+    # **Step 7 acts on rule 1 only.** Rule 2 measures a run against a centre
+    # computed from the same points, so one anomalous month re-fires it every
+    # month until it leaves the window (3B). Re-baselining was attempted in
+    # 3D2 and the method did not work (PROJECT_PLAN section 12), so rule-2
+    # signals stay in the output - a reader can see them - but T3 and the
+    # masked-shift alert are decided on rule 1. This is a contract, not a
+    # session convention (Thach, 3D2).
     rule: Literal[1, 2] | None
+    # Which estimator drew the limits: the median moving range, or the average
+    # as a fallback when the median is zero. Recorded so that a later change
+    # of estimator is visible in the file rather than silently changing what
+    # every verdict means (Thach, 3D2).
+    limits_method: Literal["median_moving_range", "mean_moving_range"]
 
     @model_validator(mode="after")
     def _nulls_mean_no_baseline(self) -> Self:
