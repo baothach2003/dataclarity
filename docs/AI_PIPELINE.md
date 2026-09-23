@@ -176,7 +176,9 @@ add, remove or re-rank hypotheses, and may not upgrade a verdict. Output shape:
 `docs/CONTRACTS.md` section 7. Rationale for the two design rules that shape
 everything below: `docs/adr/0004-shapley-attribution.md` (order-independent
 attribution) and `docs/adr/0005-pre-registered-hypothesis-catalog.md` (a fixed
-catalog the AI cannot pick from). Full derivation, worked numbers and sources:
+catalog the AI cannot pick from), plus
+`docs/adr/0006-level-signals-are-descriptive.md` for which step-4 rows are
+allowed to mean anything (only year-over-year ones). Full derivation, worked numbers and sources:
 `docs/DIAGNOSE_DESIGN.md`.
 
 | Step | Question | Block |
@@ -353,6 +355,72 @@ a false alarm on its own.
   report a 0.2% move as a special cause. Session 3D2 shipped that and measured
   it before reverting. Where the fallback triggers, the result is bit-for-bit
   what the average alone produced.
+- **T3 is the one exception, and the asymmetry is deliberate** (Thach, 3D4).
+  "The change is routine variation" is `supported` only when **no rule-1
+  signal fires AND no rule-2 signal fires**. Rule 1 decides what step 7 *acts*
+  on; T3 is not an action, it is the claim that nothing happened, and that
+  claim must not be made while a rule-2 signal sits in the output unexplained.
+  So a rule-2 signal can **prevent** "routine" but can never **become** a
+  headline cause. Read the two rules together rather than as a contradiction:
+  the bar for asserting that nothing happened is higher than the bar for
+  acting.
+
+  **Superseded (ADR-0006).** Session 3D4 hung T3 on `mode_fallback` instead:
+  that flag meant a series would have charted year over year but fell back to
+  a level chart, and T3 could not call such a month routine. The flag was
+  doing the work `mode` now does, and less reliably - a series can be in level
+  mode for reasons the flag never sees. T3 reads `is_verdict` and nothing
+  else. The paragraphs below are the live rule.
+
+  When every series reports `insufficient_history`, T3 is **`inconclusive`,
+  never `supported`**. "We could not tell" and "nothing happened" are
+  different sentences, and scenario S11 exists to hold that line: a six-month
+  file has no baseline to call anything routine by.
+
+  **And T3 is `inconclusive`, never `supported`, whenever `revenue` has no
+  year-over-year VERDICT** - at any file length, whether because the series is
+  `insufficient_history` or because it is charted in level mode (ADR-0006).
+  The conditions above are all about signals that DID fire; none of them
+  notices a series that was never judged, and reading "no verdict fired" as
+  "nothing happened" is the S11 failure in a new shape. T3 is the claim that
+  the REVENUE change was routine, and a revenue series with no verdict cannot
+  support it.
+
+  **T3's evidence lists every series that had no year-over-year verdict**, so
+  a month reported as routine shows which parts of it were not judged rather
+  than implying all of them were.
+- **A level-mode row is DESCRIPTIVE, never a verdict**
+  (`docs/adr/0006-level-signals-are-descriptive.md`). It is computed, carries
+  its limits and its rule, and is written to `diagnosis.json` for a reader to
+  look at. Step 7 does not read it as a judgement about the month.
+  `contracts.diagnosis.is_verdict` is the single definition.
+
+  An XmR chart assumes a stable process, and a seasonal retail series is not
+  stable in level terms. The level chart centres on the average of every
+  month, so for any month with a season that centre is in the wrong place, and
+  the failure runs both ways: a December that halves still lands above it and
+  reads `within` or `above`, while an ordinary December fires `above` for
+  being ordinary. Year-over-year is what makes the series stable, and when it
+  is unavailable the missing information is exactly what a level chart would
+  need to stand in for it.
+
+  Sessions 3D3, 3D4 and 3D5 each tried to gate the level chart instead. The
+  last of them could not run on a 24-month file at all - `HISTORY_MAX_MONTHS`
+  is 24, so the window holds one prior occurrence of the current calendar
+  month and that occurrence is the comparator whose failure caused the
+  fallback. The ADR records all four attempts and why the policy moved rather
+  than the arithmetic.
+
+  **The one consumer allowed to read a level row is the masked-shift alert**
+  (7.6), because its other half divides by the change in revenue and so fires
+  on every flat month by itself. It records which kind of row it rested on in
+  `lever.masked_shift_basis`, and 3F phrases a `level` basis as possibly
+  seasonal.
+
+  **Stage 5 must not render a level-mode `within` as "within normal
+  variation"** - see CONTRACTS section 7 and the 3F narration rules in 7.9.
+  That responsibility moved here from the deleted gate; it is a rule, not a
+  preference.
 - **Step 7 acts on rule 1 only.** Rule 2 measures a run against a centre
   computed from the same points, so one anomalous month re-fires it every
   month until it leaves the window (3B). Re-baselining was attempted in
@@ -397,6 +465,66 @@ a false alarm on its own.
   instantly. Modes therefore differ per series within one run, so
   `center`/`lower`/`upper`/`value_cur` are money on one row and percentage
   points on the next: read `mode` before comparing two signals.
+- **Year-over-year base guard** (3D4, 3D6). A year-over-year point divides by
+  the same month a year earlier, and that month is used as a base only if it
+  is (1) **positive** - revenue is signed, and two negatives divide to a
+  confident positive, so a doubled loss read as growth; (2) **more than
+  floating-point residue** next to the series' largest month - a cancelled
+  month nets 1.4e-17, not 0.0; and (3) **at least `YOY_MIN_BASE_SHARE` of the
+  series' typical magnitude**, the median of `|value|` over the history
+  window's TRADING (non-zero) months (3D6). A refused base leaves that point
+  undefined. A refused CURRENT comparator sends the series to level mode with
+  `mode_fallback = unusable_year_ago_base`, the path an unusable base already
+  took. Refused BASELINE bases remove points, and enough of them take the
+  series below `XMR_MIN_BASELINE_POINTS`, which also means level mode - but
+  with `mode_fallback = null`, exactly as 3D4's sign test already did.
+  Level mode is descriptive and never a verdict (ADR-0006). That second
+  path is a labelling gap for 3D7: the row looks like a shop with too little
+  history.
+
+  The third condition exists because the first two admit 12.50 on a shop
+  turning over 50,000, which divides to +399,900%. Since ADR-0006 that is an
+  actionable rule-1 verdict on a month where nothing happened, and it fired
+  the masked-shift alert with `basis = yoy`, which headline rule 4 states
+  without its hedge. The same base inside the baseline drags the mean centre
+  tens of thousands of points, so every ordinary month fires. Typical is a
+  median so one freak month cannot move it, over the history window so a
+  shop is judged against its recent self, a magnitude so a series that nets
+  negative in most months still has a size, and over trading months because
+  a month without rows is charted as 0.0 - a stall open four months a year
+  otherwise had a typical level of zero and no guard at all.
+
+  **The share is a policy, not a measurement**, for the reason 3D5's width
+  constant was: a base at fraction f is refused iff f is below it, so a sweep
+  of bases scored against it is circular - and the exclusion side has no edge
+  at all, since a comparator at half its normal level already fires an
+  actionable +100% on an ordinary month. **Base effects are what year-over-
+  year is; this guard removes only the end of the range where the figure has
+  stopped being a growth rate.** What was measured is the ceiling, from bases
+  that are small and real: a recovery after a slump of exactly half the
+  window sits at 4.76% of its median and is lost from 0.035 at 20% monthly
+  noise. The value inside the band is chosen by the asymmetry (Thach, 3D6):
+  refusing a usable current comparator only removes a verdict, keeping an
+  unusable one fabricates one, so where the evidence cannot separate two
+  values the one that refuses more wins. **That asymmetry holds for the
+  current comparator only.** Refusing a BASELINE base moves the centre in
+  either direction and can create a verdict. The guard applies there only
+  because a base under 3% drags the centre by thousands of points, which is
+  the reproduction; it is not safe, and on ordinary months of two-regime
+  shops it gave 23 fabrications against 21 without it.
+
+  **What the guard does not fix** (two doubt-review cycles, each case run to
+  the headline; PROJECT_PLAN 3D9, which blocks 3E): a baseline base at 3.5%
+  to 25% of normal still drags the mean centre into an actionable verdict on
+  an ordinary month; a shop off-season for more than half the year at a low
+  non-zero level has its typical month set by the off-season, so a 12.50
+  in-season comparator is still actionable; and a slump deeper than about
+  1.5% of normal loses its real recovery verdict. The first two FABRICATE,
+  the third suppresses. `test_yoy_small_base.py` pins each as a known limit.
+  Full reasoning and figures in `thresholds.py`.
+
+  **T2 divides by the same kind of base** (`revenue_prev * (LY_cur/LY_prev -
+  1)`, 7.8) and must apply all three conditions when 3E builds it.
 - **Margin.** A point counts as outside a limit only if it clears it by
   `max(XMR_REL_TOLERANCE * |centre|, the series' absolute floor)`. A baseline
   that never varied gives zero-width limits, and without a margin a rounding
@@ -588,7 +716,7 @@ hypotheses after seeing the data is the failure mode this prevents.
 | D3 | data | Flagged rows concentrated in the current period | directional: supported when D3 cautions | none |
 | T1 | time | The calendar explains the change | `calendar_effect` | none (day-count fallback) |
 | T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur/LY_prev - 1)` | year-ago pair |
-| T3 | time | The change is routine variation | directional: all series `within`, no masked alert | baseline points for revenue |
+| T3 | time | The change is routine variation | directional: no rule-1 AND no rule-2 **year-over-year** signal on any series, and no masked alert; `inconclusive` whenever `revenue` has no year-over-year verdict, at any file length - `contracts.diagnosis.is_verdict` decides (ADR-0006). Evidence lists every series without a verdict | baseline points for revenue |
 | C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
 | C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
 | C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
@@ -634,7 +762,13 @@ contribution has the same sign as the change it claims to explain.
    is consistent with missing days, with the estimated gap.
 3. T3 supported and no masked-shift alert - within normal variation.
 4. Masked-shift alert - the total looks stable but components shifted strongly,
-   naming the two largest opposing contributions.
+   naming the two largest opposing contributions. **The wording depends on
+   `tree.lever.masked_shift_basis`** (ADR-0006): on `yoy` it is stated as a
+   finding; on `level` it is stated as a movement that may be seasonal,
+   because the rows establishing that the movement was unusual are level-mode
+   rows and a seasonal shoulder month has flat revenue and a shifting mix.
+   This belongs here and not only in 7.9: the headline is written by code and
+   is still produced in degraded mode, where no narration validator runs.
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
    state that.
 6. Otherwise the `supported` hypothesis with the largest absolute share, naming
@@ -671,6 +805,21 @@ tested is part of the answer, not an omission.
   degrade a run whose narration was right. The direction is already fixed by
   the deterministic blocks; the AI is being checked for inventing *figures*,
   not for choosing a preposition.
+- **The validator rejects any sentence that calls a `level`-mode series
+  normal, or calls it certainly unusual** (ADR-0006; build this in 3F). A
+  level chart is centred on the average of every month, so it is in the wrong
+  place for any month with a season and its row is descriptive, not a verdict.
+  The banned shapes are both directions: "revenue was within normal
+  variation" and "revenue was unusually low" are equally unsupported when the
+  row's `mode` is `level`. Permitted wording describes the chart and says what
+  was not available - "revenue was 25,000 against a monthly average of 52,000;
+  there was no comparable month last year, so this month was not judged
+  against its own season."
+- **The same applies to a masked-shift alert whose `lever.masked_shift_basis`
+  is `level`.** The alert may be stated - components did move, and the total
+  did hide it - but not as certainly unusual, because a seasonal shoulder
+  month has flat revenue and a shifting mix. Phrase it as possibly seasonal.
+  A `yoy` basis carries no such hedge.
 - Degraded mode: `ai_findings` and `model_used` are `null`, and the
   deterministic headline, hypothesis table and every computed block are still
   written and shown. Stage 3 never fails because of the AI.
@@ -698,6 +847,7 @@ are heuristics until calibrated against real data.
 | `XMR_MIN_SPREAD_RATE` | 0.01 | 7.5 minimum spread, rate series (3D3) |
 | `XMR_MIN_SPREAD_YOY_POINTS` | 2.0 | 7.5 minimum spread, yoy (3D3) |
 | `YOY_LAG_MONTHS` | 12 | 7.2, 7.5, and `YOY_MODE_MIN_MONTHS` |
+| `YOY_MIN_BASE_SHARE` | 0.03 | 7.5 year-over-year base guard, a policy (3D6) |
 | `YOY_MODE_MIN_MONTHS` | **derived**, see below | 7.5 |
 | `HISTORY_MAX_MONTHS` | 24 | 7.2 |
 | `CALENDAR_MIN_WEEKS` | 8 | 7.4 |

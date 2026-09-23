@@ -236,12 +236,60 @@ dataclarity/
 > section 7; DIAGNOSE_DESIGN.md remains the record of *why*. Only 3F spends
 > API credit.
 >
+> **Session order from here** (Thach, triaged after 3D5b): 3D4, 3D5, 3D5b
+> (all committed together), then **3D6**, then **3D9**, then **3E**, then
+> **2E**, **3D7** and **3D8**, then 3F, 3G.
+> **3D9 moved ahead of 3E by execution, not by reading** (Thach, 3D6): every
+> known limit of 3D6's guard was run through the real pipeline to the
+> headline and classified FABRICATE or SUPPRESS; any FABRICATE puts a session
+> before 3E, SUPPRESS-only cases may follow it. Five cases fabricate, so 3D9
+> is first. The table is on the 3D9 line.
+> 3D6 moved ahead of 3E on evidence rather than caution: ADR-0006 made a
+> year-over-year row a verdict, so a 12.50 base on a 50,000 shop is no longer
+> a bad-looking figure but an actionable rule-1 finding that also fires the
+> masked-shift alert with no hedge - a wrong verdict AND a wrong headline on a
+> month where nothing happened. 3D7, 3D8 and 2E were run the same way and none
+> of them can change a verdict or a headline 3E produces; each carries its
+> reason on its own line.
+> 3D5 comes before 3E because 3E is the verdicts, and a seasonal shop whose
+> month genuinely halved currently produces no signal at all for its largest
+> movement. 2E must precede 3F because 3F narrates figures that come from
+> `metrics.json`, and `revenue_change_pct` is currently wrong for any shop
+> with a negative previous period.
+>
 > **Commit grouping for the rest of Phase 3** (Thach, after 3D3): **3D4+3E**
 > in one commit, **3F+3G** in the next. 3D3 was committed alone, because 3D4
 > edits `signals.py` again and reroutes mode selection, so splitting them
 > afterwards would not have been possible. The per-session scratchpad summary
 > is written every session; the commit message is written once per group, at
 > the end of its final session, organised by session.
+>
+> **Commit the signals work as its own group: 3D4 + 3D5 + 3D5b** (Thach,
+> after 3D5b). It is a closed topic with its own ADR; 3E alone is large (the
+> catalog, the headline rules, the S0-S11 generator) and grouping would pass
+> the ~20-file bound; and if 3E goes wrong the way 3D2 did, this is a revert
+> point with the signals policy intact. **Its message must tell the story
+> straight** (Thach, after 3D5b): the level-chart gate was built in 3D5
+> and then deleted in 3D5b by a policy decision, and the message says so
+> rather than presenting the end state as if it were the plan. The reason
+> belongs in it too - the gate's own best condition could not fire on a
+> 24-month file, which is the project's reference length. A reader of
+> `git log` should not have to open ADR-0006 to learn that a session's work
+> was removed by the next one.
+>
+> **3D6 joins that group** (3D6, stated with the reason): the group was not
+> yet committed when 3D6 ran, and 3D6 edits seven of its thirteen files
+> (`signals.py`, `thresholds.py`, `contracts/diagnosis.py`, AI_PIPELINE,
+> CONTRACTS, this plan, `test_yoy_base.py`), so it can neither stand alone
+> nor join 3E without hunk-level staging - the 2A/2B situation. It is also
+> the same topic: the magnitude half of 3D4's base guard. 14 files.
+>
+> **Also frozen in this group: `docs/DIAGNOSE_DESIGN.md`** (Thach, after
+> 3D5b). Its sections 5-9 are the historical design record as of 3A and carry
+> a banner saying so, enforced by `tests/test_docs_single_source.py`. Twice a
+> rule has lived in two catalogs and the copies drifted into opposite answers
+> - C2's sign convention in 3C, the T3 rule in 3D5b - so a second live
+> catalog is now a test failure rather than something to notice by eye.
 >
 > **Every remaining session runs BOTH a per-decision mutation check AND a
 > doubt-review cycle** (Thach, after 3D). Neither substitutes for the other:
@@ -344,6 +392,130 @@ dataclarity/
       file where many months are non-positive, and is falling back to level
       right for all eight series. Tests per symptom first, as in 3D3.
       Doubt-review: yes. Mutation check: yes.
+- [x] 3D5 Decide whether the level chart is informative before falling back
+      to it (**prerequisite of 3E**, Thach, after 3D4). Closed 2026-09-23,
+      then **SUPERSEDED the same day by ADR-0006** (session 3D5b): the gate
+      this session built was deleted and the policy moved instead. Read the
+      ADR before this entry - what follows is the record of an attempt, not
+      of the current design. What survives from it: the year-over-year base
+      guard's companion fixes (`no_current_value`, `no_measurable_spread`)
+      and the finding that killed the approach, that the seasonal-position
+      condition cannot fire on a 24-month file.
+      3D4 shipped option (a): a series records `mode_fallback` when it would
+      have charted year over year but its current month had no usable
+      comparator, and T3 may not call such a month routine. **That is NOT a
+      fix and must not be read as one.** On the measured case - a seasonal
+      shop whose January halved against a normal January, the two files
+      differing only in one month twelve months earlier - the series reports
+      `within` and **no series fires rule 1 anywhere in the run**. A real 50%
+      collapse produces no signal; all that was bought is a refusal to call
+      the month routine. That loss is why this is scheduled rather than
+      parked.
+      The cause is a collision between two correct fixes: 3D3's fallback to
+      level (without which a shop shut last February reports
+      `insufficient_history` on an 80% collapse) and 3D4's base guard (without
+      which a negative comparator inverts the sign). Falling back is right
+      when the level chart is informative and wrong when it is not, and on a
+      seasonal shop it is not - the level limits span 7,587 to 105,282.
+      Scope: decide, per series and per file, whether level mode can see what
+      year-over-year would have seen, and report `insufficient_history` rather
+      than a misleading `within` when it cannot. This needs a TUNED THRESHOLD
+      and therefore its own sweep with a clean context: two tuned constants
+      have been wrong in three sessions. Sweep first, state what it was tuned
+      against, and include the cases that must still FIRE.
+      Before 3E because 3E is the verdicts, and this file currently produces
+      no verdict for its largest movement. Note for whoever takes it: the tree
+      DOES see the change (-125,000 on that file), but it compares with the
+      previous MONTH, so on a seasonal shop it cannot separate the collapse
+      from the season - and T2, the hypothesis that would, divides by the same
+      year-ago month and needs 3D4's base guard applied to it.
+      Doubt-review: yes. Mutation check: yes.
+      **SHIPPED.** A fallback happens only when the level chart can see a
+      halving; otherwise the series reports `insufficient_history` with
+      `insufficient_reason = "neither_chart_informative"`. The new field is
+      kept SEPARATE from `mode_fallback` on purpose (Thach, 3D5): the first
+      says the series has no chart at all, the second says it IS charted, on
+      level, and can still fire rule 1. Do not merge them for tidiness -
+      CONTRACTS section 7 states why.
+      **The brief asked for a tuned threshold and a sweep. It did not need
+      one, and saying so is the finding.** A drop of fraction X moves a month
+      X*centre from the centre, so `half_width >= X * |centre|` IS "blind to a
+      drop of X": the constant and the drop size are the same number.
+      `LEVEL_BLIND_SHARE = 0.50` states a policy - the chart must be able to
+      detect a halving - rather than approximating anything. The first sweep I
+      ran scored that rule against "would a halving be visible", which is the
+      same expression, and returned zero errors because it could not return
+      anything else. **That table was circular and was retracted to Thach
+      mid-session.**
+      What IS measured is the consequence, and it is a genuine trade-off:
+      across sixteen shapes run through `compute_signals` twice, 0.50 gives
+      one thrown-away detection and zero certified collapses, 0.60 gives zero
+      and two. 0.50 wins because the two costs differ in kind - a thrown-away
+      detection says "cannot say" about a month it could have called, while a
+      certified collapse says a halving was normal. After the doubt-review the
+      thrown-away column is zero at every policy from 30% to 50%, because the
+      gate refuses only silence - a chart that FIRES is kept however wide it
+      is. 0.30 to 0.50 score identically on the shape set; the table does not
+      pick between them and the policy does.
+      **This still does not restore the alarm** - the refused series produces
+      no signal for its largest movement, only an explicit refusal instead of
+      a wrong verdict. The note under 3E about the tree and T2 still stands.
+- [ ] 3D8 The year-over-year residue guard is anchored on the whole series'
+      maximum (its own line, Thach, after 3D5b; found by that session's
+      doubt-review, outside its scope).
+      `_as_yoy` computes `scale = column.abs().max()` and calls
+      `is_negligible(base, scale)` with `RECONCILE_REL_TOLERANCE` (1e-9), so
+      ONE freak month voids every ordinary base in the file. Reproduced: 26
+      months of revenue 100 charts `mode=yoy`; change one month to 1e12 and
+      usable year-over-year points drop from 25 to 1, so revenue charts
+      `mode=level signal=below`.
+      It needs a magnitude ratio around 1e9, so it is unlikely on money - but
+      **ADR-0006 made the consequence worse**, because losing year-over-year
+      mode now means losing the verdict, and T3 is then permanently
+      inconclusive for that file. The structural objection stands whatever the
+      likelihood: a RECONCILIATION tolerance is being reused as a DATA
+      threshold, and anchored on the series maximum rather than on the base's
+      own neighbours.
+      Scope: pick the right anchor (a local window, or the base's own
+      magnitude) and the right constant, with a sweep. Overlaps 3D6 (how small
+      a base stops being a usable denominator) and may merge with it - decide
+      with Thach.
+      **Triaged against 3E (after 3D5b): NOT a blocker.** Reproduced - 26
+      months of revenue 100 charts `yoy` and `is_verdict=True`; change one
+      month to 1e12 and it charts `level`, `is_verdict=False`. So it removes a
+      verdict rather than inventing one, and T3 becomes `inconclusive`. That
+      is the SAFE direction: the engine says "we could not tell" instead of
+      making a claim. It also needs a magnitude ratio around 1e9. It degrades
+      3E's coverage, never its correctness.
+      Doubt-review: yes. Mutation check: yes.
+- [ ] 3D7 `_fallback_reason` reports a third fact as one of two labels
+      (its own line, Thach, after 3D5b; independent of ADR-0006, may run with
+      2E or 3D6).
+      `mode_fallback` distinguishes `no_year_ago_value` - documented as "the
+      month is absent from the file, the shop was shut" - from
+      `unusable_year_ago_base`. But `_fallback_reason` derives the first from
+      `months_with_rows` intersected with `complete_months`
+      (`inputs.py`), so a file starting 2011-01-15 with `current = 2012-01`
+      reports "the shop was shut" for a month that has rows and was simply not
+      fully covered. Three facts, two labels, and 3F narrates the wrong one.
+      Scope: distinguish "no rows at all" from "rows but incomplete coverage",
+      either as a third `mode_fallback` value or by fixing the derivation.
+      Decide which with Thach before implementing - it is a contract change
+      either way. Note that `monthly_series` charts an empty month as 0.0,
+      which contradicts `inputs.py`'s own 3B finding 2 and is why the series
+      value cannot answer this question.
+      **Triaged against 3E (after 3D5b): NOT a blocker.** Since ADR-0006
+      `mode_fallback` gates nothing - `mode` decides what is a verdict - and a
+      grep of AI_PIPELINE, CONTRACTS and DIAGNOSE_DESIGN finds no decision
+      rule that reads it. It reaches only 3F's wording, so it must land before
+      3F and cannot change a verdict or a headline 3E produces.
+      **Also (3D6 doubt-review):** a series pushed into level mode because
+      refused BASELINE bases left fewer than eight points carries
+      `mode_fallback = null`, and reads exactly like a shop with too little
+      history. True since 3D4's sign test; 3D6's share makes it more common.
+      A fourth fact for the same field. Reproduction: 24 months at 500, then
+      12 at about 50,000, current 50,000 (3D6 scratchpad `review/r4.py`).
+      Doubt-review: yes. Mutation check: yes.
 - [ ] 3E Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the fixed catalog,
       verdicts, the 7 headline rules, the fixed-seed scenario generator and the
       S0-S11 suite with its acceptance criteria - including **S11, the
@@ -352,6 +524,140 @@ dataclarity/
       **Also the trigger for the Figma Insights frame** (trust badge, normal-
       variation state, hypothesis list with verdict labels): the shapes those
       need are final only once this session lands (Thach, 3A)
+- [ ] 2E Percentage change against a non-positive base, in STAGE 2
+      (**must land before 3F**, Thach, after 3D4). `shared/transactions.py`'s
+      `pct_change` guards with `if previous else 0.0` - non-zero, not
+      positive - so it inverts exactly as `_as_yoy` did before 3D4. This is
+      the more serious instance, because it reaches the figures rather than
+      only the verdicts, and 3F narrates figures that come from
+      `metrics.json`. Verified:
+
+          pct_change(-200, -100) = +100%    a doubled loss, as growth
+          pct_change(500,  -100) = -600%    a recovery, as a collapse
+          pct_change(1000, 1.39e-17) = 7.2e21%
+
+      Two places it lands, both worked through:
+      * `metrics_core.py` - `revenue_change_pct`, the headline KPI the whole
+        report is built around. A shop whose month went from -100 to -200
+        gets `revenue_change_pct = +100.0` written into `metrics.json`, and
+        every later stage reads that number as growth.
+      * `metrics_products.py` `_biggest_decliners` computes `pct_change` per
+        product and keeps those with `change < 0`. So a product whose loss
+        DOUBLED (-100 -> -200) scores +100 and is **dropped from the
+        decliners list**, while a product RECOVERING (-100 -> +500) scores
+        -600 and is **reported as the biggest decliner**. The list is
+        inverted for any product with a negative previous period.
+      **Triaged against 3E (after 3D5b): NOT a blocker; the existing
+      before-3F schedule is right.** Stage 3 reads exactly three things from
+      `metrics.json` - `period`, `core.revenue_current` and
+      `core.revenue_previous` - grepped across `stages/diagnose/`, not
+      assumed. `revenue_change_pct` and `products.biggest_decliners`, the two
+      fields the defect lands in, are not among them, so no verdict, share or
+      headline 3E computes can carry the inverted figure. 3F narrates from
+      `metrics.json` directly, which is where it bites.
+      **Fixing this changes values in `metrics.json`**, so the stage 2 /
+      stage 3 consistency test is the thing that proves both stages moved
+      together rather than one silently drifting. Expect stage 2 expectations
+      to move; list every one with its recomputed derivation, as 3D3 did.
+      Doubt-review: yes. Mutation check: yes.
+- [x] 3D6 How small a base stops being a usable denominator
+      (**BLOCKS 3E - runs immediately before it**, Thach, triaged after 3D5b;
+      was "may run with 2E, before 3F").
+      **Why it moved.** ADR-0006 made a year-over-year row a VERDICT, so this
+      stopped being a cosmetic figure and became an actionable finding.
+      Reproduced on a shop at 50,000 a month whose year-ago month was 12.50,
+      with the current month back at an ordinary 50,000:
+
+          revenue          yoy above rule=1   +399,900 %   is_actionable=True
+          aov              yoy above rule=1   +399,900 %   is_actionable=True
+          units_per_order  yoy above rule=1   +399,900 %   is_actionable=True
+          masked_shift_alert=True  basis=yoy  gross_to_net=None
+
+      `aov` is a level-1 factor, so the masked-shift alert fires on it - and
+      with `basis=yoy` 3F states it WITHOUT the seasonal hedge. So **headline
+      rule 4 speaks, as a finding, on a month that went 50,000 to 50,000 and
+      in which nothing happened**, while T3 is ruled out by the same fake
+      signals. A verdict and a headline, both wrong, both from one small
+      month a year earlier.
+      3D4 closed the residue half - `is_negligible` against the series' own
+      scale - and left the magnitude half open: a base of 12.50 on a shop
+      turning over 50,000 still passes and yields 406,300%, which then drags
+      the mean centre and leaves every ordinary month firing. Closing it needs
+      a BUSINESS threshold (how small a month stops being a valid
+      denominator), and two tuned constants have been wrong in three sessions,
+      so it gets its own sweep rather than a number chosen at the end of a
+      long session (Thach, 3D4). Sweep first, state what it was tuned
+      against, and include the cases that must still FIRE. The cases that
+      must still fire now include a REAL 4,000% recovery - a shop that
+      genuinely was tiny a year ago - because the threshold must separate "too
+      small to divide by" from "small and the growth is real".
+      Doubt-review: yes. Mutation check: yes.
+      **CLOSED 2026-09-23 as a NARROW fix** (Thach chose it after two
+      doubt-review cycles). A base is refused below `YOY_MIN_BASE_SHARE =
+      0.03` of the series' typical magnitude - the median of |value| over the
+      TRADING (non-zero) months of the history window. It removes the
+      reproduction and the absurd end, and nothing else; what it cannot reach
+      is 3D9, which now blocks 3E.
+      * **The constant is a policy.** A base at fraction f is refused iff f <
+        0.03, so any sweep of bases scored against it is circular (3D5's
+        lesson), and the exclusion side has no edge: a comparator at HALF
+        normal already fires an actionable +100% on an ordinary month. What
+        was measured is the ceiling, from bases small AND real: a recovery
+        after a slump of exactly half the window sits at 4.76% of its median
+        and is lost from 0.045 at 5% noise, 0.035 at 20%, 0.03 at 30% (1 in
+        80 seeds). Between 0.025 and 0.03 nothing separates them below 30%
+        noise, so the asymmetry picks the one that refuses more.
+      * **Rejected on evidence:** a cap on the result (drops a real +9,900%
+        jump by construction); windows centred on the base (a nine-month
+        closure passes them and fabricates); a mean yardstick (one freak month
+        voids every base); the whole file as window (a shop that shrank long
+        ago is judged against its past).
+      * **Doubt-review cycle 1** found the first version inert on a stall
+        shut most of the year (median 0, floor 0, +399,900% unchanged) - fixed
+        by the trading-month median; that refusing a BASELINE base is NOT the
+        safe direction (a growing off-season shop's ordinary January became
+        an actionable `above`) - documented, not fixable by a share; and a
+        `mode_fallback = null` for series eroded into level mode - moved to
+        3D7. **Cycle 2** found the three families below, and two claims of
+        mine false (the residue check "implied", the NaN branch
+        "unreachable"). Both corrected, the first now pinned.
+- [ ] 3D9 Base effects the 3D6 share cannot reach (**BLOCKS 3E - runs
+      immediately before it**, Thach, 3D6, by execution: rule below).
+      Triage rule (Thach): run each case to the headline; FABRICATE = an
+      actionable rule-1 verdict or an unhedged headline the data does not
+      support; SUPPRESS = a supported verdict removed or silenced. Any
+      FABRICATE puts this before 3E. Run on the real pipeline
+      (`run_data` -> `compute_signals` -> `compute_lever`), share 0 vs 0.03;
+      script: 3D6 scratchpad `triage.py`.
+
+      | case | shape | result, 3D6 | class |
+      |---|---|---|---|
+      | L1 | open Jun-Sep at 50,000, 300/month otherwise; year-ago June 12.50; June ordinary | revenue, aov, upo `above` +400,300%, actionable; unchanged by 3D6 | FABRICATE |
+      | L2 | off-season 2,000 (7 months); year-ago June 100 | +49,950% actionable x3 | FABRICATE |
+      | L3 | flat ripple at 50,000, 2010-06 at 3.5 / 5 / 10 / 25% of normal, current -0.5% | `below` rule 1 actionable x3, all four shares, before AND after 3D6 | FABRICATE (predates 3D6) |
+      | L4 | off-season Jan-Jun growing 500 -> 1,000 -> 1,500, +-20% seeded noise, January +91% (reviewer's `review/r3.py`) | `within` -> `above` actionable: CREATED by 3D6 refusing six genuine off-season bases | FABRICATE (3D6) |
+      | L5 | 12-month slump at 700 or 500, or 11 months at 700 and second recovery month | real recovery goes to level; not actionable; alert basis yoy -> level | SUPPRESS |
+      | L6 | 3-month trough at 1.5% of normal, July halved | real halving goes to level | SUPPRESS |
+      | L7 | 2011-03 at 12.50 as a year-over-year NUMERATOR, current ordinary | `above` actionable x3 (mean centre pulled to about -8 points) | FABRICATE (predates 3D6; measured ~13% of seeds vs 2.5% control) |
+
+      No case fires the masked-shift alert with `basis = yoy` on a month
+      where nothing happened; headline rule 4 is reached through the
+      actionable rows, which feed the alert whenever revenue moves.
+      L1, L3 and L5 are pinned as KNOWN LIMITS in `test_yoy_small_base.py`,
+      asserting today's defective behaviour, so the fix fails them visibly.
+      * **Candidate method, not a decision** (Thach): a robust centre in yoy
+        mode (median rather than mean), which would absorb one anomalous base
+        OR numerator point (L3, L4, L7 together). 3D2's reason for reverting
+        a median centre was a level-mode problem - in yoy mode seasonality is
+        already differenced out - so it does not carry over directly, but it
+        needs its own sweep, including the cases that must still FIRE. L1/L2
+        (the yardstick set by an off-season) likely need a separate idea.
+      * **Rejected, with the reason** (Thach): making a yoy verdict
+        actionable only when the level chart agrees. ADR-0006 exists because
+        the level chart is uninformative on seasonal series, so that would
+        silence year-over-year exactly where it is the only informative chart
+        - the C1 case in reverse.
+      Doubt-review: yes. Mutation check: yes.
 - [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
       not-tested validator, degraded mode, one real API check (a few cents - the
       only session in Phase 3 that spends credit). Doubt-review: yes
@@ -536,7 +842,109 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D3** closed
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D6** closed
+2026-09-23 as a **narrow fix, by Thach's choice after two doubt-review
+cycles**. A year-ago base is refused below 3% of the series' typical month
+(the median magnitude over the history window's trading months), which
+removes the reproduction - a 12.50 base on a 50,000 shop, +399,900%,
+actionable on three series - and the absurd end of the range. It does not
+fix base effects in general, and the session's main finding is that no share
+can: a comparator at half normal already fires an actionable +100%. Each
+review cycle found a hole the previous fix could not reach - a stall shut
+most of the year (fixed), a trickle off-season (not fixable by a yardstick),
+baseline bases at 3.5-25% still dragging the centre - and every known limit
+was then **run to the headline and classified** (Thach's rule): five
+FABRICATE, two SUPPRESS. So **3D9 runs before 3E.** Two claims of mine were
+false and are corrected: the residue check was "implied" and the NaN branch
+"unreachable". pytest 2180 passed.
+Previously, session **3D5b** closed
+2026-09-23, and it **deleted most of what 3D5 built**. Thach's decision, taken
+after 3D5's own findings were in: the problem is structural, not a sequence of
+bugs. An XmR chart assumes a stable process; a seasonal retail series is not
+stable in level terms; year-over-year is what makes it stable; and when
+year-over-year is unavailable, the information a level chart would need to
+stand in for it is exactly the information that is missing. No gate can
+synthesise it.
+The decisive evidence came from 3D5's own gate: its seasonal-position
+condition cannot fire on a 24-month file, because the history window holds one
+prior occurrence of the current calendar month and that occurrence is the
+comparator whose failure caused the fallback. **Twenty-four complete months is
+the project's recommended demo dataset** - the fix could not run on the shape
+it was written for.
+So the policy moved instead of the arithmetic (`docs/adr/0006-level-signals-
+are-descriptive.md`): **level-mode rows are descriptive, never verdicts.** They
+are still computed, still carry limits and a rule, still written to
+`diagnosis.json`; step 7 does not read them as judgements.
+`contracts.diagnosis.is_verdict` decides which rows step 7 may read and
+`is_actionable` which may become a cause - two predicates, because a rule-2
+row blocks T3 and may never be a headline cause. T3 is `inconclusive`, never
+`supported`, when revenue has no year-over-year verdict, at any file length.
+The masked-shift alert is the one exception and records its
+`masked_shift_basis`. `_level_is_blind`, `_month_not_comparable_to_centre` and
+`LEVEL_BLIND_SHARE` are gone, and with them the last tuned threshold on this
+path.
+**The doubt-review then found that I had updated only one of the two T3 rows
+in the documents**, leaving `AI_PIPELINE.md` 7.8 stating the superseded 3D4
+rule - which on this session's own flat 14-month fixture evaluates to "within
+normal variation", the exact conclusion the ADR forbids. Six more findings,
+all mine, all fixed: `is_verdict` conflating two questions, every
+masked-shift test running the one branch without a conjunction, an untested
+contract validator, four self-contradicting `Signal` shapes the model
+accepted, a code-written headline rule that ignored the basis, and a flagship
+test whose second assertion was implied by its first. pytest 2156 passed.
+Previously, session **3D5** closed
+2026-09-23: a series falls back to its level chart only when that chart can
+detect a halving. When it cannot, and its year-over-year comparator is also
+unusable, the series reports `insufficient_history` with
+`insufficient_reason = "neither_chart_informative"` instead of a `within` the
+chart could not support. The new field is deliberately separate from
+`mode_fallback`; CONTRACTS section 7 says why and says not to merge them.
+**The session's main finding is about the evidence, not the code.** The brief
+called for a tuned threshold and a sweep. The rule turns out to need neither:
+`half_width >= X * |centre|` is the definition of "blind to a drop of X", so
+the constant and the drop size are one number and `0.50` states a policy - the
+chart must see a halving. **The sweep I first ran scored that rule against its
+own definition and returned zero errors because it could not return anything
+else; I reported it as validation and then retracted it mid-session.** The
+honest measurement is the consequence table: across sixteen shapes 0.50 costs
+zero thrown-away detections and zero certified collapses, and 0.60 lets two
+collapses through.
+**Then the doubt-review found that width was only the smaller half of the
+question, and three of its findings were mine.** The width test assumes the
+month being judged is expected to sit at the centre, which is false for any
+seasonal month: a three-year shop whose December is 150,000 against a centre
+of 52,083 reported a December of 75,000 - half its revenue gone - as `within`,
+and the gate passed it through. The gate now also asks whether the centre is
+the right yardstick for this calendar month. The same review found that
+refusing a chart deleted rule-2 runs the contract requires to stay in the
+output, and that it discarded real detections; the gate now refuses only
+SILENCE, so a chart that fires is kept however wide it is.
+The mutation check then caught a regression I had introduced in the same
+session: having measured a minimum-spread line as inert I deleted it, but the
+sweep behind that measurement only covered money series, where the floor is a
+share of the centre. For `return_rate` the floor is absolute, and a shop
+returning 0.5% of its orders is drawn with limits twice as wide as its centre.
+The floor is back, keyed on the series' own name and mode, and pinned by a
+test. **This still does not restore the alarm** - a refused series produces no
+signal for its largest movement, only an explicit refusal instead of a wrong
+verdict. pytest 2152 passed.
+Previously, session **3D4** closed
+2026-09-23: year-over-year is no longer computed against a base that is not a
+usable denominator. The base must be positive and more than floating-point
+residue, and non-finite results are dropped. Each defect was written first as
+a failing test from the symptom. **Its doubt-review then found that a claim I
+had made about the fix was false, and that the fix made one case worse.**
+`price_per_unit` is not immune to the sign problem - I said it was, and the
+fixture I offered as evidence had a single price throughout, so it was
+arithmetically incapable of showing otherwise. And the guard turned a seasonal
+shop's real 50% collapse from `below` rule 1 into a silent `within`, by
+pushing the series onto a level chart whose limits span 7,587 to 105,282.
+What shipped for that is option (a): the series records **why** it fell back,
+and T3 may not call such a month routine - which is **not a fix**, since no
+series fires rule 1 on that file at all. Session **3D5** took that on and
+replaced the wrong verdict with an explicit refusal; it did not restore the
+alarm, and nothing since has. pytest 2132 passed at the time.
+Previously, session **3D3** closed
 2026-09-23: the four defects that made rule 1 unreliable are fixed, and 3E is
 unblocked. Each was written first as a failing test from the symptom - the
 RED step is in the Notes - because all four had survived three sessions for
@@ -742,21 +1150,13 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session **3D4** (year-over-year against a non-positive
-base), which is a prerequisite of 3E. 3C2 and 3D3 are closed; 3D4 was added
-after 3D3's doubt-review surfaced it, and it is a prerequisite rather than a
-follow-up for a specific reason: **nothing protects 3E from it.** The inverted
-value reaches `rule = 1`, which is the rule step 7 acts on, so it flows
-straight into T3 and the masked-shift alert with the direction reversed - the
-engine reporting a doubling of losses as an unusually good month. It is not
-confined to revenue either: `units_per_order` and `price_per_unit` go negative
-whenever a month's net units are negative, a case the lever lens already
-carries an explicit guard for, so this is ordinary operation rather than an
-exotic shape. Every contribution FIGURE in the report is safe, because the
-tree is computed from level data and never from the year-over-year series -
-the damage is confined to verdicts, but verdicts are what 3E is.
-Then 3E (Hypotheses and scenarios, AI_PIPELINE 7.8 and 7.11), which also
-carries scenario S11.
+**Next step:** Phase 3 session **3D9** (base effects the 3D6 share cannot
+reach), which blocks 3E by execution: five of its seven cases produce an
+actionable verdict on a month where nothing happened. Its table and
+reproductions are on its checklist line; its candidate method (a robust
+centre in year-over-year mode) needs its own sweep. Then 3E. (This paragraph
+still named 3D4 as the next step until 3D6 - it had not been updated since
+3D3.)
 Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
 but **not yet wired into an engine** - `compute_localization` has no caller
 outside its tests - so on Thach's instruction 3D added the contract round-trip
@@ -768,8 +1168,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run this session's git commands (see this session's own summary in chat
-   for the exact commands; uses a message file, not inline `-m`).
+1. Run `C:\Users\Happy\commit-signals.ps1` - regenerated in 3D6 to commit
+   3D4 + 3D5 + 3D5b + 3D6 together (14 files, message file
+   `C:\Users\Happy\commit-signals-msg.txt`). It stops before pushing.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -783,6 +1184,361 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3D6 (how small a base stops being a usable
+  denominator). Closed as a narrow fix. pytest 2180 passed; 17 new tests in
+  `tests/stages/diagnose/test_yoy_small_base.py` (three are KNOWN LIMITS
+  asserting defects for 3D9 to flip), three call sites in
+  `test_yoy_base.py` given the new `history` argument. Mutation check: 18
+  mutants on the guard's decision points plus a no-op control, all 18
+  killed; of 3D4's four older checks the residue check is killed, the sign
+  test and both non-finite drops survive as EQUIVALENT mutants (implied by
+  the share, documented in `_as_yoy`). Doubt-review: two cycles, one fresh
+  reviewer each; cross-model offered, Thach skipped.
+  **Grouped with 3D4 + 3D5 + 3D5b, not committed.**
+  - **RED first, from the symptom:** the reproduction failed with the exact
+    plan figures (399,900 on revenue, aov, units_per_order; alert True basis
+    yoy; the baseline route's centre at 33,058 points).
+  - **Method.** Scale-free yardstick = median |value| over the history
+    window's trading months. Candidates swept: none, the global median at
+    0.01-0.1, windows centred on the base (+-6, +-2), a cap on the result.
+    The flat-shape part of every sweep is circular - excluded iff f < k - and
+    is labelled as such; the non-circular content is which yardstick survives
+    which shape, and where business shapes land on the ratio line.
+  - **Mine, found by my own mutation check:** the new guard caught every
+    input 3D4 wrote for its residue test, so that check could be deleted
+    with a green build. Pinned twice, as the mechanism moved.
+  - **Mine, found by doubt-review cycle 1:** the guard was inert on a shop
+    shut most of the year (median of zeros) - fixed; I had written that
+    refusing any base "only removes a verdict", which is true for the
+    current comparator only - corrected everywhere it appeared; my own
+    cycle-1 check of two-regime shops was mislabelled (its "on-season"
+    current month was off-season), found by cycle 2.
+  - **Mine, found by cycle 2:** the residue check called implied (it is
+    load-bearing when half the trading months are residue) and the NaN
+    branch called unreachable (it is reached by `return_rate` on a shop with
+    no returns, harmlessly). Both corrected.
+  - **Not fixed, by decision:** L1-L7 on the 3D9 line. Thach's triage by
+    execution put 3D9 before 3E.
+  - **Also fixed in passing (pre-existing):** AI_PIPELINE 7.5 never described
+    3D4's base guard at all, although the brief pointed there for it; it now
+    describes all three conditions. Section 12's "Next step" had named 3D4
+    since 3D3.
+  - **Next step:** session **3D9**.
+- 2026-09-23, Phase 3 session 3D5b (ADR-0006: level-mode signals are
+  descriptive, never verdicts). Closed. pytest 2156 passed. 16 new tests
+  (13 in `tests/stages/diagnose/test_level_is_descriptive.py`, 7 parametrised
+  contract cases in `tests/contracts/test_diagnosis.py`); 10 tests deleted
+  with 3D5's gate, listed below. Mutation check run twice: the second pass is
+  19 mutants plus a no-op control and kills all 19. Doubt-review: 1 critical
+  and 7 required/nice-to-have, ALL OF THEM MINE, all fixed - see below.
+  **Not committed - groups with 3D4, 3D5 and 3E.**
+  - **Thach's decision, and the reason it is a policy not a patch.** Four
+    sessions (3D2 step detection, 3D3 floors, 3D4 base guard, 3D5 gate) each
+    closed with deeper open items on the same block. An XmR chart assumes a
+    stable process and a seasonal series is not stable in level terms; when
+    year-over-year is unavailable, what a level chart would need to replace it
+    is precisely what is missing. The clincher was 3D5's own gate:
+    `HISTORY_MAX_MONTHS` is 24, so a 24-month file's window holds ONE prior
+    occurrence of the current calendar month, and that occurrence is the
+    broken comparator. The seasonal-position condition is therefore inert on
+    the project's recommended demo dataset length.
+  - **What the policy is.** Only `yoy` rows are verdicts
+    (`contracts.diagnosis.is_verdict`). Level rows are computed, written and
+    shown, and step 7 does not read them. T3 is `inconclusive`, never
+    `supported`, when revenue has no year-over-year verdict at any file
+    length, and its evidence lists every series without one.
+  - **The one exception, with its reason recorded in the ADR.** The
+    masked-shift alert may read level rows, because its other half
+    (`gross_to_net`) divides by the change in revenue and so fires on every
+    flat month by itself - resting the alert on the ratio alone would break it
+    on exactly the files it exists for. `Lever.masked_shift_basis` records
+    `yoy` or `level`, null exactly when the alert is null or false, enforced
+    by a contract validator. A `yoy` row beats a `level` one when a run
+    carries both.
+  - **The handover is a rule, not a note** (Thach). The deleted gate was the
+    only thing stopping a level `within` reaching a reader as "within normal
+    variation". CONTRACTS section 7 now states that stage 5 renders level rows
+    with different wording, and AI_PIPELINE 7.9 states that the 3F validator
+    rejects any sentence calling a level-mode series normal OR certainly
+    unusual, and hedges a level-based masked-shift alert as possibly seasonal.
+  - **Deleted, and why each was deleted rather than weakened.** Ten tests went
+    with the gate: the four width tests (`..._blind_level_chart...`,
+    `..._can_see_a_halving_is_offered...`, `..._cannot_see_a_halving_is_
+    refused...`, `..._rate_chart_is_judged_on_the_width...`), the coupling
+    property test, the negative-centre test, and the four seasonal-position
+    tests from the 3D5 doubt-review. Every one asserted behaviour of code that
+    no longer exists; none asserted a behaviour the engine still has. The
+    facts they protected did not evaporate - they stopped being decisions the
+    engine makes. `test_the_fallback_does_not_restore_the_series_alarm`
+    survives with its `insufficient_reason` assertion replaced by
+    `is_verdict`, because its real claim (no rule 1 fires on that file) still
+    holds.
+  - **Kept from 3D5 deliberately:** `no_current_value` and
+    `no_measurable_spread`. They fix a field that reported a wrong reason on
+    two of its branches, which is unrelated to this policy.
+  - **The mutation check found the policy's weak side was the positive case.**
+    A mutant making `is_verdict` return False for everything survived the
+    first pass: every test asserted what is NOT a verdict, so "nothing is ever
+    a verdict" satisfied all of them - which would leave T3 permanently
+    inconclusive and the engine unable to say a quiet month was quiet. Two
+    more survivors needed a run carrying BOTH modes at once (revenue's
+    year-ago base broken while the customer count's is clean). All three now
+    have tests.
+  - **The doubt-review found one critical, and it was a documentation miss
+    that would have made the whole session pointless.** There are TWO T3 rows
+    in the documents - one in `DIAGNOSE_DESIGN.md`'s catalog and one in
+    `AI_PIPELINE.md` 7.8 - and I updated only the first. The second still
+    carried the 3D4 rule, and on this session's own fixture (a flat 14-month
+    file) it evaluates to **T3 supported, headline rule 3, "within normal
+    variation"** - exactly what ADR-0006 forbids, reached from absence. Two
+    source-of-truth documents giving opposite answers on the same file is the
+    thing CLAUDE.md section 1 says to stop and reconcile. Fixed, along with a
+    3D4 paragraph thirty lines above the live rule that a reader had no way to
+    date.
+  - **Six more, all mine, all reproduced before fixing.**
+    - `is_verdict` was declared "the single definition" and expressed neither
+      rule: a `yoy` rule-2 row is a verdict under it, which contradicts the
+      rule-1-only contract - while `_masked_shift` filtered rule 1 itself, so
+      the codebase disagreed with its own definition. Split into `is_verdict`
+      (may step 7 READ this row - true for rule 2, which blocks T3) and
+      `is_actionable` (may it become a CAUSE - rule 1 only). Both now tested,
+      including the positive cases.
+    - Every masked-shift test I wrote ran the `gross_to_net is None` branch,
+      where the ratio has no denominator - so all four `basis` assertions
+      exercised the ONE branch where the conjunction the ADR calls
+      load-bearing is not evaluated. Added a ratio-path test, and the ADR now
+      states that the flat branch is the ratio at its limit rather than a
+      missing half.
+    - The `masked_shift_basis` validator could be deleted entirely with a
+      green build. Now has three rejection cases.
+    - `Signal` accepted four rows that contradict the documents (a reason on a
+      charted row; no reason on an unchartable one; a fallback on a yoy row; a
+      rule on a `within` row). Two are mine, two predate 3D4. All four now
+      raise - the same file argues at length that this class of invariant must
+      be "enforced, not just documented". `_no_baseline`'s `reason` lost its
+      default for the same reason.
+    - Headline rule 4 is written by CODE and outranks rules 5-7, and my hedge
+      for a level-based alert lived only in 7.9, which is skipped in degraded
+      mode. The wording is now conditional on `masked_shift_basis` in 7.8 too.
+    - The flagship test's second assertion was implied by its first, so the
+      symptom in its docstring was asserted nowhere. It now pins the real
+      content: a halved December and an ordinary one produce IDENTICAL signal,
+      rule and limits.
+  - **One finding changed the design, not just the docs.** The basis rule said
+    "the stronger basis wins". Headline rule 4 names the two largest OPPOSING
+    contributions, so if the evidence that a named contributor moved unusually
+    is a level row, an unrelated year-over-year row elsewhere in the run is no
+    reason to drop the hedge. It is now `yoy` only when EVERY contributing row
+    is `yoy`.
+  - **Scheduled, not fixed:** 3D8, the year-over-year residue guard anchored
+    on the whole series' maximum. Reproduced: 26 months of revenue 100 charts
+    `yoy`; change one month to 1e12 and it charts `level`. ADR-0006 made the
+    consequence worse, because losing yoy mode now means losing the verdict.
+  - **Next step:** session **3E** (hypotheses and scenarios). It carries S11,
+    the T3 rule above, and T3's new evidence list.
+- 2026-09-23, Phase 3 session 3D5 (decide whether the level chart is
+  informative before falling back to it). Closed. pytest 2152 passed
+  (2132 before), 20 new tests in `tests/stages/diagnose/test_yoy_base.py`.
+  Mutation check run twice, before and after the doubt-review rework: the
+  second pass is 19 mutants plus a no-op control and kills all 19. The first
+  pass left three survivors, two of them unreachable from `compute_signals`
+  (confirmed by exhausting all 8,192 presence masks) and one an exact-float
+  boundary; the rework replaced that gate, so the second pass supersedes it.
+  Doubt-review: run, see below. **Not committed - groups with 3D4
+  and 3E.**
+  - **What shipped.** `_level_is_blind(column, history, name)` measures the
+    series' own level chart against its own centre before the fallback is
+    taken. Blind means a halving would sit inside the limits. A blind series
+    reports `insufficient_history` with `insufficient_reason =
+    "neither_chart_informative"` rather than `within`. `insufficient_reason`
+    is a new `Signal` field, kept separate from `mode_fallback` on Thach's
+    instruction, with the reason written into the contract so a later session
+    does not merge them.
+  - **The brief asked for a tuned threshold and a sweep; the honest answer was
+    that the rule needs neither, and the first sweep I ran was circular.** A
+    drop of fraction X moves a month X*centre away from the centre, and the
+    chart flags it only when that exceeds the half-width, so
+    `half_width >= X * |centre|` IS "blind to a drop of X". The constant and
+    the drop size are the same number. I nonetheless produced a table scoring
+    that rule against "would a halving be visible" - the same expression - got
+    zero errors of both kinds at 0.50, and reported it to Thach as evidence
+    the constant was right. **Any threshold scored against its own definition
+    returns zero errors.** I caught it while building fixtures from the table
+    and retracted it in the same session. The lesson is narrower than "check
+    your sweeps": a 0/0 result is not a strong result, it is a warning that
+    the predictor and the truth column may be the same quantity.
+  - **What replaced it.** Sixteen shapes run through `compute_signals` twice,
+    once with the rule disabled, counting two costs that are computed
+    independently of the threshold: detections thrown away (level would have
+    fired rule 1 and we refused) and collapses certified normal (level says
+    `within` on a halving). No policy scores zero on both:
+
+        policy   refusals   thrown away   certified normal
+          30%          10             3                  0
+          50%           8             1                  0
+          60%           5             0                  2
+         100%           4             0                  3
+
+    0.50 is chosen because the costs differ in kind, not size: the first is
+    the engine saying "cannot say", the second is the engine making a false
+    statement. **Where it behaves badly, by name:** a three-month Q4 peak
+    lands at 50.5% and loses a `below` it would otherwise have fired, missing
+    by half a percentage point.
+  - **A model of the code is not the code.** My first sweep re-implemented the
+    spread logic in the scratchpad. When I built real fixtures from its
+    numbers they did not match: December x3 read 59.5% in the model and 86.6%
+    through `compute_signals`. Every number that reached the test file was
+    afterwards read back out of `stages/diagnose`, per the 3C lesson.
+  - **The mutation check caught a regression I introduced this session.**
+    Having measured a `max(spread, _minimum_spread(...))` line as inert across
+    4,013 shapes, I deleted it as decoration. The deletion was half right: the
+    line was wrong (it passed a BLANK series name, handing every series the
+    money floor - 3D2's R4 finding by name) but deleting it outright broke a
+    case the sweep could not see, because the sweep was all money series.
+    For money the floor is a share of the centre and can never approach a 50%
+    policy; for `return_rate` it is an absolute 0.01, so a shop returning 0.5%
+    of its orders is DRAWN with limits twice as wide as its centre while its
+    measured spread reads as a comfortable 25%. The floor is back, keyed on
+    the real name and mode, applied exactly as `_signal_for` applies it.
+    **A sweep that covers one series type characterises one series type**,
+    which is the same shape of error as 3D3's miss column only ever testing a
+    50% collapse.
+  - **The two techniques, separately.** The mutation check found the
+    `return_rate` regression above and a decoupling risk: `_level_is_blind`
+    and `_signal_for` each derive a centre and width from the same baseline in
+    two places, and nothing makes them agree - a median centre instead of a
+    mean passes every other test in the suite. That is now pinned by a
+    property test over six shapes, including a shop ramping from 2,000 to
+    200,000 whose mean and median are an order of magnitude apart. Three
+    survivors were accepted rather than tested: two are unreachable from
+    `compute_signals` (a year-over-year point needs level values at both m and
+    m-12, so the level baseline can never be shorter than the year-over-year
+    one - confirmed by exhausting all 8,192 presence masks), and one is `>=`
+    against `>`, which differs only at exact float equality.
+  - **Three 3D4 tests were rewritten, with reasons, not weakened.** They
+    asserted `mode_fallback` on the seasonal fixture, which correctly stops
+    falling back after this change, so two moved to a flat fixture that still
+    takes the fallback and one now asserts the new refusal. The behaviour each
+    was written to protect is still asserted; what changed is the fixture that
+    exercises it, and `test_the_fallback_does_not_restore_the_series_alarm`
+    still holds its line - no series fires rule 1 on that file, before or
+    after.
+  - **Two smaller things found while checking the new field's own values.**
+    Only two of its four members could ever be produced.
+    `step_change_too_recent` named the feature 3D2 reverted, so it is out of
+    the Literal until that backlog item lands - a contract value nothing can
+    emit invites a consumer to handle it and a reader to believe the feature
+    exists. And the branch where the baseline is complete but the current
+    month has no value (`aov` on a month with no orders) reported
+    `too_few_points`, the one explanation that is not true there; it now
+    reports `no_current_value`. Written as a failing test from the symptom
+    first.
+  - **The doubt-review found three criticals and two required; three of the
+    criticals were mine and one was not.**
+    - C1, MINE and the worst: the width test asks whether a halving OF THE
+      CENTRE would show, which is the right question only while the month
+      being judged is expected to sit at the centre. On a seasonal peak it is
+      not. A three-year shop whose December is 150,000 against a centre of
+      52,083 reported a December of 75,000 as `within`, inside limits of
+      (28,953 .. 75,214) - requirement (a) verbatim, waved through by the very
+      gate written to enforce it. `_month_not_comparable_to_centre` now asks
+      the second question, in magnitude so trough months are caught too. My
+      own consequence table could not have shown this: all sixteen shapes put
+      the current month at a TROUGH, so centre-relative and month-relative
+      halvings never diverged upward. A shape set that varies one thing
+      characterises one thing.
+    - C3, MINE: refusing a chart deleted the whole row, including rule-2 runs
+      that AI_PIPELINE 7.5 requires to stay in the output unacted on. The gate
+      now refuses only SILENCE - a chart that fires is kept however wide it
+      is, since wide limits make a chart fire LESS often, so firing despite
+      them clears a higher bar. That one change also emptied the
+      thrown-away-detections column at every policy and fixed the reviewer's
+      R1: a return rate of 0.5% is blind to a halving and still catches a
+      month at 30%, and that signal was being discarded.
+    - R2, MINE: `insufficient_reason` lied on two of its three branches in the
+      same session that added it. Both fixed, each written as a failing test
+      from the symptom first.
+    - C2 I had already found independently and closed in the docs before the
+      review landed; its own repro confirms the new T3 rule blocks what the
+      old one allowed.
+    - **C1b I disagree with, and the data is why.** It reported a halved
+      December read as `above` rule 1 on a 24-month file. That file's baseline
+      contains exactly one December, `-2000`, and every other month is 50,000:
+      nothing in it says December is a peak, so reporting 75,000 as above a
+      flat 50,000 shop is correct inference from the evidence present. The
+      halving is a fact about the fixture's intent, not about the data the
+      engine was given. Recorded rather than "fixed", per the rule that an
+      unreproduced or disputed report stays open with both readings.
+  - **Left open, with the measurement, for Thach to schedule.** The gate is
+    consulted only when the series was eligible for year-over-year mode. A
+    20-month seasonal file charts on the same wide level chart unexamined and
+    is free to claim `within` on a halving. Extending the gate to natively
+    level series changes what every short file reports, which is past this
+    session's scope - the brief was "before falling back to it". Also open:
+    `_fallback_reason` reports `no_year_ago_value` ("the shop was shut") for a
+    month that has rows but was not fully covered, a third fact wearing one of
+    two labels.
+  - **A hole in T3 that 3D5 opened and 3E must implement closed.** T3's three
+    conditions are all about signals that DID fire, so none of them notices a
+    series with no chart. Before this session a blind series carried
+    `mode_fallback` and the third condition caught it by accident; now it is
+    refused outright and carries none. On six seasonal files revenue reports
+    `insufficient_history` with no rule firing, and T3 is blocked on all six
+    only by a rule-2 signal on `return_rate` that has nothing to do with the
+    revenue collapse. **T3 is now also `inconclusive` whenever `revenue` is
+    `insufficient_history` for any reason** - written into AI_PIPELINE 7.5 and
+    the DIAGNOSE_DESIGN T3 row. Step 7 does not exist yet, so this is a
+    contract change, not a code change; 3E implements it.
+  - **Next step:** session **3E** (hypotheses and scenarios), which carries
+    S11. 3D5 was its last prerequisite. Then **2E** (stage 2's `pct_change`
+    sign defect, must land before 3F) and **3D6** (the magnitude half of the
+    base guard), then 3F and 3G. Commit: 3D4 + 3D5 + 3E together, one message
+    organised by session, plus the commit script in Thach's home directory.
+- 2026-09-23, Phase 3 session 3D4 (year-over-year against a non-positive
+  base): new - `tests/stages/diagnose/test_yoy_base.py` (15 tests); edited -
+  `stages/diagnose/signals.py`, `contracts/diagnosis.py`,
+  `docs/AI_PIPELINE.md` 7.5 + the T3 catalog row, `docs/DIAGNOSE_DESIGN.md`.
+  - **The fix.** `_as_yoy` required only a non-zero base, so it divided by
+    negative months. A shop going -100 to -200 - twice the loss - reported
+    +100%, `above`, **rule 1**, the rule step 7 acts on. The base must now be
+    positive AND more than residue (`is_negligible`, the helper this codebase
+    wrote for exactly this and which `signals.py` already imported and never
+    called), and non-finite results are dropped.
+  - **A claim I made was false, and my evidence could not have shown it.** I
+    told Thach `price_per_unit` was immune because revenue and units flip
+    together in a refund-heavy month. That holds only while every line carries
+    the same price. One sale of 1 at 1000 against four refunds of 3 at 50
+    leaves revenue at +400 and price per unit at -36.36. The fixture I cited
+    used a single price of 10.0, so `price_per_unit` was CONSTANT across all
+    25 months - the measurement was of the fixture, not the code. The guard is
+    load-bearing for four series, not three.
+  - **I shipped a tautological test.** `assert signal.value_cur ==
+    pytest.approx(signal.value_cur)` compares a value to itself, and
+    `assert signal.signal in (...)` enumerated every member of the Literal.
+    It was the strongest stated evidence for the false claim and it could not
+    fail. Rebuilt on a two-price fixture with hand-computed values.
+  - **The fix made one case worse, and that is now recorded as 3D5.** On a
+    seasonal shop whose January halved against a normal January, the guard
+    turned `below` rule 1 into a silent `within` by pushing the series to a
+    level chart spanning 7,587 to 105,282. Pre-3D4 the engine printed a
+    garbage figure (-1350%) but rang the bell; post-3D4 it rings nothing.
+    Option (a) shipped - the series records `mode_fallback` and T3 may not
+    call the month routine - and it is explicitly NOT a fix: no series fires
+    rule 1 on that file.
+  - **How I got the reproduction wrong, which is worth keeping.** I could not
+    reproduce the reviewer's case and nearly recorded it as unverified. My
+    fixture put the non-positive month where it only eroded baseline points -
+    11 usable, 3 to spare, nothing happens. The reviewer's put it at exactly
+    `shift_month(current, -12)`, where it kills the current-month test with no
+    erosion at all. Same defect name, different mechanism, and only one of
+    them reproduces. Asking for its exact bytes rather than trusting either of
+    our summaries is what settled it.
+  - Two pre-existing defects surfaced and were NOT fixed: stage 2's
+    `pct_change` has the same sign inversion in `revenue_change_pct` and
+    inverts `_biggest_decliners` (scheduled as 2E, before 3F), and
+    `monthly_series` charts a month with no rows as 0.0, contradicting
+    `inputs.py`'s own 3B finding 2 (recorded here; it changes the baseline of
+    every level chart, so it is not a tail-of-session change).
 - 2026-09-23, Phase 3 session 3D3 (make rule 1 reliable): new -
   `tests/stages/diagnose/test_rule_one_reliability.py`,
   `tests/stages/diagnose/test_spread_floor_cases.py`; edited -

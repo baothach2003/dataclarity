@@ -27,6 +27,7 @@ from stages.diagnose.thresholds import (
     XMR_RESIDUE_FLOOR,
     XMR_RUN_LENGTH,
     YOY_LAG_MONTHS,
+    YOY_MIN_BASE_SHARE,
     YOY_MODE_MIN_MONTHS,
 )
 
@@ -60,10 +61,11 @@ def compute_signals(data: RunData, history: list[str]) -> list[Signal]:
         # nothing at all (3B doubt-review finding 6).
         reported = [name for name in SERIES if name not in CUSTOMER_SERIES
                     or data.parsed.reverse.get("customer") is not None]
-        return [_no_baseline(name, "level") for name in reported]
+        return [_no_baseline(name, "level", "too_few_points")
+                for name in reported]
 
     yoy_ready = len(data.complete_months) >= YOY_MODE_MIN_MONTHS
-    yoy = _as_yoy(table) if yoy_ready else None
+    yoy = _as_yoy(table, history) if yoy_ready else None
 
     signals = []
     for name in SERIES:
@@ -85,23 +87,67 @@ def compute_signals(data: RunData, history: list[str]) -> list[Signal]:
         # is 3B doubt-review finding 1 in its mirror image: that fix asked
         # whether the HISTORY yields usable points and never asked about the
         # month the whole report is about (3D2 doubt-review R3).
-        if (yoy is not None
-                and _usable(yoy[name], history) >= XMR_MIN_BASELINE_POINTS
-                and not pd.isna(yoy[name].get(current, float("nan")))):
+        ready = yoy is not None and _usable(yoy[name], history) >= XMR_MIN_BASELINE_POINTS
+        if ready and not pd.isna(yoy[name].get(current, float("nan"))):
             signals.append(_signal_for(name, yoy[name], current, history, "yoy"))
         else:
-            signals.append(_signal_for(name, table[name], current, history, "level"))
+            # Record WHY a series that could have charted year over year is
+            # not doing so. The fallback is not always an improvement: on a
+            # seasonal shop the level limits are wide enough to swallow a real
+            # 50% collapse, so this series says `within` where the
+            # year-over-year chart said `below` (3D4 doubt-review C3).
+            fallback = _fallback_reason(data, current) if ready else None
+            # Level mode, and level mode alone, is what this file supports for
+            # this series. The row is DESCRIPTIVE: it is computed, written and
+            # shown, and step 7 does not read it as a judgement about the
+            # month (contracts.diagnosis.is_verdict, ADR-0006).
+            #
+            # Session 3D5 gated this fallback instead - refusing a chart too
+            # wide to see a halving, then one whose centre sat off the month's
+            # own season. Both were deleted by that ADR. The second could not
+            # run on a 24-month file at all: the history window holds one
+            # prior occurrence of the current calendar month, and that
+            # occurrence is the comparator whose failure put the series here.
+            signals.append(_signal_for(name, table[name], current, history,
+                                       "level", fallback))
     return signals
+
+
+def _fallback_reason(data: RunData, current: str) -> str:
+    """Was the year-ago month absent, or present but unusable as a base?
+
+    Two different facts about the shop, and step 7 should be able to tell them
+    apart: "we were shut that month" is a gap, "that month netted zero or
+    below" - or, since 3D6, was too small to divide by - is a business event.
+
+    The test is `months_with_rows`, not the series value, because
+    `monthly_series` charts a month holding no rows as 0.0 - so at that layer
+    a shut month and a month that genuinely netted zero are identical. That
+    fabricated zero is a pre-existing defect in its own right: `inputs.py`
+    says "a month with no rows is evidence of a gap, never evidence of what
+    normal looks like" (3B finding 2) and then the series is built from
+    `complete_months` anyway. Recorded for its own session; here it is enough
+    to ask the right source.
+    """
+    year_ago = shift_month(current, -YOY_LAG_MONTHS)
+    return ("unusable_year_ago_base" if year_ago in data.months_with_rows
+            else "no_year_ago_value")
 
 
 def _usable(column: pd.Series, history: list[str]) -> int:
     return int(column.reindex(history).notna().sum())
 
 
-def _no_baseline(name: str, mode: str) -> Signal:
+def _no_baseline(name: str, mode: str, reason: str,
+                 fallback: str | None = None) -> Signal:
+    """`reason` is required and has no default. It used to default to
+    `too_few_points`, so a caller that forgot it got a plausible wrong answer
+    instead of an error - which is the defect this field was added to fix,
+    reproduced in the helper that reports it (3D5b review R6)."""
     return Signal(series=name, mode=mode, value_cur=None, center=None, lower=None,
                   upper=None, signal="insufficient_history", rule=None,
-                  limits_method="mean_moving_range")
+                  limits_method="mean_moving_range", mode_fallback=fallback,
+                  insufficient_reason=reason)
 
 
 def monthly_series(data: RunData) -> pd.DataFrame:
@@ -145,15 +191,79 @@ def monthly_series(data: RunData) -> pd.DataFrame:
     return table[[name for name in SERIES if name in table.columns]]
 
 
-def _as_yoy(table: pd.DataFrame) -> pd.DataFrame:
+def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
     """Year-over-year percentage change, which removes seasonality so a
     December is compared with a December.
 
-    A month whose year-ago counterpart is missing, or was zero, has no YoY
-    value: it is left NaN rather than folded to 0.0. `pct_change`'s
-    zero-denominator convention is right for a headline figure that must show
-    a number, and wrong inside a statistical series, where a fabricated 0%
-    would pull the centre line and tighten the limits.
+    A month whose year-ago counterpart is missing has no YoY value: it is left
+    NaN rather than folded to 0.0. `pct_change`'s zero-denominator convention
+    is right for a headline figure that must show a number, and wrong inside a
+    statistical series, where a fabricated 0% would pull the centre line and
+    tighten the limits.
+
+    **The base must be POSITIVE, not merely non-zero** (3D4). Dividing by a
+    negative month is not a growth rate: two negatives make a confident
+    positive, so a shop whose month went from -100 to -200 - twice the loss -
+    reported +100% and fired rule 1, the rule step 7 acts on. The mirror is
+    worse: a recovery from -100 to +500 divides to -600%, so getting better
+    reads as a collapse.
+
+    Which series this reaches: **every series built from signed money**, which
+    is `revenue`, `aov`, `units_per_order` and `price_per_unit`. The counts
+    (`orders`, `active_customers`, `frequency`) and the `return_rate` fraction
+    cannot be negative, so `> 0` is exactly the old `!= 0` for them and
+    nothing about them changes.
+
+    `price_per_unit` was claimed in this docstring to be immune, on the
+    grounds that it is revenue over units so both parts flip together in a
+    refund-heavy month. **That is false**, and the sweep offered as evidence
+    could not have shown otherwise - every fixture in it used a single price,
+    which makes `price_per_unit` arithmetically constant. Revenue and units
+    disagree in sign whenever the refunded items are priced differently from
+    the sold ones: one sale of 1 at 1000 against four refunds of 3 at 50
+    leaves revenue at +400 and price per unit at -36.36. The base guard is
+    load-bearing for four series, not three.
+
+    The base must also be more than floating-point residue, not merely
+    positive. `thresholds.py` records that a month whose sales and returns
+    cancel leaves 4.4e-16 rather than 0.0, and `> 0` admits that as a
+    denominator: a real file produced a year-over-year figure of 7.2e21 per
+    cent from a base of 1.4e-17. `is_negligible` is the helper this codebase
+    already wrote for "is this difference real", and `numbers.py` says it
+    exists "so the next place that divides by a difference inherits the guard
+    instead of rediscovering the bug" - this function was the fourth place to
+    rediscover it.
+
+    **And the base must be big enough to divide by** (3D6). Positive and more
+    than residue still admits 12.50 on a shop turning over 50,000, which
+    divides to +399,900% - and since ADR-0006 that is an actionable rule-1
+    verdict, on a month where nothing happened, that also fires the
+    masked-shift alert. The same base inside the baseline drags the mean
+    centre tens of thousands of points away, so every ordinary month fires.
+    A base below `YOY_MIN_BASE_SHARE` of the series' typical magnitude is
+    refused; `thresholds.py` says why typical is the median of |value| over
+    the trading months of `history`, and why the share is a policy rather
+    than a measurement.
+
+    Non-finite results are dropped last. A denormal base overflows the
+    division: 5e-324 against 1000 gives `inf`, which `pd.isna` does not catch,
+    and the contract's finiteness validator would then abort the whole stage
+    rather than let one series degrade.
+
+    Since 3D6 two of the older checks are IMPLIED by the share and are kept
+    as defence: the floor is positive whenever the history has a trading
+    month, so it refuses a negative or zero base, and a base that clears the
+    residue test cannot overflow the division. Their mutants survive for that
+    reason. The residue test is NOT implied: the floor is a median, so when
+    HALF the trading months are themselves residue-sized a residue base
+    clears it (3D6 doubt-review cycle 2) - `test_yoy_small_base.py` pins it.
+
+    **Refusing a base is only certainly safe for the CURRENT comparator**,
+    where it removes a verdict and nothing else. Refusing a BASELINE base
+    removes a point from the chart, which moves the centre either way, and
+    the share only removes the cliff below 3%: bases from 3.5% to 25% still
+    drag the centre into an actionable verdict. `thresholds.py` lists what
+    this guard does not fix; PROJECT_PLAN 3D9 owns it.
     """
     values = {}
     for name in table.columns:
@@ -162,19 +272,44 @@ def _as_yoy(table: pd.DataFrame) -> pd.DataFrame:
             [column.get(shift_month(month, -YOY_LAG_MONTHS), float("nan"))
              for month in column.index],
             index=column.index)
-        previous = previous.where(previous != 0)
-        values[name] = (column - previous) / previous * 100
+        scale = float(column.abs().max() or 0.0)
+        # A window with no values has no typical level (NaN), and `>=` against
+        # NaN is False, so every base is refused. That is deliberate: a base
+        # not known to be big enough is treated as too small, because
+        # refusing one only costs a verdict while accepting one can fabricate
+        # it. Reached whenever every history month is zero - `return_rate` on
+        # a shop with no returns, the commonest case - where it is harmless,
+        # because every base is then zero and refused anyway.
+        # Over the months the shop TRADED. A month without rows is charted as
+        # 0.0, so a stall open four months a year had a median of zero, a
+        # floor of zero, and a 12.50 base divided to +399,900% exactly as
+        # before this guard existed (3D6 doubt-review).
+        magnitude = column.reindex(history).abs()
+        typical = float(magnitude[magnitude > 0].median())
+        usable = (previous > 0) & (previous >= YOY_MIN_BASE_SHARE * typical) & ~previous.apply(
+            lambda base: is_negligible(float(base), scale) if pd.notna(base) else True)
+        previous = previous.where(usable)
+        change = (column - previous) / previous * 100
+        values[name] = change.replace([float("inf"), float("-inf")], float("nan"))
     return pd.DataFrame(values, index=table.index)
 
 
 def _signal_for(
-    name: str, column: pd.Series, current: str, history: list[str], mode: str
+    name: str, column: pd.Series, current: str, history: list[str], mode: str,
+    fallback: str | None = None,
 ) -> Signal:
     baseline = column.reindex(history).dropna()
     value_cur = column.get(current, float("nan"))
 
-    if len(baseline) < XMR_MIN_BASELINE_POINTS or pd.isna(value_cur):
-        return _no_baseline(name, mode)
+    if len(baseline) < XMR_MIN_BASELINE_POINTS:
+        return _no_baseline(name, mode, "too_few_points")
+    if pd.isna(value_cur):
+        # A complete baseline and nothing to judge against it: `aov` on a month
+        # with no orders, for instance. Reporting `too_few_points` here would
+        # be the one explanation that is not true, and step 7 cannot tell "this
+        # shop is too new" from "this shop had no orders last month" if the
+        # field says the same thing for both.
+        return _no_baseline(name, mode, "no_current_value")
 
     center = float(baseline.mean())
     # The moving range of consecutive points is what makes these limits robust
@@ -197,13 +332,16 @@ def _signal_for(
         # currency floor here would be picking a number out of the air, and
         # zero-width limits call one cent a special cause, so the honest
         # answer is that this series cannot be charted (3D3 doubt-review R1).
-        return _no_baseline(name, mode)
+        # The reason is NOT `too_few_points`: the points are all there, and
+        # sending a reader after more history would not help (3D5 review R2).
+        return _no_baseline(name, mode, "no_measurable_spread", fallback)
     lower, upper = center - spread, center + spread
     value_cur = float(value_cur)
 
     signal, rule = _classify(name, value_cur, center, lower, upper, column, current, history)
     return Signal(series=name, mode=mode, value_cur=value_cur, center=center, lower=lower,
-                  upper=upper, signal=signal, rule=rule, limits_method=limits_method)
+                  upper=upper, signal=signal, rule=rule, limits_method=limits_method,
+                  mode_fallback=fallback)
 
 
 def _minimum_spread(name: str, mode: str, center: float) -> float:

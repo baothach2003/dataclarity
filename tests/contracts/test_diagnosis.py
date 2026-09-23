@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
-from contracts.diagnosis import DiagnosisContract
+from contracts.diagnosis import DiagnosisContract, Lever, LeverFactor, LeverLevel, Signal
 
 
 def diagnosis_payload() -> dict[str, Any]:
@@ -302,3 +302,74 @@ def test_rejects_model_used_without_findings() -> None:
 
     with pytest.raises(ValidationError, match="both null or both filled"):
         DiagnosisContract.model_validate(payload)
+
+
+# --- couplings this model states in prose and did not check (3D5b review) ----
+#
+# `Signal._nulls_mean_no_baseline` was added in 3B after a doc-only invariant
+# let a `within` row through with null limits, and its docstring says such
+# rules must be "enforced, not just documented". Four more couplings were
+# documented and unenforced; two arrived with 3D4/3D5's fields and two predate
+# them, marked below.
+
+
+def _signal(**overrides: Any) -> dict:
+    base = dict(series="revenue", mode="level", value_cur=1.0, center=1.0,
+                lower=0.0, upper=2.0, signal="within", rule=None,
+                limits_method="mean_moving_range")
+    return {**base, **overrides}
+
+
+@pytest.mark.parametrize("label,kwargs", [
+    # Mine, 3D5: CONTRACTS section 7 says the reason "is only ever set
+    # alongside signal = insufficient_history".
+    ("a reason on a charted row", _signal(insufficient_reason="too_few_points")),
+    ("no reason on an unchartable row",
+     _signal(value_cur=None, center=None, lower=None, upper=None,
+             signal="insufficient_history", insufficient_reason=None)),
+    # Pre-existing, 3D3: mode_fallback means "charted on the LEVEL chart", so
+    # a yoy row cannot carry one.
+    ("a fallback on a year-over-year row",
+     _signal(mode="yoy", mode_fallback="no_year_ago_value")),
+    # Pre-existing, 3B: `rule` is documented as "null when the series is
+    # within limits or has no baseline".
+    ("a rule on a within row", _signal(rule=2)),
+])
+def test_a_signal_cannot_contradict_itself(label: str, kwargs: dict) -> None:
+    with pytest.raises(ValidationError):
+        Signal(**kwargs)
+
+
+def _lever(**overrides: Any) -> dict:
+    level1 = LeverLevel(formula="customers*frequency*aov", factors=[
+        LeverFactor(name="customers", value_prev=1.0, value_cur=1.0,
+                    contribution=0.0),
+        LeverFactor(name="frequency", value_prev=1.0, value_cur=1.0,
+                    contribution=0.0),
+        LeverFactor(name="aov", value_prev=1.0, value_cur=1.0,
+                    contribution=0.0),
+    ])
+    base = dict(level1=level1, level2=None, gross_to_net=1.0,
+                masked_shift_alert=False, masked_shift_basis=None,
+                reasons={"level2": "AOV did not move"})
+    return {**base, **overrides}
+
+
+@pytest.mark.parametrize("label,kwargs", [
+    ("an alert that fired but names no basis",
+     _lever(masked_shift_alert=True, masked_shift_basis=None)),
+    ("a basis on an alert that did not fire",
+     _lever(masked_shift_alert=False, masked_shift_basis="level")),
+    ("a basis on a check that did not run",
+     _lever(level1=None, gross_to_net=None, masked_shift_alert=None,
+            masked_shift_basis="yoy",
+            reasons={"level1": "no orders", "level2": "no level 1",
+                     "gross_to_net": "no level 1"})),
+])
+def test_the_masked_shift_basis_is_tied_to_the_alert(label: str,
+                                                     kwargs: dict) -> None:
+    """Deleting this validator left the whole suite green (3D5b review R4),
+    so the invariant requirement (c) names could have been removed or inverted
+    by a later session without anything noticing."""
+    with pytest.raises(ValidationError):
+        Lever(**kwargs)

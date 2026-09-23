@@ -240,7 +240,9 @@ Steps 1-7 are deterministic pandas and fill every block below except
 `ai_findings`; step 8 is the only AI call and writes only `ai_findings`. Why
 the attribution is Shapley and why the hypothesis catalog is fixed in advance:
 `docs/adr/0004-shapley-attribution.md` and
-`docs/adr/0005-pre-registered-hypothesis-catalog.md`.
+`docs/adr/0005-pre-registered-hypothesis-catalog.md`. Why a `level`-mode
+signal describes rather than decides, and what stage 5 must therefore not say
+about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 
 ```json
 {
@@ -272,7 +274,8 @@ the attribution is Shapley and why the hypothesis catalog is fixed in advance:
       "level2": {"formula": "units_per_order*price_per_unit",
                  "factors": [{"name": "units_per_order", "value_prev": 4.1,
                               "value_cur": 3.9, "contribution": -11200.0}]},
-      "gross_to_net": 1.04, "masked_shift_alert": false, "reasons": {}
+      "gross_to_net": 1.04, "masked_shift_alert": false,
+      "masked_shift_basis": null, "reasons": {}
     },
     "customers": {"new": 92000.0, "resurrected": 14000.0, "expansion": 61000.0,
                   "contraction": -88000.0, "lapsed": -219000.0,
@@ -336,6 +339,61 @@ was used, which a reader must be able to tell apart from a measured chart.
 `center`, `lower` and `upper` are money or counts on a `level` row and
 percentage points on a `yoy` row. Read `mode` before comparing two signals or
 presenting them together.
+
+`signals[].mode_fallback` is `no_year_ago_value | unusable_year_ago_base |
+null` and `signals[].insufficient_reason` is `too_few_points |
+no_current_value | no_measurable_spread | null`.
+**These two must not be merged.** They answer different questions and a later
+session tidying them into one field would lose a distinction step 7 depends
+on:
+
+- `mode_fallback` says the series **is charted**, on a level chart, because
+  its CURRENT month's year-ago comparator was unusable.
+  `unusable_year_ago_base` covers every reason the base guard in AI_PIPELINE
+  7.5 refuses that comparator: not positive, floating-point residue, or -
+  since 3D6 - below `YOY_MIN_BASE_SHARE` of the series' typical magnitude,
+  i.e. too small to divide by. A series pushed to level mode because refused
+  BASELINE bases left too few points carries `null`, as it has since 3D4 (a
+  labelling gap scheduled with 3D7). Such a series still has limits and can
+  still fire rule 1. It does NOT stop T3 calling the month routine - `mode`
+  does that, via `is_verdict` (ADR-0006). This flag records why a series is in
+  level mode, which 3F narrates; it is not a gate.
+- `insufficient_reason` says the series has **no chart at all**, and is only
+  ever set alongside `signal = "insufficient_history"`, where `center`,
+  `lower`, `upper` and `value_cur` are all `null`.
+
+`no_measurable_spread` means the baseline has its points but no variation and
+no scale to borrow a floor from; it is NOT `too_few_points`, and a reader
+should not go looking for more history.
+
+### A `level`-mode row is descriptive, not a verdict (ADR-0006)
+
+**`mode` decides what a row is allowed to mean, not just its units.** A
+`yoy` row is a judgement about the month. A `level` row is a description of
+where the month sat on a chart whose centre is the average of every month -
+which is the wrong place for any month with a season, in both directions: a
+December that halves still lands above that centre, and an ordinary December
+fires `above` for being ordinary.
+
+Consumers must therefore honour the following, and
+`contracts.diagnosis.is_verdict` is the single definition of "verdict":
+
+- **T3 reads `yoy` rows only.** It is `inconclusive`, never `supported`, when
+  `revenue` has no year-over-year verdict, at any file length. Its evidence
+  lists every series that had no verdict, so a month called routine shows
+  which parts were not judged.
+- **The masked-shift alert is the one exception** and may read a `level` row,
+  because its other half (`gross_to_net`) fires on every flat month by
+  itself. `lever.masked_shift_basis` records which kind it rested on.
+- **Stage 5 must never render a `level`-mode row as a judgement, in either
+  direction.** Not `within` as "within normal variation", and not `above` or
+  `below` as "unusually high" or "unusually low". The failure is symmetric:
+  on a seasonal shop a December that halves reads `above` against an
+  off-season centre, and so does an ordinary December - identical signal,
+  identical limits. Level rows are rendered with wording that describes the
+  chart without claiming the month was judged. This is a rule, not a
+  preference: the step-4 gate that used to prevent such a claim was deleted
+  by ADR-0006 and this is where the responsibility moved.
 `calendar.method` is `weekday_weights | day_count`. `tree.method` is always
 `"shapley"`.
 
@@ -352,8 +410,16 @@ absent, and also when revenue did not move, since the ratio divides by that
 change - infinity is not representable in JSON. `tree.lever.masked_shift_alert`
 is `null` **exactly when level 1 is `null`, and is never `false` in that
 case**: `false` asserts that the check ran and found nothing, and a reader must
-not take "the tree could not be built" for "no masked shift". Every null field
-in `lever` carries an entry in `tree.lever.reasons`, keyed by field name.
+not take "the tree could not be built" for "no masked shift".
+`tree.lever.masked_shift_basis` is `yoy | level | null`, set **exactly when
+the alert fired**: it names which kind of step-4 row the alert rested on, and
+a basis on a quiet month would imply a check leaned on something. `yoy` wins
+when a run carries both, since `mode` is decided per series. A `level` basis
+is the weaker one and 3F must hedge it as possibly seasonal - the alert can be
+right that composition moved and wrong that the movement was unusual (see the
+level-row rule in this section, and ADR-0006). Every null field in `lever`
+carries an entry in `tree.lever.reasons`, keyed by field name, except
+`masked_shift_basis`, whose null is fully explained by the alert beside it.
 
 `localization.dimensions[].name` is `category | product | customer_type`;
 `category` is absent when no column is mapped to it. Each member carries

@@ -9,6 +9,8 @@ someone picked (docs/adr/0004).
 
 from dataclasses import dataclass
 
+from typing import Literal
+
 import pandas as pd
 
 from contracts.diagnosis import Lever, LeverFactor, LeverLevel, Signal
@@ -64,11 +66,13 @@ def compute_lever(data: RunData, signals: list[Signal]) -> Lever:
     level1 = _level1(previous, current, has_customers, reasons)
     level2 = _level2(previous, current, level1, reasons)
     gross_to_net = _gross_to_net(previous, current, level1, reasons)
+    alert, basis = _masked_shift(level1, gross_to_net, signals)
     return Lever(
         level1=level1,
         level2=level2,
         gross_to_net=gross_to_net,
-        masked_shift_alert=_masked_shift(level1, gross_to_net, signals),
+        masked_shift_alert=alert,
+        masked_shift_basis=basis,
         reasons=reasons,
     )
 
@@ -217,7 +221,7 @@ def _gross_to_net(
 
 def _masked_shift(
     level1: LeverLevel | None, gross_to_net: float | None, signals: list[Signal]
-) -> bool | None:
+) -> tuple[bool | None, Literal["yoy", "level"] | None]:
     """A flat total hiding large offsetting movements - the case a "did revenue
     move?" report misses entirely (docs/DIAGNOSE_DESIGN.md 1.2).
 
@@ -225,9 +229,24 @@ def _masked_shift(
     components routinely dwarf a near-zero net; a step-4 signal alone is just
     an unusual month. Together they say: something moved enough to be unusual,
     and the total is hiding it.
+
+    **This is the one consumer allowed to read a level-mode row** (ADR-0006).
+    Everywhere else a level row describes and does not decide, because a level
+    chart cannot judge a seasonal month. Here the conjunction carries it: the
+    ratio's failure mode needs revenue to be flat, and the level chart's
+    failure mode needs the month to sit off its own season - and a seasonal
+    month compared with the month before it is rarely flat. Dropping the
+    signal half instead was considered and rejected: the ratio divides by the
+    change, so on the flat months this alert exists for it fires every time.
+
+    Which kind of row it rested on is returned with it and stored, because the
+    two are not equally strong. A `level` basis can be factually right that
+    the composition moved and wrong that the movement was unusual - a seasonal
+    shoulder month has flat revenue and a shifting mix - so 3F phrases it as
+    possibly seasonal rather than as a finding.
     """
     if level1 is None:
-        return None
+        return None, None
     # Rule 1 only. Rule 2 measures a run against a centre computed from the
     # same points, so one anomalous month re-fires it every month; step 7 and
     # this alert are decided on rule 1 (AI_PIPELINE 7.5, and the `Signal.rule`
@@ -235,14 +254,30 @@ def _masked_shift(
     # honoured it - it filtered on the signal and ignored the rule, so a
     # rule-2-only signal drove the masked-shift alert (3D3 doubt-review R4,
     # pre-existing since 3C).
-    fired = {signal.series for signal in signals
+    fired = {signal.series: signal.mode for signal in signals
              if signal.signal in FIRED and signal.rule == 1}
-    moved = any(
-        COMPONENT_SERIES[factor.name] in fired for factor in level1.factors
-    )
-    if gross_to_net is None:  # revenue did not move at all
-        return moved
-    return gross_to_net >= MASKED_GROSS_TO_NET and moved
+    moved_by = [fired[COMPONENT_SERIES[factor.name]]
+                for factor in level1.factors
+                if COMPONENT_SERIES[factor.name] in fired]
+    if gross_to_net is None:
+        # Revenue did not move AT ALL, so the ratio is the sum of the absolute
+        # contributions over zero. This is not the conjunction going missing -
+        # it is the ratio at its limit, infinitely above any threshold - and
+        # `moved_by` is non-empty only when a component actually fired, which
+        # requires movement. Stated because the docstring says both halves are
+        # required and this branch does not evaluate one (3D5b review R3).
+        alert = bool(moved_by)
+    else:
+        alert = gross_to_net >= MASKED_GROSS_TO_NET and bool(moved_by)
+    if not alert:
+        return alert, None
+    # `yoy` only when EVERY firing component had one. The basis decides
+    # whether 3F may state the alert as a finding, and headline rule 4 names
+    # the two largest opposing contributions - so if the evidence that any
+    # named contributor moved unusually is a level row, the hedge applies. An
+    # earlier version let a single unrelated yoy row drop the hedge for a
+    # story whose named contributor rested on the weak basis (3D5b review N9).
+    return alert, ("yoy" if all(mode == "yoy" for mode in moved_by) else "level")
 
 
 def returns_levels(data: RunData) -> dict[str, float]:

@@ -74,9 +74,12 @@ class Calendar(ContractModel):
 
 
 class Signal(ContractModel):
-    """One series' step 4 verdict (docs/AI_PIPELINE.md 7.5). Under
+    """One series' step 4 row (docs/AI_PIPELINE.md 7.5). Under
     `insufficient_history` the four numbers are null: there is no baseline to
-    compute a centre or limits from, and reporting zeros would read as real."""
+    compute a centre or limits from, and reporting zeros would read as real.
+
+    A row is not automatically a verdict. Only `yoy`-mode rows are - see
+    `is_verdict` below and docs/adr/0006-level-signals-are-descriptive.md."""
 
     series: Literal[
         "revenue",
@@ -116,6 +119,41 @@ class Signal(ContractModel):
     # doubt-review C2).
     limits_method: Literal["median_moving_range", "mean_moving_range",
                            "minimum_spread"]
+    # Set when this series WOULD have charted year over year - it had enough
+    # usable baseline points - but the current month had no usable comparator,
+    # so it fell back to the level chart. `no_year_ago_value` means the month
+    # is absent from the file (the shop was shut); `unusable_year_ago_base`
+    # means it is present but not a denominator: it netted zero or below, was
+    # floating-point residue, or (3D6) was too small against the series'
+    # typical level to divide by (AI_PIPELINE 7.5, the base guard).
+    #
+    # It records WHY a series is in level mode. Since ADR-0006 it no longer
+    # has to carry the weight of stopping T3 on its own: a level-mode row is
+    # not a verdict at all, whatever put it there. It stays because "the shop
+    # was shut" and "that month netted zero" are different facts about the
+    # business and 3F narrates them differently.
+    mode_fallback: Literal["no_year_ago_value", "unusable_year_ago_base"] | None = None
+    # Why no chart was drawn at all, when `signal` is `insufficient_history`.
+    #
+    # **This is not the same question as `mode_fallback` and the two must not
+    # be merged** (Thach, 3D5). `mode_fallback` says the series IS charted, on
+    # the level chart, because its comparator was unusable. `insufficient_reason`
+    # says there is no chart at all.
+    #
+    # `step_change_too_recent` is deliberately NOT a member. Step-change
+    # detection was attempted in 3D2 and reverted; listing a value nothing can
+    # produce invites a consumer to handle it and a later reader to believe the
+    # feature exists. It goes in when the backlog item does.
+    #
+    # `neither_chart_informative` and `month_not_comparable_to_centre` were
+    # members for the length of session 3D5 and were removed by ADR-0006. They
+    # described a level chart refusing to judge a month; a level chart no
+    # longer judges any month, so there is nothing to refuse.
+    insufficient_reason: Literal[
+        "too_few_points",
+        "no_current_value",
+        "no_measurable_spread",
+    ] | None = None
 
     @model_validator(mode="after")
     def _nulls_mean_no_baseline(self) -> Self:
@@ -134,12 +172,86 @@ class Signal(ContractModel):
                 raise ValueError("insufficient_history requires all four numbers to be null")
         elif any(missing):
             raise ValueError(f"signal {self.signal!r} requires value_cur, center, lower and upper")
+        # The same reasoning as above, applied to the fields that arrived
+        # later: each of these couplings was stated in CONTRACTS section 7 or
+        # in a comment in this file, and none was checked (3D5b review R6).
+        if self.signal == "insufficient_history":
+            if self.insufficient_reason is None:
+                raise ValueError(
+                    "insufficient_history requires insufficient_reason: a row "
+                    "saying there is no chart must say why"
+                )
+        elif self.insufficient_reason is not None:
+            raise ValueError(
+                f"insufficient_reason is only set under insufficient_history, "
+                f"not alongside {self.signal!r}"
+            )
+        if self.mode == "yoy" and self.mode_fallback is not None:
+            raise ValueError(
+                "mode_fallback says the series fell back to the LEVEL chart, "
+                "so a yoy row cannot carry one"
+            )
+        if self.signal == "within" and self.rule is not None:
+            raise ValueError("rule is null when the series is within limits")
         if any(value is not None and not isfinite(value) for value in numbers):
             raise ValueError("value_cur, center, lower and upper must be finite")
         return self
 
 
 # --- Step 5 (session 3C): the metric tree -------------------------------------
+
+
+def is_verdict(signal: Signal) -> bool:
+    """May step 7 treat this row as a judgement about the month?
+
+    Only year-over-year rows, and only when a chart was actually drawn.
+
+    An XmR chart assumes a stable process. A seasonal retail series is not
+    stable in level terms, so a level chart centred on the mean of every month
+    is in the wrong place for any month with a season: a December that halves
+    still lands above that centre and reads as `within` or even `above`, and
+    an ordinary December fires `above` for being ordinary. Year-over-year is
+    what makes the series stable, and when it is unavailable the missing
+    information is exactly what a level chart would need to replace it.
+
+    Three sessions tried to gate the level chart instead (3D3 floors, 3D4 base
+    guard, 3D5 width and seasonal-position tests). The last could not run at
+    all on a 24-month file: the history window holds one prior occurrence of
+    the current calendar month, and that occurrence is the failed comparator.
+    ADR-0006 moved the policy rather than the arithmetic.
+
+    Level rows are still computed and still written to `diagnosis.json`. They
+    describe; they do not decide. The one consumer allowed to read them is the
+    masked-shift alert, which has independent corroboration and records the
+    fact in `Lever.masked_shift_basis`.
+
+    **This answers "may step 7 read this row", not "may step 7 act on it".**
+    The two are different and the codebase has three statements about them
+    that a reader must not conflate:
+
+    - A rule-2 row IS a judgement about the month - eight points on one side
+      of the centre is a finding - so `is_verdict` is true for it, and T3 is
+      blocked by one. That is 3D4's deliberate asymmetry: the bar for
+      asserting that nothing happened is higher than the bar for acting.
+    - A rule-2 row may never BECOME a headline cause. That is the rule-1-only
+      contract, and `is_actionable` below is what expresses it.
+    - The masked-shift alert filters on rule 1 across BOTH modes, because it
+      is the documented exception to the mode rule. Neither predicate fits it
+      and it says so at its own call site.
+    """
+    return signal.mode == "yoy" and signal.signal != "insufficient_history"
+
+
+def is_actionable(signal: Signal) -> bool:
+    """May step 7 turn this row into a headline cause?
+
+    A verdict, and rule 1. Rule 2 measures a run against a centre computed
+    from the same points, so one anomalous month re-fires it every month until
+    it leaves the window; re-baselining was attempted in session 3D2 and the
+    method did not work. A rule-2 row can therefore PREVENT "routine" and can
+    never BECOME a cause (Thach, 3D2).
+    """
+    return is_verdict(signal) and signal.rule == 1
 
 
 class LeverFactor(ContractModel):
@@ -193,6 +305,14 @@ class Lever(ContractModel):
     not move at all, because the ratio divides by that change - the alert is
     still decided in that case, on whether any component has a step-4 signal.
 
+    `masked_shift_basis` names which kind of step-4 row the alert rested on,
+    and is null exactly when the alert is null or false. It exists because a
+    `level` basis is weaker than a `yoy` one in a specific, narratable way: a
+    seasonal shoulder month can have flat revenue and a genuinely shifting
+    composition, so the alert is right that components moved and cannot claim
+    the movement was unusual. 3F must be able to phrase those two cases
+    differently (ADR-0006).
+
     `reasons` carries one entry per null field, keyed by field name.
     """
 
@@ -200,6 +320,7 @@ class Lever(ContractModel):
     level2: LeverLevel | None
     gross_to_net: float | None
     masked_shift_alert: bool | None
+    masked_shift_basis: Literal["yoy", "level"] | None = None
     reasons: dict[str, str]
 
     @model_validator(mode="after")
@@ -208,6 +329,12 @@ class Lever(ContractModel):
             raise ValueError(
                 "masked_shift_alert is null exactly when level1 is null: "
                 "'false' would claim a check that did not run"
+            )
+        if bool(self.masked_shift_alert) != (self.masked_shift_basis is not None):
+            raise ValueError(
+                "masked_shift_basis is set exactly when the alert fired: an "
+                "alert that fired must say what it rested on, and one that "
+                "did not must not imply it rested on anything"
             )
         if self.level1 is None and self.gross_to_net is not None:
             raise ValueError("gross_to_net cannot be computed without level1")

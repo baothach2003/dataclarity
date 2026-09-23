@@ -2,12 +2,19 @@
 
 **Status:** approved design input for the Stage 3 SPECS UPDATE session.
 **Scope decided by Thach:** full engine, 7 sessions (not the reduced MVP).
-**How to use this file:** it is the input document for the SPECS UPDATE session.
-Once that session lands, `docs/CONTRACTS.md` (section 7), `docs/AI_PIPELINE.md`
-(section 7) and `PROJECT_PLAN.md` (Phase 3) own the facts. This file then remains
-the record of *why* the design looks the way it does (it can seed ADR-0004).
-Where this file and those documents disagree after the SPECS UPDATE session,
-those documents win.
+**STATUS: FROZEN as of session 3A. Do not edit its rules.**
+It was the input document for the SPECS UPDATE session. That session has long
+landed, so `docs/CONTRACTS.md` (section 7), `docs/AI_PIPELINE.md` (section 7)
+and `PROJECT_PLAN.md` (Phase 3) own the facts. This file remains the record of
+*why* the design looks the way it does, and nothing else. Where it and those
+documents disagree, they win and this file is out of date.
+
+**Sections 5 to 9 carry a freeze banner and are enforced by
+`tests/test_docs_single_source.py`**, which fails if a hypothesis-catalog
+table appears anywhere but the live document without one. Twice now a rule has
+been copied into two catalogs and the copies have drifted into opposite
+answers - the C2 sign convention in 3C, the T3 rule in 3D5b - so this is a
+test, not a convention.
 
 ---
 
@@ -153,6 +160,17 @@ data problem.
 ---
 
 ## 5. Step specifications
+
+> **FROZEN — historical design record as of session 3A.** The rules below are
+> not live and must not be edited. The live source is `docs/AI_PIPELINE.md`
+> section 7 (behaviour) and `docs/CONTRACTS.md` section 7 (shape); where they
+> and this file disagree, they win, and this file is simply out of date.
+> A rule copied into two catalogs is how the C2 sign convention diverged in
+> 3C and how the T3 rule diverged in 3D5b, each time producing two
+> source-of-truth documents with opposite answers on the same file.
+> Read this file for WHY the design looks the way it does, never for what it
+> currently does.
+
 
 Notation: `cur` = current period, `prev` = previous period, both taken from
 `metrics.json.period` (latest complete calendar month and the month before, per
@@ -439,6 +457,17 @@ Trust `caution` never changes the headline but is always shown next to it.
 
 ## 6. `diagnosis.json` shape (replaces CONTRACTS section 7)
 
+> **FROZEN — historical design record as of session 3A.** The rules below are
+> not live and must not be edited. The live source is `docs/AI_PIPELINE.md`
+> section 7 (behaviour) and `docs/CONTRACTS.md` section 7 (shape); where they
+> and this file disagree, they win, and this file is simply out of date.
+> A rule copied into two catalogs is how the C2 sign convention diverged in
+> 3C and how the T3 rule diverged in 3D5b, each time producing two
+> source-of-truth documents with opposite answers on the same file.
+> Read this file for WHY the design looks the way it does, never for what it
+> currently does.
+
+
 No `diagnosis.json` has ever been written, so the contract is amended in place at
 `schema_version "1.0"` (same precedent as the 0B and 1C amendments).
 `contracts/diagnosis.py` is rewritten accordingly. Field-level types are fixed in
@@ -499,6 +528,17 @@ When the trust gate is `blocked`: `calendar`, `signals`, `tree` and
 
 ## 7. Hypothesis catalog (fixed, evaluated in this order every run)
 
+> **FROZEN — historical design record as of session 3A.** The rules below are
+> not live and must not be edited. The live source is `docs/AI_PIPELINE.md`
+> section 7 (behaviour) and `docs/CONTRACTS.md` section 7 (shape); where they
+> and this file disagree, they win, and this file is simply out of date.
+> A rule copied into two catalogs is how the C2 sign convention diverged in
+> 3C and how the T3 rule diverged in 3D5b, each time producing two
+> source-of-truth documents with opposite answers on the same file.
+> Read this file for WHY the design looks the way it does, never for what it
+> currently does.
+
+
 Shares follow section 5.7. "Standard rule" = the verdict table in 5.7.
 
 | Id | Family / lens | Statement | Contribution or test | Rule | Requires |
@@ -508,7 +548,7 @@ Shares follow section 5.7. "Standard rule" = the verdict table in 5.7.
 | D3 | data | Flagged rows are concentrated in the current period | D3 check | directional: supported when D3 is caution | none |
 | T1 | time | The calendar explains the change | `calendar_effect` | standard | none (day-count fallback) |
 | T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur / LY_prev - 1)` | standard | year-ago pair |
-| T3 | time | The change is routine variation | all series `within`, no masked alert | directional: supported / ruled_out | 8 baseline points for revenue |
+| T3 | time | The change is routine variation | no rule-1 AND no rule-2 **year-over-year** signal on any series, and no masked alert; `inconclusive` whenever `revenue` has no year-over-year verdict, at any file length (ADR-0006). Evidence lists every series without a verdict | directional: supported / ruled_out / inconclusive | 8 baseline points for revenue |
 | C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | standard | customer, previous transition, no left-censoring |
 | C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | standard | customer, previous transition |
 | C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | standard | customer, previous transition, no left-censoring |
@@ -537,6 +577,17 @@ Not testable with DataClarity's schema (always listed, never evaluated):
 ---
 
 ## 8. Validation: planted-cause scenario suite
+
+> **FROZEN — historical design record as of session 3A.** The rules below are
+> not live and must not be edited. The live source is `docs/AI_PIPELINE.md`
+> section 7 (behaviour) and `docs/CONTRACTS.md` section 7 (shape); where they
+> and this file disagree, they win, and this file is simply out of date.
+> A rule copied into two catalogs is how the C2 sign convention diverged in
+> 3C and how the T3 rule diverged in 3D5b, each time producing two
+> source-of-truth documents with opposite answers on the same file.
+> Read this file for WHY the design looks the way it does, never for what it
+> currently does.
+
 
 A deterministic generator (fixed seed) builds a realistic synthetic store: 26
 complete months, about 400 customers, 6 categories x 10 products with
@@ -586,6 +637,17 @@ engine works.
 ---
 
 ## 9. Constants (`stages/diagnose/thresholds.py`)
+
+> **FROZEN — historical design record as of session 3A.** The rules below are
+> not live and must not be edited. The live source is `docs/AI_PIPELINE.md`
+> section 7 (behaviour) and `docs/CONTRACTS.md` section 7 (shape); where they
+> and this file disagree, they win, and this file is simply out of date.
+> A rule copied into two catalogs is how the C2 sign convention diverged in
+> 3C and how the T3 rule diverged in 3D5b, each time producing two
+> source-of-truth documents with opposite answers on the same file.
+> Read this file for WHY the design looks the way it does, never for what it
+> currently does.
+
 
 Thresholds are documented constants inside the Stage 3 package, not `.env`
 settings: stages cannot read backend Settings, and the project's rule of no

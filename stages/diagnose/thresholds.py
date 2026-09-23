@@ -126,6 +126,78 @@ XMR_RESIDUE_FLOOR = 1e-6
 # files would leave the constant claiming to own something it does not.
 YOY_LAG_MONTHS = 12
 
+# --- How small a year-ago month stops being a denominator (7.5, session 3D6) ---
+#
+# A base is refused when it is below this share of the series' TYPICAL
+# magnitude: the median of |value| over the TRADING months (non-zero) of the
+# history window, the same months the chart judges against. Scale-free,
+# because shops differ by orders of magnitude; a median, so one freak month
+# cannot move it (the 3D8 defect); the history window, so a shop is judged
+# against its recent self; the magnitude, so a series that nets negative in
+# most months still has a size; trading months, because a month without rows
+# is charted as 0.0 and a stall open four months a year otherwise had a
+# typical level of ZERO and no guard at all (3D6 doubt-review).
+#
+# Why this matters since ADR-0006: a year-over-year row is a VERDICT. A base
+# of 12.50 on a 50,000 shop divided to +399,900% and fired rule 1 on revenue,
+# `aov` and `units_per_order` on a month that went 50,000 to 50,000, and the
+# masked-shift alert then wrote headline rule 4 without its hedge.
+#
+# THIS IS A POLICY, NOT A MEASUREMENT - the same lesson as 3D5's
+# LEVEL_BLIND_SHARE. A base at fraction f of typical is excluded iff f < this
+# constant, so a sweep of "bases at f" scored against it is scored against its
+# own definition. Worse, the exclusion side has no natural edge at all: a
+# comparator at HALF its normal level already fires an actionable +100% on an
+# ordinary month, so base effects are what year-over-year is, and no share
+# can remove them - it only removes the absurd end, where the figure has
+# stopped being a growth rate.
+#
+# What the sweep DOES measure (scratchpad sweep2/sweep3, 3D6 summary) is the
+# upper bound, from bases that are small AND real:
+#   - a recovery after a slump of exactly half the window, the brief's "real
+#     4,000%": its base sits at 4.76% of a median that averages the two
+#     halves. It is lost from 0.045 at 5% monthly noise, from 0.04 at 15%,
+#     from 0.035 at 20% and from 0.03 at 30% (1 seed in 80); 0.05 lost 26 of
+#     80 seeds even at 5%.
+#   - a seasonal trough deeper than the share, whose base is small against
+#     the annual median. On a 24-month file a three-month trough last year is
+#     indistinguishable from a three-month closure last year - the only other
+#     occurrence of that calendar month is the current one, the month being
+#     judged - so the trough is excluded with the closure.
+#   - a result CAP (refuse any change above N%) was rejected on evidence: it
+#     drops a real +9,900% jump by construction.
+#   - windows centred on the base (+-6 and +-2 months) were rejected on
+#     evidence: a nine-month closure last year passes them and fabricates the
+#     verdict this guard exists to stop.
+#
+# Choosing inside the band uses the ASYMMETRY (Thach, 3D6): refusing a
+# usable CURRENT comparator only removes a verdict - T3 goes inconclusive,
+# the safe direction - while keeping a base that is too small fabricates one
+# that can reach the headline. 0.025 and 0.03 cannot be told apart by any
+# shape below 30% noise, so the one that refuses more wins. 0.035 is where
+# the brief's own must-fire recovery starts to be lost at 20% noise, a
+# realistic figure for monthly retail. (80-seed probe: scratchpad
+# edge.shipped.out; shapes: sweep2/sweep3.)
+#
+# WHAT THIS DOES NOT FIX - two doubt-review cycles, then triaged by running
+# each case to the headline (PROJECT_PLAN 3D9, which BLOCKS 3E):
+#   - For a BASELINE base the asymmetry does not hold. Refusing a point moves
+#     the centre either way: a shop with a real, growing off-season of about
+#     500 against a 50,000 season had six ordinary off-season points refused
+#     and its ordinary January became an actionable `above`. On ordinary
+#     months of two-regime shops the guard gave 23 fabrications against 21
+#     without it. It stays on baseline bases for one reason only: below 3% a
+#     base drags the centre by thousands of points, which is the reproduction.
+#   - It removes the cliff below 3% and nothing above it. A baseline base at
+#     3.5%, 5%, 10% or 25% of normal still drags the mean centre far enough
+#     that an ordinary -0.5% month fires `below`, rule 1, actionable.
+#   - A shop off-season for more than half the year at a low but non-zero
+#     level has a typical month set by the off-season, so an in-season
+#     comparator of 12.50 is still +400,300% and actionable.
+#   - A slump deeper than about 1.5% of normal, lasting half the window,
+#     loses its genuine recovery verdict (the safe direction).
+YOY_MIN_BASE_SHARE = 0.03
+
 # Year-over-year mode needs enough months to build XMR_MIN_BASELINE_POINTS YoY
 # points before the current one, and each YoY point needs the same month a year
 # earlier. Index complete months 1..N with current = N: a YoY point at month m
@@ -139,6 +211,7 @@ YOY_LAG_MONTHS = 12
 # 3A for being arbitrary and for excluding the recommended demo dataset, which
 # has exactly 24 complete months.
 YOY_MODE_MIN_MONTHS = YOY_LAG_MONTHS + XMR_MIN_BASELINE_POINTS + 1
+
 
 # --- Frame and calendar (7.2, 7.4) --------------------------------------------
 
