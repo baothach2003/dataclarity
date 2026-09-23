@@ -227,12 +227,6 @@ member (signed), not share of revenue. Stage 2 never calls the AI.
 
 ## 7. `diagnosis.json` (stage 3 output)
 
-> **Until Phase 3 session 3C, `contracts/diagnosis.py` still holds the previous
-> shape and does not match this section.** That divergence is deliberate and
-> time-boxed: this section was rewritten in the Phase 3 SPECS UPDATE session,
-> which wrote no application code. Session 3C rewrites the Pydantic model and
-> `tests/contracts/test_diagnosis.py` against what is below. See section 10.
-
 Produced by the 8-step diagnostic engine in `docs/AI_PIPELINE.md` section 7.
 Steps 1-7 are deterministic pandas and fill every block below except
 `ai_findings`; step 8 is the only AI call and writes only `ai_findings`. Why
@@ -267,12 +261,17 @@ the attribution is Shapley and why the hypothesis catalog is fixed in advance:
       "level1": {"formula": "customers*frequency*aov",
                  "factors": [{"name": "customers", "value_prev": 905.0,
                               "value_cur": 812.0, "contribution": -102300.0}]},
-      "level2": {"formula": "units_per_order*price_per_unit", "factors": []},
-      "gross_to_net": 1.04, "masked_shift_alert": false
+      "level2": {"formula": "units_per_order*price_per_unit",
+                 "factors": [{"name": "units_per_order", "value_prev": 4.1,
+                              "value_cur": 3.9, "contribution": -11200.0}]},
+      "gross_to_net": 1.04, "masked_shift_alert": false, "reasons": {}
     },
     "customers": {"new": 92000.0, "resurrected": 14000.0, "expansion": 61000.0,
                   "contraction": -88000.0, "lapsed": -219000.0,
-                  "unattributed": 0.0, "previous_transition": {}},
+                  "unattributed": 0.0, "previous_transition": {},
+                  "evidence": {"new_customers": 148, "left_censored": false,
+                               "new_customers_whose_first_activity_is_a_return": 3,
+                               "empty_period": []}},
     "returns": {"gross_prev": 1338000.0, "gross_cur": 1198000.0,
                 "returns_prev": 48000.0, "returns_cur": 48000.0},
     "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
@@ -320,7 +319,32 @@ check's `status` is `ok | caution | blocked | inconclusive` and its `id` is
 (`null` when no rule fired or the series has insufficient history), and
 `center`/`lower`/`upper`/`value_cur` are `null` under `insufficient_history`.
 `calendar.method` is `weekday_weights | day_count`. `tree.method` is always
-`"shapley"`. `hypotheses[].verdict` is
+`"shapley"`.
+
+**Arrays in the example above show one representative element.** Every
+`lever` level carries exactly the factors its `formula` names, in that order -
+three for `customers*frequency*aov`, two for the others - and this is enforced
+by the model, not merely documented.
+
+`tree.lever.level1` is `null` when a factor cannot be formed at all, which
+happens when either period has zero orders (AOV is then 0/0). Zero *identified
+customers* with orders present is not that case: it takes the two-factor
+`orders*aov` form instead. `tree.lever.gross_to_net` is `null` when level 1 is
+absent, and also when revenue did not move, since the ratio divides by that
+change - infinity is not representable in JSON. `tree.lever.masked_shift_alert`
+is `null` **exactly when level 1 is `null`, and is never `false` in that
+case**: `false` asserts that the check ran and found nothing, and a reader must
+not take "the tree could not be built" for "no masked shift". Every null field
+in `lever` carries an entry in `tree.lever.reasons`, keyed by field name.
+
+`tree.customers.evidence` is a free-form object carrying what C1 and C3 need
+before trusting the `new` term: `left_censored` (whether `cur` falls in the
+file's first `LEFT_CENSOR_MONTHS` months), `empty_period` (which side of the
+transition, if either, holds no rows at all), and
+`new_customers_whose_first_activity_is_a_return` - customers classified as new
+whose earliest row in the whole file is a refund, which usually means their
+purchase predates the file. That count is evidence only and changes no term;
+excluding those customers would break the bridge identity. `hypotheses[].verdict` is
 `supported | partial | ruled_out | inconclusive | not_testable`; `contribution`
 and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
 carry their test in `evidence` and `rule` instead. `headline.rule` is `1`-`7`
@@ -491,3 +515,16 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-23: **the divergence recorded in the entry above is closed.** Session
+  3C rewrote `contracts/diagnosis.py` and `tests/contracts/test_diagnosis.py`
+  against this section; the model and the doc describe the same file again.
+  Two fields were added to section 7 in the same session, in place at `1.0`
+  under the same precedent (no `diagnosis.json` has been written yet):
+  `tree.lever.reasons`, because a null field that does not say why it is null
+  cannot be acted on downstream, and `tree.customers.evidence`, which carries
+  the left-censoring hints C1/C3 need. Both are documented in section 7's
+  Types paragraph. The old `tests/contracts/test_diagnosis.py` pinned the
+  pre-3A shape; the tests naming `decomposition`, `root_cause` and `ruled_out`
+  could not survive a block that no longer exists, and every rule that still
+  applies - the all-or-nothing AI blocks, a dropped key not parsing as a
+  degraded run - is still tested, unchanged in substance.

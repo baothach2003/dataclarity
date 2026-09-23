@@ -278,11 +278,26 @@ customer active (at least one revenue-counted row) in `prev` or `cur`:
 
 Terms: `new_rev`, `resurrected_rev` (their `cur` revenue),
 `expansion = sum over retained of max(0, cur - prev)`,
-`contraction = sum over retained of max(0, prev - cur)`,
-`lapsed_rev` (their `prev` revenue), and `unattributed_delta` (change in revenue
-from rows with a blank customer). Identity:
-`delta_revenue = new_rev + resurrected_rev + expansion - contraction - lapsed_rev
-+ unattributed_delta`.
+`contraction = -sum over retained of max(0, prev - cur)`,
+`lapsed_rev` (the negative of their `prev` revenue), and `unattributed_delta`
+(change in revenue from rows with a blank customer).
+
+**Every term is stored signed and the identity is the plain sum** (Thach, 3C):
+
+    delta_revenue = new_rev + resurrected_rev + expansion + contraction
+                    + lapsed_rev + unattributed_delta
+
+This paragraph previously defined `contraction` and `lapsed_rev` as positive
+magnitudes subtracted from the total. That contradicted CONTRACTS section 7's
+example (`"contraction": -88000.0, "lapsed": -219000.0`, which simply add up)
+and the file stage 3 writes, so an implementer following the prose would have
+negated the two terms twice. Signed terms also put the whole of
+`diagnosis.json` under one rule - components sum to the change - the same rule
+the Shapley contributions and the PVM effects already follow.
+
+A consequence for step 8: the narration validator must compare **magnitudes**,
+so that "lost 219,000" in the AI's sentence matches `-219000.0` in the evidence
+it was given (section 5.9).
 
 The same bridge is also computed for the previous transition (month before
 `prev` -> `prev`) when history allows, so C1 to C3 can compare flows between
@@ -470,7 +485,7 @@ Shares follow section 5.7. "Standard rule" = the verdict table in 5.7.
 | T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur / LY_prev - 1)` | standard | year-ago pair |
 | T3 | time | The change is routine variation | all series `within`, no masked alert | directional: supported / ruled_out | 8 baseline points for revenue |
 | C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | standard | customer, previous transition, no left-censoring |
-| C2 | customers | More customers lapsed | `-(lapsed_rev(t) - lapsed_rev(t-1))` | standard | customer, previous transition |
+| C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | standard | customer, previous transition |
 | C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | standard | customer, previous transition, no left-censoring |
 | C4 | customers | Customers migrated to weaker segments | change in share of (At-risk + Hibernating) minus change in share of (Champions + Loyal), from `metrics.json` | directional: supported if unfavorable by >= 5 points, ruled_out if favorable or < 1 point | customer |
 | B1 | lever | Customers buy less often | level-1 frequency contribution | standard | customer |

@@ -33,6 +33,14 @@ MASKED_GROSS_TO_NET = 3.0
 # only looks new because the file starts there. C1/C3 stay inconclusive then.
 LEFT_CENSOR_MONTHS = 3
 
+# Every decomposition must sum to the total it decomposes. This is the tolerance
+# the exactness tests use, and it is a *relative* tolerance: the lenses are
+# exact in real arithmetic, so the only gap allowed is floating-point residue,
+# which scales with the size of the figures. An absolute tolerance would be
+# either meaningless on a shop turning over millions or unmeetable on one
+# turning over hundreds (docs/adr/0004, docs/AI_PIPELINE.md 7.6).
+RECONCILE_REL_TOLERANCE = 1e-9
+
 # --- Signal vs noise, XmR (7.5) -----------------------------------------------
 
 # Wheeler's constant for process behaviour charts: 3-sigma limits estimated

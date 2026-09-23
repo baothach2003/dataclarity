@@ -76,6 +76,12 @@ def build_run_data(
     )
 
 
+def period_mask(data: RunData, month: str) -> pd.Series:
+    """The revenue-counted rows of one month. Every step 5 lens starts here, so
+    that "what is in this period" is decided once rather than per lens."""
+    return data.parsed.counted & (data.months == month)
+
+
 def complete_months(data_start: date, data_end: date) -> list[str]:
     """Calendar months the file covers from their first day to their last,
     ascending.

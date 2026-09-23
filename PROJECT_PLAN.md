@@ -252,10 +252,31 @@ dataclarity/
       customers recomputed in stage 3 equal `metrics.json` exactly. All 1950
       stage 2 tests passed with no test file edited (`git diff -- tests/` empty).
       Doubt-review: 11 findings, 9 fixed here, 2 scheduled as 3D2
-- [ ] 3C Metric tree (AI_PIPELINE 7.6): Shapley levels 1 and 2 with the
+- [x] 3C Metric tree (AI_PIPELINE 7.6): Shapley levels 1 and 2 with the
       `orders*aov` fallback, masked-shift alert, customer bridge for both
-      transitions, returns lens, product PVM. Every decomposition reconciles to
-      its own total at 1e-9, enforced by tests. Doubt-review: yes
+      transitions, returns lens, product PVM, and `contracts/diagnosis.py`
+      rewritten to CONTRACTS section 7 (closing 3A's time-boxed divergence).
+      Every decomposition reconciles to its own total at 1e-9 - now enforced
+      **at runtime** in `tree.py`, not only by tests. Doubt-review: 11
+      findings, 2 critical, all fixed
+- [ ] 3C2 Normalize customer identity in BOTH stages (**prerequisite of 3D**,
+      Thach, after the 3C doubt-review). `product_identity` has stripped and
+      case-folded since 2C, but customer keys are grouped raw in stage 2 and
+      stage 3 alike. Reproduced in 3C: one customer spelled three ways, buying
+      100 in each month, reads as `new=200 / lapsed=-200` - total churn plus
+      total acquisition in a flat month, which corrupts the C hypotheses and
+      can reach the headline. The asymmetry of the risk decides it: a false
+      split fabricates that story from ordinary data entry, while a false
+      merge needs two genuinely different ids differing only by case or
+      whitespace, which is rare for POS codes. 3D localizes by customer type
+      from the bridge, so it must not be built on raw keys.
+      Spec: a shared `customer_identity` helper in `shared/transactions.py`
+      (strip + casefold, like `normalize_text`), used by stage 2 (active
+      customers, RFM, new vs returning) and stage 3; record as evidence how
+      many raw customer values were merged by normalisation; the stage 2 /
+      stage 3 consistency test must still pass; **any stage 2 test that
+      changes must be listed with its reason, and none weakened**.
+      Doubt-review: optional
 - [ ] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
       removed members, mix vs rate, breadth. Doubt-review: yes
 - [ ] 3D2 Step-change detection and re-baselining (**prerequisite of 3E**,
@@ -426,8 +447,36 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3B of 7 closed
-2026-09-22: foundations and steps 1-4, the first Stage 3 application code. The
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3C of 7 closed
+2026-09-23: the metric tree (step 5) - `shapley.py`, `lever.py`, `bridge.py`,
+`pvm.py`, `tree.py` - plus the rewrite of `contracts/diagnosis.py` to
+CONTRACTS section 7, which closes the divergence 3A opened deliberately.
+Both documented Shapley examples reproduce exactly: the Figma sample gives
+-10,909.58 / +1,904.44 / +997.14 and ADR-0004's large-swing case
+-53,066.67 / +18,933.33 / +34,933.33, with gross-to-net 133.67 against
+DIAGNOSE_DESIGN 1.2's quoted 133.7. The large-swing figures were derived by
+hand from the closed form before the code was run, so the test is a check
+rather than a recording. **The doubt-review was the session's real work: 11
+findings, 2 critical, every one reproduced by execution.** The two criticals
+were both silent wrongness rather than crashes - a missing `product_name`
+cell gave a NaN identity that `groupby` dropped, so those rows left the
+product lens while staying in the gross total it reconciles against (on the
+reproduction gross sales had fallen 49 and the lens reported a rise of 1, a
+direction flip in the numbers the headline is chosen from); and an infinite
+price passed the `notna()` validity check, propagated through every sum, and
+because JSON cannot hold infinity was serialised as `null` into fields typed
+as a required float. Both are fixed at the boundary, and the review's deeper
+point is now structural: `RECONCILE_REL_TOLERANCE` was declared in production
+thresholds but imported only by tests, so "every decomposition reconciles"
+held on seven fixtures and was unchecked on every real file. `tree.py` now
+asserts it at runtime and raises `ReconciliationError`, because both
+criticals produced a tree that does not reconcile and nothing noticed. A
+mutation check was run before and after: of eleven mutants that survived the
+first suite, ten are now killed and the eleventh is provably equivalent
+(adding zero-quantity rows to a sum of zeros), verified with a no-op control
+mutant that correctly survived. pytest 2043 passed (up from 1992). No AI call
+(Stage 3 spends credit only in 3F); Vitest not re-run, no frontend touched.
+Previously, session 3B closed foundations and steps 1-4. The
 cross-stage refactor landed first and safely - `ParsedTransactions`,
 `parse_transactions`, `require_column`, `pct_change`, `is_blank` and (beyond
 the five the brief listed) `normalize_text` and `product_identity` moved to
@@ -534,14 +583,15 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session 3C (Metric tree, AI_PIPELINE 7.6): Shapley
-levels 1 and 2 with the `orders*aov` fallback, the masked-shift alert, the
-customer bridge for both transitions, the returns lens and the product PVM,
-every decomposition reconciling to its own total at 1e-9 and enforced by
-tests. Doubt-review: yes (the checklist already marks it). Note that **3D2
-(step-change detection and re-baselining) must land before 3E**, not after -
-it is now in the checklist as an explicit prerequisite. Phase 6 (Insights,
-Dashboard) is
+**Next step:** Phase 3 session **3C2** (normalize customer identity in both
+stages), which Thach made a prerequisite of 3D after the 3C doubt-review:
+3D localizes by customer type from the bridge, so it must not be built on raw
+keys. Its spec is in the checklist above. Then 3D (Localization,
+AI_PIPELINE 7.7) - whose contract models already exist, written in 3C so the
+session that fills them is validated from its first line. Two prerequisites
+are now recorded in the checklist and neither may be skipped: **3C2 before
+3D**, and **3D2 (step-change detection and re-baselining) before 3E**.
+Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
@@ -560,6 +610,73 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3C (metric tree, step 5): new -
+  `stages/diagnose/{shapley,lever,bridge,pvm,tree}.py`,
+  `tests/stages/diagnose/{test_shapley_and_lever,test_bridge_and_pvm}.py`;
+  rewritten - `contracts/diagnosis.py`, `tests/contracts/test_diagnosis.py`;
+  edited - `shared/transactions.py`, `stages/diagnose/{inputs,thresholds}.py`,
+  `docs/CONTRACTS.md` 7 + 10, `docs/AI_PIPELINE.md` 7.6.
+  - **`tests/contracts/test_diagnosis.py` was rewritten, as the brief
+    anticipated.** It pinned the pre-3A shape, and the tests naming
+    `decomposition`, `root_cause`, `ruled_out` and `secondary` could not
+    survive blocks that no longer exist. Every rule that still applies is
+    still tested and none was weakened: the four degraded-mode tests are
+    unchanged in substance (the AI blocks are all-or-nothing; a dropped key
+    must not parse as a degraded run), and the file gained tests for the new
+    invariants - a level whose factors do not match its formula, a null lens
+    with no recorded reason, `masked_shift_alert: false` on an absent tree,
+    and a blocked run still carrying analysis blocks.
+  - **Two decisions Thach made before implementation**, both now in
+    AI_PIPELINE 7.6: a zero-order period makes lever level 1 inconclusive
+    while zero identified customers with orders present takes the two-factor
+    fallback; and a customer is active if they have any counted row whatever
+    the sign, with no clamping, which also keeps "active" identical to stage
+    2's. His two riders are implemented too - `gross_to_net` and
+    `masked_shift_alert` are null rather than false when the tree is missing,
+    and the count of new customers whose first-ever row is a refund is
+    recorded as a left-censoring hint in evidence only.
+  - **The lesson worth keeping from the doubt-review: a passing exactness
+    test proves nothing on its own.** Three of the tests I wrote were green
+    for the wrong reason. `test_gross_to_net_is_the_documented_ratio`
+    re-implemented the formula in its own body and never called the function
+    it was named after. `test_pvm_ignores_returns_...` refunded at the same
+    price as the sale, so the lens returned the same answer with the bug and
+    without it - it was green *under the defect it exists to catch*. And the
+    whole-tree reconciliation test ran on a fixture with no returns at all,
+    where `delta_gross` and `delta_net` are the same number, so an
+    implementation that totalled the product lens to net revenue passed the
+    one test whose job is to keep the two apart. A decomposition that returns
+    all zeros reconciles perfectly; "the parts sum to the total" is only
+    evidence when the total is independently known and the parts are not
+    trivially zero. Mutation testing is what surfaced all three, and is worth
+    repeating in 3D and 3E.
+  - **Thach's two decisions after the review**, both recorded rather than
+    implemented silently. (1) The bridge sign convention follows CONTRACTS:
+    every term signed, identity the plain sum, so all of `diagnosis.json`
+    obeys one rule - components sum to the change - shared with the Shapley
+    contributions and the PVM effects. AI_PIPELINE 7.6 and DIAGNOSE_DESIGN
+    5.5.5 were corrected in this session; they had stated the opposite, and an
+    implementer following the prose would have negated two terms twice. A
+    consequence was written into AI_PIPELINE 7.9 for 3F to build: the
+    narration validator compares **magnitudes**, so "lost 219,000" matches
+    `-219000.0` rather than spending the retry and degrading a run whose
+    narration was correct. Fixing the convention also flushed out a dependent
+    formula that would have shipped sign-flipped: **C2's contribution is now
+    `lapsed(t) - lapsed(t-1)` with no outer negation** in both catalogs. The
+    negation was correct only while `lapsed` was a positive magnitude; against
+    a signed term it reports a POSITIVE contribution for a month in which more
+    customers lapsed, in a hypothesis that can take the headline. C1 and C3
+    needed no change. This is the second time in two sessions that a doc
+    conflict hid a real defect rather than being merely untidy.
+    (2) Customer keys are normalized in **both** stages
+    as session 3C2, a prerequisite of 3D, not patched into stage 3 alone -
+    doing that would have broken the stage 2 / stage 3 agreement that 3B's
+    consistency test exists to protect.
+  - I repeated the same mistake once more inside the fix: the first corrected
+    test for the returns-first count asserted only the count, and with two
+    customers a correct implementation and a sign-flipped one both report
+    "1". Adding a third customer made the right answer and the wrong answer
+    different numbers. Counting is not identifying.
 - 2026-09-22, Phase 3 session 3B (foundations and steps 1-4): new -
   `shared/transactions.py`, `shared/contract_files.py`,
   `stages/diagnose/{thresholds,inputs,frame,trust,calendar_effect,signals}.py`,

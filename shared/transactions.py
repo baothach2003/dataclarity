@@ -27,6 +27,7 @@ unchanged in Phase 3 session 3B:
 
 from dataclasses import dataclass
 
+import numpy as np
 import pandas as pd
 
 
@@ -84,7 +85,16 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
 
     # A row with no parseable date, quantity or price cannot be measured or
     # placed in a period; it is left out rather than guessed at.
-    valid = dates.notna() & quantities.notna() & prices.notna()
+    #
+    # np.isfinite, not notna: `pd.to_numeric` parses the strings "inf",
+    # "-inf" and "Infinity" into real floats, which are not missing and so
+    # passed a notna() check. One such cell then propagated through every sum
+    # that touched it, and because JSON cannot represent infinity, pydantic
+    # serialised the result as `null` in contract fields typed as a required
+    # float - a metrics.json or diagnosis.json that will not validate when read
+    # back (3C doubt-review C2). An unrepresentable number is not a measurement,
+    # so it is excluded here exactly like an unparseable one.
+    valid = dates.notna() & np.isfinite(quantities) & np.isfinite(prices)
 
     type_col = reverse.get("transaction_type")
     if type_col is None:

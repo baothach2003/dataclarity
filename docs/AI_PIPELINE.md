@@ -373,21 +373,54 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   sequential substitution the answer does not depend on an order someone picked
   (`docs/adr/0004-shapley-attribution.md`).
 - **Lever level 1.** `revenue = customers * frequency * AOV`, or `orders * AOV`
-  when `customer` is unmapped.
+  when `customer` is unmapped. Two cases the formula cannot express (Thach,
+  3C). A period with **zero orders** leaves AOV as 0/0, so the level is `null`
+  with a recorded reason: substituting a zero would report "AOV contributed
+  +50" for a shop's opening month, which is arithmetic, not a diagnosis. A
+  period with **zero identified customers but orders present** - every row that
+  month carrying a blank customer - is not that case: it takes the same
+  two-factor fallback as an unmapped column, which is still exact and still
+  informative, and the C-family hypotheses become `not_testable`.
 - **Lever level 2.** `AOV = units_per_order * price_per_unit`, converted into
   revenue units proportionally (`phi_AOV * phi_k / delta_AOV`), which stays
   exact because the level-2 contributions sum to `delta_AOV`. `null` when net
-  units are not positive in both periods.
+  units are not positive in both periods, and `null` when AOV did not move,
+  since the conversion divides by that change.
 - **Masked-shift alert.** `gross_to_net = sum(|phi_i|) / |delta_revenue|` over
   level 1. Alert when it reaches `MASKED_GROSS_TO_NET` and at least one
   component has a step-4 signal. This is the case a naive "did revenue move?"
   report misses entirely: a flat total hiding large offsetting movements.
+  When level 1 is `null` the ratio and the alert are **both `null`, never
+  `false`** (Thach, 3C): `false` asserts a check that did run, and a missing
+  tree must not be read downstream as "no masked shift". When revenue did not
+  move at all, the ratio alone is `null` - it has no denominator, and infinity
+  is not representable in JSON - while the alert is still decided on whether a
+  component carries a signal.
+- **"Did not move" is a relative test, never `== 0`.** Both guards above
+  compare against `RECONCILE_REL_TOLERANCE * scale`. An exact comparison lets
+  float residue through: one file produced a revenue residue of -5.6e-17 that
+  became a gross-to-net ratio of 4.5e15, enough to fire the masked-shift alert
+  and headline rule 4 on a month where nothing moved (3C doubt-review).
 - **Customer bridge (additive, exact).** Classify every customer active in
   `prev` or `cur` as new, resurrected, retained or **lapsed** - never
-  "churned": in retail, not buying this month is not leaving forever. Identity:
-  `delta_revenue = new + resurrected + expansion - contraction - lapsed +
-  unattributed`, where `unattributed` is the change from rows with a blank
-  customer. The **lapse window is one period**, matching 2A's periods: a
+  "churned": in retail, not buying this month is not leaving forever.
+  **Every term is stored signed, and the identity is the plain sum:**
+  `delta_revenue = new + resurrected + expansion + contraction + lapsed +
+  unattributed`, where `contraction` and `lapsed` are normally negative and
+  `unattributed` is the change from rows with a blank customer. An earlier
+  draft of this section wrote them as positive magnitudes subtracted from the
+  total, which contradicted CONTRACTS section 7's example and the file the
+  stage actually writes; anyone implementing the prose against the real JSON
+  would have negated those two terms twice (Thach, 3C). Signed terms also make
+  the whole of `diagnosis.json` follow **one** rule - components sum to the
+  change - shared with the Shapley contributions and the PVM effects.
+  One dependent formula moved with it: **C2's contribution is
+  `lapsed(t) - lapsed(t-1)`, with no outer negation.** That negation existed
+  only because `lapsed` used to be a positive magnitude; against a signed term
+  it flips the sign, so a month in which more customers lapsed would be
+  reported as a positive contribution - in a hypothesis that can take the
+  headline. C1 and C3 are unaffected: `new` and `resurrected` carry the same
+  sign under either convention. The **lapse window is one period**, matching 2A's periods: a
   customer active in `prev` and not in `cur` is lapsed *this period*. A
   three-month definition was considered and rejected because it breaks the
   identity above - a customer who bought two months ago would be neither lapsed
@@ -395,10 +428,34 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   computed for the previous transition when history allows, so C1-C3 can compare
   flows. If `cur` falls in the first `LEFT_CENSOR_MONTHS` months of the file,
   "new" is unreliable and C1/C3 return `inconclusive`.
+  A customer is **active if they have at least one revenue-counted row**,
+  whatever the sign of their net revenue (Thach, 3C). A returns-only customer
+  is classified like any other and their term carries the sign the arithmetic
+  gives; nothing is clamped, because a clamp replaces a measurement with an
+  invented number and breaks the identity. This also keeps "active" identical
+  to stage 2's `active_customers`, so the two stages cannot disagree about who
+  was active. `evidence` records how many customers classified as new have a
+  first-ever row that is a refund - a left-censoring hint, since they are
+  returning something the file never recorded them buying - and whether either
+  side of the transition holds no rows at all.
+  The previous transition is computed only when **both** its months contain
+  revenue-counted rows, not merely when they are complete by the calendar: an
+  empty month produced an all-zero bridge that was then offered to C1-C3 as a
+  real comparison of flows (3B finding 2, again).
 - **Returns lens.** `delta_net = delta_gross - delta_returns`.
 - **Product lens (PVM, exact).** Partition products into L (in both periods), N
   (new) and X (discontinued). `delta_gross = delta_gross_L + gross_N(cur) -
   gross_X(prev)`; for L, three-player Shapley over volume, mix and price.
+  Rows whose `product_name` cell is empty form **one visible bucket**, not a
+  silent omission: `groupby` drops null keys by default, so those rows left the
+  lens while remaining in the gross total it reconciles against, and on the
+  reproduction gross sales had fallen 49 while the lens reported a rise of 1 -
+  a direction flip in the figures the headline is chosen from (3C doubt-review).
+- **Reconciliation is checked at runtime, not only in tests.** Every lens is
+  asserted against its own total at `RECONCILE_REL_TOLERANCE` before the tree
+  is returned, and a failure raises rather than writing a report built on a
+  decomposition that does not add up. A violation is always a code bug: these
+  lenses are exact in real arithmetic.
 
 ### 7.7 Step 6: Localization
 
@@ -438,7 +495,7 @@ hypotheses after seeing the data is the failure mode this prevents.
 | T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur/LY_prev - 1)` | year-ago pair |
 | T3 | time | The change is routine variation | directional: all series `within`, no masked alert | baseline points for revenue |
 | C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
-| C2 | customers | More customers lapsed | `-(lapsed_rev(t) - lapsed_rev(t-1))` | customer, previous transition |
+| C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
 | C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
 | C4 | customers | Customers migrated to weaker segments | directional: change in (At-risk + Hibernating) share minus change in (Champions + Loyal) share, from `metrics.json` | customer |
 | B1 | lever | Customers buy less often | level-1 frequency contribution | customer |
@@ -512,6 +569,13 @@ tested is part of the answer, not an omission.
   evidence within `AI_NUMBER_TOLERANCE` (exact for counts), every hypothesis id
   referenced must exist, and the not-testable sentence must be present. Failure
   spends the run's single shared retry, then degraded mode.
+- **The number match is on magnitude, not on sign** (Thach, 3C; build this in
+  3F). Bridge terms are stored signed, so `lapsed` is `-219000.0` in the
+  evidence while the natural English for it is "lost 219,000" - a sign-aware
+  comparison would reject the correct sentence and spend the retry, then
+  degrade a run whose narration was right. The direction is already fixed by
+  the deterministic blocks; the AI is being checked for inventing *figures*,
+  not for choosing a preposition.
 - Degraded mode: `ai_findings` and `model_used` are `null`, and the
   deterministic headline, hypothesis table and every computed block are still
   written and shown. Stage 3 never fails because of the AI.
