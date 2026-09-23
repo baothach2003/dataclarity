@@ -334,9 +334,25 @@ moved more in relative terms, split its change across categories into a mix
 effect (category shares changed) and a rate effect (within-category values
 changed), using 2-player Shapley on `sum_c(share_c * value_c)`. Exact.
 
-**Breadth.**
+**Breadth.** Measured over the **product** dimension, and over every member
+rather than the named few.
+
+Which dimension was left unstated here until session 3D settled it (Thach).
+`product_name` is always mapped - stage 2 requires it to produce
+`metrics.json` at all - while `category` may not be, so measuring breadth on
+the dimension that always exists keeps the `broad`/`concentrated` verdict
+comparable across files. A verdict computed over categories on one file and
+products on another would not be the same measurement, and nothing in the
+output would say so.
+
+Over every member, because the named five are *chosen for being the largest
+movers*: breadth measured over them would report that every change is
+concentrated.
+
 - `declining_base_share` = share of `prev` revenue held by members whose delta
-  has the same sign as the total change.
+  has the same sign as the total change. A total that did not move has no
+  direction, so a flat month scores 0.0 rather than counting every member that
+  fell.
 - `top_member_share` = `|delta|` of the largest member divided by
   `sum(|delta_m|)`.
 - Classification: `broad` if `declining_base_share >= 0.70`; `concentrated` if

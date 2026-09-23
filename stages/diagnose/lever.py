@@ -15,7 +15,8 @@ from contracts.diagnosis import Lever, LeverFactor, LeverLevel, Signal
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
-from stages.diagnose.thresholds import MASKED_GROSS_TO_NET, RECONCILE_REL_TOLERANCE
+from stages.diagnose.numbers import is_negligible
+from stages.diagnose.thresholds import MASKED_GROSS_TO_NET
 
 # Level-1 factor names mapped to the step-4 series that tracks the same thing,
 # so the masked-shift alert can ask "is any of these actually unusual?".
@@ -160,7 +161,7 @@ def _level2(
     aov_prev = previous.revenue / previous.orders
     aov_cur = current.revenue / current.orders
     delta_aov = aov_cur - aov_prev
-    if _is_negligible(delta_aov, aov_prev, aov_cur):
+    if is_negligible(delta_aov, aov_prev, aov_cur):
         # The pair can still be moving in opposite directions here, which is
         # interesting - but the conversion into revenue units divides by this,
         # so the lens reports that it cannot say rather than inventing a scale.
@@ -190,17 +191,6 @@ def _level2(
     )
 
 
-def _is_negligible(delta: float, previous: float, current: float) -> bool:
-    """Is this change nothing but floating-point residue?
-
-    Relative, because these are money figures whose residue scales with them:
-    an absolute epsilon is either meaningless on a shop turning over millions
-    or unmeetable on one turning over hundreds.
-    """
-    scale = max(abs(previous), abs(current))
-    return abs(delta) <= RECONCILE_REL_TOLERANCE * scale if scale else delta == 0
-
-
 def _gross_to_net(
     previous: PeriodTotals, current: PeriodTotals, level1: LeverLevel | None,
     reasons: dict[str, str],
@@ -213,7 +203,7 @@ def _gross_to_net(
         reasons["gross_to_net"] = reasons.get("level1", "level 1 could not be computed")
         return None
     delta_revenue = current.revenue - previous.revenue
-    if _is_negligible(delta_revenue, previous.revenue, current.revenue):
+    if is_negligible(delta_revenue, previous.revenue, current.revenue):
         # Infinity is not representable in JSON, and this is precisely the
         # masked case: the components moved and the total did not. The guard is
         # relative for the same reason as level 2's - an exact `== 0` let a

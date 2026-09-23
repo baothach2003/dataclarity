@@ -235,6 +235,17 @@ dataclarity/
 > Facts now live in `docs/CONTRACTS.md` section 7 and `docs/AI_PIPELINE.md`
 > section 7; DIAGNOSE_DESIGN.md remains the record of *why*. Only 3F spends
 > API credit.
+>
+> **Every remaining session runs BOTH a per-decision mutation check AND a
+> doubt-review cycle** (Thach, after 3D). Neither substitutes for the other:
+> they fail in opposite directions. A mutation check only mutates *code that
+> exists*, so no mutant can represent an input nobody wrote a test for; a
+> doubt-review reads for inputs but will not systematically probe whether each
+> decision point is pinned. The evidence is 3D's own numbers: **19 mutants
+> passed while all three criticals were live**, and in the same session the
+> mutation check found three decision points the tests did not actually pin,
+> which the review did not raise. Each technique found what the other could
+> not. Budget both.
 
 - [x] 3A SPECS UPDATE (docs only, no application code): CONTRACTS section 7
       rewritten to the 8-block `diagnosis.json`, AI_PIPELINE section 7 rewritten
@@ -282,8 +293,13 @@ dataclarity/
       1992+51 -> 2056 purely by addition. Doubt-review: replaced by a
       call-site mutation check, which found two sites the new tests did not
       actually protect
-- [ ] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
-      removed members, mix vs rate, breadth. Doubt-review: yes
+- [x] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
+      removed members, mix vs rate, breadth - `members.py`, `mix_rate.py`,
+      `localization.py`, plus `numbers.py` for the relative zero guard three
+      files had each rediscovered. Every dimension reconciles to its own total,
+      tested per dimension. Doubt-review AND a per-decision mutation check:
+      26 mutants all killed; the review found 3 criticals the mutants could
+      not reach
 - [ ] 3D2 Step-change detection and re-baselining (**prerequisite of 3E**,
       Thach, 3B doubt-review). The XmR centre line is the mean of a baseline
       that contains the very run rule 2 tests, so a file of 13-20 months in
@@ -452,8 +468,30 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3C2** closed
-2026-09-23: the customer key is now normalised (stripped and case-folded) in
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D** closed
+2026-09-23: localization (step 6) - the three fixed dimensions, the Other
+grouping, mix vs rate, and breadth. **I ran both a mutation check and a
+doubt-review, against the brief's suggestion that the mutation check might
+replace it, and that was the right call**: mutation testing only mutates code
+that exists, so it is structurally blind to a bug caused by input nobody wrote
+a test for - and all three criticals were exactly that. (1) The set logic
+keyed on the DISPLAY NAME, so when two keys shared a label - two SKUs under
+one product name, the commonest shape in retail - the second member appeared
+in neither the named list nor Other and simply vanished, taking 6.4% of the
+change with it. (2) `share_of_change` divided by the total under an exact-zero
+guard, so a month flat in business terms but -5.6e-17 in floating point gave a
+member a share of -5.4e15 - the same mistake `lever.py` had already fixed
+twice in 3C, which is why the guard now lives in `numbers.py` where the next
+caller inherits it instead of rediscovering it. (3) The size test compared a
+SIGNED share against a SIGNED base, so a returns line was judged "small and
+quiet" while being the largest movement in the dimension, and a negative base
+inverted the test outright. Eight more findings were real and fixed, including
+a whitespace-only product name forming a second unflagged bucket, and the
+mix/rate split handing itself to whichever metric a negative denominator had
+made meaningless (a month that sold 50 and refunded 165 reported price per
+unit +1050%). The mutation check earned its keep separately: 3 of its 19
+mutants survived the first pass, each a gap in my tests rather than the code.
+pytest 2087 passed. Previously, session **3C2** normalised the customer key in
 both stages, through one shared `customer_identity` helper, at all six places
 either stage groups or counts by customer. This was Thach's call after the 3C
 doubt-review reproduced what raw keys do: one customer written three ways,
@@ -606,12 +644,15 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session 3D (Localization, AI_PIPELINE 7.7): members,
-"Other" grouping, new and removed members, mix vs rate, breadth. Its
-prerequisite (3C2) is done, and its contract models already exist - written in
-3C so the session that fills them is validated from its first line.
-Doubt-review: yes. **3D2 (step-change detection and re-baselining) remains a
-prerequisite of 3E** and may not be skipped.
+**Next step:** Phase 3 session **3D2** (step-change detection and
+re-baselining), which is a recorded prerequisite of 3E and may not be skipped.
+Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
+but **not yet wired into an engine** - `compute_localization` has no caller
+outside its tests - so on Thach's instruction 3D added the contract round-trip
+directly: a computed `Localization` goes through `DiagnosisContract`, out to
+JSON and back, on three fixtures including the awkward one (blank categories,
+a returns line, a self-cancelling product) and the flat-residue month. The
+block is proven contract-valid before 3E builds on it.
 Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
@@ -631,6 +672,40 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3D (localization, step 6): new -
+  `stages/diagnose/{members,mix_rate,localization,numbers}.py`,
+  `tests/stages/diagnose/test_localization.py` (31 tests); edited -
+  `contracts/diagnosis.py`, `stages/diagnose/{bridge,trust,lever}.py`,
+  `docs/AI_PIPELINE.md` 7.7, `docs/CONTRACTS.md` 7.
+  - **Thach's three edge-case decisions**, all implemented and each one
+    changing the design more than it looked. Naming the top movers when
+    nothing clears the bar needed `size_filter_waived` to have a precise
+    meaning, and defining it exposed that `customer_type` - four fixed
+    members, bar measured on PREVIOUS revenue, which `new` has none of - would
+    have hidden new customers on every run. The reserved `(uncategorised)`
+    label needed the bucket identified by its flag rather than its name, since
+    a real category can be spelled that way. Presence-means-counted-rows came
+    straight from the bridge, so the two lenses agree about who was there.
+  - **Why I ran the doubt-review as well as the mutation check.** The brief
+    suggested the mutation check might replace it. It cannot: mutation testing
+    mutates code that exists, so no mutant can represent an input nobody wrote
+    a test for. All three criticals were that shape, and all three were
+    invisible to 19 passing mutants. Worth keeping as a rule - the two
+    techniques fail in opposite directions, and step 6 groups on two key
+    columns that can both be blank.
+  - **The standing rule Thach drew from this session**, now in the Phase 3
+    header: run both the mutation check and the doubt-review in every
+    remaining session. 19 mutants passed while all three criticals were live,
+    and the mutation check separately found three decision points the review
+    never raised. Neither technique substitutes for the other.
+  - **The one to remember: a comment asserting an invariant is not the
+    invariant.** `members.py` carried a comment explaining that the gap key
+    "carries characters `normalize_text` can never produce", which is true of
+    the grouping key and was then quietly undone three lines later, where the
+    set logic keyed on the display name instead. The comment described the
+    design; the code did something else; the test that existed for exactly
+    this case passed because its fixture had two members and therefore skipped
+    the filter entirely.
 - 2026-09-23, Phase 3 session 3C2 (normalise the customer key): edited -
   `shared/transactions.py` (new `customer_identity` and
   `merged_identity_count`), `stages/analyze/metrics_core.py`,

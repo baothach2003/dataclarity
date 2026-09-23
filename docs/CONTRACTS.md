@@ -225,6 +225,14 @@ Rules for the values (no field changed):
 `contribution_pct` = share of the total change attributable to that dimension
 member (signed), not share of revenue. Stage 2 never calls the AI.
 
+**Rows with a blank category are excluded from `by_dimension`**, because this
+block answers "revenue by category" and an unnamed category is not one; their
+revenue still counts in `core`. Section 7's `localization` **includes** them
+as a visible `(uncategorised)` member, because that block answers "where did
+the change happen" and has to account for the whole change. The divergence is
+deliberate, the two blocks have different jobs, and **neither should be
+changed to match the other** - see the note in section 7.
+
 ## 7. `diagnosis.json` (stage 3 output)
 
 Produced by the 8-step diagnostic engine in `docs/AI_PIPELINE.md` section 7.
@@ -281,10 +289,12 @@ the attribution is Shapley and why the hypothesis catalog is fixed in advance:
     "dimensions": [{"name": "category",
                     "members": [{"name": "Home Decor", "rev_prev": 268000.0,
                                  "rev_cur": 210000.0, "delta": -58000.0,
-                                 "share_of_change": 0.414}],
+                                 "share_of_change": 0.414, "is_data_gap": false}],
                     "other": {"name": "Other", "rev_prev": 31000.0, "rev_cur": 29500.0,
-                              "delta": -1500.0, "share_of_change": 0.011},
-                    "new_members": [], "removed_members": []}],
+                              "delta": -1500.0, "share_of_change": 0.011,
+                              "is_data_gap": false},
+                    "new_members": [], "removed_members": [],
+                    "size_filter_waived": false, "member_count": 14}],
     "mix_rate": {"metric": "aov", "mix": -24450.0, "rate": 3050.0},
     "breadth": {"declining_base_share": 0.74, "top_member_share": 0.41,
                 "classification": "broad"}
@@ -336,6 +346,41 @@ is `null` **exactly when level 1 is `null`, and is never `false` in that
 case**: `false` asserts that the check ran and found nothing, and a reader must
 not take "the tree could not be built" for "no masked shift". Every null field
 in `lever` carries an entry in `tree.lever.reasons`, keyed by field name.
+
+`localization.dimensions[].name` is `category | product | customer_type`;
+`category` is absent when no column is mapped to it. Each member carries
+`is_data_gap`, true for the bucket holding rows whose key column was blank -
+`(uncategorised)`, `(no product name)`, `(no customer)`. Those buckets exist so
+the dimension still accounts for its whole change, and step 7 must never write
+a recommendation about one as though it were a real product group. **A member
+is identified by that flag, not by its name**: a real category spelled
+`(uncategorised)` stays a separate member. Data-gap buckets never appear in
+`new_members` or `removed_members`, which carry bare strings with no flag and
+would otherwise announce "a new category launched this month: (uncategorised)".
+
+`size_filter_waived` is true when **no** member cleared the size bar and the
+top movers were named anyway, so that step 7 can tell a `concentrated` verdict
+over genuinely large members from one over members that are all small. It is
+not set merely because a dimension small enough to fit in the named slots
+skipped the filter. `member_count` is how many members the dimension had
+before ranking and grouping: five named out of seven is a different story from
+five out of five hundred.
+
+`localization.breadth` is measured over the **product** dimension, the finest
+and the only one always present, and over *every* member rather than the named
+few - measured over the top five, every change would look concentrated, since
+the top five are chosen for being the largest movers.
+
+**Blank categories are handled differently here from `metrics.json`'s
+`by_dimension` (section 6), on purpose. Do not "fix" either one to match the
+other.** Section 6 answers "revenue by category" and excludes rows with no
+category, because an unnamed category is not a category. Section 7 answers
+"where did the change happen" and must account for the *whole* change, so it
+keeps those rows as a visible `(uncategorised)` member; dropping them would
+leave the dimension reconciling to a subtotal while the rest of the report
+talks about the full figure - which is exactly the defect session 3C found in
+the product lens. The two blocks have different jobs, and only one of them
+carries a reconciliation duty.
 
 `tree.customers.evidence` is a free-form object carrying what C1 and C3 need
 before trusting the `new` term: `left_censored` (whether `cur` falls in the

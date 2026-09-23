@@ -61,6 +61,43 @@ def compute_bridge(data: RunData) -> CustomerLens | None:
                         evidence=evidence)
 
 
+def classify(
+    previous: pd.Series, current: pd.Series, first_month: dict[str, str], month: str
+) -> dict[str, str]:
+    """Which class each customer falls into for one transition.
+
+    The single statement of the rule. It used to be stated twice - once here
+    and once inside `_bridge` - under a docstring claiming that step 6 taking
+    its classes from step 5 made divergence impossible. It did not: two copies
+    of a rule diverge the moment one is edited, and nothing compared them
+    (3D doubt-review R9). Now `_bridge` calls this too, so there is one rule
+    and both callers are wrong together or right together.
+    """
+    in_prev, in_cur = set(previous.index), set(current.index)
+    classes = {name: "retained" for name in in_prev & in_cur}
+    classes |= {name: "lapsed" for name in in_prev - in_cur}
+    for name in in_cur - in_prev:
+        # "New" is first activity anywhere in the file, not merely absence
+        # from the previous month: a customer who bought in March, skipped
+        # April and came back in May is resurrected, not new.
+        classes[name] = "new" if first_month.get(name) == month else "resurrected"
+    return classes
+
+
+def customer_classes(data: RunData) -> dict[str, str]:
+    """Each customer's class for the current transition, for step 6."""
+    customer_col = data.parsed.reverse.get("customer")
+    if customer_col is None:
+        return {}
+    period = data.metrics.period
+    return classify(
+        customer_revenue(data, period.previous, customer_col),
+        customer_revenue(data, period.current, customer_col),
+        _first_activity(data, customer_col)["month"].to_dict(),
+        period.current,
+    )
+
+
 def _bridge(
     data: RunData, customer_col: str, transition: Transition
 ) -> tuple[BridgeTerms, dict]:
@@ -69,17 +106,12 @@ def _bridge(
     first = _first_activity(data, customer_col)
     first_month = first["month"].to_dict()
 
-    in_prev = set(previous.index)
-    in_cur = set(current.index)
-    retained = sorted(in_prev & in_cur)
-    entered = sorted(in_cur - in_prev)
-    lapsed = sorted(in_prev - in_cur)
-
-    # "New" is first activity anywhere in the file, not merely absence from the
-    # previous month: a customer who bought in March, skipped April and came
-    # back in May is resurrected, not new.
-    new = [name for name in entered if first_month.get(name) == transition.current]
-    resurrected = [name for name in entered if first_month.get(name) != transition.current]
+    # One statement of the rule, shared with step 6 (see `classify`).
+    classes = classify(previous, current, first_month, transition.current)
+    members = {label: sorted(name for name, value in classes.items() if value == label)
+               for label in ("new", "resurrected", "retained", "lapsed")}
+    new, resurrected = members["new"], members["resurrected"]
+    retained, lapsed = members["retained"], members["lapsed"]
 
     gains = sum(max(0.0, current[name] - previous[name]) for name in retained)
     losses = sum(max(0.0, previous[name] - current[name]) for name in retained)

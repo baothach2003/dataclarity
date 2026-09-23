@@ -297,6 +297,19 @@ class Member(ContractModel):
     rev_cur: float
     delta: float
     share_of_change: float
+    # True for a bucket that exists because the data is incomplete - rows whose
+    # category or product name is blank - rather than because the business has
+    # such a group. Step 7 must not write a recommendation about
+    # "(uncategorised)" as though it were a real product line (Thach, 3D); it
+    # is a data-completeness signal, and D3 carries its share as evidence.
+    is_data_gap: bool = False
+
+    @model_validator(mode="after")
+    def _figures_are_finite(self) -> Self:
+        values = (self.rev_prev, self.rev_cur, self.delta, self.share_of_change)
+        if not all(isfinite(value) for value in values):
+            raise ValueError(f"member {self.name!r} must carry finite figures")
+        return self
 
 
 class Dimension(ContractModel):
@@ -305,12 +318,38 @@ class Dimension(ContractModel):
     other: Member | None
     new_members: list[str]
     removed_members: list[str]
+    # True when no member cleared the size bar and the top movers were named
+    # anyway, so that step 7 can tell a genuinely concentrated dimension from
+    # one whose members are all small (Thach, 3D): a `concentrated` verdict
+    # means something different under a waived bar, and the headline rules
+    # must be able to see the difference rather than infer it from prose.
+    size_filter_waived: bool = False
+    # How many members the dimension had before ranking and grouping, which is
+    # the context that makes the waiver readable: 5 named out of 7 is a
+    # different story from 5 named out of 500.
+    member_count: NonNegativeInt = 0
 
 
 class MixRate(ContractModel):
-    metric: str
+    """The Simpson's-paradox split. `metric` is closed, not an open string:
+    only two averages are ever split (docs/AI_PIPELINE.md 7.7), and a typo in
+    a free string would reach the narration as the name of a metric that does
+    not exist."""
+
+    metric: Literal["aov", "price_per_unit"]
     mix: float
     rate: float
+
+    @model_validator(mode="after")
+    def _figures_are_finite(self) -> Self:
+        """Every sibling lens carries this and MixRate was written without it
+        - the same omission, in the same place, as the two lenses that shipped
+        `null` into required float fields in 3C. `ProductLens` says the habit
+        is "kept consistent across lenses so the next one written inherits
+        it"; the next one written did not (3D doubt-review R7)."""
+        if not all(isfinite(value) for value in (self.mix, self.rate)):
+            raise ValueError("mix and rate must be finite")
+        return self
 
 
 class Breadth(ContractModel):

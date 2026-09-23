@@ -12,8 +12,9 @@ must not claim to tell those apart.
 import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
-from shared.transactions import product_identity, require_column
+from shared.transactions import is_blank, product_identity, require_column
 from stages.diagnose.inputs import RunData, days_in_month, month_dates
+from stages.diagnose.numbers import is_negligible
 from stages.diagnose.thresholds import (
     D1_BLOCK_SHARE,
     D1_CAUTION_DAYS,
@@ -256,9 +257,11 @@ def d3_flagged_rows(data: RunData) -> TrustCheck:
     """Stage 1 marks cells it could not trust with `__flag_*` columns. A jump
     in their share between the periods means the current month's rows are of a
     different quality from the ones it is compared with."""
+    uncategorised = _uncategorised_share(data)
     flag_columns = [column for column in data.df.columns if str(column).startswith("__flag_")]
     if not flag_columns:
-        return TrustCheck(id="D3", status="ok", evidence={"flag_columns": 0},
+        return TrustCheck(id="D3", status="ok",
+                          evidence={"flag_columns": 0, **uncategorised},
                           message="Stage 1 flagged no rows in this file.")
 
     flagged = _any_flag_set(data.df[flag_columns])
@@ -271,7 +274,8 @@ def d3_flagged_rows(data: RunData) -> TrustCheck:
 
     evidence = {"flag_columns": len(flag_columns),
                 "flagged_share_cur": round(shares["cur"], 4),
-                "flagged_share_prev": round(shares["prev"], 4)}
+                "flagged_share_prev": round(shares["prev"], 4),
+                **uncategorised}
     if shares["cur"] >= D3_RATIO * shares["prev"] and shares["cur"] >= D3_MIN_SHARE:
         return TrustCheck(
             id="D3", status="caution", evidence=evidence,
@@ -279,6 +283,46 @@ def d3_flagged_rows(data: RunData) -> TrustCheck:
                     f"against {shares['prev']:.1%} last month.")
     return TrustCheck(id="D3", status="ok", evidence=evidence,
                       message="Flagged rows are not concentrated in the current period.")
+
+
+def _uncategorised_share(data: RunData) -> dict[str, float | None]:
+    """How much of each period's revenue carries no category.
+
+    Reported as D3 evidence because it is a data-completeness fact, not a
+    business one (Thach, 3D): step 6 shows "(uncategorised)" as a member so
+    the dimension still adds up, and this is what tells a reader whether that
+    member is a rounding detail or most of the shop. Absent when no category
+    column is mapped - there is nothing incomplete about a file that never
+    claimed to have categories.
+
+    Three things the first version got wrong (3D doubt-review R10). It
+    measured the current month only, so a file whose category column went
+    blank *last* month reported 0.0 while step 6 showed a large `rev_prev`
+    for the gap bucket. It divided absolute revenue while step 6's member
+    reports net, so the two numbers a reader would naturally compare did not
+    match. And it returned 0.0 for a month with no revenue at all, which
+    reads as "nothing uncategorised" rather than "nothing to measure" -
+    `None` says the second.
+    """
+    column = data.parsed.reverse.get("category")
+    if column is None:
+        return {}
+    blank = is_blank(data.df[column])
+    period = data.metrics.period
+    shares: dict[str, float | None] = {}
+    for label, month in (("cur", period.current), ("prev", period.previous)):
+        mask = data.parsed.counted & (data.months == month)
+        revenue = data.parsed.revenue_amounts[mask]
+        total = float(revenue.sum())
+        # Net, matching the member step 6 reports, and relative rather than
+        # `== 0` so a month whose sales and refunds cancel is reported as
+        # unmeasurable instead of dividing by residue.
+        if is_negligible(total, float(revenue.abs().sum()), total):
+            shares[f"uncategorised_revenue_share_{label}"] = None
+            continue
+        shares[f"uncategorised_revenue_share_{label}"] = round(
+            float(revenue[blank[mask]].sum()) / total, 4)
+    return shares
 
 
 def _any_flag_set(flags: pd.DataFrame) -> pd.Series:

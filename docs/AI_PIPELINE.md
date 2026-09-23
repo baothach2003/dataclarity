@@ -486,9 +486,34 @@ says so.
 
 **Breadth.** `declining_base_share` (share of `prev` revenue held by members
 moving the same way as the total) and `top_member_share`. `broad` at
-`BREADTH_BROAD`, `concentrated` at `BREADTH_CONCENTRATED`, else `mixed`. Broad
-points at calendar, seasonality or a general price move; concentrated points at
-one product or category.
+`BREADTH_BROAD`, `concentrated` at `BREADTH_CONCENTRATED`, else `mixed`; broad
+is tested first, because when both hold, "this is happening across the
+business" redirects attention better than "one member leads it". Broad points
+at calendar, seasonality or a general price move; concentrated points at one
+product or category. Measured over the **product** dimension (the finest, and
+the only one always present) and over every member, not the named few - over
+the top five every change looks concentrated, since those are chosen for being
+the largest movers. A total that did not move has no direction, so a flat
+month is `mixed` with both shares 0.0 rather than counting every member that
+fell (3D doubt-review).
+
+**Blank keys are visible buckets, never omissions** (Thach, 3D). A row whose
+category or product name is blank joins a bucket under a reserved label -
+`(uncategorised)`, `(no product name)`, `(no customer)` - which is ranked and
+filtered like any other member, carries `is_data_gap`, and is excluded from
+the new/removed lists. Dropping such rows would leave the dimension
+reconciling to a subtotal while the report talks about the whole change. The
+flag, not the label, identifies the bucket: a real category spelled
+`(uncategorised)` stays separate. D3's evidence carries the uncategorised
+share of each period's revenue, since how much of the shop is uncategorised is
+a data-completeness fact rather than a business one.
+
+**When nothing clears the bar**, the top movers are named anyway and
+`size_filter_waived` records it as a structured field, so step 7 can discount
+a `concentrated` verdict over members that are all small. A dimension whose
+members all fit in the named slots skips the filter without setting that flag:
+`customer_type` has four fixed members and the bar is a share of *previous*
+revenue, which `new` has none of by definition.
 
 ### 7.8 Step 7: Hypothesis evaluation
 
