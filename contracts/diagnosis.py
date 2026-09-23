@@ -106,11 +106,16 @@ class Signal(ContractModel):
     # masked-shift alert are decided on rule 1. This is a contract, not a
     # session convention (Thach, 3D2).
     rule: Literal[1, 2] | None
-    # Which estimator drew the limits: the median moving range, or the average
-    # as a fallback when the median is zero. Recorded so that a later change
-    # of estimator is visible in the file rather than silently changing what
-    # every verdict means (Thach, 3D2).
-    limits_method: Literal["median_moving_range", "mean_moving_range"]
+    # Which estimator drew the limits: the median moving range, the average as
+    # a fallback when the median is zero, or `minimum_spread` when neither
+    # measured any variation and a floor in the series' own units was used
+    # instead. Recorded so that a later change of estimator is visible in the
+    # file rather than silently changing what every verdict means (Thach,
+    # 3D2) - which is exactly why the floored case needs its own value and
+    # cannot be reported as the estimator that returned zero (3D3
+    # doubt-review C2).
+    limits_method: Literal["median_moving_range", "mean_moving_range",
+                           "minimum_spread"]
 
     @model_validator(mode="after")
     def _nulls_mean_no_baseline(self) -> Self:

@@ -92,7 +92,8 @@ def test_the_estimator_that_ran_is_recorded_on_every_signal() -> None:
     signals = compute_signals(*_run(values, 100.0))
 
     assert signals
-    assert all(signal.limits_method in ("median_moving_range", "mean_moving_range")
+    assert all(signal.limits_method in ("median_moving_range", "mean_moving_range",
+                                        "minimum_spread")
                for signal in signals)
 
 
@@ -105,13 +106,22 @@ def _run(values: list[float], current: float):
     return data, history_window(data)
 
 
-def test_a_series_with_no_variation_at_all_is_still_quiet() -> None:
-    # Every moving range is zero, so both estimators give zero width. The
-    # margin from 3B is what keeps this quiet, and it is worth pinning: this
-    # is the one shape where the fallback cannot help.
+def test_a_series_with_no_variation_at_all_still_gets_usable_limits() -> None:
+    """Every moving range is zero, so neither estimator can measure a spread -
+    this is the one shape where the fallback cannot help either.
+
+    Updated in 3D3: this used to assert `upper == lower`, i.e. that the limits
+    collapse to a point. That pinned the defect. A chart with no width reports
+    every conceivable move as a special cause, which on this series meant a
+    0.2% move fired rule 1. The minimum spread gives 2% of the centre, so the
+    limits are (99, 101) at a floor of 1% of the centre, an unchanged month is
+    quiet, and `limits_method` says `minimum_spread` so a reader can tell a
+    floored chart from a measured one.
+    """
     signal = revenue_signal([100.0] * 10, 100.0)
 
-    assert signal.upper == signal.lower
+    assert (signal.lower, signal.upper) == (99.0, 101.0)
+    assert signal.limits_method == "minimum_spread"
     assert signal.signal == "within"
     assert signal.rule is None
 

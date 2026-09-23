@@ -228,7 +228,15 @@ def _masked_shift(
     """
     if level1 is None:
         return None
-    fired = {signal.series for signal in signals if signal.signal in FIRED}
+    # Rule 1 only. Rule 2 measures a run against a centre computed from the
+    # same points, so one anomalous month re-fires it every month; step 7 and
+    # this alert are decided on rule 1 (AI_PIPELINE 7.5, and the `Signal.rule`
+    # contract). That was written as a contract in 3D2 and this line never
+    # honoured it - it filtered on the signal and ignored the rule, so a
+    # rule-2-only signal drove the masked-shift alert (3D3 doubt-review R4,
+    # pre-existing since 3C).
+    fired = {signal.series for signal in signals
+             if signal.signal in FIRED and signal.rule == 1}
     moved = any(
         COMPONENT_SERIES[factor.name] in fired for factor in level1.factors
     )

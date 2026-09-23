@@ -328,6 +328,14 @@ check's `status` is `ok | caution | blocked | inconclusive` and its `id` is
 `above | below | within | insufficient_history`; `rule` is `1 | 2 | null`
 (`null` when no rule fired or the series has insufficient history), and
 `center`/`lower`/`upper`/`value_cur` are `null` under `insufficient_history`.
+`signals[].limits_method` is `median_moving_range | mean_moving_range |
+minimum_spread`, naming what actually drew the limits - `minimum_spread` means
+neither estimator measured any variation and a floor in the series' own units
+was used, which a reader must be able to tell apart from a measured chart.
+**`mode` is decided per series, so one run's signals mix units**: `value_cur`,
+`center`, `lower` and `upper` are money or counts on a `level` row and
+percentage points on a `yoy` row. Read `mode` before comparing two signals or
+presenting them together.
 `calendar.method` is `weekday_weights | day_count`. `tree.method` is always
 `"shapley"`.
 

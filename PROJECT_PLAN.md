@@ -236,6 +236,13 @@ dataclarity/
 > section 7; DIAGNOSE_DESIGN.md remains the record of *why*. Only 3F spends
 > API credit.
 >
+> **Commit grouping for the rest of Phase 3** (Thach, after 3D3): **3D4+3E**
+> in one commit, **3F+3G** in the next. 3D3 was committed alone, because 3D4
+> edits `signals.py` again and reroutes mode selection, so splitting them
+> afterwards would not have been possible. The per-session scratchpad summary
+> is written every session; the commit message is written once per group, at
+> the end of its final session, organised by session.
+>
 > **Every remaining session runs BOTH a per-decision mutation check AND a
 > doubt-review cycle** (Thach, after 3D). Neither substitutes for the other:
 > they fail in opposite directions. A mutation check only mutates *code that
@@ -307,29 +314,36 @@ dataclarity/
       the limits until nothing can signal) and regresses nothing. Re-baselining
       went to the Backlog with the record of how it failed; rule 2 is reported
       but no longer acted on. **3D2 is no longer the 3E prerequisite - 3D3 is.**
-- [ ] 3D3 Make rule 1 reliable (**prerequisite of 3E**, Thach, after 3D2).
-      3D2's doubt-review found four defects that PRE-DATE it and survive its
-      revert, all reachable through rule 1 - which is what step 7 now depends
-      on entirely, so they block 3E in a way re-baselining does not:
-      * a perfectly flat series gives zero-width limits under either
-        estimator, and in year-over-year mode the centre is 0 so the margin
-        collapses to `XMR_ABS_FLOOR_DEFAULT`: **a stable business growing 1%
-        fires rule 1** (C1b);
-      * the margin floors are expressed in money and in fractions, not in the
-        mode's own units, so they mean nothing on a percentage-change series
-        (R4);
-      * mode selection never checks that the CURRENT month has a year-ago
-        comparator, so a shop shut that month last year reports
-        `insufficient_history` on an 80% collapse instead of falling back to
-        level mode (R3) - 3B doubt-review finding 1 in its mirror image;
-      * a constant-rate decline gives a near-constant year-over-year series,
-        so the limits collapse and every month of an unchanging decline is a
-        fresh rule-1 signal (R6).
-      Scope: a non-zero floor on the spread, mode-aware margins in the mode's
-      own units, the run length expressed in those units, and the missing
-      current-comparator fallback. **A test per failing series listed above** -
-      all four are currently untested, which is how they survived three
-      sessions. Doubt-review: yes. Mutation check: yes.
+- [x] 3D3 Make rule 1 reliable (was the prerequisite of 3E, Thach, after 3D2).
+      Fixed all four pre-existing defects (C1b, R3, R4, R6 from 3D2's table),
+      each written first as a failing test from the symptom: a minimum spread
+      in the mode's own units, the margin reduced to floating-point residue
+      only, rule 2 gated by that margin, and a fall back to level mode when
+      the CURRENT month has no year-ago comparator. Its own doubt-review found
+      three criticals in the first attempt - including a floor that silenced a
+      2% drop on a high-volume shop - and one pre-existing contract violation
+      in `lever.py`. **3E is unblocked.**
+- [ ] 3D4 Year-over-year against a non-positive base (**prerequisite of 3E**,
+      Thach, after 3D3). Two defects in `signals._as_yoy`, both pre-existing,
+      both recorded with reproductions in section 12.
+      * **Sign inversion.** `(current - previous) / previous` flips sign when
+        the year-ago month is negative, and revenue is signed in this codebase
+        (returns are negative-quantity rows since 2A; ADR-0004 rejected LMDI
+        precisely because a period can net to zero or below). Reproduced: a
+        shop whose month went from -100 to -200 - **twice the loss** - reports
+        `value_cur = +100.0`, `signal = "above"`, `rule = 1`. The engine calls
+        a doubling of losses an unusually good month, using the rule step 7
+        acts on.
+      * **Non-finite from a denormal.** A year-ago value of 5e-324 yields
+        `inf`, which `pd.isna` admits; the `Signal` validator then raises and
+        the stage aborts instead of degrading.
+      Likely fix is one line - `previous.where(previous > 0)`, making
+      year-over-year undefined against a non-positive base, which 3D3's
+      current-comparator fallback already turns into level mode - but it
+      reroutes mode selection, so it needs its own sweep: what happens to a
+      file where many months are non-positive, and is falling back to level
+      right for all eight series. Tests per symptom first, as in 3D3.
+      Doubt-review: yes. Mutation check: yes.
 - [ ] 3E Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the fixed catalog,
       verdicts, the 7 headline rules, the fixed-seed scenario generator and the
       S0-S11 suite with its acceptance criteria - including **S11, the
@@ -522,7 +536,28 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D2** closed
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D3** closed
+2026-09-23: the four defects that made rule 1 unreliable are fixed, and 3E is
+unblocked. Each was written first as a failing test from the symptom - the
+RED step is in the Notes - because all four had survived three sessions for
+the same reason: no test. The fixes are a minimum spread expressed in the
+units each series actually carries, a margin cut back to floating-point
+residue alone, rule 2 gated by that margin, and a fall back to level mode when
+the current month has no year-ago comparator.
+**The doubt-review found three criticals in my first attempt**, and the worst
+was the same shape as 3D2's: a floor chosen to stop false alarms that silenced
+real ones. At 2% of the centre it hid a 2% revenue drop on a shop whose
+ordinary month-to-month variation is 0.2% - a ten-sigma event, and with step 7
+acting on rule 1 that does not soften the headline, it deletes it. The cause
+was my sweep, not the constant: its "missed break" column only ever scored a
+50% collapse, a break so large no floor could hide it, so the sweep was
+structurally unable to measure what the floor suppressed. The constants are
+now derived from a table of moves that must FIRE beside the ones that must
+stay quiet, and that table is a test in the repo rather than a scratchpad
+script. It also found a contract violation predating this session: `lever.py`
+drove the masked-shift alert from any signal, ignoring the rule number, so
+rule 2 reached a contract field that AI_PIPELINE says is decided on rule 1.
+pytest 2117 passed. Previously, session **3D2** closed
 2026-09-23, and it is the first session whose method did not work. Step-change
 detection and re-baselining were attempted, reviewed, and **reverted**; what
 shipped is the separable half. Full account in the Notes entry below - the
@@ -707,8 +742,21 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session **3D3** (make rule 1 reliable), which replaces
-3D2 as the recorded prerequisite of 3E and may not be skipped.
+**Next step:** Phase 3 session **3D4** (year-over-year against a non-positive
+base), which is a prerequisite of 3E. 3C2 and 3D3 are closed; 3D4 was added
+after 3D3's doubt-review surfaced it, and it is a prerequisite rather than a
+follow-up for a specific reason: **nothing protects 3E from it.** The inverted
+value reaches `rule = 1`, which is the rule step 7 acts on, so it flows
+straight into T3 and the masked-shift alert with the direction reversed - the
+engine reporting a doubling of losses as an unusually good month. It is not
+confined to revenue either: `units_per_order` and `price_per_unit` go negative
+whenever a month's net units are negative, a case the lever lens already
+carries an explicit guard for, so this is ordinary operation rather than an
+exotic shape. Every contribution FIGURE in the report is safe, because the
+tree is computed from level data and never from the year-over-year series -
+the damage is confined to verdicts, but verdicts are what 3E is.
+Then 3E (Hypotheses and scenarios, AI_PIPELINE 7.8 and 7.11), which also
+carries scenario S11.
 Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
 but **not yet wired into an engine** - `compute_localization` has no caller
 outside its tests - so on Thach's instruction 3D added the contract round-trip
@@ -735,6 +783,66 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3D3 (make rule 1 reliable): new -
+  `tests/stages/diagnose/test_rule_one_reliability.py`,
+  `tests/stages/diagnose/test_spread_floor_cases.py`; edited -
+  `stages/diagnose/signals.py`, `stages/diagnose/thresholds.py`,
+  `stages/diagnose/lever.py`, `contracts/diagnosis.py`, two existing test
+  files, `docs/AI_PIPELINE.md` 7.5 + the threshold table,
+  `docs/CONTRACTS.md` 7.
+  - **The RED step, on the record.** All four defects were written as failing
+    tests from the symptom before any fix: `a 1% rise reported as above
+    against limits (0.0, 0.0)`; `assert 0.0 > 0.0`; `an unchanging decline
+    reported as below against (-10.82, -10.24)`; `an 80% collapse reported as
+    insufficient_history`. Six failing, two passing.
+  - **One of the four is not reproducible as a symptom, and that is the
+    finding.** R4 - the margin floors being in the wrong units for
+    year-over-year mode - has no failing scenario: a perfectly steady return
+    rate gives a YoY series of exactly 0 AND a current value of exactly 0, so
+    it stays within limits however wrong the units are. R4 is the MECHANISM
+    behind C1b and R6 rather than a defect with its own symptom, which is
+    exactly why it survived three sessions with a green suite. Pinned as a
+    unit test of `_minimum_spread` instead.
+  - **The doubt-review's three criticals, and the one that matters.** A floor
+    of 2% of the centre silenced a 2% drop on a shop turning over 1,000,000 a
+    month whose ordinary variation is 0.2%: measured half-width 12,580 against
+    a floor of 19,996. Every business enters that class once it has enough
+    volume for the law of large numbers to bite. Also: `limits_method` lied
+    whenever the floor bound, reporting the estimator that had returned zero -
+    the precise thing Thach added that field to prevent, one session earlier;
+    and zero-width limits still existed for a money series whose centre is
+    exactly 0, which now reports `insufficient_history` rather than a floor
+    picked out of the air.
+  - **Why my sweep could not see it, which is the lesson.** The sweep scored
+    two columns, false alarms and missed breaks - but every "break" it tested
+    was a 50% collapse, which no floor could hide. The miss column was
+    therefore structurally incapable of detecting an over-wide limit, so it
+    read 2 for every candidate and I quoted that as evidence the floors were
+    safe. Rescored with breaks at 2, 4 and 8 sigma, the same sweep shows
+    misses rising from 8 to 11 to 18 as the floor grows.
+    3D2's lesson was "evidence that only covers the cases you thought of
+    proves nothing". This is its sharper form: **a metric that cannot fail
+    is not evidence that something passed.** Ask what result would falsify
+    the claim, and check the measurement can produce it.
+  - **A contract violation predating this session.** `lever.py` selected
+    signals for the masked-shift alert with `signal.signal in FIRED` and no
+    rule check, so rule-2 signals drove a field AI_PIPELINE 7.5 states is
+    decided on rule 1 - a contract written in 3D2 that the code never
+    honoured. Fixed, with the test that would have caught it.
+  - **Two defects deferred to 3D4, which is a PREREQUISITE of 3E.** Both are
+    in `signals._as_yoy` and both pre-date this session. The reproduction that
+    decided the placement: a shop whose month went from -100 to -200 reports
+    `value_cur = +100.0`, `signal = "above"`, `rule = 1`. A doubling of losses
+    read as an unusually good month, through the rule step 7 acts on. I had
+    first written these up as "not blocking 3E's rule-1 path"; running the
+    case showed the opposite, which is why it is scheduled ahead of 3E rather
+    than after it. Nothing protects 3E from it in the meantime - the only
+    thing that IS safe is the contribution figures, since the tree is computed
+    from level data and never from the year-over-year series.
+  - The mutation check found two decision points I had added without pinning
+    (rule 2's margin, the residue floor) and **a bug in one of my own tests**:
+    an offset of 1e-15 on a centre of 100 is below the float spacing there, so
+    the "noise" I was testing did not exist.
 - 2026-09-23, Phase 3 session 3D2 (step-change detection: ATTEMPTED AND
   REVERTED): shipped - the median moving range for the XmR spread with an
   average fallback (`stages/diagnose/signals.py`, `thresholds.py`), the

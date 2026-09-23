@@ -8,7 +8,11 @@ import pytest
 from stages.diagnose.calendar_effect import compute_calendar
 from stages.diagnose.frame import history_window
 from stages.diagnose.signals import compute_signals, monthly_series
-from stages.diagnose.thresholds import XMR_MEDIAN_FACTOR, YOY_MODE_MIN_MONTHS
+from stages.diagnose.thresholds import (
+    XMR_MEDIAN_FACTOR,
+    XMR_MIN_SPREAD_RATE,
+    YOY_MODE_MIN_MONTHS,
+)
 from tests.stages.diagnose.diagnose_fixtures import (
     MAPPING,
     daily_rows,
@@ -273,9 +277,17 @@ def test_a_real_collapse_on_a_flat_series_is_still_a_signal() -> None:
 
 
 def test_the_first_small_return_does_not_fire_a_signal() -> None:
-    """return_rate is 0.0 every month for most shops, so its centre and limits
-    are all 0.0. A relative margin is 0 there - the absolute floor is what
-    keeps the shop's first return quiet."""
+    """return_rate is 0.0 every month for most shops, so its centre is 0.0 and
+    its observed variation is nil. The shop's first ever return must stay
+    quiet.
+
+    Updated in 3D3: this used to assert `upper == 0.0`, which pinned the
+    zero-width limits rather than the behaviour - and zero-width limits are
+    the defect 3D3 removes, because they make every conceivable move a special
+    cause. The minimum spread for a rate series is one percentage point, so
+    the limits are now (-0.01, 0.01) and a 0.5% return rate sits inside them.
+    The thing this test exists to prove is unchanged.
+    """
     rows = [row(date(2011, 1, 1), qty=1.0)]
     for month in range(1, 10):
         rows += [row(date(2011, month, day), qty=1.0) for day in (5, 15, 25)]
@@ -288,7 +300,9 @@ def test_the_first_small_return_does_not_fire_a_signal() -> None:
     signal = next(s for s in compute_signals(data, history_window(data))
                   if s.series == "return_rate")
 
-    assert signal.center == 0.0 and signal.upper == 0.0
+    assert signal.center == 0.0
+    assert (signal.lower, signal.upper) == (-XMR_MIN_SPREAD_RATE,
+                                            XMR_MIN_SPREAD_RATE)
     assert signal.value_cur == pytest.approx(0.005, abs=1e-4)
     assert signal.signal == "within"
 

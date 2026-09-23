@@ -368,6 +368,35 @@ a false alarm on its own.
   the centre line (consecutive months, not the non-null points that remain
   after gaps are dropped - a gap breaks the run). More rules would make the
   engine cry wolf.
+- **Minimum spread** (3D3). When the estimators measure no variation, the
+  limits take a floor **in the units the series carries**: percentage POINTS
+  in year-over-year mode (`XMR_MIN_SPREAD_YOY_POINTS`), one percentage point
+  for a rate series in level mode (`XMR_MIN_SPREAD_RATE`), otherwise a share
+  of the centre (`XMR_MIN_SPREAD_SHARE`). Zero-width limits call every
+  conceivable move a special cause, and that is not a rare shape - a flat
+  shop, and both trends and both seasonal patterns in year-over-year mode, all
+  produce it.
+
+  The floor's SIZE is load-bearing in both directions, because it may widen a
+  measured chart. Too small and an unchanging decline fires every month; too
+  large and it deletes real signals - at 2% of the centre it silenced a 2%
+  drop on a shop whose ordinary variation is 0.2%, a ten-sigma event. The
+  constants are tuned against
+  `tests/stages/diagnose/test_spread_floor_cases.py`, which lists the moves
+  that must FIRE beside the ones that must stay quiet; change one and run it.
+
+  A money series with neither measured variation nor a level to take a share
+  of - every baseline month netting exactly zero - has no scale at all and
+  reports `insufficient_history` rather than a floor picked out of the air.
+  `limits_method` says `minimum_spread` whenever the floor was used, so a
+  floored chart is never mistaken for a measured one.
+- **Mode selection** needs a year-ago value for the **current** month as well
+  as enough usable history points; without one the series falls back to level
+  mode (3D3). Otherwise a shop shut that month last year reports
+  `insufficient_history` on an 80% collapse that the level chart catches
+  instantly. Modes therefore differ per series within one run, so
+  `center`/`lower`/`upper`/`value_cur` are money on one row and percentage
+  points on the next: read `mode` before comparing two signals.
 - **Margin.** A point counts as outside a limit only if it clears it by
   `max(XMR_REL_TOLERANCE * |centre|, the series' absolute floor)`. A baseline
   that never varied gives zero-width limits, and without a margin a rounding
@@ -384,16 +413,8 @@ a false alarm on its own.
   with the failure written down. Step 7 therefore acts on rule 1 only, as
   above.
 
-  Three further defects in this step are recorded and **not yet fixed**, all
-  of them reachable through rule 1 (session 3D2 doubt-review): a perfectly
-  flat series gives zero-width limits under either estimator, and in YoY mode
-  the centre is 0 so the margin collapses to `XMR_ABS_FLOOR_DEFAULT` - a
-  stable business growing 1% fires rule 1; the margin floors are expressed in
-  money and in fractions rather than in the mode's own units; and mode
-  selection never checks that the *current* month has a year-ago comparator,
-  so a shop shut that month a year ago reports `insufficient_history` on an
-  80% collapse instead of falling back to level mode. Session 3D3 fixes these
-  before 3E, because they make rule 1 itself unreliable.
+  The defects that made rule 1 itself unreliable were fixed in session 3D3;
+  see **Minimum spread** and **Mode selection** below.
 
 A YoY point at month `m` needs month `m-12` to exist, but that lag month is
 only an input to the calculation - it is not itself a baseline point and may
@@ -671,8 +692,11 @@ are heuristics until calibrated against real data.
 | `XMR_MEDIAN_FACTOR` | 3.145 | 7.5, the default estimator (3 / d4) |
 | `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
 | `XMR_RUN_LENGTH` | 8 | 7.5 rule 2 |
-| `XMR_REL_TOLERANCE` | 0.001 | 7.5 margin (3B) |
-| `XMR_ABS_FLOOR_RATE` / `XMR_ABS_FLOOR_DEFAULT` | 0.01 / 1e-6 | 7.5 margin (3B) |
+| `XMR_REL_TOLERANCE` | 1e-9 | 7.5 margin, residue only (3D3) |
+| `XMR_RESIDUE_FLOOR` | 1e-6 | 7.5 margin (3D3) |
+| `XMR_MIN_SPREAD_SHARE` | 0.01 | 7.5 minimum spread, level (3D3) |
+| `XMR_MIN_SPREAD_RATE` | 0.01 | 7.5 minimum spread, rate series (3D3) |
+| `XMR_MIN_SPREAD_YOY_POINTS` | 2.0 | 7.5 minimum spread, yoy (3D3) |
 | `YOY_LAG_MONTHS` | 12 | 7.2, 7.5, and `YOY_MODE_MIN_MONTHS` |
 | `YOY_MODE_MIN_MONTHS` | **derived**, see below | 7.5 |
 | `HISTORY_MAX_MONTHS` | 24 | 7.2 |

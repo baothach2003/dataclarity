@@ -72,21 +72,54 @@ XMR_MIN_BASELINE_POINTS = 8
 # Rule 2: this many consecutive points on one side of the centre line.
 XMR_RUN_LENGTH = 8
 
-# How far a point must clear a limit before it counts as outside it.
-# margin = max(XMR_REL_TOLERANCE * |centre|, the series' absolute floor).
+# --- How small a move is worth reporting (7.5, session 3D3) -------------------
 #
-# The relative term alone is not enough (Thach, 3B): a series centred on 0.0
-# gives a margin of 0.0, so `return_rate` - which is 0.0 every month for most
-# shops - would report the shop's first ever return as a statistical signal.
-# The absolute floor is what protects that case; the relative term is what
-# keeps a rounding cent on a flat 100.0 series quiet without masking a real
-# collapse to 40.
-XMR_REL_TOLERANCE = 0.001
-# Rate-like series (a fraction of orders): one percentage point.
-XMR_ABS_FLOOR_RATE = 0.01
-# Money and count series: only large enough to absorb floating-point residue -
-# a month whose sales and returns cancel leaves 4.4e-16, not 0.0.
-XMR_ABS_FLOOR_DEFAULT = 1e-6
+# The limits get a MINIMUM WIDTH, and the margin goes back to doing one job.
+#
+# Until 3D3 these were confused: a single "margin" was asked to absorb
+# floating-point residue AND to decide what counts as a business-significant
+# move, with floors expressed in money and in fractions. That worked in level
+# mode and was meaningless in year-over-year mode, where every series carries
+# a PERCENTAGE CHANGE - so a floor of 1e-6 was one millionth of a percentage
+# point, i.e. no protection at all. A stable business growing 1% fired rule 1
+# every month, and so did a business in an unchanging decline (3D2
+# doubt-review C1b, R4, R6 - all of which pre-dated 3D2).
+#
+# Chosen against `tests/stages/diagnose/test_spread_floor_cases.py`, which is
+# the table of cases that MUST fire alongside the ones that must stay quiet.
+# The first version of these constants (0.02 and 5.0) was tuned only against
+# false alarms, using a sweep whose "break" was always a 50% collapse - a
+# break so large no floor could hide it, so the sweep was structurally unable
+# to see what the floor suppressed. It silenced a 2% drop on a high-volume
+# shop and a grower flipping from +2% to -2.5% year over year (3D3
+# doubt-review C1 and R5).
+#
+# Re-derived: every value in `share <= 0.01` paired with a year-over-year
+# floor of 1 to 3 points gets all seven cases right; 0.02 with 5.0 gets four
+# of them wrong. These sit in the interior of the passing band, so a small
+# mis-calibration does not flip a case.
+
+# Level mode, money and counts: a share of the centre, used only when it is
+# WIDER than what the estimators measured - which in practice means a series
+# with no variation at all, since 1% of a centre is small next to any real
+# month-to-month movement.
+XMR_MIN_SPREAD_SHARE = 0.01
+# Level mode, rate-like series (a fraction of orders): one percentage point,
+# since a share of a centre near 0.02 would be far too small to mean anything.
+XMR_MIN_SPREAD_RATE = 0.01
+# Year-over-year mode, every series: percentage POINTS, the units the series
+# actually carries. 5.0 hid a grower flipping from +2% to -2.5%; 0.0 left an
+# unchanging decline firing every month.
+XMR_MIN_SPREAD_YOY_POINTS = 2.0
+
+# What a point must clear a limit by, now that significance lives above: this
+# is floating-point residue only. A month whose sales and returns cancel
+# leaves 4.4e-16 rather than 0.0.
+# Sized like residue, not like money: 0.001 was the old business-significance
+# number, and on a centre of 1,000,000 it made a margin of 1,000 - which then
+# gated rule 2 and silenced genuine runs (3D3 doubt-review R2, R3).
+XMR_REL_TOLERANCE = 1e-9
+XMR_RESIDUE_FLOOR = 1e-6
 
 # The year-over-year lag. Named because YOY_MODE_MIN_MONTHS is derived from it
 # and it is used to shift months in frame.py and signals.py; a bare 12 in three

@@ -15,13 +15,16 @@ import pandas as pd
 from contracts.diagnosis import Signal
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
+from stages.diagnose.numbers import is_negligible
 from stages.diagnose.thresholds import (
-    XMR_ABS_FLOOR_DEFAULT,
-    XMR_ABS_FLOOR_RATE,
     XMR_FACTOR,
     XMR_MEDIAN_FACTOR,
     XMR_MIN_BASELINE_POINTS,
+    XMR_MIN_SPREAD_RATE,
+    XMR_MIN_SPREAD_SHARE,
+    XMR_MIN_SPREAD_YOY_POINTS,
     XMR_REL_TOLERANCE,
+    XMR_RESIDUE_FLOOR,
     XMR_RUN_LENGTH,
     YOY_LAG_MONTHS,
     YOY_MODE_MIN_MONTHS,
@@ -74,7 +77,17 @@ def compute_signals(data: RunData, history: list[str]) -> list[Signal]:
         # correctly detected collapse into "we cannot say" (3B doubt-review
         # finding 1). It also keeps `mode` honest per row, rather than
         # labelling every series `yoy` while only some of them have limits.
-        if yoy is not None and _usable(yoy[name], history) >= XMR_MIN_BASELINE_POINTS:
+        # ...and on whether the CURRENT month has a year-ago comparator at
+        # all. Without this second test a shop that was shut this month last
+        # year reports `insufficient_history` on an 80% collapse, because the
+        # series it was charted against has no value for the month being
+        # judged - while the level chart would have caught it instantly. That
+        # is 3B doubt-review finding 1 in its mirror image: that fix asked
+        # whether the HISTORY yields usable points and never asked about the
+        # month the whole report is about (3D2 doubt-review R3).
+        if (yoy is not None
+                and _usable(yoy[name], history) >= XMR_MIN_BASELINE_POINTS
+                and not pd.isna(yoy[name].get(current, float("nan")))):
             signals.append(_signal_for(name, yoy[name], current, history, "yoy"))
         else:
             signals.append(_signal_for(name, table[name], current, history, "level"))
@@ -168,12 +181,55 @@ def _signal_for(
     # to a trend: a slow drift inflates it far less than the standard deviation
     # of the whole series would.
     spread, limits_method = _spread(baseline)
+    minimum = _minimum_spread(name, mode, center)
+    if minimum > spread:
+        # The floor can widen a measured chart, so its SIZE is what keeps it
+        # honest. At 2% of the centre it silenced a 2% drop on a shop turning
+        # over 1,000,000 a month whose ordinary variation is 0.2% - a
+        # ten-sigma event and the most important line in that report (3D3
+        # doubt-review C1). The floors are now tuned against the cases that
+        # must fire as well as the ones that must stay quiet; see
+        # thresholds.py.
+        spread, limits_method = minimum, "minimum_spread"
+    if spread <= 0:
+        # No measured variation AND no scale to borrow: a money series whose
+        # every baseline month netted exactly zero has neither. Inventing a
+        # currency floor here would be picking a number out of the air, and
+        # zero-width limits call one cent a special cause, so the honest
+        # answer is that this series cannot be charted (3D3 doubt-review R1).
+        return _no_baseline(name, mode)
     lower, upper = center - spread, center + spread
     value_cur = float(value_cur)
 
     signal, rule = _classify(name, value_cur, center, lower, upper, column, current, history)
     return Signal(series=name, mode=mode, value_cur=value_cur, center=center, lower=lower,
                   upper=upper, signal=signal, rule=rule, limits_method=limits_method)
+
+
+def _minimum_spread(name: str, mode: str, center: float) -> float:
+    """The width to use when the estimators measured no variation at all, in
+    the units this series actually carries.
+
+    This is a replacement for an unmeasurable spread, never a minimum applied
+    to a measured one - see the caller.
+
+    A chart whose limits have zero width calls every conceivable move a
+    special cause, and that is not a rare shape: across a sweep of nine
+    series shapes, six of the twenty-three shape/mode combinations had zero
+    width - a flat shop, both steady trends in year-over-year mode, and both
+    seasonal patterns in year-over-year mode.
+
+    The units matter as much as the size. In year-over-year mode every series
+    is a percentage change, so a floor of one millionth - written for money -
+    protects nothing, and a floor of one percentage point written for a return
+    rate expressed as a fraction means something entirely different (3D2
+    doubt-review R4).
+    """
+    if mode == "yoy":
+        return XMR_MIN_SPREAD_YOY_POINTS
+    if name in RATE_SERIES:
+        return XMR_MIN_SPREAD_RATE
+    return XMR_MIN_SPREAD_SHARE * abs(center)
 
 
 def _spread(baseline: pd.Series) -> tuple[float, str]:
@@ -205,14 +261,11 @@ def _classify(
     name: str, value_cur: float, center: float, lower: float, upper: float,
     column: pd.Series, current: str, history: list[str],
 ) -> tuple[str, int | None]:
-    # A point must clear the limit by a real margin. Without one, a baseline
-    # that never varied gives zero-width limits and a rounding cent - or the
-    # 4.4e-16 a month of cancelling sales and returns leaves behind - is
-    # reported as statistically outside them. The relative term alone cannot
-    # protect a series centred on zero, which return_rate usually is, so the
-    # floor does that (Thach, 3B doubt-review).
-    floor = XMR_ABS_FLOOR_RATE if name in RATE_SERIES else XMR_ABS_FLOOR_DEFAULT
-    margin = max(XMR_REL_TOLERANCE * abs(center), floor)
+    # The margin now absorbs floating-point residue and nothing else: how
+    # small a move is worth reporting is decided by the minimum spread, in the
+    # units the series carries. Before 3D3 this one number did both jobs and
+    # could do neither well in year-over-year mode.
+    margin = max(XMR_REL_TOLERANCE * abs(center), XMR_RESIDUE_FLOOR)
     if value_cur > upper + margin:
         return "above", 1
     if value_cur < lower - margin:
@@ -227,9 +280,12 @@ def _classify(
     # gap therefore breaks the run, which is the conservative reading.
     recent = column.reindex(history[-(XMR_RUN_LENGTH - 1):]).tolist()
     run = [*recent, value_cur]
+    # Each point must sit on its side by more than residue. On a near-constant
+    # series the points differ from the centre only by float noise, and
+    # without this the side of the line is decided by the last bit.
     if len(run) == XMR_RUN_LENGTH and not any(pd.isna(point) for point in run):
-        if all(point > center for point in run):
+        if all(point > center + margin for point in run):
             return "above", 2
-        if all(point < center for point in run):
+        if all(point < center - margin for point in run):
             return "below", 2
     return "within", None

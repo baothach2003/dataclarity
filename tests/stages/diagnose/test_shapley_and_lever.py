@@ -22,9 +22,10 @@ def reconciles(parts: list[float], total: float) -> bool:
     return sum(parts) == pytest.approx(total, rel=RECONCILE_REL_TOLERANCE, abs=1e-9)
 
 
-def signal(series: str, fired: str = "below") -> Signal:
+def signal(series: str, fired: str = "below", rule: int = 1) -> Signal:
     return Signal(series=series, mode="level", value_cur=1.0, center=2.0, lower=0.5,
-                  upper=3.0, signal=fired, rule=1, limits_method="median_moving_range")
+                  upper=3.0, signal=fired, rule=rule,
+                  limits_method="median_moving_range")
 
 
 WITHIN = [Signal(series="revenue", mode="level", value_cur=1.0, center=1.0, lower=0.5,
@@ -369,6 +370,24 @@ def _masked_rows() -> list[dict]:
         *[row(date(2011, 11, day), qty=1, price=105.0, customer="C0")
           for day in (5, 10, 20, 30)],
     ]
+
+
+def test_a_rule_two_signal_does_not_drive_the_masked_shift_alert() -> None:
+    """"T3 and the masked-shift alert are decided on rule 1... this is a
+    contract, not a session convention" (AI_PIPELINE 7.5, Thach, 3D2).
+
+    This line filtered on the signal and ignored the rule, so a rule-2-only
+    signal drove the alert - and rule 2 is precisely the rule that re-fires
+    every month after one anomalous one, which is why it is not acted on
+    (3D3 doubt-review R4, pre-existing since 3C).
+    """
+    data = run_data(_masked_rows())
+
+    by_rule_one = compute_lever(data, [signal("active_customers")])
+    by_rule_two = compute_lever(data, [signal("active_customers", rule=2)])
+
+    assert by_rule_one.masked_shift_alert is True
+    assert by_rule_two.masked_shift_alert is False
 
 
 def test_gross_to_net_is_computed_by_the_lens_and_not_by_the_test() -> None:

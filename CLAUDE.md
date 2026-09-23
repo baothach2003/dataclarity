@@ -162,10 +162,24 @@ cd frontend && npm install && npm run dev && npm test
   the current checklist item, or any other conflict with sections 1-11 or this
   section. This file always wins over it, the same as over any installed skill.
 - Never run git commit or git push. Propose the message; Thach types the commands.
-- At the very end of EVERY session (any phase, sub-phase or tooling session), give
-  Thach the exact, copy-pasteable `git add ...`, `git commit -m "..."` and
-  `git push` commands, with the full proposed commit message spelled out. Never
-  assume he remembers the convention or will ask for it.
+- **Commit by related GROUP, not per session** (Thach, after 3D3). Sessions are
+  grouped so a commit is one coherent change: 3D4+3E, then 3F+3G. A group stays
+  under roughly 20 files, so it is still reviewable and revertable.
+  - Write the per-session summary in the scratchpad at the end of every session,
+    as always.
+  - Write the commit message only at the end of the group's FINAL session: ONE
+    message covering every session in the group, organised by session, at the
+    level of detail a single-session message would have had.
+  - Do NOT commit mid-group, with two exceptions: a session whose work is
+    independent of what follows, or a session whose files a later one will edit
+    in a way that makes splitting impossible afterwards (the 2A/2B situation).
+    In either case say so and commit early.
+- At the end of each group, write ONE PowerShell script,
+  `C:\Users\Happy\commit-<group>.ps1`, that runs the `git add` lines, prints
+  `git status`, commits with the message file, and then **STOPS before pushing**
+  so Thach can read `git log -1` himself. Never push, and never put `git push`
+  in the script. Short path outside the repo, so it cannot be committed by
+  accident and does not wrap in the terminal.
 - One sub-phase per session. Never start the next task without Thach's approval.
 - Never skip, delete or weaken a test to make it pass. tests/test_architecture.py may be created (Phase 0C) or extended to cover new boundaries, but never relaxed to make a build pass.
 
