@@ -3,8 +3,10 @@
 > **Status: DESIGN COMPLETE (sessions 1-3). Pending before Phase 6: PNG exports in `design/mockups/`, sticky scroll set in Figma, Return rate KPI decision, Insights frame update for Stage 3 (see below).**
 >
 > **Insights frame, Stage 3 additions (decided 2026-09-22, Phase 3 session 3A).**
-> The frame needs a trust badge (`trusted / caution / blocked`), a "within
-> normal variation" state, and the hypothesis list with verdict labels
+> The frame needs a trust badge (`trusted / caution / blocked`), a "no single
+> tested cause" state (headline rule 7 - the "within normal variation" state
+> is DORMANT in v1, ADR-0007, so do not design it), and the hypothesis list
+> with verdict labels
 > (`supported / partial / ruled_out / inconclusive / not_testable`) plus the
 > "not tested" note. Do this **after Phase 3 session 3E, before Phase 6**: the
 > catalog, the verdict vocabulary and the 7 headline rules are only final once

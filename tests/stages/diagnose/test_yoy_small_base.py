@@ -2,11 +2,12 @@
 
 3D4 refused a base that is not positive or is floating-point residue. It left
 the magnitude half open: a base of 12.50 on a shop turning over 50,000 is
-positive, is not residue, and divides to +399,900%. Since ADR-0006 a
-year-over-year row is a VERDICT, so that figure is no longer a strange number
-in a table - it is an actionable rule-1 finding, and on the same file it fires
-the masked-shift alert with `basis = yoy`, which headline rule 4 states
-without the seasonal hedge.
+positive, is not residue, and divides to +399,900%. While year-over-year rows
+were verdicts (ADR-0006, until ADR-0007 in 3D6b) that was an actionable rule-1
+finding, and on the same file it fired the masked-shift alert with
+`basis = yoy`, which headline rule 4 stated without the seasonal hedge. Since
+ADR-0007 the row is descriptive, and the guard keeps the absurd figure off the
+page.
 
 Written from the symptom first, before the fix. The first three tests are the
 damage; the rest pin what the fix must NOT exclude, because a threshold that
@@ -19,7 +20,6 @@ import pytest
 
 from contracts.diagnosis import is_actionable, is_verdict
 from stages.diagnose.frame import history_window
-from stages.diagnose.lever import compute_lever
 from stages.diagnose.signals import _as_yoy, compute_signals
 from stages.diagnose.thresholds import YOY_MIN_BASE_SHARE
 from tests.stages.diagnose.diagnose_fixtures import full_months, run_data
@@ -73,24 +73,12 @@ def test_a_year_ago_month_of_12_50_does_not_make_an_ordinary_month_a_finding() -
     assert is_verdict(revenue) is False
 
 
-def test_the_small_base_does_not_fire_headline_rule_4() -> None:
-    """The second half of the symptom, and the one that reaches the headline.
-
-    `aov` is a level-1 lever factor, so its fabricated rule 1 fires the
-    masked-shift alert; with `basis = yoy` headline rule 4 is written by code,
-    without the seasonal hedge, on a month that went 50,000 to 50,000.
-    Revenue did not move at all, so `gross_to_net` has no denominator and the
-    alert is decided on the step-4 rows alone (ADR-0006) - which is why the
-    fabricated row was enough on its own.
-    """
-    values = [50000.0] * 12 + [12.5] + [50000.0] * 11 + [50000.0]
-    data, signals = run(values)
-
-    lever = compute_lever(data, signals)
-
-    assert lever.masked_shift_alert is False, (
-        f"alert={lever.masked_shift_alert} basis={lever.masked_shift_basis} "
-        f"on a month where nothing moved")
+# `test_the_small_base_does_not_fire_headline_rule_4` was deleted in 3D6b. It
+# pinned the route from a fabricated `aov` verdict into the masked-shift alert;
+# since ADR-0007 the alert reads no step-4 row, so that route no longer exists,
+# and on its fixture (50,000 -> 50,000, every contribution zero) it passed with
+# the base guard deleted - vacuous (3D6b doubt-review #8). A flat month not
+# firing the alert is pinned in test_level_is_descriptive.py.
 
 
 def test_a_tiny_base_inside_the_baseline_does_not_drag_the_centre() -> None:
@@ -292,8 +280,14 @@ def test_a_shop_shut_most_of_the_year_is_still_guarded() -> None:
 
     signals = compute_signals(data, history_window(data))
 
-    fabricated = [(s.series, s.value_cur) for s in signals if is_actionable(s)]
-    assert fabricated == [], f"actionable verdicts from a 12.50 base: {fabricated}"
+    # Asserted on what the GUARD does - the comparator is refused and the
+    # series drops to level mode - not on "no actionable verdict", which since
+    # ADR-0007 is true of every row and so would pass with the guard deleted
+    # (3D6b mutation check).
+    for name in ("revenue", "aov", "units_per_order"):
+        row_ = next(s for s in signals if s.series == name)
+        assert (row_.mode, row_.mode_fallback) == ("level", "unusable_year_ago_base"), (
+            f"{name}: {row_.mode} {row_.value_cur} from a 12.50 base")
 
 
 def test_a_residue_base_in_a_mostly_shut_series_is_refused() -> None:
@@ -353,17 +347,19 @@ def test_a_rate_series_is_guarded_the_same_way() -> None:
         assert pd.notna(change) is kept, f"rate base {base}: {change}"
 
 
-# --- KNOWN LIMITS: these assert DEFECTS, and 3D9 must flip each one ----------
+# --- KNOWN LIMITS of the chart ----------------------------------------------
 #
 # The guard removes only the absurd end. Two doubt-review cycles found three
-# families it cannot reach, and each was run to the headline and classified
-# (Thach, 3D6; PROJECT_PLAN 3D9). They are pinned as they behave TODAY, so
-# the session that fixes one sees it fail here and rewrites the assertion -
-# not so that anyone mistakes the behaviour for correct.
+# families it cannot reach, each run to the headline and classified (Thach,
+# 3D6). Two of them fabricated a verdict - until ADR-0007 (3D6b) made every
+# step-4 row descriptive in v1. The CHART behaviour is unchanged and pinned
+# here as it is; what changed is that none of it is a verdict. The Backlog's
+# "unusualness verdicts" must fix these before it switches verdicts back on.
 
 
 def test_known_limit_a_trickle_off_season_disarms_the_guard() -> None:
-    """FABRICATE. Open June to September at 50,000, trickling 300 a month the
+    """Was FABRICATE in 3D6; descriptive since ADR-0007. Open June to
+    September at 50,000, trickling 300 a month the
     rest of the year. Eight of twelve months are off-season, so the median
     trading month is the trickle, three per cent of it is 9, and a 12.50
     in-season comparator clears it: +400,300%, actionable, on a June where
@@ -375,13 +371,15 @@ def test_known_limit_a_trickle_off_season_disarms_the_guard() -> None:
 
     _, signals = run(values)
 
-    assert sorted(s.series for s in signals if is_actionable(s)) == [
+    assert sorted(s.series for s in signals if s.rule == 1 and s.mode == "yoy") == [
         "aov", "revenue", "units_per_order"]
     assert by_series(signals, "revenue").value_cur == pytest.approx(400300.0, rel=1e-3)
+    assert [s.series for s in signals if is_actionable(s)] == []
 
 
 def test_known_limit_a_baseline_base_above_the_share_still_drags_the_centre() -> None:
-    """FABRICATE, and predates 3D6. A year-ago month at 10% of normal is kept
+    """Was FABRICATE (predating 3D6); descriptive since ADR-0007. A
+    year-ago month at 10% of normal is kept
     as a base - it is a trading month - and its +900% point sits in the
     baseline, where the mean centre is pulled far above zero. An ordinary
     month then lands below the lower limit: `below`, rule 1, actionable. The
@@ -396,7 +394,7 @@ def test_known_limit_a_baseline_base_above_the_share_still_drags_the_centre() ->
     revenue = by_series(signals, "revenue")
     assert revenue.mode == "yoy"
     assert (revenue.signal, revenue.rule) == ("below", 1)
-    assert is_actionable(revenue)
+    assert not is_actionable(revenue)
 
 
 def test_known_limit_a_deep_slump_loses_its_real_recovery() -> None:

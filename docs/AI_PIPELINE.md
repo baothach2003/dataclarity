@@ -355,42 +355,35 @@ a false alarm on its own.
   report a 0.2% move as a special cause. Session 3D2 shipped that and measured
   it before reverting. Where the fallback triggers, the result is bit-for-bit
   what the average alone produced.
-- **T3 is the one exception, and the asymmetry is deliberate** (Thach, 3D4).
-  "The change is routine variation" is `supported` only when **no rule-1
-  signal fires AND no rule-2 signal fires**. Rule 1 decides what step 7 *acts*
-  on; T3 is not an action, it is the claim that nothing happened, and that
-  claim must not be made while a rule-2 signal sits in the output unexplained.
-  So a rule-2 signal can **prevent** "routine" but can never **become** a
-  headline cause. Read the two rules together rather than as a contradiction:
-  the bar for asserting that nothing happened is higher than the bar for
-  acting.
+- **No step-4 row is a verdict in v1, and T3 is never `supported`**
+  (`docs/adr/0007-no-step4-verdicts-in-v1.md`). `contracts.diagnosis.is_verdict`
+  returns False for every row, so T3 - "the change is routine variation" - is
+  `inconclusive` on every file and headline rule 3 is dormant.
 
-  **Superseded (ADR-0006).** Session 3D4 hung T3 on `mode_fallback` instead:
-  that flag meant a series would have charted year over year but fell back to
-  a level chart, and T3 could not call such a month routine. The flag was
-  doing the work `mode` now does, and less reliably - a series can be in level
-  mode for reasons the flag never sees. T3 reads `is_verdict` and nothing
-  else. The paragraphs below are the live rule.
+  Why year-over-year rows went the way level rows did in ADR-0006: a
+  year-over-year point compares with ONE year-ago month, and whether that
+  month was itself normal cannot be told on a 24-month file. Session 3D6 ran
+  every known limit to the headline and five of seven fabricated an actionable
+  verdict on a month where nothing happened. Two root causes: the single
+  comparator, and the MEAN centre, which one anomalous baseline point drags
+  whatever comparator produced it. Robust verdicts need a comparator of at
+  least three prior years (the median of two is their mean) AND a robust
+  centre - 45 complete months, which no demo dataset has. That is a Backlog
+  item ("unusualness verdicts").
 
-  When every series reports `insufficient_history`, T3 is **`inconclusive`,
-  never `supported`**. "We could not tell" and "nothing happened" are
-  different sentences, and scenario S11 exists to hold that line: a six-month
-  file has no baseline to call anything routine by.
+  **Superseded, kept so the history reads:** 3D4 made T3 require no rule-1
+  AND no rule-2 signal (a rule-2 row could prevent "routine" but never become
+  a cause); ADR-0006 then made T3 `inconclusive` whenever revenue had no
+  year-over-year verdict. Both rules still hold if the Backlog item switches
+  verdicts back on, and neither can fire today.
 
-  **And T3 is `inconclusive`, never `supported`, whenever `revenue` has no
-  year-over-year VERDICT** - at any file length, whether because the series is
-  `insufficient_history` or because it is charted in level mode (ADR-0006).
-  The conditions above are all about signals that DID fire; none of them
-  notices a series that was never judged, and reading "no verdict fired" as
-  "nothing happened" is the S11 failure in a new shape. T3 is the claim that
-  the REVENUE change was routine, and a revenue series with no verdict cannot
-  support it.
-
-  **T3's evidence lists every series that had no year-over-year verdict**, so
-  a month reported as routine shows which parts of it were not judged rather
-  than implying all of them were.
+  **The engine's credibility claim changes with it.** It no longer claims
+  "nothing unusual happened". Its claim is that it never invents a cause when
+  no hypothesis is supported: a month with nothing planted gets headline rule
+  7 and zero `supported` hypotheses (scenarios S0 and S11, 7.11).
 - **A level-mode row is DESCRIPTIVE, never a verdict**
-  (`docs/adr/0006-level-signals-are-descriptive.md`). It is computed, carries
+  (`docs/adr/0006-level-signals-are-descriptive.md`; since ADR-0007 a
+  year-over-year row is too, in v1). It is computed, carries
   its limits and its rule, and is written to `diagnosis.json` for a reader to
   look at. Step 7 does not read it as a judgement about the month.
   `contracts.diagnosis.is_verdict` is the single definition.
@@ -411,11 +404,10 @@ a false alarm on its own.
   fallback. The ADR records all four attempts and why the policy moved rather
   than the arithmetic.
 
-  **The one consumer allowed to read a level row is the masked-shift alert**
-  (7.6), because its other half divides by the change in revenue and so fires
-  on every flat month by itself. It records which kind of row it rested on in
-  `lever.masked_shift_basis`, and 3F phrases a `level` basis as possibly
-  seasonal.
+  **Superseded by ADR-0007:** the masked-shift alert was the one consumer
+  allowed to read a level row, and recorded a `masked_shift_basis`. It now
+  reads no step-4 row at all and rests on the tree (7.6); the basis field is
+  gone.
 
   **Stage 5 must not render a level-mode `within` as "within normal
   variation"** - see CONTRACTS section 7 and the 3F narration rules in 7.9.
@@ -425,11 +417,11 @@ a false alarm on its own.
   computed from the same points, so one anomalous month re-fires it every
   month until it leaves the window (3B). Re-baselining was attempted in
   session 3D2 and the method did not work, so **rule-2 signals stay in the
-  output and a reader can see them, but T3 and the masked-shift alert are
-  decided on rule 1** (Thach, 3D2). This is a contract, not a session
-  convention: step 7 may not promote a rule-2-only signal to a verdict, and
-  the `rule` number every signal carries is what makes the distinction
-  machine-readable.
+  output and a reader can see them** (Thach, 3D2). This is a contract, not a
+  session convention: step 7 may not promote a rule-2-only signal to a
+  verdict, and the `rule` number every signal carries is what makes the
+  distinction machine-readable. Since ADR-0007 no row is a verdict in v1; the
+  contract stands for the Backlog item that would make them verdicts again.
 - **Rules, deliberately only two.** Rule 1: the current point is outside the
   limits by more than the margin below. Rule 2: the current point and the
   `XMR_RUN_LENGTH - 1` months immediately before it are all on the same side of
@@ -483,11 +475,13 @@ a false alarm on its own.
   history.
 
   The third condition exists because the first two admit 12.50 on a shop
-  turning over 50,000, which divides to +399,900%. Since ADR-0006 that is an
-  actionable rule-1 verdict on a month where nothing happened, and it fired
-  the masked-shift alert with `basis = yoy`, which headline rule 4 states
-  without its hedge. The same base inside the baseline drags the mean centre
-  tens of thousands of points, so every ordinary month fires. Typical is a
+  turning over 50,000, which divides to +399,900%. While year-over-year rows
+  were verdicts (ADR-0006, until ADR-0007) that was an actionable rule-1
+  verdict on a month where nothing happened, and it fired the masked-shift
+  alert with `basis = yoy`, which headline rule 4 stated without its hedge.
+  Since ADR-0007 the row is descriptive and the guard keeps the absurd figure
+  off the page. The same base inside the baseline drags the mean centre tens
+  of thousands of points, so every ordinary month fires rule 1. Typical is a
   median so one freak month cannot move it, over the history window so a
   shop is judged against its recent self, a magnitude so a series that nets
   negative in most months still has a size, and over trading months because
@@ -513,14 +507,18 @@ a false alarm on its own.
   the reproduction; it is not safe, and on ordinary months of two-regime
   shops it gave 23 fabrications against 21 without it.
 
-  **What the guard does not fix** (two doubt-review cycles, each case run to
-  the headline; PROJECT_PLAN 3D9, which blocks 3E): a baseline base at 3.5%
-  to 25% of normal still drags the mean centre into an actionable verdict on
-  an ordinary month; a shop off-season for more than half the year at a low
+  **Since ADR-0007 these rows are descriptive**, so the guard's job is to
+  keep an absurd figure off the page, not to stop a verdict. **What it does
+  not fix** (two doubt-review cycles, each case run to the headline; the
+  Backlog's "unusualness verdicts" must fix these before verdicts return): a
+  baseline base at 3.5%
+  to 25% of normal still drags the mean centre until an ordinary month fires
+  rule 1; a shop off-season for more than half the year at a low
   non-zero level has its typical month set by the off-season, so a 12.50
-  in-season comparator is still actionable; and a slump deeper than about
-  1.5% of normal loses its real recovery verdict. The first two FABRICATE,
-  the third suppresses. `test_yoy_small_base.py` pins each as a known limit.
+  in-season comparator still charts +400,300%; and a slump deeper than about
+  1.5% of normal loses its real recovery verdict. The first two fabricated
+  and the third suppressed, while year-over-year rows were verdicts.
+  `test_yoy_small_base.py` pins each as a known limit of the chart.
   Full reasoning and figures in `thresholds.py`.
 
   **T2 divides by the same kind of base** (`revenue_prev * (LY_cur/LY_prev -
@@ -573,16 +571,47 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   exact because the level-2 contributions sum to `delta_AOV`. `null` when net
   units are not positive in both periods, and `null` when AOV did not move,
   since the conversion divides by that change.
-- **Masked-shift alert.** `gross_to_net = sum(|phi_i|) / |delta_revenue|` over
-  level 1. Alert when it reaches `MASKED_GROSS_TO_NET` and at least one
-  component has a step-4 signal. This is the case a naive "did revenue move?"
-  report misses entirely: a flat total hiding large offsetting movements.
+- **Masked-shift alert** (on the tree alone since ADR-0007).
+  `gross_to_net = sum(|phi_i|) / |delta_revenue|` over level 1. The alert is
+  decided against one FLOOR, `MASKED_MIN_CONTRIBUTION_SHARE` (PROVISIONAL, 3E
+  re-sweeps it) times the largest of the typical month (median |revenue|
+  over the history window's trading months), the previous month and the
+  current month. The movement is MATERIAL - on the ORDERS x AOV split of
+  level 1 (`tree.lever.masked_shift_pair`), one contribution of each sign
+  clears the floor - and the total is FLAT - the revenue change stays under
+  the same share of the larger COMPARED month (not the floor: in a trough
+  the floor is a share of a typical month far larger than the months
+  compared, and a month that fell 200 -> 50 passed as flat), and the
+  reported three-factor `gross_to_net` reaches `MASKED_GROSS_TO_NET` or
+  revenue did not move. Over the pair the ratio would be implied; the check
+  reads the three-factor ratio, which is not, can only remove an alert, and
+  was not found binding under this rule in a targeted search that found 169
+  cases under the first bound (0 of 16,968; lowest 3.43).
+  **Why the pair, not level 1** (Thach, 3D6b): customers x frequency =
+  orders by definition, so when orders hold steady and the customer count
+  moves those two cancel exactly, and a three-factor rule read that identity
+  as a masked shift - 19-39% of such months with nothing planted, 0-2.4% on
+  the pair; S6's shape is caught 100% without noise, 33-57% with it. The
+  customers/frequency story
+  stays in level 1, descriptive, and in B1 and C1. This is the case a naive
+  "did revenue move?" report misses entirely: a flat total hiding large offsetting movements.
+  The ratio alone explodes as the change nears zero and would fire on every
+  quiet month; the floor makes that harmless, because a month where nothing
+  moved has contributions small in absolute terms. It scales with the months
+  compared - on the typical month alone, peak months fired on noise 15-25% of
+  the time (3D6b doubt-review) - and never drops below 20% of the typical
+  month, so a bad last month cannot shrink it; in a trough it stays there,
+  so a masked shift counts only when both sides moved by 20% of a typical
+  month - rare, not impossible (reported `false` otherwise: the check ran). When either compared month netted zero or below,
+  AOV is zero or negative and the Shapley terms change sign, so the alert is
+  `null` with a reason, as for no typical month. With no trading month in the history
+  there is no yardstick: the alert is `null` with a reason, never `false`.
   When level 1 is `null` the ratio and the alert are **both `null`, never
   `false`** (Thach, 3C): `false` asserts a check that did run, and a missing
   tree must not be read downstream as "no masked shift". When revenue did not
   move at all, the ratio alone is `null` - it has no denominator, and infinity
-  is not representable in JSON - while the alert is still decided on whether a
-  component carries a signal.
+  is not representable in JSON - and that is the flat case, so the alert is
+  still decided.
 - **"Did not move" is a relative test, never `== 0`.** Both guards above
   compare against `RECONCILE_REL_TOLERANCE * scale`. An exact comparison lets
   float residue through: one file produced a revenue residue of -5.6e-17 that
@@ -716,7 +745,7 @@ hypotheses after seeing the data is the failure mode this prevents.
 | D3 | data | Flagged rows concentrated in the current period | directional: supported when D3 cautions | none |
 | T1 | time | The calendar explains the change | `calendar_effect` | none (day-count fallback) |
 | T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur/LY_prev - 1)` | year-ago pair |
-| T3 | time | The change is routine variation | directional: no rule-1 AND no rule-2 **year-over-year** signal on any series, and no masked alert; `inconclusive` whenever `revenue` has no year-over-year verdict, at any file length - `contracts.diagnosis.is_verdict` decides (ADR-0006). Evidence lists every series without a verdict | baseline points for revenue |
+| T3 | time | The change is routine variation | **always `inconclusive` in v1** (ADR-0007): no step-4 row is a verdict, so nothing can establish that the change was routine - `contracts.diagnosis.is_verdict` decides. If the Backlog's "unusualness verdicts" switches verdicts back on: no rule-1 AND no rule-2 verdict on any series, no masked alert, and `inconclusive` whenever `revenue` has no verdict. Evidence lists every series without a verdict | baseline points for revenue |
 | C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
 | C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
 | C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
@@ -761,14 +790,16 @@ contribution has the same sign as the change it claims to explain.
 2. D1 supported with `share >= HEADLINE_CONTEXT_MIN_SHARE` - most of the change
    is consistent with missing days, with the estimated gap.
 3. T3 supported and no masked-shift alert - within normal variation.
+   **DORMANT in v1** (ADR-0007): T3 cannot be `supported`, so this rule never
+   matches. Kept in place for the Backlog's "unusualness verdicts".
 4. Masked-shift alert - the total looks stable but components shifted strongly,
-   naming the two largest opposing contributions. **The wording depends on
-   `tree.lever.masked_shift_basis`** (ADR-0006): on `yoy` it is stated as a
-   finding; on `level` it is stated as a movement that may be seasonal,
-   because the rows establishing that the movement was unusual are level-mode
-   rows and a seasonal shoulder month has flat revenue and a shifting mix.
-   This belongs here and not only in 7.9: the headline is written by code and
-   is still produced in degraded mode, where no narration validator runs.
+   naming the two opposing contributions of `tree.lever.masked_shift_pair`
+   (orders and AOV), **always worded as a
+   movement that may be seasonal** (ADR-0007). Nothing establishes that the
+   movement was unusual, only that it was large and cancelled out, and a
+   seasonal shoulder month has exactly that shape. This belongs here and not
+   only in 7.9: the headline is written by code and is still produced in
+   degraded mode, where no narration validator runs.
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
    state that.
 6. Otherwise the `supported` hypothesis with the largest absolute share, naming
@@ -805,8 +836,9 @@ tested is part of the answer, not an omission.
   degrade a run whose narration was right. The direction is already fixed by
   the deterministic blocks; the AI is being checked for inventing *figures*,
   not for choosing a preposition.
-- **The validator rejects any sentence that calls a `level`-mode series
-  normal, or calls it certainly unusual** (ADR-0006; build this in 3F). A
+- **The validator rejects any sentence that calls a step-4 series normal,
+  or calls it certainly unusual, in EITHER mode** (ADR-0006 for level rows,
+  ADR-0007 for year-over-year rows; build this in 3F). A
   level chart is centred on the average of every month, so it is in the wrong
   place for any month with a season and its row is descriptive, not a verdict.
   The banned shapes are both directions: "revenue was within normal
@@ -815,11 +847,10 @@ tested is part of the answer, not an omission.
   was not available - "revenue was 25,000 against a monthly average of 52,000;
   there was no comparable month last year, so this month was not judged
   against its own season."
-- **The same applies to a masked-shift alert whose `lever.masked_shift_basis`
-  is `level`.** The alert may be stated - components did move, and the total
-  did hide it - but not as certainly unusual, because a seasonal shoulder
-  month has flat revenue and a shifting mix. Phrase it as possibly seasonal.
-  A `yoy` basis carries no such hedge.
+- **The same applies to every masked-shift alert** (ADR-0007). The alert may
+  be stated - components did move, and the total did hide it - but never as
+  certainly unusual, because a seasonal shoulder month has flat revenue and a
+  shifting mix. Phrase it as possibly seasonal, always.
 - Degraded mode: `ai_findings` and `model_used` are `null`, and the
   deterministic headline, hypothesis table and every computed block are still
   written and shown. Stage 3 never fails because of the AI.
@@ -837,6 +868,7 @@ are heuristics until calibrated against real data.
 | `SUPPORTED_MIN_SHARE` / `PARTIAL_MIN_SHARE` | 0.20 / 0.05 | 7.8 |
 | `HEADLINE_CONTEXT_MIN_SHARE` | 0.50 | 7.8 rules 2 and 5 |
 | `MASKED_GROSS_TO_NET` | 3.0 | 7.6 |
+| `MASKED_MIN_CONTRIBUTION_SHARE` | 0.20, **PROVISIONAL** | 7.6, tree-based masked-shift alert (3D6b); 3E re-sweeps it on S0-S11 |
 | `XMR_FACTOR` | 2.66 | 7.5, the fallback estimator (3 / d2) |
 | `XMR_MEDIAN_FACTOR` | 3.145 | 7.5, the default estimator (3 / d4) |
 | `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
@@ -896,11 +928,13 @@ returns). Twelve scenarios each plant exactly one cause - S0 nothing, S1
 calendar, S2 like-for-like price cut, S3 mix shift, S4 lapsed customers, S5
 missing days, S6 masked shift, S7 stockout, S8 discontinued products, S9
 seasonality, S10 a x100 price error, S11 the same build truncated to its last
-6 complete months. S11 plants no cause and still must not produce headline
-rule 3: with every signal `insufficient_history` and T3 `inconclusive`, "within
-normal variation" would assert a verdict the data cannot support. It is the
-matched pair to S0, which plants nothing over 26 months and *is* expected to
-produce rule 3. Tests fail unless each scenario produces
+6 complete months. **S0 and S11 both plant no cause and both expect headline
+rule 7 with zero `supported` hypotheses** (ADR-0007). S0 used to be expected
+to produce rule 3, "within normal variation"; since no step-4 row is a
+verdict in v1, T3 cannot be supported and rule 3 is dormant. What the pair
+now tests is the engine's reframed claim - it never invents a cause when no
+hypothesis is supported - over 26 months and over 6. Tests fail unless each
+scenario produces
 its expected headline or verdict, S0 produces zero `supported` hypotheses, and
 the whole suite produces at most one `supported` hypothesis not implied by its
 planted cause. The suite's headline accuracy, decoy count and false-alarm count

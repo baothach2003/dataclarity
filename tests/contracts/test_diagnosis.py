@@ -198,7 +198,7 @@ def test_rejects_a_missing_tree_reported_as_no_masked_shift() -> None:
         {"level1": None, "level2": None, "gross_to_net": None,
          "masked_shift_alert": False, "reasons": {"level1": "zero orders"}})
 
-    with pytest.raises(ValidationError, match="masked_shift_alert is null exactly"):
+    with pytest.raises(ValidationError, match="masked_shift_alert is null whenever"):
         DiagnosisContract.model_validate(payload)
 
 
@@ -230,7 +230,8 @@ def test_accepts_a_lens_that_could_not_be_built_when_it_says_so() -> None:
          "masked_shift_alert": None,
          "reasons": {"level1": "zero orders in the previous period",
                      "level2": "level 1 could not be computed",
-                     "gross_to_net": "zero orders in the previous period"}})
+                     "gross_to_net": "zero orders in the previous period",
+                     "masked_shift_alert": "zero orders in the previous period"}})
 
     diagnosis = DiagnosisContract.model_validate(payload)
 
@@ -350,26 +351,110 @@ def _lever(**overrides: Any) -> dict:
                     contribution=0.0),
     ])
     base = dict(level1=level1, level2=None, gross_to_net=1.0,
-                masked_shift_alert=False, masked_shift_basis=None,
+                masked_shift_alert=False,
                 reasons={"level2": "AOV did not move"})
     return {**base, **overrides}
 
 
 @pytest.mark.parametrize("label,kwargs", [
-    ("an alert that fired but names no basis",
-     _lever(masked_shift_alert=True, masked_shift_basis=None)),
-    ("a basis on an alert that did not fire",
-     _lever(masked_shift_alert=False, masked_shift_basis="level")),
-    ("a basis on a check that did not run",
-     _lever(level1=None, gross_to_net=None, masked_shift_alert=None,
-            masked_shift_basis="yoy",
-            reasons={"level1": "no orders", "level2": "no level 1",
-                     "gross_to_net": "no level 1"})),
+    ("an alert that could not be decided, with no reason",
+     _lever(masked_shift_alert=None)),
 ])
-def test_the_masked_shift_basis_is_tied_to_the_alert(label: str,
-                                                     kwargs: dict) -> None:
-    """Deleting this validator left the whole suite green (3D5b review R4),
-    so the invariant requirement (c) names could have been removed or inverted
-    by a later session without anything noticing."""
-    with pytest.raises(ValidationError):
+def test_a_null_masked_shift_alert_must_say_why(label: str, kwargs: dict) -> None:
+    """ADR-0007: the alert can now be null with level 1 present - there was no
+    typical month to measure a material move against - so that null does not
+    explain itself by pointing at level 1, and needs its own reason."""
+    with pytest.raises(ValidationError, match="masked_shift_alert is null and carries no reason"):
         Lever(**kwargs)
+
+
+def test_a_pre_adr_0007_lever_with_no_tree_still_loads() -> None:
+    """3D6b doubt-review #1: the first version of this session's validator
+    demanded a reason for EVERY null alert, so a diagnosis.json written before
+    ADR-0007 - null level 1, null alert, the retired basis, no alert reason -
+    no longer loaded, while the change log said it did."""
+    lever = Lever(**_lever(level1=None, gross_to_net=None, masked_shift_alert=None,
+                           masked_shift_basis=None,
+                           reasons={"level1": "no orders", "level2": "no level 1",
+                                    "gross_to_net": "no level 1"}))
+
+    assert lever.masked_shift_alert is None
+
+
+def test_an_undecided_alert_with_its_reason_is_accepted() -> None:
+    lever = Lever(**_lever(masked_shift_alert=None, reasons={
+        "level2": "AOV did not move",
+        "masked_shift_alert": "no complete trading month in the history window"}))
+
+    assert lever.masked_shift_alert is None
+
+
+def _pair() -> LeverLevel:
+    return LeverLevel(formula="orders*aov", factors=[
+        LeverFactor(name="orders", value_prev=1.0, value_cur=1.0, contribution=0.0),
+        LeverFactor(name="aov", value_prev=1.0, value_cur=1.0, contribution=0.0)])
+
+
+@pytest.mark.parametrize("label,kwargs,match", [
+    ("a pair with no level 1 to derive it from",
+     _lever(level1=None, gross_to_net=None, masked_shift_alert=None,
+            masked_shift_pair=_pair(),
+            reasons={"level1": "no orders", "level2": "no level 1",
+                     "gross_to_net": "no level 1"}),
+     "requires it"),
+    ("a pair that is not orders x aov",
+     _lever(masked_shift_pair=LeverLevel(formula="units_per_order*price_per_unit", factors=[
+         LeverFactor(name="units_per_order", value_prev=1.0, value_cur=1.0, contribution=0.0),
+         LeverFactor(name="price_per_unit", value_prev=1.0, value_cur=1.0, contribution=0.0)])),
+     "orders\\*aov"),
+])
+def test_the_masked_shift_pair_is_orders_times_aov_from_level_1(
+    label: str, kwargs: dict, match: str,
+) -> None:
+    """3D6b: the alert is decided on the orders x AOV split of level 1, so a
+    pair without level 1, or a pair of any other shape, is a bug in the file."""
+    with pytest.raises(ValidationError, match=match):
+        Lever(**kwargs)
+
+
+def test_a_fired_alert_must_carry_its_pair() -> None:
+    """Pair review #5: headline rule 4 names the pair's two contributions, so
+    an alert that fired with no pair leaves it nothing to name."""
+    with pytest.raises(ValidationError, match="fired alert must carry"):
+        Lever(**_lever(masked_shift_alert=True))
+
+
+@pytest.mark.parametrize("orders,aov,contributions,label", [
+    ((1.0, 1.0), (1.0, 2.0), (1.0, -1.0), "AOV 1 -> 2 against level 1's 1 -> 1, sum still 0"),
+    ((1.0, 3.0), (1.0, 1.0), (1.0, -1.0), "orders 1 -> 3 against level 1's 1 -> 1, sum still 0"),
+    ((1.0, 1.0), (1.0, 1.0), (1.0, 0.0), "the right figures, contributions summing to 1 not 0"),
+])
+def test_a_pair_must_match_level_1(orders, aov, contributions, label) -> None:
+    """Pair review #5: a pair whose figures contradict level 1 loaded. Level 1
+    here is customers 1, frequency 1, AOV 1 in both periods, change 0. Each
+    case breaks exactly one of the three ties, so each check is pinned on its
+    own (the mutation check found the AOV tie covered only by accident)."""
+    wrong = LeverLevel(formula="orders*aov", factors=[
+        LeverFactor(name="orders", value_prev=orders[0], value_cur=orders[1],
+                    contribution=contributions[0]),
+        LeverFactor(name="aov", value_prev=aov[0], value_cur=aov[1],
+                    contribution=contributions[1])])
+
+    with pytest.raises(ValidationError, match="does not match level1"):
+        Lever(**_lever(masked_shift_pair=wrong))
+
+
+def test_a_lever_with_its_pair_is_accepted() -> None:
+    lever = Lever(**_lever(masked_shift_pair=_pair()))
+
+    assert lever.masked_shift_pair is not None
+    assert lever.masked_shift_pair.formula == "orders*aov"
+
+
+def test_a_file_still_carrying_the_retired_basis_is_read() -> None:
+    """`masked_shift_basis` was removed by ADR-0007. Contract models ignore
+    unknown fields (CONTRACTS section 10), so a diagnosis.json written before
+    the change still loads - the field is simply not there any more."""
+    lever = Lever(**_lever(masked_shift_basis="yoy"))
+
+    assert not hasattr(lever, "masked_shift_basis")

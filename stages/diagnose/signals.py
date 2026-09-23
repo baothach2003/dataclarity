@@ -3,11 +3,19 @@
 
 Comparing two points always produces a difference, and a report that explains
 every difference is a report that cries wolf. This step puts limits around each
-series computed from its own history - a process behaviour (XmR) chart - so the
-engine can say "within normal variation" and mean it.
+series computed from its own history - a process behaviour (XmR) chart - so a
+reader can see where the month sat against what this shop usually does.
 
-Two detection rules only. More rules catch more, and raise more false alarms;
-the engine's credibility rests on the months it says nothing happened.
+**In v1 no row here is a verdict** (ADR-0006 for level rows, ADR-0007 for
+year-over-year rows). The engine used to rest its credibility on the months it
+said nothing happened. It no longer makes that claim: telling a routine month
+from an unusual one needs a comparator this shop can vouch for - three prior
+years of the same calendar month - and a centre one anomalous month cannot
+drag, and no demo dataset is long enough. Its credibility now rests on a claim
+it CAN keep: it never invents a cause when no hypothesis is supported. The
+rows are evidence for a reader, drawn with the same care as before.
+
+Two detection rules only. More rules catch more, and raise more false alarms.
 """
 
 import pandas as pd
@@ -15,7 +23,7 @@ import pandas as pd
 from contracts.diagnosis import Signal
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
-from stages.diagnose.numbers import is_negligible
+from stages.diagnose.numbers import is_negligible, typical_magnitude
 from stages.diagnose.thresholds import (
     XMR_FACTOR,
     XMR_MEDIAN_FACTOR,
@@ -236,10 +244,12 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
 
     **And the base must be big enough to divide by** (3D6). Positive and more
     than residue still admits 12.50 on a shop turning over 50,000, which
-    divides to +399,900% - and since ADR-0006 that is an actionable rule-1
-    verdict, on a month where nothing happened, that also fires the
-    masked-shift alert. The same base inside the baseline drags the mean
-    centre tens of thousands of points away, so every ordinary month fires.
+    divides to +399,900%. While year-over-year rows were verdicts (ADR-0006,
+    until ADR-0007) that was an actionable rule-1 verdict on a month where
+    nothing happened, and it fired the masked-shift alert; since ADR-0007 the
+    row is descriptive and the guard keeps the absurd figure off the page.
+    The same base inside the baseline drags the mean centre tens of thousands
+    of points away, so every ordinary month fires rule 1.
     A base below `YOY_MIN_BASE_SHARE` of the series' typical magnitude is
     refused; `thresholds.py` says why typical is the median of |value| over
     the trading months of `history`, and why the share is a policy rather
@@ -262,8 +272,9 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
     where it removes a verdict and nothing else. Refusing a BASELINE base
     removes a point from the chart, which moves the centre either way, and
     the share only removes the cliff below 3%: bases from 3.5% to 25% still
-    drag the centre into an actionable verdict. `thresholds.py` lists what
-    this guard does not fix; PROJECT_PLAN 3D9 owns it.
+    drag the centre until an ordinary month fires rule 1. `thresholds.py`
+    lists what this guard does not fix; the Backlog's "Unusualness verdicts"
+    owns it.
     """
     values = {}
     for name in table.columns:
@@ -280,12 +291,8 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
         # it. Reached whenever every history month is zero - `return_rate` on
         # a shop with no returns, the commonest case - where it is harmless,
         # because every base is then zero and refused anyway.
-        # Over the months the shop TRADED. A month without rows is charted as
-        # 0.0, so a stall open four months a year had a median of zero, a
-        # floor of zero, and a 12.50 base divided to +399,900% exactly as
-        # before this guard existed (3D6 doubt-review).
-        magnitude = column.reindex(history).abs()
-        typical = float(magnitude[magnitude > 0].median())
+        # Over the months the shop TRADED - see `typical_magnitude`.
+        typical = typical_magnitude(column.reindex(history))
         usable = (previous > 0) & (previous >= YOY_MIN_BASE_SHARE * typical) & ~previous.apply(
             lambda base: is_negligible(float(base), scale) if pd.notna(base) else True)
         previous = previous.where(usable)

@@ -237,8 +237,15 @@ dataclarity/
 > API credit.
 >
 > **Session order from here** (Thach, triaged after 3D5b): 3D4, 3D5, 3D5b
-> (all committed together), then **3D6**, then **3D9**, then **3E**, then
-> **2E**, **3D7** and **3D8**, then 3F, 3G.
+> (all committed together), then **3D6**, then **3D6b**, then **3E**, then
+> **2E** and **3D7**, then 3F, 3G. **3D8 moves after 3E, low priority**
+> (Thach, 3D6b): since ADR-0007 losing year-over-year mode loses only a
+> descriptive row, so its effect is display only.
+> **3D9 left the critical path** (Thach, after 3D6): instead of a further
+> session tuning step 4, ADR-0007 made every step-4 row descriptive in v1 and
+> moved the masked-shift alert onto the tree (session 3D6b). 3D9 is now part
+> of the Backlog's "unusualness verdicts". The paragraph below is the record
+> of how 3D9 had been triaged.
 > **3D9 moved ahead of 3E by execution, not by reading** (Thach, 3D6): every
 > known limit of 3D6's guard was run through the real pipeline to the
 > headline and classified FABRICATE or SUPPRESS; any FABRICATE puts a session
@@ -283,6 +290,10 @@ dataclarity/
 > CONTRACTS, this plan, `test_yoy_base.py`), so it can neither stand alone
 > nor join 3E without hunk-level staging - the 2A/2B situation. It is also
 > the same topic: the magnitude half of 3D4's base guard. 14 files.
+>
+> **3D6b is committed ALONE** (Thach): a policy change with its own ADR is a
+> coherent unit, and 3E is large enough on its own. The signals group was
+> committed first (`a48009b`), so nothing overlaps.
 >
 > **Also frozen in this group: `docs/DIAGNOSE_DESIGN.md`** (Thach, after
 > 3D5b). Its sections 5-9 are the historical design record as of 3A and carry
@@ -460,7 +471,11 @@ dataclarity/
       **This still does not restore the alarm** - the refused series produces
       no signal for its largest movement, only an explicit refusal instead of
       a wrong verdict. The note under 3E about the tree and T2 still stands.
-- [ ] 3D8 The year-over-year residue guard is anchored on the whole series'
+- [ ] 3D8 **Re-triaged (Thach, 3D6b): after 3E, low priority.** Since
+      ADR-0007 losing year-over-year mode loses only a descriptive row, never
+      a verdict, so 3D8's stated consequence below no longer holds - its
+      effect is on display only.
+      The year-over-year residue guard is anchored on the whole series'
       maximum (its own line, Thach, after 3D5b; found by that session's
       doubt-review, outside its scope).
       `_as_yoy` computes `scale = column.abs().max()` and calls
@@ -521,9 +536,29 @@ dataclarity/
       S0-S11 suite with its acceptance criteria - including **S11, the
       6-month truncated build**, whose headline must NOT be rule 3 (normal
       variation). Doubt-review: yes.
-      **Also the trigger for the Figma Insights frame** (trust badge, normal-
-      variation state, hypothesis list with verdict labels): the shapes those
-      need are final only once this session lands (Thach, 3A)
+      **Since ADR-0007 (3D6b):** T3 is always `inconclusive` and headline
+      rule 3 is dormant; **S0 and S11 both expect headline rule 7 with zero
+      `supported` hypotheses** (AI_PIPELINE 7.11). **In scope, explicitly:
+      re-run the `MASKED_MIN_CONTRIBUTION_SHARE` sweep against the real
+      S0-S11 suite** - S6 (masked shift) must fire; S0 and S11 must not
+      (their expected headline is rule 7); S9's expected headline stays rule
+      5, and whether rule 4 displaces it is MEASURED, not assumed, since a
+      seasonal mix shift can clear the floor by design - and the value is
+      ALLOWED TO CHANGE. It was tuned on hand-built shapes
+      in 3D6b because the generator did not exist; planted causes are ground
+      truth only once the generator exists and was not built to fit it. Also
+      report S9's rule-4 rate as a finding either way. **Also measure**
+      (3D6b doubt-review cycle 2) which split 7.8's D uses when the alert
+      is on - level 1's gross or the pair's; they differ up to 3x (level-1
+      2,406.7 against the pair's 800 on one S6-like case) and every share
+      moves with it - and how often an alert that fires dilutes
+      7.8's shares below SUPPORTED_MIN_SHARE, since D becomes the gross,
+      which exceeds three times the change whenever the alert is on.
+      **Also the trigger for the Figma Insights frame** (trust badge,
+      hypothesis list with verdict labels): the shapes those need are final
+      only once this session lands (Thach, 3A). The "normal-variation" state
+      is DORMANT in v1 (ADR-0007) - design the rule-7 "no single tested cause"
+      state instead.
 - [ ] 2E Percentage change against a non-positive base, in STAGE 2
       (**must land before 3F**, Thach, after 3D4). `shared/transactions.py`'s
       `pct_change` guards with `if previous else 0.0` - non-zero, not
@@ -621,8 +656,37 @@ dataclarity/
         3D7. **Cycle 2** found the three families below, and two claims of
         mine false (the residue check "implied", the NaN branch
         "unreachable"). Both corrected, the first now pinned.
-- [ ] 3D9 Base effects the 3D6 share cannot reach (**BLOCKS 3E - runs
-      immediately before it**, Thach, 3D6, by execution: rule below).
+- [x] 3D6b ADR-0007: no step-4 row is a verdict in v1; the masked-shift
+      alert rests on the tree (Thach, after 3D6). Closed 2026-09-23.
+      `is_verdict` returns False, T3 is never `supported`, headline rule 3 is
+      dormant, S0/S11 expect rule 7. The alert: against a floor of
+      `MASKED_MIN_CONTRIBUTION_SHARE` (0.20, PROVISIONAL) times the largest
+      of the typical month, last month and this month, one contribution of
+      each sign ON THE ORDERS x AOV PAIR (new field `masked_shift_pair`)
+      clears it, the revenue change stays under 20% of the larger compared
+      month, and the three-factor `gross_to_net` reaches 3;
+      `masked_shift_basis` removed; rule 4 always hedged. 3D4 and 3D6 guards
+      kept for display. **Measured cost** (the rule as shipped,
+      final_sweep.out): with nothing planted the alert fires 2.0-2.4% at
+      realistic noise, 5.0-6.2% at 30/15/15, about 0 at 0.3x typical - a
+      true statement in hedged wording, so it misleads by emphasis, not by
+      fabrication. Deciding materiality on the three-factor split instead
+      fired on 19-39% of months with stable orders and a swinging customer
+      count - customers x frequency = orders, an identity - and was fixed
+      before the commit by moving it onto orders x AOV (Thach): 0-2.4%; S6
+      identical without noise, 0.2-1.8 points lower with it. Its own
+      doubt-review then found the change bound measured against the floor
+      calling a -75% trough month flat - now measured against the compared
+      months. The floor as first
+      decided (typical month alone) fired on 15-25% of peak months; the
+      doubt-review measured it and Thach chose the max. Also guarded: a
+      compared month netting zero or below gives a null alert with a reason
+      (the Shapley terms change sign there).
+      Doubt-review: yes. Mutation check: yes.
+- [ ] ~~3D9~~ **MOVED TO THE BACKLOG** by ADR-0007 (Thach, after 3D6) - see
+      "Unusualness verdicts" there. Kept here as the record of its triage.
+      Base effects the 3D6 share cannot reach (was: BLOCKS 3E, Thach, 3D6,
+      by execution: rule below).
       Triage rule (Thach): run each case to the headline; FABRICATE = an
       actionable rule-1 verdict or an unhedged headline the data does not
       support; SUPPRESS = a supported verdict removed or silenced. Any
@@ -778,6 +842,31 @@ dataclarity/
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
 
+**Unusualness verdicts** (replaces 3D9; ADR-0007). Letting a step-4 row be a
+verdict again - so T3 can be `supported` and headline rule 3 can speak -
+needs BOTH:
+1. a comparator of **at least three prior years** of the same calendar month,
+   compared against their median, so one anomalous year cannot fabricate a
+   verdict; and
+2. a **robust centre** (a median, not a mean), because L7 - one tiny month
+   as a year-over-year NUMERATOR - fabricates under ANY comparator scheme:
+   it lives in the centre.
+With eight baseline points each needing three lags, a file needs
+`36 + 8 + 1 = 45` complete months. **No current demo dataset reaches it:**
+the Kaggle set is about 36 months, Online Retail II about 24. Needs its own
+sweep, including the cases that must still FIRE, and must flip the known-limit
+tests in `test_yoy_small_base.py` (L1, L3, L5) before it switches verdicts on.
+**Do not re-propose a two-year median** (Thach proposed it after 3D6 and it
+was rejected on arithmetic): the median of two values is their mean, so it
+halves an anomalous year instead of ignoring it - L1 becomes (50,000 +
+12.50) / 2 = 25,006 and an ordinary June still reads +99.95%. A median
+centre in year-over-year mode is a candidate for item 2: 3D2's reason for
+reverting a median centre was a LEVEL-mode problem, and in year-over-year mode
+seasonality is already differenced out, so it does not carry over directly -
+but it needs its own sweep. Rejected with its reason: requiring the level
+chart to agree (ADR-0006 exists because that chart is uninformative on
+seasonal series).
+
 **Step-change detection and re-baselining for the XmR signals.** Attempted in
 session 3D2 and reverted. A later attempt should start from how this one
 failed, not from the proposal, so the record is here rather than only in the
@@ -842,7 +931,31 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D6** closed
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D6b** closed
+2026-09-23: **ADR-0007 - no step-4 row is a verdict in v1.** Thach's call
+after 3D6, whose triage found five fabricating cases from two root causes -
+one year-ago comparator that cannot vouch for itself, and a mean centre one
+anomalous point drags. `is_verdict` returns False, T3 is never supported,
+headline rule 3 is dormant, and S0/S11 now expect rule 7. The engine's claim
+changes from "nothing unusual happened" to "it never invents a cause when no
+hypothesis is supported". The masked-shift alert moved onto the tree: against
+a floor of 20% of the largest of the typical month, last month and this month,
+one contribution of each sign on orders x AOV clears it, and the revenue
+change stays under 20% of the larger compared month. It works on any file
+with one complete trading month in its history, and is
+always worded as possibly seasonal. Its floor scales with the months compared
+- the typical month alone fired on 15-25% of peak months, measured by the
+doubt-review - and its constant is PROVISIONAL; 3E re-sweeps it on the real
+suite. **The measured cost, stated plainly:** without a statistical half the
+alert fires on ordinary noise about 2-3% of the time at realistic noise on
+the models swept (5-6% at high noise). Materiality is read on orders x AOV:
+on level 1's customers x frequency x AOV it read an identity as a masked
+shift, 19-39% of months with stable orders and a swinging customer count -
+found by the second review cycle, fixed before the commit (Thach). Its own
+doubt-review then found the change bound calling a -75% trough month flat;
+the change is now measured against the compared months.
+pytest 2211 passed.
+Previously, session **3D6** closed
 2026-09-23 as a **narrow fix, by Thach's choice after two doubt-review
 cycles**. A year-ago base is refused below 3% of the series' typical month
 (the median magnitude over the history window's trading months), which
@@ -1150,13 +1263,10 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session **3D9** (base effects the 3D6 share cannot
-reach), which blocks 3E by execution: five of its seven cases produce an
-actionable verdict on a month where nothing happened. Its table and
-reproductions are on its checklist line; its candidate method (a robust
-centre in year-over-year mode) needs its own sweep. Then 3E. (This paragraph
-still named 3D4 as the next step until 3D6 - it had not been updated since
-3D3.)
+**Next step:** Phase 3 session **3E** (hypotheses and scenarios). Its scope
+now includes re-running the `MASKED_MIN_CONTRIBUTION_SHARE` sweep on the real
+S0-S11 suite, with the value allowed to change, and S0/S11 expecting rule 7.
+3D9 went to the Backlog ("Unusualness verdicts") with ADR-0007.
 Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
 but **not yet wired into an engine** - `compute_localization` has no caller
 outside its tests - so on Thach's instruction 3D added the contract round-trip
@@ -1168,9 +1278,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run `C:\Users\Happy\commit-signals.ps1` - regenerated in 3D6 to commit
-   3D4 + 3D5 + 3D5b + 3D6 together (14 files, message file
-   `C:\Users\Happy\commit-signals-msg.txt`). It stops before pushing.
+1. Run `C:\Users\Happy\commit-3d6b.ps1` - commits session 3D6b alone
+   (message file `C:\Users\Happy\commit-3d6b-msg.txt`). It stops before
+   pushing. (The 3D4-3D6 signals group is committed: `a48009b`.)
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -1184,6 +1294,75 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3D6b (ADR-0007: no step-4 row is a verdict in
+  v1; the masked-shift alert on the tree). Closed. pytest 2198 passed. New:
+  `tests/stages/diagnose/test_no_step4_verdicts.py` (7 tests written first,
+  RED captured, then unit tests from the mutation check and both review
+  cycles). **Committed ALONE** (Thach).
+  - **Decisions implemented (Thach):** `is_verdict` returns False; T3 never
+    supported; headline rule 3 dormant; S0/S11 expect rule 7; the engine's
+    claim reframed to "never invents a cause when no hypothesis is
+    supported"; masked-shift alert on the tree; `masked_shift_basis`
+    removed; rule 4 always hedged; 3D4/3D6 guards kept for display; 3D9 to
+    the Backlog as "Unusualness verdicts", with the two-year-median error
+    recorded; the share PROVISIONAL and re-swept in 3E.
+  - **One decision changed on evidence, by Thach, mid-session:** the floor.
+    As first decided it was 20% of the typical month; the doubt-review
+    measured it firing on 15-25% of peak months with nothing planted, and on
+    a stall's in-season months against a trickle typical. Thach chose floor
+    C: 20% of max(typical, last month, this month), plus a bound on the
+    change - measured, after the pair's doubt-review, against the larger
+    compared month rather than the floor. Over the pair the ratio test is
+    implied (proved in `_masked_shift`, pinned by a test on
+    MASKED_GROSS_TO_NET <= 3); the three-factor ratio it actually reads is
+    not, and is kept live and pinned.
+  - **Tests deleted, each with its reason** (all asserted behaviour ADR-0007
+    removes): the alert needing a step-4 signal, a rule-2 signal not driving
+    it, the two basis/hedge tests, the mixed-mode fixture, three basis
+    contract cases, and 3D6's rule-4 test (vacuous once the alert stopped
+    reading rows). **Flipped:** the yoy-verdict, rule-2-verdict and
+    yoy-actionable tests. **Rewritten:** the short-file, quiet-month,
+    ratio-path and ratio-threshold alert tests, the contract null-alert
+    tests, 3D6's stall test (its only assertion had become constant-true).
+  - **Mutation check:** 40 mutants (5 on the pair) on the policy, the floor, flatness,
+    materiality, the yardstick, the sign guard and the validator - all
+    killed except F2 (the ratio test), a predicted EQUIVALENT. It found:
+    one-sided and boundary cases no row fixture can build (flat two-factor
+    months split +x/-x) - now unit tests; the max pinned only by its typical
+    term; the sign guard untested on the current month and at zero; and a
+    DUPLICATED constant line I had introduced, which hid three mutants.
+  - **Doubt-review, two cycles.** Cycle 1 (mine): old diagnosis.json files
+    would not load while the change log said they did; I quoted only the
+    kinder half of my own sweep (two-factor and stable-frequency rows) and
+    left out 6.5% / 15%; the peak-month and doubled-month failures that led
+    to floor C; stale text in six files; S9 both "must not fire" and "fires
+    by design" in one paragraph; the Figma "normal variation" state still
+    required. Cycle 2 (mine): section 12 still stated the old rule; a
+    must-fire claim the saved output contradicts; two tests claiming ratio
+    coverage they did not have; residue months counted as trading months;
+    a revenue sign-crossing month narrated backwards - all fixed; and the
+    customers/frequency identity read as a masked shift (19-39%), which
+    Thach identified as structural, not a noise question for 3E: fixed by
+    deciding materiality on orders x AOV, run before adoption, with a new
+    contract field `masked_shift_pair` and the "4 customers once -> 1
+    customer 4 times" test flipped to NO alert.
+  - **Doubt-review of the pair step** (Thach: he had skipped the
+    cross-model review, not the doubt-review - I had conflated the two).
+    Findings, all mine: (HIGH) "the three-factor ratio never binds, 0 in
+    12,000" was false - only 338 of those draws fired the pair, none in a
+    trough, and a case with 2.975 against the pair's 3.05 exists; (HIGH) the
+    change bound, measured against the floor, called a -75% trough month
+    flat and fired - a fabrication in floor C; "S6 exactly as before" and
+    the quoted cost contradicted the saved outputs; the validator did not
+    tie the pair to level 1 or to a fired alert; the pair's orders carried
+    residue (29.000000000000004); leftover level-1 wording; the 7.8 D split
+    now ambiguous. All fixed except D, handed to 3E. The ratio check is now
+    live and pinned; a targeted search (control finds 169 on the first
+    bound) finds none under the shipped rule. Final pytest 2211 passed;
+    mutation check: 10 more mutants on the review fixes, all killed (50 in
+    the session, all killed except the predicted-equivalent pair ratio,
+    which the fixes made live and is now killed too).
+  - **Next step:** session **3E**.
 - 2026-09-23, Phase 3 session 3D6 (how small a base stops being a usable
   denominator). Closed as a narrow fix. pytest 2180 passed; 17 new tests in
   `tests/stages/diagnose/test_yoy_small_base.py` (three are KNOWN LIMITS

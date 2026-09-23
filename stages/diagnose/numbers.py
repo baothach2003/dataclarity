@@ -12,6 +12,10 @@ One helper, so the next place that divides by a difference inherits the guard
 instead of rediscovering the bug.
 """
 
+from collections.abc import Iterable
+
+import pandas as pd
+
 from stages.diagnose.thresholds import RECONCILE_REL_TOLERANCE
 
 
@@ -27,3 +31,28 @@ def is_negligible(delta: float, *magnitudes: float) -> bool:
     if not scale:
         return delta == 0
     return abs(delta) <= RECONCILE_REL_TOLERANCE * scale
+
+
+def typical_magnitude(values: Iterable[float]) -> float:
+    """The size of a month this shop actually trades: the median of |value|
+    over the non-zero values. NaN when there is none.
+
+    One definition for two callers - the year-over-year base guard (3D6) and
+    the masked-shift materiality floor (ADR-0007) - so "typical" cannot mean
+    two different things in one diagnosis.
+
+    Non-zero - and more than floating-point residue - because a month without
+    rows is charted as 0.0: a stall open four months a year otherwise had a
+    typical month of ZERO (3D6 doubt-review).
+    A median, so one freak month cannot move it. A magnitude, so a series that
+    nets negative in most months still has a size. NaN rather than 0 when
+    nothing traded, so a caller comparing against it gets False, never a free
+    pass.
+    """
+    finite = [abs(float(value)) for value in values if pd.notna(value)]
+    scale = max(finite, default=0.0)
+    # Residue is not trading: a month of cancelling sales and refunds nets
+    # 1.4e-17, and an exact `!= 0` counted it, so three such months put the
+    # typical month at 5.6e-17 (3D6b doubt-review cycle 2).
+    magnitudes = [value for value in finite if not is_negligible(value, scale)]
+    return float(pd.Series(magnitudes, dtype=float).median()) if magnitudes else float("nan")

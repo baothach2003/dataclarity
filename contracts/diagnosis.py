@@ -11,7 +11,7 @@ contract describes the file, not this session's progress, and writing them now
 means the sessions that produce them are validated from their first line.
 """
 
-from math import isfinite
+from math import isclose, isfinite
 from typing import Any, Literal, Self
 
 from pydantic import NonNegativeInt, model_validator
@@ -78,8 +78,9 @@ class Signal(ContractModel):
     `insufficient_history` the four numbers are null: there is no baseline to
     compute a centre or limits from, and reporting zeros would read as real.
 
-    A row is not automatically a verdict. Only `yoy`-mode rows are - see
-    `is_verdict` below and docs/adr/0006-level-signals-are-descriptive.md."""
+    A row is not a verdict. In v1 no step-4 row is, in either mode - see
+    `is_verdict` below, docs/adr/0006-level-signals-are-descriptive.md and
+    docs/adr/0007-no-step4-verdicts-in-v1.md."""
 
     series: Literal[
         "revenue",
@@ -105,9 +106,9 @@ class Signal(ContractModel):
     # computed from the same points, so one anomalous month re-fires it every
     # month until it leaves the window (3B). Re-baselining was attempted in
     # 3D2 and the method did not work (PROJECT_PLAN section 12), so rule-2
-    # signals stay in the output - a reader can see them - but T3 and the
-    # masked-shift alert are decided on rule 1. This is a contract, not a
-    # session convention (Thach, 3D2).
+    # signals stay in the output - a reader can see them. Since ADR-0007 no
+    # row of either rule is a verdict in v1; the distinction is kept because
+    # the Backlog's "unusualness verdicts" would need it again (Thach, 3D2).
     rule: Literal[1, 2] | None
     # Which estimator drew the limits: the median moving range, the average as
     # a fallback when the median is zero, or `minimum_spread` when neither
@@ -202,44 +203,28 @@ class Signal(ContractModel):
 
 
 def is_verdict(signal: Signal) -> bool:
-    """May step 7 treat this row as a judgement about the month?
+    """May step 7 treat this row as a judgement about the month? In v1: never.
 
-    Only year-over-year rows, and only when a chart was actually drawn.
+    ADR-0006 made LEVEL rows descriptive: a level chart centred on the mean of
+    every month cannot judge a seasonal month. ADR-0007 extends that to
+    YEAR-OVER-YEAR rows, for the mirror-image reason: a year-over-year point
+    compares with ONE year-ago month, and whether that month was itself
+    normal cannot be told without further years. Session 3D6 ran every known
+    limit to the headline and five of seven fabricated an actionable verdict
+    on a month where nothing happened - a trickle off-season, a year-ago
+    month at 10% of normal, one anomalous baseline point pulling the mean
+    centre. Making a comparator robust to one bad year needs the median of at
+    least THREE prior years (the median of two is their mean, which halves an
+    anomaly rather than ignoring it), so 45 complete months, and a robust
+    centre as well. No demo dataset reaches that; it is a Backlog item.
 
-    An XmR chart assumes a stable process. A seasonal retail series is not
-    stable in level terms, so a level chart centred on the mean of every month
-    is in the wrong place for any month with a season: a December that halves
-    still lands above that centre and reads as `within` or even `above`, and
-    an ordinary December fires `above` for being ordinary. Year-over-year is
-    what makes the series stable, and when it is unavailable the missing
-    information is exactly what a level chart would need to replace it.
-
-    Three sessions tried to gate the level chart instead (3D3 floors, 3D4 base
-    guard, 3D5 width and seasonal-position tests). The last could not run at
-    all on a 24-month file: the history window holds one prior occurrence of
-    the current calendar month, and that occurrence is the failed comparator.
-    ADR-0006 moved the policy rather than the arithmetic.
-
-    Level rows are still computed and still written to `diagnosis.json`. They
-    describe; they do not decide. The one consumer allowed to read them is the
-    masked-shift alert, which has independent corroboration and records the
-    fact in `Lever.masked_shift_basis`.
-
-    **This answers "may step 7 read this row", not "may step 7 act on it".**
-    The two are different and the codebase has three statements about them
-    that a reader must not conflate:
-
-    - A rule-2 row IS a judgement about the month - eight points on one side
-      of the centre is a finding - so `is_verdict` is true for it, and T3 is
-      blocked by one. That is 3D4's deliberate asymmetry: the bar for
-      asserting that nothing happened is higher than the bar for acting.
-    - A rule-2 row may never BECOME a headline cause. That is the rule-1-only
-      contract, and `is_actionable` below is what expresses it.
-    - The masked-shift alert filters on rule 1 across BOTH modes, because it
-      is the documented exception to the mode rule. Neither predicate fits it
-      and it says so at its own call site.
+    Rows are still computed, carry limits and a rule, and are written to
+    `diagnosis.json` as evidence a reader can look at. T3 is therefore never
+    `supported` and headline rule 3 is dormant. The predicate is kept, rather
+    than deleted, because it is the one place the Backlog item switches back
+    on, and T3 (3E) reads it.
     """
-    return signal.mode == "yoy" and signal.signal != "insufficient_history"
+    return False
 
 
 def is_actionable(signal: Signal) -> bool:
@@ -248,8 +233,10 @@ def is_actionable(signal: Signal) -> bool:
     A verdict, and rule 1. Rule 2 measures a run against a centre computed
     from the same points, so one anomalous month re-fires it every month until
     it leaves the window; re-baselining was attempted in session 3D2 and the
-    method did not work. A rule-2 row can therefore PREVENT "routine" and can
-    never BECOME a cause (Thach, 3D2).
+    method did not work. Under ADR-0006 a rule-2 row could PREVENT
+    "routine" and never BECOME a cause (Thach, 3D2). Since ADR-0007 nothing is
+    a verdict in v1, so this is False for every row; it is kept for the
+    Backlog's "unusualness verdicts".
     """
     return is_verdict(signal) and signal.rule == 1
 
@@ -289,6 +276,27 @@ class LeverLevel(ContractModel):
         return self
 
 
+def _pair_matches_level1(pair: LeverLevel, level1: LeverLevel) -> bool:
+    """Same orders and AOV in both periods, and the same revenue change.
+
+    Relative tolerance, because customers x frequency re-multiplies to the
+    order count only up to floating-point residue."""
+    values = {period: {factor.name: getattr(factor, f"value_{period}")
+                       for factor in level1.factors} for period in ("prev", "cur")}
+    pairs = {period: {factor.name: getattr(factor, f"value_{period}")
+                      for factor in pair.factors} for period in ("prev", "cur")}
+    for period in ("prev", "cur"):
+        v = values[period]
+        orders = v["customers"] * v["frequency"] if "customers" in v else v["orders"]
+        if not (isclose(pairs[period]["orders"], orders, rel_tol=1e-9)
+                and isclose(pairs[period]["aov"], v["aov"], rel_tol=1e-9)):
+            return False
+    change = sum(f.contribution for f in level1.factors)
+    scale = max(abs(f.contribution) for f in level1.factors) or 1.0
+    return isclose(sum(f.contribution for f in pair.factors), change,
+                   rel_tol=1e-9, abs_tol=1e-9 * scale)
+
+
 class Lever(ContractModel):
     """The lever lens: revenue split into its multiplicative drivers.
 
@@ -298,20 +306,25 @@ class Lever(ContractModel):
     both periods, or when AOV did not move (the proportional conversion into
     revenue units divides by that change).
 
-    `gross_to_net` and `masked_shift_alert` are **null together with level1**,
+    `gross_to_net` and `masked_shift_alert` are **null whenever level1 is**,
     never `false` (Thach, 3C): `false` states that the check ran and found
     nothing, and a downstream reader must not take "the tree could not be
     built" for "no masked shift". `gross_to_net` is also null when revenue did
-    not move at all, because the ratio divides by that change - the alert is
-    still decided in that case, on whether any component has a step-4 signal.
+    not move at all, because the ratio divides by that change - and that IS the
+    flat case, so the alert is still decided.
 
-    `masked_shift_basis` names which kind of step-4 row the alert rested on,
-    and is null exactly when the alert is null or false. It exists because a
-    `level` basis is weaker than a `yoy` one in a specific, narratable way: a
-    seasonal shoulder month can have flat revenue and a genuinely shifting
-    composition, so the alert is right that components moved and cannot claim
-    the movement was unusual. 3F must be able to phrase those two cases
-    differently (ADR-0006).
+    The alert rests on the tree alone (ADR-0007): against a floor of
+    `MASKED_MIN_CONTRIBUTION_SHARE` times the largest of the typical month,
+    the previous month and the current month, one contribution of each sign
+    on `masked_shift_pair` (orders x AOV) clears the floor; the revenue change
+    stays under the same share of the larger compared month; and
+    `gross_to_net >= MASKED_GROSS_TO_NET`. It is also null, with level 1
+    present, when
+    there is no typical month to measure "material" against - a history with
+    no complete trading month - because the check could not run.
+    `masked_shift_basis` is gone with the signals it described: nothing now
+    establishes that the movement was UNUSUAL, so headline rule 4 is always
+    worded as a movement that may be seasonal.
 
     `reasons` carries one entry per null field, keyed by field name.
     """
@@ -320,22 +333,36 @@ class Lever(ContractModel):
     level2: LeverLevel | None
     gross_to_net: float | None
     masked_shift_alert: bool | None
-    masked_shift_basis: Literal["yoy", "level"] | None = None
+    # The orders x AOV split the alert is decided on (Thach, 3D6b). Not
+    # level 1's customers x frequency x AOV: customers x frequency = orders by
+    # definition, so when orders hold steady and the customer count moves
+    # those two cancel EXACTLY, and a three-factor rule read that identity as
+    # a masked shift - 19-39% of such months with nothing planted. Headline
+    # rule 4 names this pair's two contributions. Null exactly when level 1 is;
+    # absent from files written before 3D6b, which still load.
+    masked_shift_pair: LeverLevel | None = None
     reasons: dict[str, str]
 
     @model_validator(mode="after")
     def _nulls_are_explained_and_consistent(self) -> Self:
-        if (self.level1 is None) != (self.masked_shift_alert is None):
+        if self.level1 is None and self.masked_shift_alert is not None:
             raise ValueError(
-                "masked_shift_alert is null exactly when level1 is null: "
+                "masked_shift_alert is null whenever level1 is null: "
                 "'false' would claim a check that did not run"
             )
-        if bool(self.masked_shift_alert) != (self.masked_shift_basis is not None):
-            raise ValueError(
-                "masked_shift_basis is set exactly when the alert fired: an "
-                "alert that fired must say what it rested on, and one that "
-                "did not must not imply it rested on anything"
-            )
+        if self.masked_shift_alert is True and self.masked_shift_pair is None:
+            # Headline rule 4 names the pair's two contributions. No stage has
+            # written a diagnosis.json yet, so no older file carries a fired
+            # alert without one (pair review #5).
+            raise ValueError("a fired alert must carry masked_shift_pair for rule 4 to name")
+        if self.masked_shift_pair is not None:
+            if self.level1 is None:
+                raise ValueError("masked_shift_pair is derived from level1 and requires it")
+            if self.masked_shift_pair.formula != "orders*aov":
+                raise ValueError("masked_shift_pair is the orders*aov split, by definition")
+            if not _pair_matches_level1(self.masked_shift_pair, self.level1):
+                raise ValueError("masked_shift_pair does not match level1: the same "
+                                 "orders, AOV and revenue change must underlie both")
         if self.level1 is None and self.gross_to_net is not None:
             raise ValueError("gross_to_net cannot be computed without level1")
         if self.level2 is not None and self.level1 is None:
@@ -345,6 +372,13 @@ class Lever(ContractModel):
         for field in ("level1", "level2", "gross_to_net"):
             if getattr(self, field) is None and field not in self.reasons:
                 raise ValueError(f"{field} is null and carries no reason")
+        # A null alert beside a null level 1 is explained by level 1's reason,
+        # as it always was - so a diagnosis.json written before ADR-0007 still
+        # loads. A null alert WITH level 1 present is new (no typical month to
+        # measure against) and must say so (3D6b doubt-review #1).
+        if (self.masked_shift_alert is None and self.level1 is not None
+                and "masked_shift_alert" not in self.reasons):
+            raise ValueError("masked_shift_alert is null and carries no reason")
         return self
 
 

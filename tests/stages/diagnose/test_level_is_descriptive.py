@@ -1,4 +1,5 @@
-"""Level-mode signals are descriptive, never verdicts (ADR-0006).
+"""Level-mode signals are descriptive, never verdicts (ADR-0006) - and
+since ADR-0007 year-over-year rows are too, in v1.
 
 Four sessions tried to make a level chart judge a seasonal month. The last of
 them shipped a gate that could not run on a 24-month file at all: the history
@@ -11,6 +12,8 @@ each session produced.
 """
 
 from datetime import date, timedelta
+
+import pytest
 
 from contracts.diagnosis import Signal, is_actionable, is_verdict
 from stages.diagnose.frame import history_window
@@ -127,77 +130,62 @@ def _masked_shift_rows(months: int = 14, *, last_price: float = 250.0) -> list[d
     return rows
 
 
-def test_a_masked_shift_on_a_short_file_still_fires_and_says_so() -> None:
-    """The one exception to ADR-0006, and the reason it is an exception.
+def test_a_masked_shift_on_a_short_file_fires_on_the_tree_alone() -> None:
+    """Rewritten by ADR-0007. Under ADR-0006 this alert was the one consumer
+    allowed to read a level row, and recorded a `basis`. Since no step-4 row
+    is a verdict in v1, the alert reads none: it is decided on the tree, and
+    the basis field is gone with the signals it described.
 
-    The alert needs a step-4 row for its conjunction. Resting it on
-    `gross_to_net` alone was considered and rejected: that ratio divides by
-    the change in revenue, so on the flat months this alert exists for it
-    fires every time. A short file has only level rows, so refusing to read
-    them would disable the alert on exactly the files it was written for.
-
-    `basis` records what it rested on, because a level basis can be right that
-    composition moved and wrong that the movement was unusual.
+    Hand-checked. Thirteen months of ten customers at 100 (typical month
+    1,000, floor 200), then four customers at 250 - revenue flat at 1,000:
+      phi_customers = -6 * (100 + 250) / 2    = -1,050
+      phi_aov       = +150 * (10 + 4) / 2     = +1,050
+    Both clear 200 and revenue did not move, so the alert fires - on a
+    14-month file where every step-4 row is level mode and none is a verdict.
     """
     data = run_data(_masked_shift_rows())
     signals = compute_signals(data, history_window(data))
 
-    lever = compute_lever(data, signals)
+    lever = compute_lever(data, history_window(data))
 
+    effects = {f.name: f.contribution for f in lever.level1.factors}
+    assert effects["customers"] == pytest.approx(-1050.0)
+    assert effects["aov"] == pytest.approx(1050.0)
     assert lever.gross_to_net is None, "the fixture must have flat revenue"
     assert lever.masked_shift_alert is True
-    assert lever.masked_shift_basis == "level"
-    # ...and the row it rested on is still not a verdict for anything else.
-    customers = next(s for s in signals if s.series == "active_customers")
-    assert (customers.signal, customers.rule) == ("below", 1)
-    assert is_verdict(customers) is False
+    assert [s.series for s in signals if is_verdict(s)] == []
 
 
-def test_an_alert_that_does_not_fire_claims_no_basis() -> None:
-    """`masked_shift_basis` is null exactly when the alert is null or false.
-    A basis on a quiet month would imply a check leaned on something.
-    """
+def test_a_quiet_month_does_not_fire_the_alert() -> None:
+    """Fourteen identical months. Revenue did not move, so `gross_to_net` is
+    null and the month counts as flat - flatness alone would fire here. Every
+    contribution is zero, so nothing clears the floor and it does not."""
     labels, year, month = {}, 2010, 1
     for _ in range(14):
         labels[f"{year:04d}-{month:02d}"] = 50000.0
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
 
     data = run_data(full_months(labels))
-    lever = compute_lever(data, compute_signals(data, history_window(data)))
+    lever = compute_lever(data, history_window(data))
 
     assert lever.masked_shift_alert is False
-    assert lever.masked_shift_basis is None
 
 
-def test_an_all_year_over_year_run_needs_no_hedge() -> None:
-    """The same shift on a file long enough to chart year over year: every
-    component row is `yoy`, so the basis is `yoy` and 3F states the alert
-    plainly instead of hedging it as seasonal.
-    """
-    data = run_data(_masked_shift_rows(months=26))
-    signals = compute_signals(data, history_window(data))
-
-    lever = compute_lever(data, signals)
-
-    assert lever.masked_shift_alert is True
-    assert lever.masked_shift_basis == "yoy"
-
-
-def test_a_year_over_year_row_is_a_verdict() -> None:
-    """The other half of the policy, and the half a negative test cannot give.
-
-    Every other test here asserts what is NOT a verdict. Without this one the
-    whole policy is satisfied by "nothing is ever a verdict", which would
-    leave T3 permanently inconclusive and the engine unable to say a quiet
-    month was quiet.
-    """
+def test_a_year_over_year_row_is_not_a_verdict_in_v1() -> None:
+    """FLIPPED by ADR-0007. This was the positive case - "a year-over-year
+    row is a verdict" - written because without it the ADR-0006 policy was
+    satisfied by "nothing is ever a verdict". That is now the policy: a
+    year-over-year point compares with one year-ago month, which cannot vouch
+    for itself on a 24-month file. The Backlog's "unusualness verdicts" (a
+    comparator of three prior years AND a robust centre) is what would turn
+    this assertion back."""
     data = run_data(_masked_shift_rows(months=26))
 
     signals = compute_signals(data, history_window(data))
 
     revenue = next(s for s in signals if s.series == "revenue")
     assert revenue.mode == "yoy"
-    assert is_verdict(revenue) is True
+    assert is_verdict(revenue) is False
 
 
 def test_a_year_over_year_row_with_no_chart_is_still_not_a_verdict() -> None:
@@ -220,76 +208,19 @@ def test_a_year_over_year_row_with_no_chart_is_still_not_a_verdict() -> None:
     assert is_verdict(signal) is False
 
 
-def _mixed_mode_rows(months: int = 26) -> list[dict]:
-    """The masked shift, plus a refund-heavy month exactly twelve before the
-    current one. That breaks REVENUE's year-ago base, so the revenue-derived
-    series fall to level mode, while the customer COUNT that month stays clean
-    and keeps its year-over-year chart - one run carrying both modes."""
-    rows, year, month = [], 2010, 1
-    for index in range(months):
-        last = index == months - 1
-        broken = index == months - 13
-        customers, price = (4, 250.0) if last else (10, 100.0)
-        first = date(year, month, 1)
-        end = date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)
-        for customer in range(customers):
-            on_last_day = last and customer == customers - 1
-            day = end if on_last_day else first + timedelta(days=customer)
-            rows.append(row(day, qty=1.0, price=price, customer=f"C{customer}"))
-            if broken:
-                rows.append(row(day, qty=-1.2, price=price,
-                                customer=f"C{customer}"))
-        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
-    return rows
-
-
-def test_one_level_row_among_the_contributors_keeps_the_hedge() -> None:
-    """`mode` is decided per series, so one run's components can disagree.
-
-    Here `aov` is on a level chart and `active_customers` on a year-over-year
-    one, and both fire rule 1. The basis must be `level`.
-
-    The first version of this rule said the stronger basis wins, and that was
-    wrong in a way worth recording: headline rule 4 names the two largest
-    OPPOSING contributions, which on this file are customers and aov - so the
-    evidence that a named contributor moved unusually is the level row, and an
-    unrelated year-over-year row elsewhere in the run is no reason to drop the
-    hedge on it (3D5b review N9). The basis is about what the sentence rests
-    on, not about the best row in the file.
-    """
-    data = run_data(_mixed_mode_rows())
-    signals = compute_signals(data, history_window(data))
-    firing = {s.series: s.mode for s in signals
-              if s.signal in ("above", "below") and s.rule == 1}
-
-    lever = compute_lever(data, signals)
-
-    # The fixture only means something while it really does carry both modes.
-    assert firing.get("aov") == "level"
-    assert firing.get("active_customers") == "yoy"
-    assert lever.masked_shift_alert is True
-    assert lever.masked_shift_basis == "level"
-
-
-def test_the_ratio_path_records_a_basis_too() -> None:
-    """Every other masked-shift test here has revenue exactly flat, which
-    takes the `gross_to_net is None` branch - the one where the ratio has no
-    denominator. So all of them were exercising the same half of the function
-    (3D5b review R3).
-
-    This one moves revenue by 20 on contributions of about 1,050 each, so the
-    ratio is real, comfortably above `MASKED_GROSS_TO_NET`, and the
-    conjunction is evaluated as written.
-    """
+def test_the_ratio_path_fires_too() -> None:
+    """The other branch. Every flat-revenue test takes `gross_to_net is None`;
+    here revenue moves by 20 (four customers at 255), so the ratio is real -
+    about 105 - taking the non-null branch of the flatness test (3D5b review
+    R3). It does not pin MASKED_GROSS_TO_NET: since floor C the ratio is
+    implied (test_no_step4_verdicts.py)."""
     data = run_data(_masked_shift_rows(last_price=255.0))
-    signals = compute_signals(data, history_window(data))
 
-    lever = compute_lever(data, signals)
+    lever = compute_lever(data, history_window(data))
 
     assert lever.gross_to_net is not None, "this must NOT be the flat branch"
     assert lever.gross_to_net >= 3.0
     assert lever.masked_shift_alert is True
-    assert lever.masked_shift_basis == "level"
 
 
 def _rule_two_run() -> dict[str, float]:
@@ -304,39 +235,30 @@ def _rule_two_run() -> dict[str, float]:
     return labels
 
 
-def test_a_rule_two_row_is_a_verdict_but_never_a_cause() -> None:
-    """The distinction one predicate could not carry.
-
-    A run of eight points on one side of the centre IS a judgement about the
-    month, so it blocks T3 - that is 3D4's deliberate asymmetry, where the bar
-    for asserting nothing happened is higher than the bar for acting. It may
-    never BECOME a headline cause, because rule 2 re-fires every month until
-    the anomalous point leaves the window (3D2).
-
-    `is_verdict` answers the first question, `is_actionable` the second.
-    """
+def test_a_rule_two_row_is_neither_a_verdict_nor_a_cause() -> None:
+    """FLIPPED by ADR-0007. Under ADR-0006 a rule-2 row was a verdict that
+    blocked T3 (3D4's asymmetry) while never becoming a cause. T3 can no
+    longer be supported at all, so there is nothing left for it to block;
+    the rule-1-only contract still holds for whatever reads rows later."""
     data = run_data(full_months(_rule_two_run()))
 
     signal = next(s for s in compute_signals(data, history_window(data))
                   if s.series == "revenue")
 
     assert (signal.mode, signal.rule) == ("yoy", 2)
-    assert is_verdict(signal) is True       # blocks T3
-    assert is_actionable(signal) is False   # cannot be a cause
+    assert is_verdict(signal) is False
+    assert is_actionable(signal) is False
 
 
-def test_a_year_over_year_rule_one_row_is_actionable() -> None:
-    """The positive case, for the same reason `is_verdict` needed one: without
-    it `is_actionable` is satisfied by returning False for everything, and no
-    hypothesis could ever be supported.
-    """
+def test_a_year_over_year_rule_one_row_is_not_actionable_in_v1() -> None:
+    """FLIPPED by ADR-0007: this was the positive case for `is_actionable`."""
     data = run_data(_masked_shift_rows(months=26))
 
     customers = next(s for s in compute_signals(data, history_window(data))
                      if s.series == "active_customers")
 
     assert (customers.mode, customers.rule) == ("yoy", 1)
-    assert is_actionable(customers) is True
+    assert is_actionable(customers) is False
 
 
 def test_a_level_rule_one_row_is_not_actionable() -> None:

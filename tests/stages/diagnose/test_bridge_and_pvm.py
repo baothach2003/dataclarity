@@ -12,9 +12,10 @@ import pytest
 from stages.diagnose.bridge import compute_bridge
 from stages.diagnose.lever import month_revenue, period_totals
 from stages.diagnose.pvm import compute_products
+from stages.diagnose.frame import history_window
 from stages.diagnose.tree import ReconciliationError, _assert_sums, compute_tree
 from tests.stages.diagnose.diagnose_fixtures import MAPPING, row, run_data
-from tests.stages.diagnose.test_shapley_and_lever import WITHIN, reconciles
+from tests.stages.diagnose.test_shapley_and_lever import reconciles
 
 # --- customer bridge ----------------------------------------------------------
 
@@ -436,7 +437,7 @@ def test_every_lens_reconciles_to_its_own_total_and_the_totals_differ() -> None:
     """
     data = run_data(_tree_rows())
 
-    tree = compute_tree(data, WITHIN)
+    tree = compute_tree(data, history_window(data))
 
     delta_net = -40.0
     delta_gross = 0.0

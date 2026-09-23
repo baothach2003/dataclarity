@@ -274,8 +274,7 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
       "level2": {"formula": "units_per_order*price_per_unit",
                  "factors": [{"name": "units_per_order", "value_prev": 4.1,
                               "value_cur": 3.9, "contribution": -11200.0}]},
-      "gross_to_net": 1.04, "masked_shift_alert": false,
-      "masked_shift_basis": null, "reasons": {}
+      "gross_to_net": 1.04, "masked_shift_alert": false, "reasons": {}
     },
     "customers": {"new": 92000.0, "resurrected": 14000.0, "expansion": 61000.0,
                   "contraction": -88000.0, "lapsed": -219000.0,
@@ -355,9 +354,9 @@ on:
   i.e. too small to divide by. A series pushed to level mode because refused
   BASELINE bases left too few points carries `null`, as it has since 3D4 (a
   labelling gap scheduled with 3D7). Such a series still has limits and can
-  still fire rule 1. It does NOT stop T3 calling the month routine - `mode`
-  does that, via `is_verdict` (ADR-0006). This flag records why a series is in
-  level mode, which 3F narrates; it is not a gate.
+  still fire rule 1. It does NOT decide whether a row is a verdict -
+  `is_verdict` does, and in v1 no row is (ADR-0007). This flag records why a
+  series is in level mode, which 3F narrates; it is not a gate.
 - `insufficient_reason` says the series has **no chart at all**, and is only
   ever set alongside `signal = "insufficient_history"`, where `center`,
   `lower`, `upper` and `value_cur` are all `null`.
@@ -366,7 +365,16 @@ on:
 no scale to borrow a floor from; it is NOT `too_few_points`, and a reader
 should not go looking for more history.
 
-### A `level`-mode row is descriptive, not a verdict (ADR-0006)
+### No step-4 row is a verdict in v1 (ADR-0006, ADR-0007)
+
+**In v1 every `signals` row is descriptive, in either mode**
+(`docs/adr/0007-no-step4-verdicts-in-v1.md`). ADR-0006 made `level` rows
+descriptive; ADR-0007 extended that to `yoy` rows, because a year-over-year
+point compares with one year-ago month that cannot vouch for itself on a
+24-month file, and the chart's mean centre is dragged by one anomalous
+point. What follows was written for ADR-0006 and still holds for `level`
+rows; read "a `yoy` row is a judgement" as the Backlog's "unusualness
+verdicts", not as v1.
 
 **`mode` decides what a row is allowed to mean, not just its units.** A
 `yoy` row is a judgement about the month. A `level` row is a description of
@@ -378,15 +386,13 @@ fires `above` for being ordinary.
 Consumers must therefore honour the following, and
 `contracts.diagnosis.is_verdict` is the single definition of "verdict":
 
-- **T3 reads `yoy` rows only.** It is `inconclusive`, never `supported`, when
-  `revenue` has no year-over-year verdict, at any file length. Its evidence
-  lists every series that had no verdict, so a month called routine shows
-  which parts were not judged.
-- **The masked-shift alert is the one exception** and may read a `level` row,
-  because its other half (`gross_to_net`) fires on every flat month by
-  itself. `lever.masked_shift_basis` records which kind it rested on.
-- **Stage 5 must never render a `level`-mode row as a judgement, in either
-  direction.** Not `within` as "within normal variation", and not `above` or
+- **T3 is `inconclusive` on every file in v1** (ADR-0007): with no row a
+  verdict, nothing can establish that the change was routine. Its evidence
+  lists every series that had no verdict - in v1, all of them.
+- **The masked-shift alert reads no step-4 row** (ADR-0007). It rests on the
+  tree - see `tree.lever` below - and `masked_shift_basis` is gone.
+- **Stage 5 must never render a step-4 row as a judgement, in either mode or
+  either direction.** Not `within` as "within normal variation", and not `above` or
   `below` as "unusually high" or "unusually low". The failure is symmetric:
   on a seasonal shop a December that halves reads `above` against an
   off-season centre, and so does an ordinary December - identical signal,
@@ -408,18 +414,34 @@ customers* with orders present is not that case: it takes the two-factor
 `orders*aov` form instead. `tree.lever.gross_to_net` is `null` when level 1 is
 absent, and also when revenue did not move, since the ratio divides by that
 change - infinity is not representable in JSON. `tree.lever.masked_shift_alert`
-is `null` **exactly when level 1 is `null`, and is never `false` in that
-case**: `false` asserts that the check ran and found nothing, and a reader must
-not take "the tree could not be built" for "no masked shift".
-`tree.lever.masked_shift_basis` is `yoy | level | null`, set **exactly when
-the alert fired**: it names which kind of step-4 row the alert rested on, and
-a basis on a quiet month would imply a check leaned on something. `yoy` wins
-when a run carries both, since `mode` is decided per series. A `level` basis
-is the weaker one and 3F must hedge it as possibly seasonal - the alert can be
-right that composition moved and wrong that the movement was unusual (see the
-level-row rule in this section, and ADR-0006). Every null field in `lever`
-carries an entry in `tree.lever.reasons`, keyed by field name, except
-`masked_shift_basis`, whose null is fully explained by the alert beside it.
+is `null` **whenever level 1 is `null`, and is never `false` in that case**:
+`false` asserts that the check ran and found nothing, and a reader must not
+take "the tree could not be built" for "no masked shift". Since ADR-0007 it is
+also `null` when the history window holds no complete trading month, because
+the alert measures "material" against the typical month and there is none.
+It is decided on the tree alone: against a floor of
+`MASKED_MIN_CONTRIBUTION_SHARE` times the largest of the typical month, the
+previous month and the current month, one contribution of each sign on
+`tree.lever.masked_shift_pair` clears it, the revenue change stays under the
+same share of the larger compared month, and `gross_to_net` reaches
+`MASKED_GROSS_TO_NET` (AI_PIPELINE 7.6). `masked_shift_pair` is level 1 re-split as
+`orders*aov` - the pair the alert is decided on and headline rule 4 names -
+because customers x frequency = orders by definition and those two cancel
+exactly whenever orders hold steady. It is `null` exactly when level 1 is,
+is always `orders*aov`, is built from the period's own order count and
+revenue, and must match level 1 - the same orders and AOV in both periods,
+and contributions summing to the same revenue change. An alert that fired
+must carry it. Files written before 3D6b have no such field and still load,
+unless they carry a fired alert; no stage has written a `diagnosis.json`
+yet, so none does.
+It is also `null`, with a reason, when either compared month netted zero or
+below: the multiplicative split then changes sign and cannot be read.
+3F and headline rule 4 always phrase it as possibly seasonal. Every null field
+in `lever` carries an entry in `tree.lever.reasons`, keyed by field name; a
+null `masked_shift_alert` needs its own entry only when level 1 is present,
+since beside a null level 1 it is explained by level 1's reason.
+`masked_shift_basis` was removed by ADR-0007; a file still carrying it is read
+and the field ignored.
 
 `localization.dimensions[].name` is `category | product | customer_type`;
 `category` is absent when no column is mapped to it. Each member carries
@@ -652,3 +674,14 @@ the report defensible.
   could not survive a block that no longer exists, and every rule that still
   applies - the all-or-nothing AI blocks, a dropped key not parsing as a
   degraded run - is still tested, unchanged in substance.
+- 2026-09-23 (session 3D6b, ADR-0007): `tree.lever.masked_shift_basis`
+  **removed**, and `tree.lever.masked_shift_alert` may now be `null` with
+  level 1 present (no typical month to measure against), always with a
+  reason. Done in place at `1.0` under the precedent above - no
+  `diagnosis.json` has been written by any stage yet - and a file written
+  before the change still loads: the retired field is ignored (contract models
+  ignore unknown fields), and a null alert beside a null level 1 needs no
+  reason of its own. Both are pinned by tests; the first version of the
+  validator broke the second, found by the 3D6b doubt-review. Same session:
+  `tree.lever.masked_shift_pair` **added** (optional, `orders*aov`), the
+  split the alert is decided on.

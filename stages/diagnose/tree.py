@@ -14,7 +14,7 @@ same pounds. CONTRACTS section 7 states this as a rule for stage 5, and it is
 repeated here because this is the file where someone would be tempted.
 """
 
-from contracts.diagnosis import ReturnsLens, Signal, Tree
+from contracts.diagnosis import ReturnsLens, Tree
 from stages.diagnose.bridge import compute_bridge
 from stages.diagnose.inputs import RunData
 from stages.diagnose.lever import compute_lever, month_revenue, returns_levels
@@ -33,11 +33,11 @@ class ReconciliationError(AssertionError):
     """
 
 
-def compute_tree(data: RunData, signals: list[Signal]) -> Tree:
+def compute_tree(data: RunData, history: list[str]) -> Tree:
     returns = ReturnsLens(**returns_levels(data))
     tree = Tree(
         method="shapley",
-        lever=compute_lever(data, signals),
+        lever=compute_lever(data, history),
         customers=compute_bridge(data),
         returns=returns,
         products=compute_products(data),

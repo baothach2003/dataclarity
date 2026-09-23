@@ -29,6 +29,59 @@ HEADLINE_CONTEXT_MIN_SHARE = 0.50
 # is the case a "did revenue move?" report misses entirely.
 MASKED_GROSS_TO_NET = 3.0
 
+# PROVISIONAL (3D6b; 3E re-sweeps it against the real S0-S11 suite and may
+# change it). Since ADR-0007 the masked-shift alert no longer reads step 4, so
+# "the components moved strongly" needs its own bar, a FLOOR:
+#
+#     floor = this share * max(typical month, |previous month|, |current month|)
+#
+# On the ORDERS x AOV pair (not level 1's customers x frequency x AOV), one
+# contribution of each sign must clear it. The revenue change must stay under
+# the same share of the larger COMPARED month, and the reported three-factor
+# `gross_to_net` must reach MASKED_GROSS_TO_NET. The typical month is the
+# median |revenue| over the history window's trading months (the 3D6
+# yardstick).
+#
+# Why the pair (Thach, 3D6b): customers x frequency = orders by definition,
+# so whenever orders hold steady and the customer count moves, those two
+# cancel EXACTLY - the three-factor rule read an identity as a masked shift,
+# 19-39% of such months with nothing planted. On the pair: 0-2.4%.
+#
+# Why the max (Thach, after the doubt-review; the first version used the
+# typical month alone): the typical month is small against a peak, so months
+# at 3x and 10x typical fired on 15-25% of them with nothing planted. The max
+# keeps the rate flat UPWARD and never lets the floor drop below 20% of the
+# typical month, so a bad last month cannot shrink it.
+#
+# Why the change is measured against the compared months, not the floor (pair
+# review, a fabrication): in a trough the floor is 20% of a typical month far
+# larger than the months compared, so a month that fell 200 -> 50 (-75%)
+# passed as "flat" and fired. Against 20% of the larger compared month it
+# does not. At or above typical scale the two bounds coincide.
+#
+# A business materiality threshold. Without noise its must-fire side would be
+# definitional; with noise the change also crosses the bound, so S6's shape
+# (customers -40%, AOV +40%) is caught 100% without noise and 33-57% with it.
+# What was measured is the other side - how often ordinary noise, with
+# nothing planted, fires the shipped rule, months at 0.3x / 1x / 3x typical,
+# 4,000 draws per cell (scratchpad final_sweep.out):
+#     3-factor data, independent 20/10/10                 .000 / .021 / .023
+#     3-factor data, independent 30/15/15                 .001 / .050 / .062
+#     3-factor data, frequency stable 20/3/10             .000 / .020 / .024
+#     orders stable, customers swinging (four structures) .000 / .000-.021 / .000-.024
+# (orders*aov-only data, 20% / 10%: .024 / .029 at 1x / 3x, yardstick_sweep.out.)
+# The live three-factor ratio removed no alert in those 96,000 draws, nor in a
+# targeted search of 400,000 extreme shapes (0 of 16,968 firing; lowest ratio
+# 3.43), a search that on the first bound found 169 (bind_search.out). Not
+# proven; it can only ever REMOVE an alert.
+# These are chosen noise models, not a bound. 0.20 is the smallest share
+# keeping the realistic rows (20% / 10% noise) under 3% (share_under_C.out
+# has 0.15 and 0.25 for the orders*aov rows, measured on the first bound). A false alarm is a TRUE
+# statement - both sides did move that much - in hedged wording, so it
+# misleads by emphasis rather than fabricating a finding; it still takes the
+# headline from rules 5-7, which is the cost.
+MASKED_MIN_CONTRIBUTION_SHARE = 0.20
+
 # A customer whose first purchase falls inside the first few months of the file
 # only looks new because the file starts there. C1/C3 stay inconclusive then.
 LEFT_CENSOR_MONTHS = 3
@@ -138,10 +191,12 @@ YOY_LAG_MONTHS = 12
 # is charted as 0.0 and a stall open four months a year otherwise had a
 # typical level of ZERO and no guard at all (3D6 doubt-review).
 #
-# Why this matters since ADR-0006: a year-over-year row is a VERDICT. A base
-# of 12.50 on a 50,000 shop divided to +399,900% and fired rule 1 on revenue,
-# `aov` and `units_per_order` on a month that went 50,000 to 50,000, and the
-# masked-shift alert then wrote headline rule 4 without its hedge.
+# Why it mattered while year-over-year rows were verdicts (ADR-0006, until
+# ADR-0007): a base of 12.50 on a 50,000 shop divided to +399,900% and fired
+# an actionable rule 1 on revenue, `aov` and `units_per_order` on a month that
+# went 50,000 to 50,000, and the masked-shift alert then wrote headline rule 4
+# without its hedge. Since ADR-0007 the row is descriptive; the guard keeps an
+# absurd figure off the page.
 #
 # THIS IS A POLICY, NOT A MEASUREMENT - the same lesson as 3D5's
 # LEVEL_BLIND_SHARE. A base at fraction f of typical is excluded iff f < this
@@ -180,20 +235,22 @@ YOY_LAG_MONTHS = 12
 # edge.shipped.out; shapes: sweep2/sweep3.)
 #
 # WHAT THIS DOES NOT FIX - two doubt-review cycles, then triaged by running
-# each case to the headline (PROJECT_PLAN 3D9, which BLOCKS 3E):
+# each case to the headline. Written while year-over-year rows were verdicts;
+# since ADR-0007 each describes a CHART behaviour, not a verdict, and the
+# Backlog's "Unusualness verdicts" must fix them before verdicts return:
 #   - For a BASELINE base the asymmetry does not hold. Refusing a point moves
 #     the centre either way: a shop with a real, growing off-season of about
 #     500 against a 50,000 season had six ordinary off-season points refused
-#     and its ordinary January became an actionable `above`. On ordinary
+#     and its ordinary January became an actionable `above` (then). On ordinary
 #     months of two-regime shops the guard gave 23 fabrications against 21
 #     without it. It stays on baseline bases for one reason only: below 3% a
 #     base drags the centre by thousands of points, which is the reproduction.
 #   - It removes the cliff below 3% and nothing above it. A baseline base at
 #     3.5%, 5%, 10% or 25% of normal still drags the mean centre far enough
-#     that an ordinary -0.5% month fires `below`, rule 1, actionable.
+#     that an ordinary -0.5% month fires `below`, rule 1.
 #   - A shop off-season for more than half the year at a low but non-zero
 #     level has a typical month set by the off-season, so an in-season
-#     comparator of 12.50 is still +400,300% and actionable.
+#     comparator of 12.50 still charts +400,300%, rule 1.
 #   - A slump deeper than about 1.5% of normal, lasting half the window,
 #     loses its genuine recovery verdict (the safe direction).
 YOY_MIN_BASE_SHARE = 0.03

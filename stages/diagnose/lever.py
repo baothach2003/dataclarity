@@ -1,6 +1,9 @@
 """Step 5, lever lens: revenue split into the levers a shop can actually pull
 (docs/AI_PIPELINE.md section 7.6, docs/DIAGNOSE_DESIGN.md 5.5.2 - 5.5.4).
 
+(DIAGNOSE_DESIGN 5.5.4's masked-shift rule is the frozen 3A record; the live
+rule is AI_PIPELINE 7.6 and `_masked_shift` below.)
+
 Level 1 asks how many customers bought, how often, and how much per order.
 Level 2 opens the last of those: did the basket get smaller, or did prices
 move? Both are Shapley decompositions, so neither answer depends on an order
@@ -9,26 +12,14 @@ someone picked (docs/adr/0004).
 
 from dataclasses import dataclass
 
-from typing import Literal
-
 import pandas as pd
 
-from contracts.diagnosis import Lever, LeverFactor, LeverLevel, Signal
+from contracts.diagnosis import Lever, LeverFactor, LeverLevel
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
-from stages.diagnose.numbers import is_negligible
-from stages.diagnose.thresholds import MASKED_GROSS_TO_NET
-
-# Level-1 factor names mapped to the step-4 series that tracks the same thing,
-# so the masked-shift alert can ask "is any of these actually unusual?".
-COMPONENT_SERIES = {
-    "customers": "active_customers",
-    "frequency": "frequency",
-    "orders": "orders",
-    "aov": "aov",
-}
-FIRED = ("above", "below")
+from stages.diagnose.numbers import is_negligible, typical_magnitude
+from stages.diagnose.thresholds import MASKED_GROSS_TO_NET, MASKED_MIN_CONTRIBUTION_SHARE
 
 
 @dataclass(frozen=True)
@@ -57,7 +48,7 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
     )
 
 
-def compute_lever(data: RunData, signals: list[Signal]) -> Lever:
+def compute_lever(data: RunData, history: list[str]) -> Lever:
     previous = period_totals(data, data.metrics.period.previous)
     current = period_totals(data, data.metrics.period.current)
     has_customers = data.parsed.reverse.get("customer") is not None
@@ -66,15 +57,50 @@ def compute_lever(data: RunData, signals: list[Signal]) -> Lever:
     level1 = _level1(previous, current, has_customers, reasons)
     level2 = _level2(previous, current, level1, reasons)
     gross_to_net = _gross_to_net(previous, current, level1, reasons)
-    alert, basis = _masked_shift(level1, gross_to_net, signals)
+    typical = typical_magnitude(month_revenue(data, month) for month in history)
+    pair = _orders_aov_pair(level1, previous, current)
+    alert = _masked_shift(pair, gross_to_net, typical,
+                          previous.revenue, current.revenue, reasons)
     return Lever(
         level1=level1,
         level2=level2,
         gross_to_net=gross_to_net,
         masked_shift_alert=alert,
-        masked_shift_basis=basis,
+        masked_shift_pair=pair,
         reasons=reasons,
     )
+
+
+def _orders_aov_pair(level1: LeverLevel | None, previous: PeriodTotals,
+                     current: PeriodTotals) -> LeverLevel | None:
+    """Level 1 re-split as orders x AOV, the pair the masked-shift alert is
+    decided on (Thach, 3D6b).
+
+    customers x frequency = orders BY DEFINITION, so whenever orders hold
+    steady and the customer count moves, those two factors cancel exactly: ten
+    customers ordering once becoming five ordering twice gave customers -750
+    against frequency +750 on a flat month, and the alert fired on an identity.
+    On that noise structure it fired on 19-39% of months with nothing planted;
+    on this pair, 0-2.4%. S6 (customers -40%, AOV +40%) is caught identically
+    without noise and 0.2-1.8 points less often with it (scratchpad
+    pair_sweep.out). Orders and AOV have no definitional
+    link between them. The customers/frequency story stays in level 1,
+    descriptive, and in B1 and C1.
+
+    Built from the same period totals level 1 used - the integer order count
+    and revenue / orders - not rebuilt as customers x frequency, which gave
+    29.000000000000004 for 7 customers placing 29 orders (pair review #8).
+    Null exactly when level 1 is (a period with no orders).
+    """
+    if level1 is None:
+        return None
+    pair = {period: {"orders": float(totals.orders), "aov": totals.revenue / totals.orders}
+            for period, totals in (("prev", previous), ("cur", current))}
+    contributions = shapley_product(pair["prev"], pair["cur"])
+    return LeverLevel(formula="orders*aov", factors=[
+        LeverFactor(name=name, value_prev=pair["prev"][name],
+                    value_cur=pair["cur"][name], contribution=contributions[name])
+        for name in ("orders", "aov")])
 
 
 def _level1(
@@ -220,64 +246,100 @@ def _gross_to_net(
 
 
 def _masked_shift(
-    level1: LeverLevel | None, gross_to_net: float | None, signals: list[Signal]
-) -> tuple[bool | None, Literal["yoy", "level"] | None]:
+    pair: LeverLevel | None, gross_to_net: float | None, typical: float,
+    revenue_prev: float, revenue_cur: float, reasons: dict[str, str],
+) -> bool | None:
     """A flat total hiding large offsetting movements - the case a "did revenue
     move?" report misses entirely (docs/DIAGNOSE_DESIGN.md 1.2).
 
-    Both halves are required. The ratio alone fires on tiny changes, where
-    components routinely dwarf a near-zero net; a step-4 signal alone is just
-    an unusual month. Together they say: something moved enough to be unusual,
-    and the total is hiding it.
+    Decided on the tree alone (ADR-0007). It used to need a step-4 signal on a
+    component as well, and since no step-4 row is a verdict any more that
+    half had nothing left to stand on. What remains, against one FLOOR:
 
-    **This is the one consumer allowed to read a level-mode row** (ADR-0006).
-    Everywhere else a level row describes and does not decide, because a level
-    chart cannot judge a seasonal month. Here the conjunction carries it: the
-    ratio's failure mode needs revenue to be flat, and the level chart's
-    failure mode needs the month to sit off its own season - and a seasonal
-    month compared with the month before it is rarely flat. Dropping the
-    signal half instead was considered and rejected: the ratio divides by the
-    change, so on the flat months this alert exists for it fires every time.
+        floor = MASKED_MIN_CONTRIBUTION_SHARE
+                * max(typical month, |previous month|, |current month|)
 
-    Which kind of row it rested on is returned with it and stored, because the
-    two are not equally strong. A `level` basis can be factually right that
-    the composition moved and wrong that the movement was unusual - a seasonal
-    shoulder month has flat revenue and a shifting mix - so 3F phrases it as
-    possibly seasonal rather than as a finding.
+    - MATERIAL: on the orders x AOV pair (`_orders_aov_pair`), one
+      contribution of each sign, each at least the floor;
+    - FLAT: the revenue change is under MASKED_MIN_CONTRIBUTION_SHARE times
+      the larger COMPARED month - not the floor above, which a trough's
+      typical month dominates - and `gross_to_net >= MASKED_GROSS_TO_NET`
+      (or revenue did not move at all).
+
+    Why the floor takes the LARGEST of the three (Thach, 3D6b doubt-review).
+    The typical month alone - median |revenue| over the history's trading
+    months - is small against a peak: a trickle off-season shop's typical
+    month was 300 against in-season months of 500,000, so a 1% composition
+    wiggle cleared a floor of 60, and on a noise model the alert fired on
+    15-25% of peak months with nothing planted. The floor must scale with the
+    months being compared. It never drops below 20% of the typical month, so a
+    bad last month cannot shrink it either - 20% of a bad month is a small
+    move on this shop. It scales UP only: in a trough the floor stays at 20%
+    of the typical month, so a masked shift there counts only when both
+    sides moved by that much - e.g. orders 20 -> 2 against AOV 10 -> 100 on
+    a flat 200 - and rarely fires otherwise (0.1% detection of a planted 30%
+    shift at 0.3x typical on the sweep's noise model; a rate, not a bound).
+
+    Why flatness needs a bound on the change, measured against the COMPARED
+    months. By the ratio alone, a month that went from 1,000 to 2,000 has
+    `gross_to_net` 3.5 and is "flat", and headline rule 4 would call a
+    doubled month stable. The first version measured the change against the
+    materiality floor, and in a trough that floor is 20% of a typical month
+    far larger than the months compared: a month that fell 200 -> 50 (-75%)
+    passed as flat and fired (pair review #2, a fabrication).
+
+    **The ratio test, kept as Thach's decision states it, and what it does.**
+    Over the PAIR it is implied: with P and N the positive and negative sums
+    of the pair, the change is P - N (Shapley efficiency) and the pair's
+    gross is P + N; both clear the materiality floor, and the change is under
+    the flatness bound, which is never larger than that floor, so gross =
+    |P - N| + 2 * min(P, N) > 3 * |change| while MASKED_GROSS_TO_NET <= 3
+    (pinned by a test). The check itself reads the reported `gross_to_net`,
+    over the THREE-factor level 1, and that is NOT implied: its AOV term
+    differs from the pair's by a customers-frequency-AOV interaction, and the
+    pair review built a case with 2.975 against the pair's 3.05. So it is
+    live. It can only REMOVE an alert - the safe direction - and a test pins
+    it. An earlier version of this docstring said it never bound, on 12,000
+    random draws of which only 338 fired the pair and none sat in a trough.
+    Under the shipped bound a targeted search of 400,000 extreme shapes found
+    no case where it blocks (lowest ratio among 16,968 firing: 3.43), while
+    the same search on the first bound found 169 - measured, not proven.
+
+    With no trading month in the history there is no typical month, the check
+    cannot run, and the alert is null with a reason - never false.
+
+    Nothing here establishes that the movement was UNUSUAL, only that it was
+    large and cancelled out. A seasonal shoulder month has exactly that shape,
+    so headline rule 4 always words it as a movement that may be seasonal.
     """
-    if level1 is None:
-        return None, None
-    # Rule 1 only. Rule 2 measures a run against a centre computed from the
-    # same points, so one anomalous month re-fires it every month; step 7 and
-    # this alert are decided on rule 1 (AI_PIPELINE 7.5, and the `Signal.rule`
-    # contract). That was written as a contract in 3D2 and this line never
-    # honoured it - it filtered on the signal and ignored the rule, so a
-    # rule-2-only signal drove the masked-shift alert (3D3 doubt-review R4,
-    # pre-existing since 3C).
-    fired = {signal.series: signal.mode for signal in signals
-             if signal.signal in FIRED and signal.rule == 1}
-    moved_by = [fired[COMPONENT_SERIES[factor.name]]
-                for factor in level1.factors
-                if COMPONENT_SERIES[factor.name] in fired]
-    if gross_to_net is None:
-        # Revenue did not move AT ALL, so the ratio is the sum of the absolute
-        # contributions over zero. This is not the conjunction going missing -
-        # it is the ratio at its limit, infinitely above any threshold - and
-        # `moved_by` is non-empty only when a component actually fired, which
-        # requires movement. Stated because the docstring says both halves are
-        # required and this branch does not evaluate one (3D5b review R3).
-        alert = bool(moved_by)
-    else:
-        alert = gross_to_net >= MASKED_GROSS_TO_NET and bool(moved_by)
-    if not alert:
-        return alert, None
-    # `yoy` only when EVERY firing component had one. The basis decides
-    # whether 3F may state the alert as a finding, and headline rule 4 names
-    # the two largest opposing contributions - so if the evidence that any
-    # named contributor moved unusually is a level row, the hedge applies. An
-    # earlier version let a single unrelated yoy row drop the hedge for a
-    # story whose named contributor rested on the weak basis (3D5b review N9).
-    return alert, ("yoy" if all(mode == "yoy" for mode in moved_by) else "level")
+    if pair is None:
+        # Level 1 is null, and its own reason explains this (CONTRACTS 7).
+        return None
+    if not typical > 0:
+        reasons["masked_shift_alert"] = (
+            "no complete trading month in the history window, so there is no "
+            "typical month to measure a material move against")
+        return None
+    if revenue_prev <= 0 or revenue_cur <= 0:
+        # A month that netted zero or below makes AOV zero or negative, and
+        # the Shapley terms of a product then change sign: a shop whose
+        # customers went 10 -> 100 while revenue went -500 -> +300 had a
+        # customers contribution of -2,115, and rule 4 would have told the
+        # reader more customers pulled revenue down (3D6b doubt-review cycle 2).
+        # The same principle as 3D4's base guard: a non-positive month is not
+        # something a multiplicative split can read.
+        reasons["masked_shift_alert"] = (
+            "a compared month netted zero or below, so its multiplicative "
+            "split cannot be read as offsetting movements")
+        return None
+    floor = MASKED_MIN_CONTRIBUTION_SHARE * max(typical, abs(revenue_prev), abs(revenue_cur))
+    bound = MASKED_MIN_CONTRIBUTION_SHARE * max(abs(revenue_prev), abs(revenue_cur))
+    flat = (abs(revenue_cur - revenue_prev) < bound
+            and (gross_to_net is None or gross_to_net >= MASKED_GROSS_TO_NET))
+    contributions = [factor.contribution for factor in pair.factors]
+    material = (any(value >= floor for value in contributions)
+                and any(value <= -floor for value in contributions))
+    return flat and material
 
 
 def returns_levels(data: RunData) -> dict[str, float]:

@@ -1,7 +1,10 @@
 # ADR-0006: Level-mode signals are descriptive, never verdicts
 
 ## Status
-Accepted
+Accepted. **Extended by ADR-0007** (2026-09-23): year-over-year rows are
+descriptive too in v1, and exception 3 below - the masked-shift alert reading
+step 4 - is superseded; the alert now rests on the tree and
+`masked_shift_basis` is removed.
 
 ## Date
 2026-09-23 (Phase 3, decided by Thach after session 3D5; supersedes the
