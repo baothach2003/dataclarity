@@ -54,7 +54,7 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
-from shared.transactions import is_blank, parse_transactions
+from shared.transactions import customer_identity, is_blank, parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
@@ -112,7 +112,13 @@ def compute_customer_metrics(
     identified = parsed.counted & ~is_blank(df[customer_col])
     table = pd.DataFrame(
         {
-            "customer": df.loc[identified, customer_col],
+            # The normalised identity (3C2), so RFM, the segment counts and
+            # new-vs-returning all rank one customer once. Keyed raw, a
+            # customer written two ways was two customers with half the
+            # frequency and half the monetary value each, which moves them
+            # down the RFM quintiles and can invent a "Needs Attention"
+            # segment member out of a loyal one.
+            "customer": customer_identity(df.loc[identified, customer_col]),
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
         }

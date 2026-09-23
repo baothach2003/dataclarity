@@ -344,7 +344,12 @@ transition, if either, holds no rows at all), and
 `new_customers_whose_first_activity_is_a_return` - customers classified as new
 whose earliest row in the whole file is a refund, which usually means their
 purchase predates the file. That count is evidence only and changes no term;
-excluding those customers would break the bridge identity. `hypotheses[].verdict` is
+excluding those customers would break the bridge identity. It also carries
+`customer_values_merged_by_normalisation`: how many distinct raw customer
+values the shared `customer_identity` key collapsed across the whole file
+(distinct raw values minus distinct identities, so a customer written three
+ways contributes 2). A large number says the customer column is inconsistently
+entered, which is context for every C-family verdict built on it. `hypotheses[].verdict` is
 `supported | partial | ruled_out | inconclusive | not_testable`; `contribution`
 and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
 carry their test in `evidence` and `rule` instead. `headline.rule` is `1`-`7`

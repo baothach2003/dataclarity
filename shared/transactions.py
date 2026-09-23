@@ -147,6 +147,44 @@ def normalize_text(values: pd.Series) -> pd.Series:
     return values.astype(object).str.strip().str.lower()
 
 
+def customer_identity(values: pd.Series) -> pd.Series:
+    """The key that decides whether two rows are the same customer.
+
+    Stripped and case-folded, so "CUST_01", " cust_01" and "Cust_01 " are one
+    person - the same treatment `product_identity` has given product keys
+    since 2C, applied to the other identity column for the same reason
+    (Thach, session 3C2). Blank values stay blank, so `is_blank` still selects
+    the unattributed rows afterwards.
+
+    Why the asymmetry of the risk decides it: grouping raw *splits* one
+    customer into several, and 3C reproduced what that does - one customer
+    written three ways, buying the same amount each month, reads as
+    `new = 200 / lapsed = -200`, which is "we lost everyone and gained a
+    whole new base" printed on a flat month. That fabrication comes from
+    ordinary data entry and feeds the C-family hypotheses and possibly the
+    headline. The opposite error needs two genuinely different ids differing
+    only by case or whitespace, which is rare for POS codes.
+
+    Deliberately no further normalisation - no leading-zero stripping, no
+    punctuation rules (Thach, 3C2). Those would start merging ids that a POS
+    really does distinguish, and this helper's whole justification is that its
+    error direction is the safe one.
+    """
+    return normalize_text(values)
+
+
+def merged_identity_count(values: pd.Series) -> int:
+    """How many distinct raw values `customer_identity` collapsed away.
+
+    Distinct raw values minus distinct identities, over the rows passed in: a
+    customer written three ways contributes 2. Zero means normalisation
+    changed no grouping at all, which is what a clean file should show.
+    """
+    identity = customer_identity(values)
+    usable = ~is_blank(identity)
+    return int(values[usable].nunique() - identity[usable].nunique())
+
+
 def product_identity(
     df: pd.DataFrame, product_name_col: str, sku_col: str | None
 ) -> pd.Series:

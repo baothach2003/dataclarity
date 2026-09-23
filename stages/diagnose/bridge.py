@@ -16,7 +16,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import BridgeTerms, CustomerLens
-from shared.transactions import is_blank
+from shared.transactions import customer_identity, is_blank, merged_identity_count
 from stages.diagnose.inputs import RunData, period_mask, shift_month
 from stages.diagnose.lever import customer_revenue
 from stages.diagnose.thresholds import LEFT_CENSOR_MONTHS
@@ -93,7 +93,7 @@ def _bridge(
         lapsed=-float(previous.reindex(lapsed).sum()),
         unattributed=_unattributed(data, customer_col, transition),
     )
-    return terms, _evidence(data, transition, new, first, previous, current)
+    return terms, _evidence(data, customer_col, transition, new, first, previous, current)
 
 
 def _unattributed(data: RunData, customer_col: str, transition: Transition) -> float:
@@ -121,7 +121,10 @@ def _first_activity(data: RunData, customer_col: str) -> pd.DataFrame:
     if not mask.any():
         return pd.DataFrame(columns=["month", "first_is_return"])
     frame = pd.DataFrame({
-        "customer": data.df.loc[mask, customer_col],
+        # Normalised (3C2), so "first appearance in the file" is the first
+        # appearance of the PERSON. Keyed raw, a customer's second spelling
+        # looks like someone who has never bought before, and lands in `new`.
+        "customer": customer_identity(data.df.loc[mask, customer_col]),
         "month": data.months[mask],
         "date": data.parsed.dates[mask],
         "quantity": data.parsed.quantities[mask],
@@ -135,7 +138,7 @@ def _first_activity(data: RunData, customer_col: str) -> pd.DataFrame:
 
 
 def _evidence(
-    data: RunData, transition: Transition, new: list[str],
+    data: RunData, customer_col: str, transition: Transition, new: list[str],
     first: pd.DataFrame, previous: pd.Series, current: pd.Series,
 ) -> dict:
     """What C1 and C3 need to know before trusting the "new" term."""
@@ -164,6 +167,15 @@ def _evidence(
         # seen", not "first ever": everyone looks new when the file starts.
         "left_censored": months_in < LEFT_CENSOR_MONTHS,
         "months_since_file_start": months_in,
+        # How many distinct raw customer values normalisation collapsed, over
+        # the whole file (3C2). Reported here rather than in metrics.json,
+        # which would be a stage 2 contract change; `evidence` is already a
+        # free-form object in CONTRACTS section 7. A large number is worth
+        # seeing: it says the customer column is inconsistently entered, which
+        # is context for every C-family verdict built on it.
+        "customer_values_merged_by_normalisation": merged_identity_count(
+            data.df.loc[data.parsed.counted, customer_col]
+        ),
         # A transition with an empty side decomposes an artifact: every
         # customer looks new or lapsed because the month holds nothing. The
         # lever lens refuses such a period outright (Thach, 3C); the bridge

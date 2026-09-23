@@ -13,7 +13,7 @@ the engine's credibility rests on the months it says nothing happened.
 import pandas as pd
 
 from contracts.diagnosis import Signal
-from shared.transactions import is_blank
+from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
 from stages.diagnose.thresholds import (
     XMR_ABS_FLOOR_DEFAULT,
@@ -119,7 +119,9 @@ def monthly_series(data: RunData) -> pd.DataFrame:
         }
         if customer_col is not None:
             identified = mask & ~is_blank(data.df[customer_col])
-            customers = int(data.df.loc[identified, customer_col].nunique())
+            # Normalised identity (3C2), matching stage 2's active_customers:
+            # the consistency test compares these two figures directly.
+            customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
             row["active_customers"] = float(customers)
             row["frequency"] = orders / customers if customers else 0.0
         rows.append(row)

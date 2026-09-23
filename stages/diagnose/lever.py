@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import Lever, LeverFactor, LeverLevel, Signal
-from shared.transactions import is_blank
+from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
 from stages.diagnose.thresholds import MASKED_GROSS_TO_NET, RECONCILE_REL_TOLERANCE
@@ -45,7 +45,7 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
         customers = 0
     else:
         identified = mask & ~is_blank(data.df[customer_col])
-        customers = int(data.df.loc[identified, customer_col].nunique())
+        customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
     return PeriodTotals(
         revenue=float(data.parsed.revenue_amounts[mask].sum()),
         orders=int(mask.sum()),
@@ -273,6 +273,13 @@ def month_revenue(data: RunData, month: str) -> float:
 
 
 def customer_revenue(data: RunData, month: str, customer_col: str) -> pd.Series:
-    """Net revenue per identified customer in one month, returns included."""
+    """Net revenue per identified customer in one month, returns included.
+
+    Grouped on the normalised identity (3C2): keyed raw, one customer written
+    two ways appears in the bridge as two people, and if the two spellings
+    fall either side of the period boundary they read as one lapsing and one
+    arriving.
+    """
     mask = period_mask(data, month) & ~is_blank(data.df[customer_col])
-    return data.parsed.revenue_amounts[mask].groupby(data.df.loc[mask, customer_col]).sum()
+    identity = customer_identity(data.df.loc[mask, customer_col])
+    return data.parsed.revenue_amounts[mask].groupby(identity).sum()

@@ -259,7 +259,7 @@ dataclarity/
       Every decomposition reconciles to its own total at 1e-9 - now enforced
       **at runtime** in `tree.py`, not only by tests. Doubt-review: 11
       findings, 2 critical, all fixed
-- [ ] 3C2 Normalize customer identity in BOTH stages (**prerequisite of 3D**,
+- [x] 3C2 Normalize customer identity in BOTH stages (**prerequisite of 3D**,
       Thach, after the 3C doubt-review). `product_identity` has stripped and
       case-folded since 2C, but customer keys are grouped raw in stage 2 and
       stage 3 alike. Reproduced in 3C: one customer spelled three ways, buying
@@ -276,7 +276,12 @@ dataclarity/
       many raw customer values were merged by normalisation; the stage 2 /
       stage 3 consistency test must still pass; **any stage 2 test that
       changes must be listed with its reason, and none weakened**.
-      Doubt-review: optional
+      Done: six call sites keyed on `customer_identity`, the merged count in
+      the bridge evidence (not metrics.json, which would be a stage 2 contract
+      change), and **no existing test changed at all** - the count went
+      1992+51 -> 2056 purely by addition. Doubt-review: replaced by a
+      call-site mutation check, which found two sites the new tests did not
+      actually protect
 - [ ] 3D Localization (AI_PIPELINE 7.7): members, "Other" grouping, new and
       removed members, mix vs rate, breadth. Doubt-review: yes
 - [ ] 3D2 Step-change detection and re-baselining (**prerequisite of 3E**,
@@ -447,8 +452,26 @@ comparing two runs, email delivery of reports, mobile layout.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session 3C of 7 closed
-2026-09-23: the metric tree (step 5) - `shapley.py`, `lever.py`, `bridge.py`,
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3C2** closed
+2026-09-23: the customer key is now normalised (stripped and case-folded) in
+both stages, through one shared `customer_identity` helper, at all six places
+either stage groups or counts by customer. This was Thach's call after the 3C
+doubt-review reproduced what raw keys do: one customer written three ways,
+buying the same amount each month, reads as `new = 200 / lapsed = -200` -
+"we lost everyone and gained a whole new base" printed on a flat month, which
+feeds the C-family hypotheses and can reach the headline. It had to be done in
+both stages at once, because stage 2 groups raw too and changing stage 3 alone
+would have broken the agreement 3B's consistency test exists to protect. **No
+existing test changed**: 2056 passed, up from 2043 purely by addition, which
+is the strongest evidence available that this was a behaviour-preserving
+change on well-formed files. Runs already analysed on disk keep their old
+`metrics.json` until re-analysed; nothing rewrites them. Doubt-review was
+optional at this size and was replaced by a call-site mutation check - a
+better use of the budget here, and it earned its keep: the first version of
+the tests left **two of the six call sites unprotected**, because the fixture
+split a customer only *across* months, so any single-month count came to 3
+either way. October, where two spellings coexist, is what discriminates.
+Previously, session 3C of 7 closed the metric tree (step 5) - `shapley.py`, `lever.py`, `bridge.py`,
 `pvm.py`, `tree.py` - plus the rewrite of `contracts/diagnosis.py` to
 CONTRACTS section 7, which closes the divergence 3A opened deliberately.
 Both documented Shapley examples reproduce exactly: the Figma sample gives
@@ -583,14 +606,12 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session **3C2** (normalize customer identity in both
-stages), which Thach made a prerequisite of 3D after the 3C doubt-review:
-3D localizes by customer type from the bridge, so it must not be built on raw
-keys. Its spec is in the checklist above. Then 3D (Localization,
-AI_PIPELINE 7.7) - whose contract models already exist, written in 3C so the
-session that fills them is validated from its first line. Two prerequisites
-are now recorded in the checklist and neither may be skipped: **3C2 before
-3D**, and **3D2 (step-change detection and re-baselining) before 3E**.
+**Next step:** Phase 3 session 3D (Localization, AI_PIPELINE 7.7): members,
+"Other" grouping, new and removed members, mix vs rate, breadth. Its
+prerequisite (3C2) is done, and its contract models already exist - written in
+3C so the session that fills them is validated from its first line.
+Doubt-review: yes. **3D2 (step-change detection and re-baselining) remains a
+prerequisite of 3E** and may not be skipped.
 Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
@@ -610,6 +631,34 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-23, Phase 3 session 3C2 (normalise the customer key): edited -
+  `shared/transactions.py` (new `customer_identity` and
+  `merged_identity_count`), `stages/analyze/metrics_core.py`,
+  `stages/analyze/metrics_customers.py`, `stages/diagnose/lever.py`,
+  `stages/diagnose/bridge.py`, `stages/diagnose/signals.py`,
+  `docs/AI_PIPELINE.md` 7.6, `docs/CONTRACTS.md` 7; new -
+  `tests/shared/test_customer_identity.py` (13 tests).
+  - **The six call sites**, all now keyed on `customer_identity`: stage 2's
+    `_active_customers` (metrics_core) and the RFM table that feeds
+    segments and new-vs-returning (metrics_customers); stage 3's
+    `period_totals` and `customer_revenue` (lever), `_first_activity`
+    (bridge) and `monthly_series` (signals). `_unattributed` still tests the
+    RAW column with `is_blank`, which is correct: normalisation leaves a blank
+    blank, and those rows are unattributed either way.
+  - **No existing test changed**, so none was weakened - the requirement was
+    met vacuously, which is itself the useful finding: no fixture in the repo
+    had ever used two spellings of one customer, which is exactly why the
+    defect survived to 3C.
+  - **The mutation check was worth more than a doubt-review here.** Reverting
+    each call site one at a time showed that two of the six were not actually
+    protected by the new tests. The fixture split a customer only across
+    months, so November held one spelling per customer and a raw count there
+    is 3 anyway; only October, where two spellings coexist, tells the
+    implementations apart. Same lesson as 3C in a new shape: a test that
+    passes against both the right and the wrong code is not evidence, and
+    reverting a call site is the cheapest way to ask.
+  - `metrics.json` files already on disk are not rewritten; a run keeps its
+    old figures until it is re-analysed.
 - 2026-09-23, Phase 3 session 3C (metric tree, step 5): new -
   `stages/diagnose/{shapley,lever,bridge,pvm,tree}.py`,
   `tests/stages/diagnose/{test_shapley_and_lever,test_bridge_and_pvm}.py`;

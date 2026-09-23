@@ -428,6 +428,17 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   computed for the previous transition when history allows, so C1-C3 can compare
   flows. If `cur` falls in the first `LEFT_CENSOR_MONTHS` months of the file,
   "new" is unreliable and C1/C3 return `inconclusive`.
+  Customers are keyed on a **normalised identity** - stripped and case-folded
+  by `shared.transactions.customer_identity`, the same treatment product keys
+  have had since 2C (Thach, 3C2). Both stages use it, which is what keeps
+  their `active_customers` figures equal. Keyed raw, one customer written two
+  ways is two people, and if the spellings fall either side of the period
+  boundary the bridge reports one lapsing and one arriving - "we lost everyone
+  and gained a whole new base" on a flat month. The error direction decides
+  it: that fabrication comes from ordinary data entry, while a wrong merge
+  needs two real ids differing only by case or whitespace. No further
+  normalisation (no leading-zero or punctuation rules), which would start
+  merging ids a POS really does distinguish.
   A customer is **active if they have at least one revenue-counted row**,
   whatever the sign of their net revenue (Thach, 3C). A returns-only customer
   is classified like any other and their term carries the sign the arithmetic

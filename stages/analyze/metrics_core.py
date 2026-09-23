@@ -29,6 +29,7 @@ from shared.transactions import (
     # Re-exported deliberately: this error is part of what calling stage 2
     # can raise, and both the backend and this stage's tests catch it here.
     RequiredColumnMissingError,
+    customer_identity,
     is_blank,
     parse_transactions,
     pct_change,
@@ -160,7 +161,10 @@ def _active_customers(df: pd.DataFrame, reverse: dict[str, str], mask: pd.Series
     customer_col = reverse.get("customer")
     if customer_col is None:
         return 0
-    values = df.loc[mask, customer_col]
+    # Keyed on the normalised identity, so one customer written several ways
+    # is one active customer (3C2). Stage 3 keys the same way, which is what
+    # keeps the two stages' active_customers figures equal.
+    values = customer_identity(df.loc[mask, customer_col])
     return int(values[~is_blank(values)].nunique())
 
 
