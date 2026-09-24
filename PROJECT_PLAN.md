@@ -241,9 +241,10 @@ dataclarity/
 >
 > **Session order from here** (Thach, triaged after 3D5b; amended in 3E1):
 > 3D4, 3D5, 3D5b (all committed together), then **3D6**, then **3D6b**, then
-> **3E1**, then **2E** (done), then **2E-b** (Thach, after 2E: before 3E1b,
-> because it corrupts the shared "negligible" definition 3E1b will calibrate
-> on), then **3E1b**, then **the Online Retail II demo** (Thach, after 2E:
+> **3E1**, then **2E** (done), then **2E-b** (done), then **2E-c** (what counts
+> as a purchase, RFM ties), then **2E-d** (implausible lines, then the
+> residue scale) - both before 3E1b by the asymmetry rule, each with its
+> reproduction in its checklist item - then **3E1b**, then **the Online Retail II demo** (Thach, after 2E:
 > built before 3E2, so refund behaviour is measured on real data), then
 > **3E2**, then **3E3**
 > (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
@@ -797,7 +798,67 @@ dataclarity/
       together rather than one silently drifting. Expect stage 2 expectations
       to move; list every one with its recomputed derivation, as 3D3 did.
       Doubt-review: yes. Mutation check: yes.
-- [ ] 2E-b **The residue scale and the reconciliation float term** (split out
+- [x] 2E-b **Closed 2026-09-24, with its residue part REVERTED and moved to
+      2E-d** (Thach, after 2E-b's doubt-review). What 2E-b ships: RFM recency
+      on sale rows; R and F quintiles cut from BUYERS only, and a customer who
+      never bought scores 1/1 by rule in their own segment, **"Returns only"**
+      (Thach, after review cycle 2: ranked among buyers, 20 refunders pushed
+      10 lapsed one-time buyers up to Champions, and a tie-break lifted a
+      refunder there; in Hibernating they inflated its count and dragged its
+      money negative). This supersedes 2B's "scored like any other customer"
+      and "quintiles on the run's own data" for R and F; Monetary is never
+      quintiled. B2 refused on refund lines with a negative amount too, in
+      either compared month, each line counted once, evidence = line counts
+      only; the two test files split.
+      What it found and did not ship: option A (two-scale residue) made the
+      net change correct on barcode-typo files, which exposed the typo in the
+      gross lenses - 23 of 30 random typo files HEADLINED a fabricated cause
+      ("returns changed +8.9e12"; P1 "prices fell" when they rose). HEAD
+      headlines none of the 30, so by the asymmetry rule HEAD stays until
+      2E-d. **Correction (measured after the decision, 2026-09-24):** HEAD is
+      not free of invention - on **11 of the 30** its verdict list carries a
+      supported P1 or P2 the clean file does not (e.g. "Like-for-like prices
+      changed", contribution 1.1e13), and its headline is rule 7 only
+      because rule 6's gate calls the real change (-856 to -4,161) negligible
+      against the typo-inflated scale (1.8e13 to 4.3e14) - the residue bug
+      itself (scratchpad `2eb/placement_verdicts.out`, `placement_gate.out`).
+      HEAD is still the lesser harm (no headline against 23), so the revert
+      stands; the premise "invents nothing" was wrong and is corrected here.
+      **Review findings and Thach's decisions (after 2E-b's cycle 3,
+      scratchpad `review16/`, all run by execution):**
+      - **F1 - HIGH, FABRICATE, pre-existing -> 2E-c.** A quantity +1 line at
+        a negative price is a sale row, so it is an order: 40 such lines in
+        August took level-1 frequency 9.3 -> 11.3 and **B1 "Customers bought
+        more often", supported, share 0.45**, while B2's evidence in the same
+        diagnosis calls them `refund_lines_cur: 40` (as quantity -1: B1
+        ruled_out, 9.3 -> 9.3). In RFM, three customers who booked two such
+        lines each are **Champions** with avg_monetary -100 (identical at
+        HEAD). **P1, the same root, pre-existing -> 2E-c:** twelve refunds
+        booked as quantity +1 at -90 make **P1 headline "like-for-like
+        prices changed"** (-1,410.31 against -1,080, share -1.31, |share| > 1
+        against `hypotheses.py`'s docstring) while no price changed
+        (`review15/b2_headline.py`).
+      - **F2 - HIGH, FABRICATE, pre-existing since 2B -> 2E-c.**
+        `score_quintile` ranks with `rank(method="first")` for R and F in the
+        same (customer-id) order: five identical one-time buyers came out
+        Hibernating, Hibernating, Loyal, Champions, Champions, and renaming
+        one moved her to Champions (`probe_ties.py`). Thach: identical
+        customers receive identical scores; ties are never broken by id.
+      - **F3 - MEDIUM, pre-existing -> 2E-c.** `_new_vs_returning` takes the
+        first month over every counted row, so a "Returns only" customer is
+        a NEW customer with negative new revenue, and one who refunded last
+        month and first buys this month is "returning".
+      - **F4 - LOW, introduced by the buyers-only quintiles - ACCEPTED as a
+        known limit** (Thach) under 2B's one-customer rule: one buyer whose
+        last sale was 1,064 days ago beside 50 refund-only customers is r=5,
+        f=5, Champions (HEAD: At-risk, only because the refunders were ranked
+        with them). Relative scoring cannot place a single buyer; 2B chose
+        5/5 for a sample of one, and the sample here is one buyer.
+      - F5 (C4 Backlog), F6 (B2's rule text now names discounts too; the
+        evidence keys still say refund_lines), F7 (fixed: the two B2 tests
+        assert the refusal's evidence) and F8 (4B) recorded in place.
+      Original item text below, kept as the record.
+      The residue scale and the reconciliation float term (split out
       of 2E under Thach's stop rule: 2E doubt-review cycle 4 found non-local
       findings; not patched at cycle 4). **Before 3E1b** (Thach, after 2E):
       it corrupts the shared "negligible" definition 3E1b will calibrate on.
@@ -840,6 +901,73 @@ dataclarity/
          (refuse on any counted row with a negative amount), but it follows
          from the accepted "a quantity>0 line with a negative price counts as
          an order" rule, so it belongs with that rule's decision.
+- [ ] 2E-c **What counts as a purchase, and RFM ties** (Thach, after 2E-b;
+      **before 3E1b**, then 2E-d). Method before code: the sale-row
+      definition is shared by both stages (`shared/transactions.py`), and
+      D1's trading days rest on it.
+      - **F1 + F3 + P1, one root.** A line with positive quantity and a
+        negative amount is a discount or coupon line on most POS exports,
+        not a purchase. Proposed shared definition (Thach): a sale row has
+        quantity > 0 AND a positive line amount. **Zero-amount lines (free
+        items): propose how they count, with a measurement** (orders, AOV,
+        frequency, RFM, D1's zero days, B1/B2). New vs returning (stage 2)
+        moves to the same definition. Stage 3's customer bridge also takes
+        "first activity" over every counted row, refunds included
+        (`bridge._first_activity`) - decide whether it moves too, knowing the
+        bridge must still reconcile to net revenue (refund money must land in
+        a term). Then re-check B2's interim: with negative-amount lines no
+        longer orders, say whether its negative-amount clause is still
+        needed until 3E3.
+      - **F2.** Identical customers must receive identical scores; ties are
+        never broken by customer id (Thach). Small, but it moves every file's
+        segments, so it gets its own before/after measurement on the demo
+        runs and its own expectation list.
+      **Why before 3E1b (asymmetry rule, run at HEAD, scratchpad
+      `2eb/placement_2ec.out`):** P1 fabricates a HEADLINE - rule 6, "the
+      best-supported explanation: like-for-like prices changed" - and 3E1b's
+      part C is rule 6's size test; F1 fabricates a VERDICT (B1 supported),
+      which rule 6 ranks and whose refusal rate 3E1b re-measures. D1: a
+      coupon-only Sunday in a Sunday-closed shop left D1 unchanged (ruled
+      out, gap 0 either way) - no fabrication measured, but 3E1b would
+      calibrate D1 on a trading-day definition 2E-c then changes. F2 and F3
+      alone could not go before by the rule: stage 3 reads segments only in
+      C4 (off in v1) and never reads `new_vs_returning`; they ride with
+      2E-c because they are the same definitions.
+- [ ] 2E-d **Implausible lines, then the residue scale** (Thach, after 2E-b;
+      split from 2E-c because it needs a new threshold and a sweep of
+      legitimate large lines; **before 3E1b, after 2E-c**). A barcode-sized
+      line is BAD DATA, and
+      stage 1 already detects outliers (`outliers_iqr` in profiling, the
+      cleaning plan's `clip_outliers_iqr`). **Primary fix in stage 1:** the
+      Review screen surfaces an implausible line amount so the user removes
+      it at the source, and the cleaning plan proposes it. **Backstop in
+      stage 3:** a trust check that blocks with a true reason ("a line of
+      8,934,567,890,123 is implausible - check the export") for a plan that
+      kept the line. Evaluate BOTH layers, method before code, with a sweep
+      that includes legitimate large lines (wholesale orders, high-value
+      items) that must NOT be flagged - "implausible" is a new threshold, and
+      two such thresholds have gone wrong in long sessions. Then revisit the
+      residue scale: option A (scratchpad `2eb/option_a_snapshot/`: the full
+      diff, the barcode and edge tests, `2eb/alternatives2.out`,
+      `2eb/float_bound.out`) was right about the NET change but, left alone,
+      turned a suppression into a fabrication. Also from the 2E-b review, to
+      decide there: A's worst-case float bound still grows with price x qty
+      (a quantity-1000 barcode made a real +200 "residue"; a measured error
+      estimate, e.g. compared with `math.fsum`, instead of the bound); stage
+      2's contribution_pct has no per-member scale where stage 3's shares do;
+      the segment share still takes per-customer monetary as a compared
+      quantity (present at HEAD); pct_change still calls a real base
+      "floating-point residue" when a huge typo sits beside it (present at
+      HEAD). Reproductions: scratchpad `review13/`, `review14/`.
+      **Why before 3E1b (asymmetry rule, run at HEAD):** on 11 of 30 random
+      typo files the verdict list carries a supported P1 or P2 the clean
+      file does not (contributions ~1e13; `2eb/placement_verdicts.out`), and
+      the headline stays rule 7 only because rule 6's gate calls the real
+      change negligible against the typo-inflated scale
+      (`2eb/placement_gate.out`). 3E1b's part C re-sizes rule 6, which reads
+      exactly those verdicts, so its calibration would sit on fabricated
+      inputs. **Why after 2E-c:** the implausible-line sweep measures line
+      amounts, and 2E-c decides which lines are sales.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -1004,7 +1132,10 @@ dataclarity/
 - [ ] 4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
       recommendations, each with insight, cause, action, expected impact
       (arithmetic shown), how to measure. Validated. Decide whether stage 4
-      calls the AI when `diagnosis.json` has `ai_findings: null`. Tests with
+      calls the AI when `diagnosis.json` has `ai_findings: null`. Also
+      (2E-b review F8): `prompts/strategy.md` maps At-risk and Champions to
+      actions but has no rule for the "Returns only" segment (2E-b), whose
+      share is usually negative - add one. Tests with
       mocked AI
 - [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests
 - **DoD:** every recommendation cites a number that exists in the inputs; a
@@ -1110,7 +1241,15 @@ or "migrated to weaker segments", `supported`, depending on who bought on
 2-10 February. Needs a snapshot at the end of each compared month. Second
 defect to fix at the same time: R is scored by quintile rank, so R <= 2 is
 always about 40% of customers and C4's "weak" half (At-risk + Hibernating
-share) cannot move - `weak_share_change_points` was 0.0 in every run.
+share) cannot move - `weak_share_change_points` was 0.0 in every run. Third,
+from 2E-b: stage 2 now has a seventh segment, "Returns only" (never-buyers,
+outside the R x F grid). It is not in `ALL_SEGMENTS`, which C4 requires in
+full; decide whether it joins that list (then stage 2 must list it even when
+empty) and confirm it counts towards neither group. Measured (2E-b review
+F5): a customer who is "Returns only" in the previous snapshot and a buyer
+now leaves no "Returns only" row, so `customers_previous` sums to 1 of 2 -
+the lost-previous-count shape C4's missing-segment guard exists for, which
+that guard cannot see while the segment is outside `ALL_SEGMENTS`.
 
 **Unusualness verdicts** (replaces 3D9; ADR-0007). Letting a step-4 row be a
 verdict again - so T3 can be `supported` and headline rule 3 can speak -
@@ -1201,7 +1340,23 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E** closed 2026-09-24: **stage 2
+**Phase in progress:** Phase 2/3, session **2E-b** closed 2026-09-24, with
+its residue-scale part REVERTED to 2E's behaviour and moved to **2E-d**
+(Thach: option A made the net change right on barcode-typo files and so
+exposed the typo in the gross lenses - 23 of 30 files headlined an invented
+cause, where HEAD headlines none; corrected after: HEAD still carries an
+invented supported P1/P2 VERDICT on 11 of 30, its headline suppressed only
+by the residue bug). What ships: RFM recency on sale rows; R
+and F quintiles cut from buyers only, and never-buyers scored 1/1 in their
+own segment **"Returns only"** (supersedes 2B's population for R and F;
+Monetary is never quintiled); B2 refused on negative-amount lines too, in
+either compared month, evidence = line counts only; the two over-long test
+files split (64 tests before and after). Three doubt-review cycles; cycle 3
+(on the late buyers-only change) found F1-F4; Thach: F1, F3 and P1 (what
+counts as a purchase) and F2 (RFM ties) go to **2E-c**, F4 (a lone buyer
+as Champions) is accepted as a known limit under 2B's one-customer rule. Mutation check: 21 mutants on the shipped code, all
+killed. pytest 2449 passed.
+Previously, session **2E** closed 2026-09-24: **stage 2
 definitions stage 3 had exposed, each ONE shared definition.** An order is a
 sale row in both stages (orders, AOV = net revenue / orders, return rate =
 return lines / orders in [0, infinity), frequency and RFM frequency);
@@ -1565,10 +1720,10 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-b** (the residue scale regression - method before code,
-alternatives proposed first; the reconciliation float term; B2 on
-negative-price refunds; RFM recency on sale rows; two test files split),
-then **3E1b**, then the **Online Retail II demo**, then **3E2**; placed by
+**Next step:** **2E-c** (what counts as a purchase - F1, F3, P1 - and RFM
+ties, F2; method before code), after Thach's approval; then **2E-d**
+(implausible lines, then the residue scale). Both go before 3E1b by the
+asymmetry rule (reproductions in their checklist items). Then **3E1b**, then the **Online Retail II demo**, then **3E2**; placed by
 Thach after 2E. 3E1b is how D1 learns from history, and rule 6's size test
 (it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
@@ -1585,9 +1740,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run `C:\Users\Happy\commit-2e.ps1` - commits session 2E alone
-   (message file `C:\Users\Happy\commit-2e-msg.txt`). It stops before
-   pushing. (3E1 is committed: `e720d8e`.)
+1. Session 2E-b is committed and pushed (one-time push exception, Thach;
+   the normal rule applies again: scripts stop before push). Approve 2E-c
+   before it starts.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -1605,6 +1760,53 @@ still not started; its Insights frame now waits on 3E (see
    current demo file holds a return line, so refund behaviour - including the
    cost of B2's refusal - must be measured on real data, not only on the
    generator.
+- 2026-09-24, Phase 2 session 2E-b (RFM on sale rows and buyers; B2 on
+  negative amounts; test splits; the residue scale reverted to 2E-d).
+  Closed. pytest 2449 passed. Committed and pushed alone (one-time push
+  exception, Thach).
+  - **Decisions (Thach):** option A for the residue scale (two scales, the
+    64 derived), then - after review cycle 1 showed it turned a suppression
+    into 23/30 FABRICATEs - revert it to main's 2E behaviour and move it to
+    2E-d with the stage 1 implausible-line design input; RFM quintiles over
+    buyers only, never-buyers in their own "Returns only" segment (not
+    Hibernating), M never quintiled (confirmed: it feeds only avg_monetary
+    and revenue_share_pct), recorded as superseding 2B for R and F.
+  - **Mutation check:** 21 mutants on the shipped code (recency 3, B2 month
+    filters and clauses 7, never-bought rule 4, buyers-only population and
+    label 7), all killed; the one survivor of round d (negatives in the
+    current month only) got a previous-month test and was re-run killed.
+    Option A's 24 mutants (reverted code) are kept with its snapshot.
+  - **Doubt-review:** three cycles. Cycle 1: option A's FABRICATE (the
+    barcode test never checked which hypothesis the headline named) - led
+    to the revert; a returns-only customer could tie-break to Champions -
+    fixed. Cycle 2: HIGH - never-buyers pushed buyers up the R quintiles
+    (20 refunders made 10 lapsed buyers Champions) - fixed by buyers-only
+    quintiles; B2's negative-amount clause untested, its evidence
+    contradicting itself, stale docs, a pre-existing P1 negative-price
+    FABRICATE - fixed or recorded. Cycle 3 (own cycle for the late logic
+    change): F1-F8 run by execution and checked against HEAD; F6/F7 fixed,
+    F5/F8 recorded in place, F1-F4 escalated at the bound. Cross-model:
+    skipped (Thach).
+  - **After the session (Thach):** F1 + F3 + P1 share one root (what counts
+    as a purchase; proposed: quantity > 0 AND a positive line amount, zero-
+    amount lines to be measured) and F2 (identical customers, identical
+    scores) -> session 2E-c; the implausible-line check -> its own session
+    2E-d; both placed before 3E1b by the asymmetry rule with reproductions;
+    F4 accepted as a known limit. Placement found that the revert's premise
+    was wrong at verdict level (HEAD: 11 of 30 typo files carry an invented
+    supported P1/P2) - recorded under the 2E-b item; the revert stands (no
+    headline against 23).
+  - **Tests changed** (old -> new, why): the 2B lone refunder's segment
+    Champions -> "Returns only" (never bought; 2B superseded for R and F);
+    the sign-consistency test's loss-making segment Hibernating -> "Returns
+    only" (same customer; its shares -900/899 and 1/899 unchanged, hand
+    computation in the test); B2's rule substring "returned units" ->
+    "refunded units" (the rule now covers negative-amount lines). No test
+    deleted, skipped or weakened; the splits moved tests verbatim (64
+    collected before and after).
+  - **Files over ~300 lines:** `metrics_customers.py` and
+    `hypothesis_evidence.py` are 304 each after trimming the docstrings;
+    left as they are (within "~300"), to split when next touched.
 - 2026-09-24, Phase 2 session 2E (stage 2 definitions; metrics.json 2.0).
   Closed. pytest 2438 passed. Committed alone (47 files: stage 2 and stage 3
   moved together; an untested intermediate commit would be worse - the 3E1

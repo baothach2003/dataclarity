@@ -870,11 +870,15 @@ grew 2.7x.
 | R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
 | R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
 
-C4 compares two named segment groups. Stage 2's catalog has six segments: the
-2B doubt-review added **"Needs Attention"** for the four of twenty-five R x F
-combinations the five named rules leave uncovered. It and "New" count towards
-neither group by design - C4 asks whether customers moved from strong to weak,
-not whether every segment is accounted for.
+C4 compares two named segment groups. Stage 2's R x F grid has six segments:
+the 2B doubt-review added **"Needs Attention"** for the four of twenty-five
+R x F combinations the five named rules leave uncovered. 2E-b added a seventh
+label outside the grid, **"Returns only"**, for customers who never bought in
+the snapshot. It, "Needs Attention" and "New" count towards neither group by
+design - C4 asks whether customers moved from strong to weak, not whether
+every segment is accounted for. "Returns only" is not in C4's
+`ALL_SEGMENTS` (it is absent from most files, so requiring it would refuse
+C4 everywhere); decide its place when C4 is switched on (Backlog).
 
 R3's wording is fixed: **"consistent with a stockout, verify on the shelf"**,
 never "caused by". Point-of-sale data cannot confirm a stockout; published
@@ -937,10 +941,13 @@ the same January came out `ruled_out` or "migrated to weaker segments",
 `supported`, depending on who bought on 2-10 February. The rule is kept
 behind a switch for when stage 2 anchors a snapshot per month (Backlog).
 
-**B2 is `inconclusive` on any return line** (INTERIM, Thach; B1 and B2 in 3E1,
-B2 alone since 2E; lines, not refunded money, since the 2E doubt-review cycle
-3: a zero-price write-off carries units and no money, and B2 headlined
-"baskets got bigger" while baskets shrank from 3 units to 1). 2E made an order a sale row in both stages, so a refund no
+**B2 is `inconclusive` on any refund line - a return line, or any counted row
+with a negative amount** (INTERIM, Thach; B1 and B2 in 3E1, B2 alone since
+2E; lines, not refunded money, since the 2E doubt-review cycle 3: a
+zero-price write-off carries units and no money, and B2 headlined "baskets
+got bigger" while baskets shrank from 3 units to 1; negative amounts since
+2E-b: a refund booked as quantity +1 at a negative price read as a one-unit
+order, and B2 said "baskets got smaller" while every real basket was 3). 2E made an order a sale row in both stages, so a refund no
 longer moves purchase frequency and B1 is evaluated on refund months (refunds
 from customers who bought nothing leave frequency unchanged: the lever
 divides by buyers). B1 is `inconclusive` when a compared month netted zero
@@ -949,7 +956,8 @@ sign - "customers bought MORE often (+21,400)" was headlined while frequency
 fell 9.3 -> 3.1 (2E doubt-review cycle 2). Level 2 still counts
 refunded units against the basket, and with the refusal lifted a month where
 ONLY refunds changed headlined "baskets got smaller (100% of the change)"
-(measured in 2E). Either period with any return line leaves B2
+(measured in 2E). Either period with any refund line - a return line, or a
+counted line with a negative amount - leaves B2
 `inconclusive` until the three-factor level 2 (session 3E3) gives refunds a factor of their
 own. **P1's gate is "sold in both periods"** - L's membership in the product
 lens, positive sold units - so a product seen only through a refund this

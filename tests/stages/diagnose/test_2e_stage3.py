@@ -63,7 +63,7 @@ def test_b2_is_still_refused_on_refund_months_until_level_2_separates_refunds() 
     b2 = by_id(evaluate_hypotheses(step7(run_data(_steady(refunds=10)))))["B2"]
 
     assert b2.verdict == "inconclusive"
-    assert "returned units" in b2.rule
+    assert "refunded units" in b2.rule
 
 
 def test_b2_still_reads_a_real_basket_change_without_refunds() -> None:

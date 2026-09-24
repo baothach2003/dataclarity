@@ -143,20 +143,30 @@ def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
     # Any return LINE, not only refunded money (2E doubt-review cycle 3): a
     # zero-price write-off carries units but no money, and B2 headlined
     # "baskets got bigger" while baskets shrank from 3 units to 1.
-    returns = inputs.tree.returns
     period = inputs.data.metrics.period
     lines = {label: int((inputs.data.parsed.returned
                          & (inputs.data.months == month)).sum())
              for label, month in (("prev", period.previous), ("cur", period.current))}
+    # ...and any counted row with a negative amount: a refund booked as
+    # quantity +1 at a negative price is a "sale row" of one unit to level 2,
+    # and B2 read "baskets got smaller" while every real basket was 3 units
+    # (2E doubt-review cycle 4; Thach, 2E-b).
+    for label, month in (("prev", period.previous), ("cur", period.current)):
+        lines[label] += int((inputs.data.parsed.counted
+                             & (inputs.data.parsed.revenue_amounts < 0)
+                             & ~inputs.data.parsed.returned
+                             & (inputs.data.months == month)).sum())
     if lines["prev"] or lines["cur"]:
         return Outcome(verdict="inconclusive",
-                       evidence={"return_lines_prev": lines["prev"],
-                                 "return_lines_cur": lines["cur"],
-                                 "returns_prev": returns.returns_prev,
-                                 "returns_cur": returns.returns_cur},
-                       rule="level 2 counts returned units against the basket, so basket "
-                            "size cannot be separated from return lines until level 2 has "
-                            "a refund factor of its own")
+                       # Line counts only: the returns lens's money counts
+                       # qty<0 rows alone, so "12 refund lines, 0.0 refunded"
+                       # side by side read as a contradiction (2E-b review).
+                       evidence={"refund_lines_prev": lines["prev"],
+                                 "refund_lines_cur": lines["cur"]},
+                       rule="level 2 counts refunded units against the basket, so basket "
+                            "size cannot be separated from refund lines (return lines, or "
+                            "lines with a negative amount - a refund, or a discount or "
+                            "coupon line) until level 2 has a refund factor of its own")
     return None
 
 

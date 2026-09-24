@@ -256,8 +256,18 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   only returned goods appeared (2E doubt-review F1). **Which of the two the
   Insights "customers" KPI shows is a stage 5/6 display decision** (Thach, 2E):
   buyers is the usual commercial meaning.
-- RFM **frequency** counts the customer's orders (sale rows). A returns-only
-  customer has frequency 0. Recency and monetary still read every counted row.
+- RFM **frequency** counts the customer's orders (sale rows), and RFM
+  **recency** the days since the last one (Thach, 2E-b): a refund is not a
+  purchase. **R and F quintiles are cut from buyers only**, and a customer
+  who never bought (only refunds) scores 1 on both by rule and lands in a
+  segment of their own, **"Returns only"** (Thach, 2E-b; `segment` is a plain
+  string, as with 2B's "Needs Attention"). Ranked among buyers, 20 refunders
+  pushed 10 lapsed one-time buyers up to Champions; in Hibernating they
+  inflated its count and dragged its `avg_monetary` and `revenue_share_pct`
+  negative. This supersedes 2B's "scored like any other customer" and
+  "quintiles on the run's own data" for R and F. Monetary stays net (every
+  counted row) and is never quintiled, so it has no population to choose.
+  Old metrics.json files keep the old segments until re-analysed.
 - **A ratio whose denominator is zero - or negligible, i.e. floating-point
   residue next to the money that moved to produce it (`shared/numbers.py`
   `is_negligible`, the same test stage 3 uses; judged against the GROSS money
@@ -629,8 +639,10 @@ D1's `evidence` carries `estimated_revenue_gap` and
 `estimated_revenue_gap_prev` (each month's gap at its own month's pace) and
 `d1_status`; T2's carries `excess_zero_days_year_ago_cur` and `_prev`; B1,
 when refused on a possible gap, carries `d1_status` and both months'
-`excess_zero_days`; B1 and B2, while inconclusive on refunds, carry
-`returns_prev` and `returns_cur`. The D1 trust check's `evidence` lists
+`excess_zero_days`; B2, while inconclusive on refund lines, carries
+`refund_lines_prev` and `refund_lines_cur` (line counts only - the returns
+lens's money counts quantity < 0 rows alone and read as a contradiction
+beside negative-price lines, 2E-b). B1 is no longer refused on refunds (2E). The D1 trust check's `evidence` lists
 `sparse_history_months` (history months too gapped to learn from),
 `history_months_with_rows` and `learned_from_months`; on a block for an
 incomplete previous month it carries only `previous_leading_days_missing`,

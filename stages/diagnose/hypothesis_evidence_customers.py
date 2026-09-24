@@ -18,7 +18,9 @@ SEGMENTS_ANCHORED_TO_THE_PERIOD = False
 
 WEAK = ("At-risk", "Hibernating")
 STRONG = ("Champions", "Loyal")
-# Stage 2's full segment vocabulary (metrics_customers.assign_segment).
+# Stage 2's R x F grid (metrics_customers.assign_segment). "Returns only"
+# (2E-b, never-buyers) is left out: most files have none, so requiring it
+# would refuse C4 everywhere - its place is decided when C4 is switched on.
 ALL_SEGMENTS = frozenset({"Champions", "Loyal", "At-risk", "Hibernating", "New",
                           "Needs Attention"})
 

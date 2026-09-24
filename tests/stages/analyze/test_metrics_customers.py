@@ -184,8 +184,11 @@ def test_every_row_missing_its_customer_value_also_degrades_to_empty() -> None:
 
 def test_a_return_only_customer_is_scored_like_any_other() -> None:
     # Their only-ever row is a return (negative quantity, 2A's convention):
-    # Frequency=1, negative Monetary, and it is their first-ever purchase, so
-    # they are still a lone customer (N=1) scoring best (5, 5) -> Champions.
+    # negative Monetary, still scored and counted (2B). Was Champions - a lone
+    # customer scored best (5, 5). SUPERSEDED for R and F (Thach, 2E-b): a
+    # customer who never bought scores 1 and 1 and has a segment of their own,
+    # "Returns only" - not Hibernating, which describes buyers who stopped.
+    # Monetary stays net, and they are still counted.
     df = frame([row("Refunder", "2020-01-31", qty="-1", price="10.0")])
     period = _period_for(df)
 
@@ -193,7 +196,7 @@ def test_a_return_only_customer_is_scored_like_any_other() -> None:
 
     assert len(customers.segments) == 1
     segment = customers.segments[0]
-    assert segment.segment == "Champions"
+    assert segment.segment == "Returns only"
     assert (segment.customers, segment.avg_monetary) == (1, -10.0)
 
     assert customers.new_vs_returning.new_customers == 1
@@ -248,15 +251,16 @@ def test_revenue_share_pct_stays_sign_consistent_when_whole_file_monetary_is_neg
     customers = compute_customer_metrics(df, MAPPING, period)
     by_segment = {s.segment: s for s in customers.segments}
 
-    # Tied raw values (same date, frequency=1 each) rank by row order: row 0
-    # (BigReturner) scores worst on both R and F -> Hibernating; row 1
-    # (SmallBuyer) scores best on both -> Champions (verified via the grid).
-    assert by_segment["Hibernating"].avg_monetary == -900.0
+    # BigReturner only refunded, so it never bought: "Returns only" (Thach,
+    # 2E-b; it was Hibernating by row-order tie-break before). SmallBuyer is
+    # the only buyer, so the buyers-only quintiles put it at the top ->
+    # Champions. The shares are unchanged: the denominator is still |-899|.
+    assert by_segment["Returns only"].avg_monetary == -900.0
     assert by_segment["Champions"].avg_monetary == 1.0
 
-    assert by_segment["Hibernating"].revenue_share_pct == pytest.approx(-900 / 899 * 100)
+    assert by_segment["Returns only"].revenue_share_pct == pytest.approx(-900 / 899 * 100)
     assert by_segment["Champions"].revenue_share_pct == pytest.approx(1 / 899 * 100)
-    assert by_segment["Hibernating"].revenue_share_pct < 0  # the loss-making segment reads negative...
+    assert by_segment["Returns only"].revenue_share_pct < 0  # the loss-making segment reads negative...
     assert by_segment["Champions"].revenue_share_pct > 0  # ...never inverted past +100%
 
 

@@ -25,13 +25,21 @@ Design decisions (Thach, Phase 2B):
   spreads 2, 3 or 4 distinct customers across 1-5 without error. A single
   customer has no one to rank against and scores 5 and 5 (best available):
   a sample of one cannot be meaningfully placed on a 1-5 scale otherwise.
-- A return-only customer (their only revenue-counted row has negative
-  quantity, 2A's return convention) is scored and segmented like any other
-  customer; Monetary is honestly negative, no special case.
+- A customer who never bought (only refunds) is counted, with Monetary
+  honestly negative, but SUPERSEDING 2B's "no special case" and "quintiles on
+  the run's own data" for R and F (Thach, 2E-b): R and F are cut from BUYERS
+  only, and a never-buyer scores 1/1 by rule in their own segment, "Returns
+  only" - not Hibernating, which describes buyers who stopped. Ranked among
+  buyers, 20 refunders pushed 10 lapsed one-time buyers up to Champions, and
+  a tie-break lifted one refunder there too. Monetary is never quintiled (it
+  feeds only avg_monetary and revenue_share_pct), so it has no population.
 - Frequency counts the customer's ORDERS - sale rows (shared/transactions.py,
   Thach, session 2E) - not every counted row: three refund lines made a
-  one-purchase customer look four times as frequent. A return-only customer
-  has frequency 0 and ranks lowest.
+  one-purchase customer look four times as frequent.
+- Recency counts the last PURCHASE - a sale row - too (Thach, session 2E-b):
+  a refund is not a purchase, and a customer who bought in January and
+  refunded in November read as bought yesterday. A never-buyer's recency is
+  one day beyond the file's oldest row. Monetary stays net.
 - `customers_previous` re-runs the same snapshot truncated to transactions
   through the end of the previous period, anchored the day after it, so it
   shows real segment migration (matches the worked example: 129 Champions
@@ -69,6 +77,9 @@ from stages.analyze.metrics_core import (
 )
 
 NEEDS_ATTENTION = "Needs Attention"
+# Never bought in the snapshot, only refunded (Thach, 2E-b). In Hibernating
+# they inflated its count and dragged its avg_monetary and share negative.
+RETURNS_ONLY = "Returns only"
 
 
 def _empty_new_vs_returning() -> NewVsReturning:
@@ -171,22 +182,33 @@ def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
     """One row per customer: last_purchase, frequency, monetary, recency_days,
     r_score, f_score, segment - over every row in `table` (already
     revenue-counted and customer-identified), anchored at `reference_date`.
-    `table["sale"]` marks the rows that are orders: frequency counts those
-    (2E), while monetary and recency use every counted row."""
+    `table["sale"]` marks the rows that are orders: frequency (2E) and
+    recency (2E-b) count those; monetary uses every counted row."""
     if table.empty:
         return pd.DataFrame(
             columns=["last_purchase", "frequency", "monetary", "recency_days", "r_score", "f_score", "segment"]
         )
     grouped = table.groupby("customer").agg(
-        last_purchase=("date", "max"),
         frequency=("sale", "sum"),
         monetary=("revenue", "sum"),
     )
-    grouped["recency_days"] = (pd.Timestamp(reference_date) - grouped["last_purchase"]).dt.days
-    grouped["r_score"] = score_quintile(grouped["recency_days"], ascending=False)
-    grouped["f_score"] = score_quintile(grouped["frequency"], ascending=True)
+    grouped["last_purchase"] = table[table["sale"]].groupby("customer")["date"].max()
+    recency = (pd.Timestamp(reference_date) - grouped["last_purchase"]).dt.days
+    never = (pd.Timestamp(reference_date) - table["date"].min()).days + 1
+    grouped["recency_days"] = recency.fillna(never).astype(int)
+    # Buyers-only quintiles: a buyer's R and F depend on other buyers alone.
+    never_bought = grouped["frequency"] == 0
+    grouped["r_score"] = 1
+    grouped["f_score"] = 1
+    buyers = ~never_bought
+    if buyers.any():
+        grouped.loc[buyers, "r_score"] = score_quintile(grouped.loc[buyers, "recency_days"],
+                                                        ascending=False)
+        grouped.loc[buyers, "f_score"] = score_quintile(grouped.loc[buyers, "frequency"],
+                                                        ascending=True)
     grouped["segment"] = [
-        assign_segment(r, f) for r, f in zip(grouped["r_score"], grouped["f_score"], strict=True)
+        RETURNS_ONLY if none else assign_segment(r, f)
+        for none, r, f in zip(never_bought, grouped["r_score"], grouped["f_score"], strict=True)
     ]
     return grouped
 
