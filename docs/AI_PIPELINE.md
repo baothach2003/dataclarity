@@ -201,7 +201,11 @@ Reads `metrics.json`, `cleaned.csv` and `cleaning_report.json` from the run
 directory. Stage 3 must not import `stages/analyze`: the shared transaction
 parsing (`ParsedTransactions`, `parse_transactions`, `require_column`,
 `pct_change`, `is_blank`) moves to `shared/` first, so both stages compute
-revenue, orders and "revenue-counted rows" from one definition. Every figure
+revenue, orders and "revenue-counted rows" from one definition. Since 2E an
+**order is a sale row** (a counted row with quantity > 0; a return line is
+not one), the **incomplete previous month** is `shared/periods.py`'s, and the
+**residue test** is `shared/numbers.is_negligible` - each one definition for
+both stages (CONTRACTS section 6). Every figure
 stage 3 recomputes that also exists in `metrics.json` must match it exactly; a
 dedicated test enforces this, because two stages disagreeing on a definition
 would make the report contradict itself.
@@ -236,33 +240,50 @@ empty.
 
 **The previous month must be covered from its first day** (Thach, 3E1).
 `frame.previous_leading_days_missing` counts the days of the previous month
-before the file's first revenue-counted row (a sale or a return), capped at
-the month's length - not `data_start`, the first row of ANY kind: a stock-in
-row on the 1st hid a missing month, and one on the 10th printed a false
-first-sale date (3E1 cycle 4). The same elapsed-month rule that lets 2A compare
+before the file's first SALE row, capped at the month's length - not
+`data_start`, the first row of ANY kind: a stock-in row on the 1st hid a
+missing month, and one on the 10th printed a false first-sale date (3E1
+cycle 4); and not a refund line either (2E doubt-review F3: a previous month
+holding only refunds was "complete", and a product sold for nineteen months
+was headlined as launched). The same elapsed-month rule that lets 2A compare
 a whole month with half of one - an export starting on 15 January compared
 February with 17 days of January and headlined "customers bought more often
-(100%)" on identical daily trading - so the D1 check (7.3) **blocks** at its
-own caution size (`D1_CAUTION_DAYS` or `D1_CAUTION_SHARE` of the month), and
-the rule-1 headline tells the user to re-export from the 1st of the previous
+(100%)" on identical daily trading - so the D1 check (7.3) **blocks** when
+three or more days precede the file's first sale (D1's caution size; as a
+second condition the 10% share cannot bind on whole days), and the rule-1
+headline tells the user to re-export from the 1st of the previous
 month, or that there is no full month to compare with if the shop opened
 then. Below that size (one closed New Year's Day) nothing blocks. A
-previous month with no counted sale at all blocks too, whether or not the file
+previous month with no sale row at all blocks too, whether or not the file
 has history: before, a one-month file headlined "products were launched or
 discontinued (100%)" for 0 -> 310, and a product sold for eleven months,
 absent one December, was headlined as launched (cycle 4). The block goes through the trust gate rather than a
 second path because every blocked-run rule (7.8, CONTRACTS section 7) keys on
-`trust.verdict`. Stage 2 compares the same partial month; that is session
-2E's (PROJECT_PLAN).
+`trust.verdict`. **Since 2E the rule is `shared/periods.previous_coverage`,
+the one stage 2 applies too**: `metrics.json`'s `period.previous_complete` is
+false on exactly the files this step blocks, and stage 2 then reports every
+comparison as null with the same reason (CONTRACTS section 6). The rule
+applies from the FILE's first sale, not each month's own: tested on the
+month's own first sale it falsely flagged 15-35% of sparse shops and 13-17%
+of shops closed three days a week (measured, 2E). A mid-history leading gap
+is left to D1 (7.3) until 3E1b's pattern-aware rule replaces this one inside
+the same shared definition.
 
 ### 7.3 Step 2: Trust gate
 
 Three checks, each `ok | caution | blocked | inconclusive`.
 
-- **D1 coverage.** `zero_days` = calendar days in a period with no
-  revenue-counted rows. The expectation is learned **per weekday** from the
+- **D1 coverage.** `zero_days` = calendar days in a period with no SALE row
+  (2E doubt-review F2: a day holding only refund lines is a day without
+  sales - ten such days hid ten missing days and B1 headlined "customers
+  bought less often (79%)"). A gap is priced at the mean net revenue of the
+  month's TRADING days - each trading day's sales less that day's own
+  refunds. Refunds on refund-only days are left out of the pace (Thach, 2E
+  doubt-review cycle 2): a missing day is missing SALES, and the refunds
+  recorded on other days would not have been larger had those sales been
+  exported. The expectation is learned **per weekday** from the
   history window - `zero_rate_d` = share of history dates of weekday `d` with
-  no rows - so `expected_zero_days(m) = sum_d count_d(m) * zero_rate_d` and
+  no sale row - so `expected_zero_days(m) = sum_d count_d(m) * zero_rate_d` and
   `excess_zero_days(m) = max(0, zero_days(m) - expected_zero_days(m))`.
   A per-weekday rate rather than one scalar (Thach, 3B) because closing is a
   weekday habit, not a daily probability: one scalar leaves a residue that
@@ -271,8 +292,8 @@ Three checks, each `ok | caution | blocked | inconclusive`.
   it never raised a false caution, but it also partly absorbs a real Tuesday
   gap in a shop that never trades Sundays, which the per-weekday rate exposes).
   `caution` at `D1_CAUTION_DAYS` or `D1_CAUTION_SHARE`; `blocked` at
-  `D1_BLOCK_SHARE`, and blocked outright when the previous month is not
-  covered from its first day (7.2). `inconclusive` when no history month
+  `D1_BLOCK_SHARE`, and blocked when three or more days of the previous month
+  precede the file's first sale, or the previous month holds no sale (7.2). `inconclusive` when no history month
   other than the previous one has sales to learn from (evidence
   `history_months_with_rows` and `learned_from_months` say which).
   **A day with no sales is missing data OR a closure** (3E1 doubt-review
@@ -613,7 +634,12 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   sequential substitution the answer does not depend on an order someone picked
   (`docs/adr/0004-shapley-attribution.md`).
 - **Lever level 1.** `revenue = customers * frequency * AOV`, or `orders * AOV`
-  when `customer` is unmapped. Two cases the formula cannot express (Thach,
+  when `customer` is unmapped. Orders are sale rows (2E), `customers` are
+  BUYERS - customers with a sale row, `metrics.json`'s `core.buyers_*`, pinned
+  by the consistency test (2E doubt-review F1: counting customers who only
+  returned goods made frequency fall on refunds alone) - frequency = orders /
+  buyers, AOV = NET revenue / orders, so the product is net revenue exactly;
+  a refund can no longer read as rarer purchases. Two cases the formula cannot express (Thach,
   3C). A period with **zero orders** leaves AOV as 0/0, so the level is `null`
   with a recorded reason: substituting a zero would report "AOV contributed
   +50" for a shop's opening month, which is arithmetic, not a diagnosis. A
@@ -621,8 +647,10 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   month carrying a blank customer - is not that case: it takes the same
   two-factor fallback as an unmapped column, which is still exact and still
   informative, and the C-family hypotheses become `not_testable`.
-- **Lever level 2.** `AOV = units_per_order * price_per_unit`, converted into
-  revenue units proportionally (`phi_AOV * phi_k / delta_AOV`), which stays
+- **Lever level 2.** `AOV = units_per_order * price_per_unit` over NET units
+  (refunded units leave the basket - why B2 keeps its refund refusal until the
+  three-factor level 2, session 3E3), converted into revenue units
+  proportionally (`phi_AOV * phi_k / delta_AOV`), which stays
   exact because the level-2 contributions sum to `delta_AOV`. `null` when net
   units are not positive in both periods, and `null` when AOV did not move,
   since the conversion divides by that change.
@@ -734,7 +762,14 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   reproduction gross sales had fallen 49 while the lens reported a rise of 1 -
   a direction flip in the figures the headline is chosen from (3C doubt-review).
 - **Reconciliation is checked at runtime, not only in tests.** Every lens is
-  asserted against its own total at `RECONCILE_REL_TOLERANCE` before the tree
+  asserted against its own total at `RECONCILE_REL_TOLERANCE` of the lens's
+  own scale, plus `RECONCILE_FLOAT_TOLERANCE` of the money moved in the two
+  months (2E doubt-review cycles 2-3: the first term alone crashed a month
+  whose refunds cancel its sales; a billionth of the money moved let a real
+  error of 1,500 pass beside a reversed 13-digit price typo). **Known limit**
+  (cycle 4, session 2E-b): the trillionth still leaves room proportional to
+  the typo - an error of 15 (EAN, qty 1) or 150 (qty 12) on a 310 change
+  passes; each lens needs its own float scale. Checked before the tree
   is returned, and a failure raises rather than writing a report built on a
   decomposition that does not add up. A violation is always a code bug: these
   lenses are exact in real arithmetic.
@@ -902,12 +937,23 @@ the same January came out `ruled_out` or "migrated to weaker segments",
 `supported`, depending on who bought on 2-10 February. The rule is kept
 behind a switch for when stage 2 anchors a snapshot per month (Backlog).
 
-**B1 and B2 are `inconclusive` while return lines count as orders**
-(INTERIM, Thach, 3E1, until session 2E). Stage 2 counts a return line as an
-order with negative units, so a month with refunds shows smaller baskets and
-rarer purchases: B2 headlined "baskets got smaller" at 2.4x the change when
-only returns had changed. Either period with any refund makes both
-`inconclusive` until 2E counts only sale rows as orders.
+**B2 is `inconclusive` on any return line** (INTERIM, Thach; B1 and B2 in 3E1,
+B2 alone since 2E; lines, not refunded money, since the 2E doubt-review cycle
+3: a zero-price write-off carries units and no money, and B2 headlined
+"baskets got bigger" while baskets shrank from 3 units to 1). 2E made an order a sale row in both stages, so a refund no
+longer moves purchase frequency and B1 is evaluated on refund months (refunds
+from customers who bought nothing leave frequency unchanged: the lever
+divides by buyers). B1 is `inconclusive` when a compared month netted zero
+or below: AOV is not positive there and the Shapley frequency term changes
+sign - "customers bought MORE often (+21,400)" was headlined while frequency
+fell 9.3 -> 3.1 (2E doubt-review cycle 2). Level 2 still counts
+refunded units against the basket, and with the refusal lifted a month where
+ONLY refunds changed headlined "baskets got smaller (100% of the change)"
+(measured in 2E). Either period with any return line leaves B2
+`inconclusive` until the three-factor level 2 (session 3E3) gives refunds a factor of their
+own. **P1's gate is "sold in both periods"** - L's membership in the product
+lens, positive sold units - so a product seen only through a refund this
+month is present (localization) but not in L (2E mutation check).
 
 `contribution` and `share` are null for directional hypotheses and for any
 hypothesis whose verdict is `inconclusive` or `not_testable` (no number was
@@ -1064,6 +1110,7 @@ are heuristics until calibrated against real data.
 | `D1_CAUTION_DAYS` / `D1_CAUTION_SHARE` | 3 / 0.10 | 7.3 |
 | `D1_BLOCK_SHARE` | 0.50 | 7.3 |
 | `D1_LEARN_MIN_ACTIVE_SHARE` | 0.50 (PROVISIONAL) | 7.3 |
+| `RECONCILE_FLOAT_TOLERANCE` | 1e-12 of the money moved | 7.6 |
 | `D2_MIN_PRODUCTS` / `D2_MIN_ROWS` | 20 / 3 | 7.3 |
 | `D2_CLUSTER_SHARE` / `D2_CLUSTER_WIDTH` | 0.80 / 0.02 | 7.3 |
 | `D2_NEUTRAL_BAND` | 0.90 to 1.10 | 7.3 |

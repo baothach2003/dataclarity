@@ -27,10 +27,13 @@ def _dimension_scenario() -> pd.DataFrame:
             # current period (2020-01): A=30, B=70 (B's row also fixes data_end at month-end)
             {"Date": "2020-01-10", "Qty": "3", "Price": "10.0", "Product": "X", "Cat": "A"},
             {"Date": "2020-01-31", "Qty": "7", "Price": "10.0", "Product": "Y", "Cat": "B"},
-            # previous period (2019-12): A=50, B=50, plus 100 unattributed (blank category)
-            {"Date": "2019-12-10", "Qty": "5", "Price": "10.0", "Product": "X", "Cat": "A"},
-            {"Date": "2019-12-11", "Qty": "5", "Price": "10.0", "Product": "Y", "Cat": "B"},
-            {"Date": "2019-12-12", "Qty": "10", "Price": "10.0", "Product": "Z", "Cat": ""},
+            # previous period (2019-12): A=50, B=50, plus 100 unattributed (blank category).
+            # From the 1st: a December starting on the 10th is an incomplete
+            # base since 2E, and this test is about the arithmetic (dates only
+            # moved from 10-12 to 1-3; every value is unchanged).
+            {"Date": "2019-12-01", "Qty": "5", "Price": "10.0", "Product": "X", "Cat": "A"},
+            {"Date": "2019-12-02", "Qty": "5", "Price": "10.0", "Product": "Y", "Cat": "B"},
+            {"Date": "2019-12-03", "Qty": "10", "Price": "10.0", "Product": "Z", "Cat": ""},
         ]
     )
 
@@ -88,7 +91,8 @@ def test_zero_total_change_uses_the_zero_denominator_convention() -> None:
     df = frame(
         [
             {"Date": "2020-01-31", "Qty": "1", "Price": "10.0", "Product": "X", "Cat": "A"},
-            {"Date": "2019-12-10", "Qty": "1", "Price": "10.0", "Product": "X", "Cat": "A"},
+            # The 1st, not the 10th: a complete December base (2E); value unchanged.
+            {"Date": "2019-12-01", "Qty": "1", "Price": "10.0", "Product": "X", "Cat": "A"},
         ]
     )
     period, core = compute_core_metrics(df, MAPPING, now=NOW)
@@ -96,4 +100,7 @@ def test_zero_total_change_uses_the_zero_denominator_convention() -> None:
 
     dims = compute_dimension_metrics(df, MAPPING, period, core)
 
-    assert dims.category[0].contribution_pct == 0.0
+    # Was 0.0 (2A's zero-denominator convention); a share of no change is not
+    # 0% but unavailable (2E, superseding 2A).
+    assert dims.category[0].contribution_pct is None
+    assert "total change" in dims.contribution_reason

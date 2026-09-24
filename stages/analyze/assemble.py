@@ -19,7 +19,9 @@ from stages.analyze.metrics_customers import compute_customer_metrics
 from stages.analyze.metrics_dimensions import compute_dimension_metrics
 from stages.analyze.metrics_products import compute_product_metrics
 
-SCHEMA_VERSION = "1.0"
+# 2.0 in session 2E: orders, AOV, return_rate and RFM frequency changed
+# meaning, and comparisons became nullable (docs/CONTRACTS.md section 10).
+SCHEMA_VERSION = "2.0"
 METRICS_FILENAME = "metrics.json"
 
 

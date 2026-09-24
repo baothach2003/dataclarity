@@ -38,11 +38,19 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
     if customer_col is None:
         customers = 0
     else:
-        identified = mask & ~is_blank(data.df[customer_col])
+        # BUYERS - customers with a sale row (2E doubt-review F1): a customer
+        # who only returned goods is active (3C) but has no orders, and
+        # counting them made frequency fall on refunds alone ("customers
+        # bought less often", -3,892 against a -310 change). Stage 2 reports
+        # the same count as core.buyers_*; the identity customers x
+        # (orders / customers) x AOV is net revenue whichever count is used.
+        identified = mask & data.parsed.sale & ~is_blank(data.df[customer_col])
         customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
     return PeriodTotals(
         revenue=float(data.parsed.revenue_amounts[mask].sum()),
-        orders=int(mask.sum()),
+        # Sale rows only (shared/transactions.py, 2E): a return line is not an
+        # order, so refunds no longer read as rarer purchases.
+        orders=int((mask & data.parsed.sale).sum()),
         customers=customers,
         units=float(data.parsed.quantities[mask].sum()),
     )

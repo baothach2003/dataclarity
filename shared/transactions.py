@@ -23,12 +23,22 @@ unchanged in Phase 3 session 3B:
   of a negative-quantity sale line. The canonical schema has no returns field,
   so this is the one signal available, and it does not depend on
   transaction_type being mapped.
+- An ORDER is a sale row: a counted row with positive quantity (Thach, session
+  2E). The schema has no invoice id, so a row is the unit of purchase; a
+  return line sold nothing, and neither did a zero-quantity line. Counting
+  every counted row made a month with refunds look like smaller baskets and
+  rarer purchases in both stages (3E1 doubt-review). Every figure built on
+  orders - orders, AOV, return rate, units per order, purchase frequency, RFM
+  frequency - counts `sale` rows, in stage 2 and stage 3 alike.
 """
 
 from dataclasses import dataclass
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
+
+from shared.numbers import is_negligible
 
 
 class RequiredColumnMissingError(ValueError):
@@ -64,6 +74,10 @@ class ParsedTransactions:
     # only rows explicitly "in". `valid & ~counted` is every explicit "in"
     # row (metrics_products.py's stock-in side).
     counted: pd.Series
+    # `counted` AND quantity > 0: an order (module docstring, 2E).
+    sale: pd.Series
+    # `counted` AND quantity < 0: a return line.
+    returned: pd.Series
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
@@ -106,6 +120,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         # to "out", matching the column-level default.
         counts_as_sale = ~df[type_col].astype(object).str.strip().str.lower().eq("in")
 
+    counted = valid & counts_as_sale
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,
@@ -113,7 +128,9 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         prices=prices,
         revenue_amounts=quantities * prices,
         valid=valid,
-        counted=valid & counts_as_sale,
+        counted=counted,
+        sale=counted & (quantities > 0),
+        returned=counted & (quantities < 0),
     )
 
 
@@ -132,12 +149,42 @@ def is_blank(values: pd.Series) -> pd.Series:
     return values.isna() | (values.astype(object).str.strip() == "")
 
 
-def pct_change(current: float, previous: float) -> float:
-    """Signed percentage change, 0.0 when there is no previous value to
-    compare against (Phase 2A's zero-denominator decision: the 1.0 contracts
-    require a number, and an invented "infinite growth" figure would be
-    worse than saying nothing moved)."""
-    return (current - previous) / previous * 100 if previous else 0.0
+class PctChange(NamedTuple):
+    """A percentage change, or why there is none."""
+
+    value: float | None
+    reason: str | None
+
+
+def pct_change(current: float, previous: float, *magnitudes: float) -> PctChange:
+    """Signed percentage change against a positive base; otherwise
+    unavailable, with the reason (Thach, session 2E).
+
+    Against a negative base the sign inverts: -100 -> -200 read +100% (a
+    doubled loss as growth) and -100 -> +500 read -600% (a recovery as a
+    collapse). Against zero there is nothing to divide by - 2A reported 0.0,
+    "nothing moved", which is false when revenue appeared from nothing.
+    Against residue the figure is astronomical and meaningless.
+
+    `magnitudes` is the money that moved to produce the two figures (their
+    gross): residue is judged against it. Judged only against the two nets, a
+    residue base next to a month that also netted to residue was never
+    negligible, and 0.1 + 0.2 - 0.3 -> 0 read -100% (2E doubt-review F6)."""
+    if previous == 0:
+        return PctChange(None, "there is no previous value to compare against, so there "
+                               "is no percentage")
+    # Residue of either sign before the sign test: a residue base is not a
+    # loss, and calling -1e-17 "negative" misdescribed it (F9).
+    if is_negligible(previous, current, previous, *magnitudes):
+        # "Negligible", not only "residue": a real 0.01 against 31,000,000 is
+        # no base either, and calling it float residue was false (F5).
+        return PctChange(None, f"the previous value ({previous:.3g}) is floating-point "
+                               "residue next to the money compared (under a billionth of "
+                               "it), so it is no base for a percentage")
+    if previous < 0:
+        return PctChange(None, f"the previous value ({previous:,.2f}) is negative, so a "
+                               "percentage change against it would invert its sign")
+    return PctChange((current - previous) / previous * 100, None)
 
 
 def normalize_text(values: pd.Series) -> pd.Series:

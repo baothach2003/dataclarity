@@ -9,6 +9,7 @@ blocks stood in by small objects and every number derived by hand.
 from datetime import date, timedelta
 from types import SimpleNamespace as NS
 
+import pandas as pd
 import pytest
 
 import stages.diagnose.hypothesis_evidence_customers as customers_module
@@ -83,12 +84,19 @@ def test_t2_needs_positive_months_to_scale(prev, ly_cur, label) -> None:
     ending 2012-02; the year-ago previous month (2011-01) is an ordinary 1,000,
     so only the positivity rule can refuse."""
     values = months([1000.0] * 26)
-    values["2012-01"] = prev
+    values["2012-01"] = prev - 1000.0 if prev < 0 else prev
     values["2011-02"] = ly_cur
-    data = run_data(full_months(values))
+    rows = full_months(values)
+    if prev < 0:
+        # A month that TRADED and still netted negative: a 1,000 sale beside
+        # a 1,100 refund. Built from a refund alone, the previous month holds
+        # no sale and blocks the run (2E doubt-review F3) before T2 runs.
+        rows.append(row(date(2012, 1, 1), qty=100.0, price=10.0))
+    data = run_data(rows)
 
     t2 = by_id(evaluate_hypotheses(step7(data)))["T2"]
 
+    assert data.metrics.core.revenue_previous == prev
     assert t2.verdict == "inconclusive", label
     assert "zero or below" in t2.rule
 
@@ -167,28 +175,40 @@ def test_b1_needs_the_three_factor_split() -> None:
     assert "three-factor" in outcome.rule or "customers x frequency" in outcome.rule
 
 
+def _lines(returned_prev: int, returned_cur: int) -> NS:
+    """Stand-in data holding that many return lines per compared month (B2's
+    refusal reads return LINES since the 2E doubt-review cycle 3)."""
+    months = ["p"] * max(returned_prev, 1) + ["c"] * max(returned_cur, 1)
+    returned = ([True] * returned_prev + [False] * (returned_prev == 0)
+                + [True] * returned_cur + [False] * (returned_cur == 0))
+    return NS(parsed=NS(**vars(CUSTOMER), returned=pd.Series(returned)),
+              months=pd.Series(months), metrics=NS(period=NS(previous="p", current="c")))
+
+
 def test_b2_reads_units_per_order_not_price() -> None:
     level2 = NS(factors=[NS(name="units_per_order", contribution=-70.0, value_prev=4.0, value_cur=3.5),
                          NS(name="price_per_unit", contribution=25.0, value_prev=10.0, value_cur=10.5)])
-    inputs = NS(tree=NS(lever=NS(level2=level2, reasons={}),
-                        returns=NS(returns_prev=0.0, returns_cur=0.0)))
+    inputs = NS(data=_lines(0, 0), tree=NS(lever=NS(level2=level2, reasons={}),
+                                          returns=NS(returns_prev=0.0, returns_cur=0.0)))
 
     assert evaluate("B2", inputs).contribution == -70.0
 
 
-@pytest.mark.parametrize("hypothesis_id", ["B1", "B2"])
-@pytest.mark.parametrize("returns_prev,returns_cur", [(0.0, 50.0), (80.0, 0.0)])
-def test_b1_b2_are_inconclusive_while_return_lines_count_as_orders(
-    hypothesis_id, returns_prev, returns_cur,
+@pytest.mark.parametrize("lines_prev,lines_cur", [(0, 1), (2, 0)])
+def test_b2_is_inconclusive_on_any_return_line_until_level_2_separates_them(
+    lines_prev, lines_cur,
 ) -> None:
-    """INTERIM until 2E (Thach, 3E1): a return line is an order with negative
-    units today, so refunds read as smaller baskets and rarer purchases. B2
-    headlined "baskets got smaller" at 2.4x the change when only returns had
-    changed. Either period with any refund makes both inconclusive."""
-    inputs = NS(data=NS(parsed=CUSTOMER), tree=NS(
-        returns=NS(returns_prev=returns_prev, returns_cur=returns_cur)))
+    """INTERIM for B2 only since 2E (Thach): level 2 counts returned units
+    against the basket. Either period with any return LINE makes B2
+    inconclusive - lines, not refunded money, since a zero-price write-off
+    carries units and no money (2E doubt-review cycle 3).
+    (B1 was refused here too until 2E; with orders = sale rows a refund cannot
+    move frequency, so B1's cases left this test by that decision - see
+    test_2e_stage3.test_refunds_alone_do_not_move_purchase_frequency.)"""
+    inputs = NS(data=_lines(lines_prev, lines_cur), tree=NS(
+        returns=NS(returns_prev=0.0, returns_cur=0.0)))
 
-    assert evaluate(hypothesis_id, inputs).verdict == "inconclusive"
+    assert evaluate("B2", inputs).verdict == "inconclusive"
 
 
 # --- product and returns --------------------------------------------------------

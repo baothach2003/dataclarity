@@ -28,10 +28,16 @@ Design decisions (Thach, Phase 2B):
 - A return-only customer (their only revenue-counted row has negative
   quantity, 2A's return convention) is scored and segmented like any other
   customer; Monetary is honestly negative, no special case.
+- Frequency counts the customer's ORDERS - sale rows (shared/transactions.py,
+  Thach, session 2E) - not every counted row: three refund lines made a
+  one-purchase customer look four times as frequent. A return-only customer
+  has frequency 0 and ranks lowest.
 - `customers_previous` re-runs the same snapshot truncated to transactions
   through the end of the previous period, anchored the day after it, so it
   shows real segment migration (matches the worked example: 129 Champions
-  last period -> 118 now).
+  last period -> 118 now). It exists only to compare the two periods, so it
+  is null, with the period's reason in `customers_previous_reason`, when the
+  previous month is incomplete (Thach, 2E).
 - No mapped `customer` column: the whole block degrades to empty
   (`segments: []`, `new_vs_returning` all zero) rather than raise, since
   `customer` is not a stage 1 required field (mirrors 2A's
@@ -54,6 +60,7 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
+from shared.numbers import is_negligible
 from shared.transactions import customer_identity, is_blank, parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
@@ -85,7 +92,7 @@ def customer_metrics_for_run(
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     parsed = parse_transactions(frame, report.column_mapping)
-    period = select_period(parsed.dates, now or datetime.now(UTC))
+    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
     return compute_customer_metrics(frame, report.column_mapping, period)
 
 
@@ -98,12 +105,15 @@ def compute_customer_metrics(
     parsed = parse_transactions(df, column_mapping)
     reference_date = period.data_end + timedelta(days=1)
     customer_col = parsed.reverse.get("customer")
+    previous_reason = None if period.previous_complete else period.previous_incomplete_reason
 
     if customer_col is None:
         return CustomerMetrics(
             rfm_reference_date=reference_date,
             segments=[],
             new_vs_returning=_empty_new_vs_returning(),
+            customers_previous_reason=previous_reason,
+            revenue_share_reason=None,
         )
 
     # A counted row with no customer value, or one holding only whitespace
@@ -121,6 +131,7 @@ def compute_customer_metrics(
             "customer": customer_identity(df.loc[identified, customer_col]),
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
+            "sale": parsed.sale[identified],
         }
     )
 
@@ -134,35 +145,41 @@ def compute_customer_metrics(
         previous_snapshot["segment"].value_counts() if not previous_snapshot.empty else pd.Series(dtype=int)
     )
 
+    rows, share_reason = _segment_summary(snapshot, float(table["revenue"].abs().sum()))
     segments = [
         SegmentSummary(
             segment=name,
             customers=customers,
             revenue_share_pct=share_pct,
             avg_monetary=avg_monetary,
-            customers_previous=int(previous_counts.get(name, 0)),
+            customers_previous=(int(previous_counts.get(name, 0))
+                                if previous_reason is None else None),
         )
-        for name, customers, share_pct, avg_monetary in _segment_summary(snapshot)
+        for name, customers, share_pct, avg_monetary in rows
     ]
 
     return CustomerMetrics(
         rfm_reference_date=reference_date,
         segments=segments,
         new_vs_returning=_new_vs_returning(table, period),
+        customers_previous_reason=previous_reason,
+        revenue_share_reason=share_reason,
     )
 
 
 def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
     """One row per customer: last_purchase, frequency, monetary, recency_days,
     r_score, f_score, segment - over every row in `table` (already
-    revenue-counted and customer-identified), anchored at `reference_date`."""
+    revenue-counted and customer-identified), anchored at `reference_date`.
+    `table["sale"]` marks the rows that are orders: frequency counts those
+    (2E), while monetary and recency use every counted row."""
     if table.empty:
         return pd.DataFrame(
             columns=["last_purchase", "frequency", "monetary", "recency_days", "r_score", "f_score", "segment"]
         )
     grouped = table.groupby("customer").agg(
         last_purchase=("date", "max"),
-        frequency=("date", "size"),
+        frequency=("sale", "sum"),
         monetary=("revenue", "sum"),
     )
     grouped["recency_days"] = (pd.Timestamp(reference_date) - grouped["last_purchase"]).dt.days
@@ -203,10 +220,19 @@ def assign_segment(r_score: int, f_score: int) -> str:
     return NEEDS_ATTENTION
 
 
-def _segment_summary(snapshot: pd.DataFrame) -> list[tuple[str, int, float, float]]:
+def _segment_summary(
+    snapshot: pd.DataFrame, moved: float = 0.0,
+) -> tuple[list[tuple[str, int, float | None, float]], str | None]:
+    """Per segment: name, customers, share of whole-file monetary, average
+    monetary; and why the shares are null, when they are. A whole file whose
+    monetary nets to zero or residue has no whole to share (2E, superseding
+    2A's 0.0; residue by shared/numbers.is_negligible, judged against `moved`,
+    the whole file's gross money - per-customer nets that are themselves
+    residue gave a segment "-100%" of it, 2E doubt-review cycle 2 F3)."""
     if snapshot.empty:
-        return []
+        return [], None
     total_monetary = float(snapshot["monetary"].sum())
+    nothing = is_negligible(total_monetary, *snapshot["monetary"].abs(), moved)
     # abs(): a whole-file total that is net negative (a return-heavy dataset)
     # would otherwise flip every segment's sign - a small revenue-positive
     # segment showing a negative "share" while the dominant loss-making one
@@ -214,13 +240,15 @@ def _segment_summary(snapshot: pd.DataFrame) -> list[tuple[str, int, float, floa
     # sign meaningful (a shrinking/negative segment still reads as negative)
     # while a share still means "this segment's part of the whole".
     denominator = abs(total_monetary)
-    rows: list[tuple[str, int, float, float]] = []
+    rows: list[tuple[str, int, float | None, float]] = []
     for segment, group in snapshot.groupby("segment"):
         segment_monetary = float(group["monetary"].sum())
         customers = int(len(group))
-        share_pct = (segment_monetary / denominator * 100) if denominator else 0.0
+        share_pct = None if nothing else segment_monetary / denominator * 100
         rows.append((str(segment), customers, share_pct, segment_monetary / customers))
-    return rows
+    reason = ("whole-file monetary is nothing (zero, or floating-point residue), so no "
+              "segment has a share of it") if nothing else None
+    return rows, reason
 
 
 def _new_vs_returning(table: pd.DataFrame, period: Period) -> NewVsReturning:

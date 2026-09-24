@@ -32,14 +32,22 @@ Design decisions (Thach, Phase 2D):
   core.revenue_previous) - the "total change" docs/CONTRACTS.md section 6
   names, not a locally-recomputed one, and not a share of revenue.
   Reproduces the worked example exactly: Home Decor (210000 - 268000) /
-  (1150000 - 1290000) * 100 = 41.43%, rounds to the documented 41.4. 0.0
-  when the total change is 0 (metrics_core.pct_change's own
-  zero-denominator convention, reused here for the same reason).
+  (1150000 - 1290000) * 100 = 41.43%, rounds to the documented 41.4. Null for
+  every member, with `contribution_reason`, when the total change is zero or
+  negligible (shared/numbers.is_negligible): a share of nothing is not 0%,
+  and a share of float residue read 1e15 in stage 3. This SUPERSEDES 2A's
+  "0.0 when the total change is 0" (Thach, 2E).
+- `contribution_pct` exists only to compare the two periods, so it is null
+  for every member, with the period's reason in `contribution_reason`, when
+  the previous month is incomplete (Thach, 2E): a share of a change measured
+  against half a month is not a share of anything. The raw per-member
+  `revenue_previous` totals stay; stage 5 labels them a partial month.
 """
 
 import pandas as pd
 
 from contracts.metrics import CoreMetrics, DimensionBreakdown, DimensionChange, Period
+from shared.numbers import is_negligible
 from shared.transactions import ParsedTransactions, is_blank, parse_transactions
 
 
@@ -58,9 +66,21 @@ def compute_dimension_metrics(
     previous_mask = parsed.counted & (months == period.previous)
 
     category_col = parsed.reverse.get("category")
-    category = _dimension_changes(df, category_col, parsed, current_mask, previous_mask, total_change)
+    if not period.previous_complete:
+        reason = period.previous_incomplete_reason
+    # Against the money that moved in both months, not the two nets: when
+    # both nets are residue the nets make residue look like a scale, and the
+    # shares read 1.8e20 (2E doubt-review F5).
+    elif is_negligible(total_change, core.revenue_current, core.revenue_previous,
+                       float(parsed.revenue_amounts[current_mask | previous_mask].abs().sum())):
+        reason = ("the total change is nothing (zero, or floating-point residue), so no "
+                  "member has a share of it")
+    else:
+        reason = None
+    category = _dimension_changes(df, category_col, parsed, current_mask, previous_mask,
+                                  total_change, reason is None)
 
-    return DimensionBreakdown(country=[], category=category)
+    return DimensionBreakdown(country=[], category=category, contribution_reason=reason)
 
 
 def _dimension_changes(
@@ -70,6 +90,7 @@ def _dimension_changes(
     current_mask: pd.Series,
     previous_mask: pd.Series,
     total_change: float,
+    comparable: bool,
 ) -> list[DimensionChange]:
     if column is None:
         return []
@@ -88,9 +109,8 @@ def _dimension_changes(
     for key in set(current.index) | set(previous.index):
         revenue_current = float(current.get(key, 0.0))
         revenue_previous = float(previous.get(key, 0.0))
-        contribution_pct = (
-            (revenue_current - revenue_previous) / total_change * 100 if total_change else 0.0
-        )
+        contribution_pct = ((revenue_current - revenue_previous) / total_change * 100
+                            if comparable else None)
         changes.append(
             DimensionChange(
                 name=display_names[key],

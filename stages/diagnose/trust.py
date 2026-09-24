@@ -13,7 +13,7 @@ import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
 from stages.diagnose.inputs import RunData, days_in_month, month_dates
-from stages.diagnose.frame import first_sale, previous_leading_days_missing
+from stages.diagnose.frame import previous_coverage_of
 from stages.diagnose.thresholds import (
     D1_BLOCK_SHARE,
     D1_CAUTION_DAYS,
@@ -71,33 +71,22 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
     Sundays, which a scalar rate partly absorbs.
     """
     period = data.metrics.period
-    # A previous month the file only partly covers is not a comparison base,
-    # whatever the history says (Thach, 3E1): blocked at D1's own caution size,
-    # so one leading closed day (New Year's Day) is not read as a cut export.
-    # A file with NO row in the previous month is the extreme case: it
-    # headlined "products were launched or discontinued (100%)" for 0 -> 310,
-    # the launch being where the export starts (3E1, run to the headline).
-    # And a previous month with NO sale anywhere in it, even in a file with
-    # history: it only cautioned "worth roughly 0" and a product sold for
-    # eleven months was headlined as launched (3E1 doubt-review cycle 4).
-    leading = previous_leading_days_missing(data)
-    days_prev = days_in_month(period.previous)
-    # Any counted row in the month, NOT `months_with_rows`: that set holds only
-    # complete months, so a January starting on the 2nd read as "no sales".
-    empty_prev = not bool((data.parsed.counted & (data.months == period.previous)).any())
-    if empty_prev or leading >= D1_CAUTION_DAYS or leading >= D1_CAUTION_SHARE * days_prev:
-        first = str(first_sale(data))
-        where = (f"the file has no sales in {period.previous}, the month the current one is "
-                 f"compared with" if empty_prev else
-                 f"the file's first sale is on {first}, {leading} days into {period.previous}, "
-                 "the month the current one is compared with, so that month is incomplete")
+    # A previous month the file only partly covers - or holds no sale in at
+    # all - is not a comparison base, whatever the history says (Thach, 3E1):
+    # a file starting on 15 January headlined "customers bought more often
+    # (100%)", a one-month file "products were launched (100%)" for 0 -> 310,
+    # and a product sold for eleven months, absent one December, "launched"
+    # (3E1 cycles 3 and 4). The rule is shared/periods.py's, the one stage 2
+    # applies to metrics.json (2E), so the two stages cannot disagree about it.
+    coverage = previous_coverage_of(data)
+    if not coverage.complete:
         return TrustCheck(
             id="D1", status="blocked",
-            evidence={"previous_leading_days_missing": leading, "first_sale": first,
-                      "previous_month_has_sales": not empty_prev},
-            message=f"{where[0].upper()}{where[1:]}. If the export was cut short, re-export "
-                    f"the file from {period.previous}-01; if the shop opened then, there is "
-                    "no full month to compare with yet.")
+            evidence={"previous_leading_days_missing": coverage.leading_days_missing,
+                      "first_sale": (coverage.first_counted.isoformat()
+                                     if coverage.first_counted else None),
+                      "previous_month_has_sales": coverage.has_rows},
+            message=coverage.reason)
     # Only months that hold rows can teach what normal looks like. A history
     # month with nothing in it is itself a gap, and letting it set the
     # expectation lets missing data hide missing data: three empty months lift
@@ -206,10 +195,18 @@ def excess_zero_days(data: RunData, check: TrustCheck, month: str) -> float | No
 
 
 def _active_dates(data: RunData) -> pd.Series:
-    """Revenue per calendar date, over revenue-counted rows only."""
+    """Net revenue per TRADING date: a date with at least one sale row (2E
+    doubt-review F2). A date holding only refund lines is a day without
+    sales - ten such days hid ten missing days and B1 headlined "customers
+    bought less often (79%)". Each trading date's value is its sales less
+    its own refunds; refunds on refund-only dates are left out, so a gap is
+    priced at a trading day's pace (Thach, 2E cycle 2: a missing day is
+    missing sales, not missing refunds)."""
     counted = data.parsed.counted
-    return data.parsed.revenue_amounts[counted].groupby(
-        data.parsed.dates[counted].dt.normalize()).sum()
+    days = data.parsed.dates.dt.normalize()
+    trading = set(days[data.parsed.sale])
+    revenue = data.parsed.revenue_amounts[counted].groupby(days[counted]).sum()
+    return revenue[revenue.index.isin(trading)]
 
 
 def _zero_rate_by_weekday(active: pd.Series, history: list[str]) -> dict[int, float]:

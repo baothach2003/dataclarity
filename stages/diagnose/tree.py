@@ -19,7 +19,8 @@ from stages.diagnose.bridge import compute_bridge
 from stages.diagnose.inputs import RunData
 from stages.diagnose.lever import compute_lever, month_revenue, returns_levels
 from stages.diagnose.pvm import compute_products
-from stages.diagnose.thresholds import RECONCILE_REL_TOLERANCE
+from stages.diagnose.inputs import money_moved
+from stages.diagnose.thresholds import RECONCILE_FLOAT_TOLERANCE, RECONCILE_REL_TOLERANCE
 
 
 class ReconciliationError(AssertionError):
@@ -59,32 +60,39 @@ def _check_reconciliation(data: RunData, tree: Tree) -> None:
                  - month_revenue(data, data.metrics.period.previous))
     delta_gross = tree.returns.gross_cur - tree.returns.gross_prev
     delta_returns = tree.returns.returns_cur - tree.returns.returns_prev
+    # The money that moved: a lens total that is itself residue (a month whose
+    # refunds cancel its sales) crashed a real-shaped file when it was the only
+    # scale (2E doubt-review cycle 2). It enters as FLOAT ERROR only (cycle 3):
+    # at a billionth of the money moved, one reversed 13-digit price typo let
+    # a bridge error of 1,500 on a 310 change pass.
+    moved = money_moved(data)
 
     if tree.lever.level1 is not None:
         _assert_sums([f.contribution for f in tree.lever.level1.factors],
-                     delta_net, "lever level 1")
+                     delta_net, "lever level 1", moved)
     if tree.lever.level2 is not None:
         phi_aov = next(f.contribution for f in tree.lever.level1.factors
                        if f.name == "aov")
         _assert_sums([f.contribution for f in tree.lever.level2.factors],
-                     phi_aov, "lever level 2")
+                     phi_aov, "lever level 2", moved)
     if tree.customers is not None:
         _assert_sums(
             [tree.customers.new, tree.customers.resurrected, tree.customers.expansion,
              tree.customers.contraction, tree.customers.lapsed,
              tree.customers.unattributed],
-            delta_net, "customer bridge")
+            delta_net, "customer bridge", moved)
     _assert_sums(
         [tree.products.volume, tree.products.mix, tree.products.price,
          tree.products.new_products, tree.products.discontinued_products],
-        delta_gross, "product lens")
-    _assert_sums([delta_gross, -delta_returns], delta_net, "returns lens")
+        delta_gross, "product lens", moved)
+    _assert_sums([delta_gross, -delta_returns], delta_net, "returns lens", moved)
 
 
-def _assert_sums(parts: list[float], total: float, lens: str) -> None:
+def _assert_sums(parts: list[float], total: float, lens: str, moved: float = 0.0) -> None:
     residual = sum(parts) - total
     scale = max(abs(total), sum(abs(part) for part in parts))
-    if abs(residual) > RECONCILE_REL_TOLERANCE * scale:
+    allowed = RECONCILE_REL_TOLERANCE * scale + RECONCILE_FLOAT_TOLERANCE * moved
+    if abs(residual) > allowed:
         raise ReconciliationError(
             f"{lens} does not reconcile: parts sum to {sum(parts)!r}, "
             f"total is {total!r}, residual {residual!r}"

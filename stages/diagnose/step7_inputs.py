@@ -6,7 +6,7 @@ functions and the verdict rule can both import it without a cycle."""
 from dataclasses import dataclass
 
 from contracts.diagnosis import Calendar, Frame, Localization, Signal, Tree, Trust
-from stages.diagnose.inputs import RunData
+from stages.diagnose.inputs import RunData, money_moved
 from stages.diagnose.lever import month_revenue
 
 
@@ -48,6 +48,11 @@ class Changes:
     net: float
     gross: float | None
     alert: bool
+    # The money that moved in the two months (inputs.money_moved, row by row
+    # as stage 2 sums it): the scale residue is judged against (2E doubt-review
+    # cycles 2 and 3). Judged against the two nets alone, a change stage 2
+    # called residue got a "best explanation" in stage 3.
+    scale: float = 0.0
 
 
 def changes(inputs: Step7Inputs) -> Changes:
@@ -57,4 +62,4 @@ def changes(inputs: Step7Inputs) -> Changes:
     tree = inputs.tree
     gross = (tree.returns.gross_cur - tree.returns.gross_prev) if tree else None
     alert = bool(tree and tree.lever.masked_shift_alert)
-    return Changes(prev, cur, cur - prev, gross, alert)
+    return Changes(prev, cur, cur - prev, gross, alert, money_moved(inputs.data))

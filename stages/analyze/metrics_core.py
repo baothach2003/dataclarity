@@ -11,9 +11,19 @@ recompute the same figures without importing this stage (CLAUDE.md 3.1). The
 Phase 2A decisions behind it (transaction_type is stock movement direction
 only; a return is a negative-quantity counted row) are documented there.
 
-Design decision that stays here, because it is about this contract's own
-fields: zero-denominator metrics (revenue_change_pct with no previous
-revenue; aov and return_rate with no orders) report 0.0.
+Design decisions that stay here, because they are about this contract's own
+fields:
+- aov and return_rate with no orders are null with a reason. This SUPERSEDES
+  2A's "a zero denominator reports 0.0" (Thach, 2E): "AOV 0" was a false
+  statement about a month with no orders, not the absence of one, and 2.0
+  lets the contract say "unavailable".
+- An order is a sale row (shared/transactions.py, 2E): aov = NET revenue /
+  orders, so customers x frequency x aov is net revenue exactly (stage 3's
+  lever); return_rate = return lines / orders, and can exceed 1.
+- revenue_change_pct is null with a reason when the previous month is not a
+  base: incomplete in the file (shared/periods.py), or a non-positive or
+  residue base (shared/transactions.pct_change) - never 2A's 0.0, which said
+  "nothing moved" when revenue appeared from nothing (2E).
 """
 
 import calendar
@@ -24,10 +34,12 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CoreMetrics, MonthlyRevenue, Period
+from shared.periods import previous_coverage
 from shared.run_registry import run_file
 from shared.transactions import (
     # Re-exported deliberately: this error is part of what calling stage 2
     # can raise, and both the backend and this stage's tests catch it here.
+    ParsedTransactions,
     RequiredColumnMissingError,
     customer_identity,
     is_blank,
@@ -72,44 +84,59 @@ def compute_core_metrics(
     source column name -> canonical field."""
     now = now or datetime.now(UTC)
     parsed = parse_transactions(df, column_mapping)
-    period = select_period(parsed.dates, now)
+    period = select_period(parsed.dates, now, parsed.dates[parsed.sale])
 
     months = parsed.dates.dt.to_period("M").astype(str)
     current_mask = parsed.counted & (months == period.current)
     previous_mask = parsed.counted & (months == period.previous)
 
     revenue_current, orders_current, customers_current, returns_current = _bucket(
-        df, parsed.reverse, current_mask, parsed.revenue_amounts, parsed.quantities
+        df, parsed, current_mask
     )
     revenue_previous, orders_previous, customers_previous, returns_previous = _bucket(
-        df, parsed.reverse, previous_mask, parsed.revenue_amounts, parsed.quantities
+        df, parsed, previous_mask
     )
 
+    if period.previous_complete:
+        # Residue judged against the money that moved in both months (F6).
+        moved = float(parsed.revenue_amounts[current_mask | previous_mask].abs().sum())
+        change = pct_change(revenue_current, revenue_previous, moved)
+    else:
+        change = (None, period.previous_incomplete_reason)
     core = CoreMetrics(
         revenue_current=revenue_current,
         revenue_previous=revenue_previous,
-        revenue_change_pct=pct_change(revenue_current, revenue_previous),
+        revenue_change_pct=change[0],
+        revenue_change_pct_reason=change[1],
         orders_current=orders_current,
         orders_previous=orders_previous,
         active_customers_current=customers_current,
         active_customers_previous=customers_previous,
-        aov_current=_safe_divide(revenue_current, orders_current),
-        aov_previous=_safe_divide(revenue_previous, orders_previous),
-        return_rate_current=_safe_divide(returns_current, orders_current),
-        return_rate_previous=_safe_divide(returns_previous, orders_previous),
+        buyers_current=_active_customers(df, parsed.reverse, current_mask & parsed.sale),
+        buyers_previous=_active_customers(df, parsed.reverse, previous_mask & parsed.sale),
+        **_per_order("aov_current", revenue_current, orders_current, period.current),
+        **_per_order("aov_previous", revenue_previous, orders_previous, period.previous),
+        **_per_order("return_rate_current", returns_current, orders_current, period.current),
+        **_per_order("return_rate_previous", returns_previous, orders_previous,
+                     period.previous),
         revenue_by_month=_revenue_by_month(months[parsed.counted], parsed.revenue_amounts[parsed.counted]),
     )
     return period, core
 
 
-def select_period(dates: pd.Series, now: datetime) -> Period:
+def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series) -> Period:
     """`current` is the latest calendar month fully elapsed by the data's
     last date (docs/CONTRACTS.md section 6's worked example: data_end
     2011-12-09 -> current 2011-11, the partial December excluded); `previous`
     is the month before it. Whether an earlier month has any data of its own
-    does not matter, only whether that month's own last day has passed.
-    Falls back to `now`'s month when the data holds no parseable date at
-    all."""
+    does not matter for the choice, only whether that month's own last day has
+    passed. Falls back to `now`'s month when the data holds no parseable date
+    at all.
+
+    Whether `previous` is a base to compare with is decided separately, over
+    the SALE rows' dates (`counted_dates`; required, because neither a
+    stock-in row nor a refund line may complete the month), by the definition
+    stage 3 shares (shared/periods.py, 2E)."""
     valid = dates.dropna()
     if valid.empty:
         data_start = data_end = now.date()
@@ -118,12 +145,15 @@ def select_period(dates: pd.Series, now: datetime) -> Period:
         data_end = valid.max().date()
 
     current = _last_complete_month(data_end)
-    previous = _month_before(*current)
+    previous = _format_year_month(_month_before(*current))
+    coverage = previous_coverage(counted_dates, previous)
     return Period(
         current=_format_year_month(current),
-        previous=_format_year_month(previous),
+        previous=previous,
         data_start=data_start,
         data_end=data_end,
+        previous_complete=coverage.complete,
+        previous_incomplete_reason=coverage.reason,
     )
 
 
@@ -144,16 +174,15 @@ def _format_year_month(year_month: tuple[int, int]) -> str:
 
 
 def _bucket(
-    df: pd.DataFrame,
-    reverse: dict[str, str],
-    mask: pd.Series,
-    revenue_amounts: pd.Series,
-    quantities: pd.Series,
+    df: pd.DataFrame, parsed: ParsedTransactions, mask: pd.Series
 ) -> tuple[float, int, int, int]:
-    revenue = float(revenue_amounts[mask].sum())
-    orders = int(mask.sum())
-    customers = _active_customers(df, reverse, mask)
-    returns = int((quantities[mask] < 0).sum())
+    """Net revenue and active customers over every counted row (3C: a
+    returns-only customer is active); orders and returns over sale and return
+    rows (2E)."""
+    revenue = float(parsed.revenue_amounts[mask].sum())
+    orders = int((mask & parsed.sale).sum())
+    customers = _active_customers(df, parsed.reverse, mask)
+    returns = int((mask & parsed.returned).sum())
     return revenue, orders, customers, returns
 
 
@@ -168,8 +197,13 @@ def _active_customers(df: pd.DataFrame, reverse: dict[str, str], mask: pd.Series
     return int(values[~is_blank(values)].nunique())
 
 
-def _safe_divide(numerator: float, denominator: int) -> float:
-    return numerator / denominator if denominator else 0.0
+def _per_order(name: str, numerator: float, orders: int, month: str) -> dict:
+    """`name` and `name_reason` for a figure per order: null with a reason
+    when the month has no orders (orders are whole numbers, so no residue)."""
+    if orders == 0:
+        return {name: None, f"{name}_reason": f"no orders in {month}, so there is no "
+                                              "per-order figure"}
+    return {name: numerator / orders, f"{name}_reason": None}
 
 
 def _revenue_by_month(months: pd.Series, amounts: pd.Series) -> list[MonthlyRevenue]:

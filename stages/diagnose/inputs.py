@@ -76,6 +76,17 @@ def build_run_data(
     )
 
 
+def money_moved(data: RunData) -> float:
+    """Sum of |amount| over the revenue-counted rows of both compared months:
+    the scale floating-point residue is judged against. Row by row, exactly as
+    stage 2 computes it, so the two stages call the same change "nothing"
+    (2E doubt-review cycle 3: a gross that netted negative-price lines away
+    let stage 3 headline a +0.00 change stage 2 had called nothing)."""
+    period = data.metrics.period
+    both = data.parsed.counted & data.months.isin([period.previous, period.current])
+    return float(data.parsed.revenue_amounts[both].abs().sum())
+
+
 def period_mask(data: RunData, month: str) -> pd.Series:
     """The revenue-counted rows of one month. Every step 5 lens starts here, so
     that "what is in this period" is decided once rather than per lens."""

@@ -85,7 +85,7 @@ def c4(inputs: Step7Inputs, moved: Changes) -> Outcome:
             f"a rise) by >= {C4_SUPPORT_POINTS} points, partial from {C4_RULE_OUT_POINTS}")
     # Direction-neutral (Thach, 3E1): towards weaker segments explains a fall,
     # towards stronger ones a rise; the statement is rendered from the side.
-    if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur):
+    if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale):
         with_revenue = 0.0
     else:
         with_revenue = unfavourable if moved.net < 0 else -unfavourable

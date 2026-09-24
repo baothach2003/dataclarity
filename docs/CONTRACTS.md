@@ -184,16 +184,20 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "1.0", "generated_at": "...",
+  "schema_version": "2.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
-             "data_start": "2010-12-01", "data_end": "2011-12-09"},
+             "data_start": "2010-12-01", "data_end": "2011-12-09",
+             "previous_complete": true, "previous_incomplete_reason": null},
   "core": {
     "revenue_current": 1150000.0, "revenue_previous": 1290000.0,
-    "revenue_change_pct": -10.9,
+    "revenue_change_pct": -10.9, "revenue_change_pct_reason": null,
     "orders_current": 1820, "orders_previous": 1950,
     "active_customers_current": 812, "active_customers_previous": 905,
-    "aov_current": 631.9, "aov_previous": 661.5,
-    "return_rate_current": 0.042, "return_rate_previous": 0.038,
+    "buyers_current": 790, "buyers_previous": 884,
+    "aov_current": 631.9, "aov_current_reason": null,
+    "aov_previous": 661.5, "aov_previous_reason": null,
+    "return_rate_current": 0.042, "return_rate_current_reason": null,
+    "return_rate_previous": 0.038, "return_rate_previous_reason": null,
     "revenue_by_month": [{"period": "2011-01", "revenue": 690000.0}]
   },
   "customers": {
@@ -203,14 +207,18 @@ Rules for the values (no field changed):
        "avg_monetary": 3320.5, "customers_previous": 129}
     ],
     "new_vs_returning": {"new_customers": 74, "returning_customers": 738,
-                         "new_revenue": 92000.0, "returning_revenue": 1058000.0}
+                         "new_revenue": 92000.0, "returning_revenue": 1058000.0},
+    "customers_previous_reason": null, "revenue_share_reason": null
   },
   "products": {
     "pareto": {"products_for_80pct_revenue": 63, "total_products": 412,
-               "concentration_pct": 15.3},
+               "concentration_pct": 15.3, "concentration_reason": null},
     "top_products": [{"product": "WHITE HANGING HEART T-LIGHT HOLDER",
                       "revenue": 38400.0, "units": 5120}],
-    "biggest_decliners": [{"product": "...", "revenue_change_pct": -41.2}],
+    "biggest_decliners": [{"product": "...", "revenue_change": -2800.0,
+                           "revenue_change_pct": -41.2,
+                           "revenue_change_pct_reason": null}],
+    "biggest_decliners_reason": null,
     "velocity": [{"product": "...", "units_per_day": 12.4,
                   "days_to_stockout": 8.6}]
   },
@@ -218,10 +226,117 @@ Rules for the values (no field changed):
     "country": [{"name": "United Kingdom", "revenue_current": 940000.0,
                  "revenue_previous": 1020000.0, "contribution_pct": 57.1}],
     "category": [{"name": "Home Decor", "revenue_current": 210000.0,
-                  "revenue_previous": 268000.0, "contribution_pct": 41.4}]
+                  "revenue_previous": 268000.0, "contribution_pct": 41.4}],
+    "contribution_reason": null
   }
 }
 ```
+
+**Definitions (schema 2.0, session 2E).** They live in `shared/transactions.py`
+and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
+
+- An **order** is a sale row: a revenue-counted row with quantity > 0. The
+  schema has no invoice id, so a row is the unit of purchase. A return line
+  (quantity < 0) is not an order, and neither is a zero-quantity line.
+  `orders_*` count sale rows.
+- `aov_*` = **net** revenue / orders. Net, because only then does customers x
+  frequency x AOV equal net revenue exactly (stage 3's lever lens).
+- `return_rate_*` = return lines / orders: returns per order sold, the retail
+  convention. **Range [0, infinity)**, not a proportion: it exceeds 1 in a
+  month where customers return goods bought earlier. No reader may cap it or
+  treat it as a share. Rejected alternatives (2E): return lines / (sales +
+  returns) is bounded but its denominator grows with the returns it
+  measures and it is not "per order"; a value-based rate (refunded money /
+  gross sales) measures money, which P3 and the gross/net figures already
+  carry, not how often goods come back.
+- An active customer has any revenue-counted row (3C, unchanged). A
+  returns-only customer is active and has no orders. **`buyers_*`** counts the
+  customers with at least one order (a sale row) - the count stage 3's lever
+  divides orders by, so purchase frequency cannot fall because customers who
+  only returned goods appeared (2E doubt-review F1). **Which of the two the
+  Insights "customers" KPI shows is a stage 5/6 display decision** (Thach, 2E):
+  buyers is the usual commercial meaning.
+- RFM **frequency** counts the customer's orders (sale rows). A returns-only
+  customer has frequency 0. Recency and monetary still read every counted row.
+- **A ratio whose denominator is zero - or negligible, i.e. floating-point
+  residue next to the money that moved to produce it (`shared/numbers.py`
+  `is_negligible`, the same test stage 3 uses; judged against the GROSS money
+  of both months, because two nets that are themselves residue make residue
+  look like a scale: shares of 1.8e20 and a -100% change, 2E doubt-review
+  F5/F6) - is null with a reason**
+  (Thach, 2E): `aov_*` and `return_rate_*` with no orders, `contribution_pct`
+  when the total change is negligible, each segment's `revenue_share_pct` when
+  whole-file monetary is negligible, and pareto `concentration_pct` with no
+  products. **This supersedes 2A's decision that a zero denominator reports
+  0.0**, which Thach approved in 2A because the 1.0 contract required a
+  number there; 2.0 allows null, and 0.0 was a false statement ("AOV 0",
+  "nothing moved") rather than the absence of one. A flat month's float
+  residue (5.6e-17) is what produced shares of 1e15 twice in stage 3 (3C,
+  3D), which is why "zero" means negligible, not `== 0`.
+
+**A comparison that cannot be made is null, and a `*_reason` says why - never a
+sign-inverted or half-month number.** The model enforces the pairing: a null
+without a reason, a reason beside a value, or a list comparison null for only
+some of its members is invalid.
+
+- **Non-positive base.** `revenue_change_pct` (and each decliner's
+  `revenue_change_pct`) is null when the previous value is zero, negative, or
+  floating-point residue next to the money that moved in the two months
+  (under a billionth of it). **Known limit (2E doubt-review cycle 4, session
+  2E-b):** the money moved counts a self-cancelling outlier pair at twice its
+  size, so ONE reversed barcode-sized typo (8,934,567,890,123 sold and
+  refunded) makes a real +310 (+10%) month "residue" in both stages: this
+  field and `contribution_pct` become null with a false reason, and a real
+  -30% decliner drops out of `biggest_decliners`. A real but tiny base is NOT
+  refused yet: a July
+  netting 0.01 against an August of 3,100 reports +30,999,900%, which is true
+  arithmetic on an unusable base. Applying 3D6's usable-base rule to stage 2
+  is scheduled (PROJECT_PLAN 2F). Against a negative base the
+  sign inverts: -100 -> -200 read +100% (a doubled loss as growth), and
+  -100 -> +500 read -600%. Against zero, 2A's 0.0 said "nothing moved" when
+  revenue appeared from nothing.
+- **Incomplete previous month.** `period.previous_complete` is false when the
+  previous month holds no SALE row, or when the FILE's first sale comes at
+  least 3 days after the previous month's 1st (an export cut mid-month) - the
+  one definition, `shared/periods.py`, that stage 3's trust gate blocks on
+  (`docs/AI_PIPELINE.md` 7.2). Sales, not counted rows: a month holding only
+  refund lines is not a base (2E doubt-review F3). **Known limit:** a leading
+  gap in the middle of the history (a history-rich file missing the previous
+  month's 1st-19th) is not detected here. The month's own first sale was
+  measured as the rule and falsely flagged 15-35% of sparse shops and 13-17%
+  of shops closed three days a week (2E); a pattern-aware rule belongs to
+  session 3E1b and will replace this one inside the same shared definition.
+  Stage 3's D1 check does catch such a gap, and **stage 5 shows stage 3's
+  trust badge beside stage 2's period-over-period KPIs**, which covers what
+  stage 2 cannot see. **Second known limit, at the other end** (2E
+  doubt-review cycle 2): the CURRENT month is chosen from the file's last row
+  of ANY kind, so sales ending on the 20th plus one refund line on the next
+  month's 1st make the month "complete" (reproduced: -35.5% and a decliner
+  that stage 2 reports; stage 3 cautions on D1 and headlines rule 2).
+  Coverage is therefore sale-based at the previous month's start and
+  row-based at the current month's end; session 3E1b makes period selection
+  sale-based at BOTH ends inside the one shared definition. Until then the
+  trust badge beside stage 2's KPIs shows the -35.5% with its caution.
+  `previous_incomplete_reason` states which case applies and what to do:
+  re-export from the 1st of the previous month. Every field whose only
+  purpose is to compare the two months is then null, carrying that same
+  reason: `revenue_change_pct`, `biggest_decliners` (the whole list),
+  `by_dimension.*[].contribution_pct` (`contribution_reason`) and
+  `segments[].customers_previous` (`customers_previous_reason`). The raw
+  previous-month totals (`revenue_previous`, `orders_previous`,
+  `active_customers_previous`, `aov_previous`, `return_rate_previous`, and
+  each dimension's `revenue_previous`) stay: they are true counts of what the
+  file holds for that month.
+- **Stage 5 must render every `*_previous` total from an incomplete month with
+  a visible "partial month" label** (Thach, 2E), so a reader cannot compare
+  the two raw totals by eye and draw the conclusion stage 2 refused to
+  compute.
+
+**`biggest_decliners`** is every product with previous-period revenue whose
+revenue fell by more than float residue, ranked by the fall in money (`revenue_change`, most negative
+first), at most 10. A percentage cannot rank them: it would drop a product
+whose loss doubled and rank a recovering product first. The percentage is
+reported beside the money where its base allows.
 `contribution_pct` = share of the total change attributable to that dimension
 member (signed), not share of revenue. Stage 2 never calls the AI.
 
@@ -690,6 +805,21 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-24: **`metrics.json` went to `2.0`** (session 2E): a major bump under
+  the rule above, because `orders_*`, `aov_*`, `return_rate_*` and RFM
+  frequency changed meaning (an order is a sale row) and
+  `revenue_change_pct`, `biggest_decliners`, each decliner's
+  `revenue_change_pct`, `contribution_pct` and `customers_previous` became
+  nullable, each with a `*_reason`; `period.previous_complete`,
+  `previous_incomplete_reason` and each decliner's `revenue_change` were
+  added. `metrics.json` files had been written since session 2D, so the
+  in-place precedent did not apply. Every reader requires `2.x`: a `1.x` file
+  is refused with "re-analyse this run" (`contracts/_base.py`'s
+  per-contract `supported_major`), so stage 3 never reads old meanings
+  silently. **Runs analysed before 2E keep their `1.0` `metrics.json` until
+  re-analysed.** Every other contract file stays at `1.x`.
+  `diagnosis.json` needed no bump for this: no endpoint or `__main__` writes
+  it yet (that is session 3G) - confirmed by search, not assumed.
 - 2026-09-23: **the divergence recorded in the entry above is closed.** Session
   3C rewrote `contracts/diagnosis.py` and `tests/contracts/test_diagnosis.py`
   against this section; the model and the doc describe the same file again.

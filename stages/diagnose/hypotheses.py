@@ -75,7 +75,8 @@ def share_verdict(spec: HypothesisSpec, contribution: float, inputs: Step7Inputs
     """The 7.8 verdict table for a share hypothesis: same sign as the change it
     claims to explain, and |share| against the two thresholds."""
     total = moved.gross if spec.lens == "product" else moved.net
-    if total is None or is_negligible(total, moved.revenue_prev, moved.revenue_cur):
+    if total is None or is_negligible(total, moved.revenue_prev, moved.revenue_cur,
+                                      moved.scale):
         return "ruled_out", None, "the total did not move, so there is no change to explain"
     if moved.alert and inputs.tree is not None and spec.kind == "term":
         denominator = decomposition_gross(inputs.tree, DECOMPOSITION[spec.id])

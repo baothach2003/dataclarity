@@ -1,7 +1,7 @@
 """Shared base for every contract model (docs/CONTRACTS.md section 1)."""
 
 import re
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator
 
@@ -29,15 +29,23 @@ class ContractFile(ContractModel):
     schema_version: str
     generated_at: AwareDatetime
 
+    # Per contract file, since each bumps on its own (CONTRACTS.md section 10):
+    # metrics.json went to 2.0 in session 2E while every other file is 1.x.
+    supported_major: ClassVar[int] = SUPPORTED_MAJOR_VERSION
+    # Appended to the refusal of an older major, so the reader is told what
+    # to do rather than only what went wrong.
+    stale_major_hint: ClassVar[str] = ""
+
     @field_validator("schema_version")
     @classmethod
     def _known_major_version(cls, value: str) -> str:
         match = _VERSION_PATTERN.match(value)
         if match is None:
             raise ValueError(f"expected 'MAJOR.MINOR', got {value!r}")
-        if int(match.group(1)) != SUPPORTED_MAJOR_VERSION:
+        if int(match.group(1)) != cls.supported_major:
+            hint = cls.stale_major_hint if int(match.group(1)) < cls.supported_major else ""
             raise ValueError(
                 f"unsupported major version {value!r}; "
-                f"this reader supports {SUPPORTED_MAJOR_VERSION}.x"
+                f"this reader supports {cls.supported_major}.x{hint}"
             )
         return value

@@ -10,7 +10,7 @@ and look at.
 
 from contracts.diagnosis import Breadth, Localization
 from stages.diagnose.bridge import customer_classes
-from stages.diagnose.inputs import RunData
+from stages.diagnose.inputs import RunData, money_moved
 from stages.diagnose.members import (
     MemberTotals,
     build_dimension,
@@ -24,16 +24,20 @@ from stages.diagnose.thresholds import BREADTH_BROAD, BREADTH_CONCENTRATED
 
 
 def compute_localization(data: RunData, delta_total: float) -> Localization:
+    # Residue in the total change is judged against the money moved, row by
+    # row as stage 2 judges it, so stage 3's member shares and breadth call
+    # the same change "nothing" that stage 2 does (2E doubt-review cycle 3).
+    scale = money_moved(data)
     products = product_totals(data)
     dimensions = []
 
     categories = category_totals(data)
     if categories is not None:
-        dimensions.append(build_dimension("category", categories, delta_total))
-    dimensions.append(build_dimension("product", products, delta_total))
+        dimensions.append(build_dimension("category", categories, delta_total, scale))
+    dimensions.append(build_dimension("product", products, delta_total, scale))
     if data.parsed.reverse.get("customer") is not None:
         customers = customer_type_totals(data, customer_classes(data))
-        dimensions.append(build_dimension("customer_type", customers, delta_total))
+        dimensions.append(build_dimension("customer_type", customers, delta_total, scale))
 
     return Localization(
         dimensions=dimensions,
@@ -43,11 +47,11 @@ def compute_localization(data: RunData, delta_total: float) -> Localization:
         # produced metrics.json at all, so there is no run where this is
         # missing). Session 3D's choice - DIAGNOSE_DESIGN 5.6 defines breadth
         # over "members" without naming the dimension. Flagged for veto.
-        breadth=compute_breadth(products, delta_total),
+        breadth=compute_breadth(products, delta_total, scale),
     )
 
 
-def compute_breadth(totals: MemberTotals, delta_total: float) -> Breadth:
+def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0) -> Breadth:
     """How concentrated the change is.
 
     Both figures are computed over EVERY member, not the handful the
@@ -71,7 +75,8 @@ def compute_breadth(totals: MemberTotals, delta_total: float) -> Breadth:
     # that fell, which produced a `concentrated` breadth verdict - reachable
     # by the headline - on a month where one product rose 50 and another fell
     # 50 (3D doubt-review R8).
-    flat = is_negligible(delta_total, *base.values(), delta_total)
+    # ...and against the money moved, as stage 2 judges it (2E cycle 3).
+    flat = is_negligible(delta_total, *base.values(), delta_total, scale)
     same_direction = 0.0 if flat else sum(
         base[key] for key in keys
         if base[key] > 0 and deltas[key] != 0 and (deltas[key] > 0) == (delta_total > 0)

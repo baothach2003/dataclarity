@@ -26,7 +26,7 @@ Design decisions (Thach, Phase 2C):
   row" edge case - such a product never has current-period units at all, so
   it never enters this list.
 - `top_products` and `biggest_decliners` are each capped at the 10
-  highest-ranked entries (revenue descending / revenue_change_pct ascending
+  highest-ranked entries (revenue descending / revenue_change ascending
   respectively), ties broken by product name for a deterministic,
   hand-checkable order. `velocity` is unbounded and sorted soonest-to-run-out
   first: it is a stockout-risk inventory, not a leaderboard, so every
@@ -45,10 +45,16 @@ Design decisions (Thach, Phase 2C):
   same, human-readable way regardless of which rows resolved it by SKU.
 - `top_products` excludes a net-negative-revenue product (returns
   outweighing sales for that product this period): it is not a "top"
-  performer. `biggest_decliners`' population is exactly the products with
-  nonzero previous-period revenue (reusing metrics_core.pct_change's own
-  zero-denominator convention - a product with no previous revenue cannot
-  "decline"), further filtered to an actually negative revenue_change_pct.
+  performer.
+- `biggest_decliners` (Thach, session 2E): every product with previous-period
+  revenue whose revenue FELL, ranked by the fall in money (`revenue_change`,
+  most negative first). Ranking by percentage inverted the list for any
+  product with a negative previous period: a loss that doubled (-100 -> -200)
+  scored +100% and was dropped, and a recovery (-100 -> +500) scored -600% and
+  was ranked the biggest decliner. The percentage is still reported beside
+  the money, null with a reason where its base is not positive
+  (shared/transactions.pct_change). The whole list is null, with the period's
+  reason, when the previous month is incomplete: every entry compares it.
 """
 
 import calendar
@@ -59,6 +65,7 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, ProductVelocity, TopProduct
+from shared.numbers import is_negligible
 from shared.run_registry import run_file
 from shared.transactions import (
     normalize_text,
@@ -89,7 +96,7 @@ def product_metrics_for_run(
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     parsed = parse_transactions(frame, report.column_mapping)
-    period = select_period(parsed.dates, now or datetime.now(UTC))
+    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
     return compute_product_metrics(frame, report.column_mapping, period)
 
 
@@ -114,15 +121,20 @@ def compute_product_metrics(
     all_in = table[parsed.valid & ~parsed.counted]
     all_out = table[parsed.counted]
 
+    if period.previous_complete:
+        decliners, decliners_reason = _biggest_decliners(current, previous, names), None
+    else:
+        decliners, decliners_reason = None, period.previous_incomplete_reason
     return ProductMetrics(
-        pareto=_pareto(current),
+        pareto=_pareto(current, period.current),
         top_products=_top_products(current, names),
-        biggest_decliners=_biggest_decliners(current, previous, names),
+        biggest_decliners=decliners,
+        biggest_decliners_reason=decliners_reason,
         velocity=_velocity(current, all_in, all_out, names, _days_in_month(period.current)),
     )
 
 
-def _pareto(current: pd.DataFrame) -> Pareto:
+def _pareto(current: pd.DataFrame, month: str) -> Pareto:
     # Same population as _top_products (revenue > 0): a product that net
     # returned more than it sold this period isn't a revenue driver, and
     # counting it here while excluding it from top_products would make the
@@ -131,8 +143,13 @@ def _pareto(current: pd.DataFrame) -> Pareto:
     by_product = by_product[by_product > 0]
     total_products = int(len(by_product))
     total_revenue = float(by_product.sum())
-    if total_products == 0 or total_revenue <= 0:
-        return Pareto(products_for_80pct_revenue=0, total_products=total_products, concentration_pct=0.0)
+    # Every product here has positive revenue, so total_revenue > 0 whenever
+    # there is one. With none, the share is null with a reason (2E,
+    # superseding 2A's 0.0 - "0% concentration" described a month with no
+    # sales at all).
+    if total_products == 0:
+        return Pareto(products_for_80pct_revenue=0, total_products=0, concentration_pct=None,
+                      concentration_reason=f"no product has positive revenue in {month}")
 
     cumulative = by_product.sort_values(ascending=False).cumsum()
     threshold = total_revenue * 0.8
@@ -145,6 +162,7 @@ def _pareto(current: pd.DataFrame) -> Pareto:
         products_for_80pct_revenue=count_for_80pct,
         total_products=total_products,
         concentration_pct=count_for_80pct / total_products * 100,
+        concentration_reason=None,
     )
 
 
@@ -170,17 +188,26 @@ def _biggest_decliners(current: pd.DataFrame, previous: pd.DataFrame, names: pd.
     if previous_by_product.empty:
         return []
 
-    declines: list[tuple[str, float]] = []
+    # The money each product moved in the two months, the scale its residue
+    # is judged against: 0.1 + 0.2 against 0.3 is the same 0.30, not a
+    # decline of 5.55e-17 (2E doubt-review F7).
+    moved = pd.concat([current, previous]).assign(size=lambda t: t["revenue"].abs()) \
+        .groupby("identity")["size"].sum()
+    declines: list[tuple[str, float, float, float]] = []
     for identity, previous_revenue in previous_by_product.items():
-        change = pct_change(float(current_by_product.get(identity, 0.0)), float(previous_revenue))
-        if change < 0:
-            declines.append((str(identity), change))
+        current_revenue = float(current_by_product.get(identity, 0.0))
+        change = current_revenue - float(previous_revenue)
+        if change < 0 and not is_negligible(change, float(moved.get(identity, 0.0))):
+            declines.append((str(identity), change, current_revenue, float(previous_revenue)))
 
     declines.sort(key=lambda item: (item[1], names.get(item[0], "")))
-    return [
-        ProductDecline(product=names[identity], revenue_change_pct=change)
-        for identity, change in declines[:BIGGEST_DECLINERS_LIMIT]
-    ]
+    ranked = []
+    for identity, change, current_revenue, previous_revenue in declines[:BIGGEST_DECLINERS_LIMIT]:
+        pct = pct_change(current_revenue, previous_revenue, float(moved.get(identity, 0.0)))
+        ranked.append(ProductDecline(product=names[identity], revenue_change=change,
+                                     revenue_change_pct=pct.value,
+                                     revenue_change_pct_reason=pct.reason))
+    return ranked
 
 
 def _velocity(

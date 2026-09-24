@@ -37,7 +37,7 @@ def frame(rows: list[dict]) -> pd.DataFrame:
 def test_current_period_excludes_a_partial_latest_month() -> None:
     dates = pd.to_datetime(pd.Series(["2010-12-01", "2011-12-09"]))
 
-    period = select_period(dates, NOW)
+    period = select_period(dates, NOW, dates)
 
     # data_end 2011-12-09: December has 31 days, 9 != 31, so December has not
     # fully elapsed and is excluded, exactly as docs/CONTRACTS.md section 6.
@@ -48,7 +48,7 @@ def test_current_period_excludes_a_partial_latest_month() -> None:
 def test_current_period_includes_the_latest_month_when_it_ends_on_its_last_day() -> None:
     dates = pd.to_datetime(pd.Series(["2011-11-01", "2011-11-30"]))
 
-    period = select_period(dates, NOW)
+    period = select_period(dates, NOW, dates)
 
     assert (period.current, period.previous) == ("2011-11", "2011-10")
 
@@ -56,7 +56,7 @@ def test_current_period_includes_the_latest_month_when_it_ends_on_its_last_day()
 def test_january_rolls_the_previous_period_back_a_year() -> None:
     dates = pd.to_datetime(pd.Series(["2011-01-31"]))
 
-    period = select_period(dates, NOW)
+    period = select_period(dates, NOW, dates)
 
     assert (period.current, period.previous) == ("2011-01", "2010-12")
 
@@ -64,7 +64,7 @@ def test_january_rolls_the_previous_period_back_a_year() -> None:
 def test_no_parseable_date_falls_back_to_now() -> None:
     dates = pd.to_datetime(pd.Series([None, None]))
 
-    period = select_period(dates, NOW)
+    period = select_period(dates, NOW, dates)
 
     # NOW is 2026-09-19: September has 30 days, 19 != 30, so August is the
     # latest complete month relative to NOW.
@@ -98,10 +98,13 @@ def test_core_metrics_hand_calculated() -> None:
 
     # current: 3*10 + 2*5 + (-1)*10 = 30 + 10 - 10 = 30
     assert core.revenue_current == 30.0
-    assert core.orders_current == 3
+    # 2E: an order is a sale row, so the return line is not one - 2 orders
+    # (was 3). AOV is NET revenue over orders: 30 / 2 = 15.0 (was 30 / 3 =
+    # 10.0). Return rate is return lines over orders: 1 / 2 = 0.5 (was 1 / 3).
+    assert core.orders_current == 2
     assert core.active_customers_current == 2  # Alice, Bob
-    assert core.aov_current == 10.0  # 30 / 3
-    assert core.return_rate_current == pytest.approx(1 / 3)  # 1 negative-qty row of 3
+    assert core.aov_current == 15.0
+    assert core.return_rate_current == pytest.approx(0.5)
 
     # previous: 4 * 8.0
     assert core.revenue_previous == 32.0
@@ -130,11 +133,15 @@ def test_zero_orders_in_the_previous_period_uses_the_zero_denominator_convention
     assert core.revenue_current == 20.0
     assert core.revenue_previous == 0.0
     assert core.orders_previous == 0
-    assert core.aov_previous == 0.0
-    assert core.return_rate_previous == 0.0
-    # revenue_previous == 0 -> 0.0 always (Thach's decision), never a
-    # manufactured "infinite growth" figure.
-    assert core.revenue_change_pct == 0.0
+    # Were 0.0 under 2A's zero-denominator rule; October has no orders, so
+    # there is no per-order figure (2E, superseding 2A).
+    assert (core.aov_previous, core.return_rate_previous) == (None, None)
+    assert "no orders in 2011-10" in core.aov_previous_reason
+    # Was 0.0 ("revenue_previous == 0 -> 0.0 always", 2A), which read as
+    # "nothing moved" on a month that went 0 -> 20. Since 2E October holds no
+    # sale, so it is no base: unavailable, and the reason says so.
+    assert core.revenue_change_pct is None
+    assert "no sales in 2011-10" in core.revenue_change_pct_reason
 
 
 def test_zero_orders_in_the_current_period_when_the_latest_month_is_partial() -> None:
@@ -148,10 +155,13 @@ def test_zero_orders_in_the_current_period_when_the_latest_month_is_partial() ->
     assert (period.current, period.previous) == ("2011-10", "2011-09")
     assert core.revenue_current == 0.0
     assert core.orders_current == 0
-    assert core.aov_current == 0.0
-    assert core.return_rate_current == 0.0
+    # Were 0.0 (2A); October has no orders (2E).
+    assert (core.aov_current, core.return_rate_current) == (None, None)
+    assert "no orders in 2011-10" in core.return_rate_current_reason
     assert core.revenue_previous == 0.0
-    assert core.revenue_change_pct == 0.0
+    # Was 0.0; September holds no sale, so no comparison exists (2E).
+    assert core.revenue_change_pct is None
+    assert "no sales in 2011-09" in core.revenue_change_pct_reason
     assert [(m.period, m.revenue) for m in core.revenue_by_month] == [("2011-11", 20.0)]
 
 
@@ -165,9 +175,12 @@ def test_empty_dataframe_falls_back_to_now_and_reports_all_zeros() -> None:
     assert core.revenue_current == core.revenue_previous == 0.0
     assert core.orders_current == core.orders_previous == 0
     assert core.active_customers_current == core.active_customers_previous == 0
-    assert core.aov_current == core.aov_previous == 0.0
-    assert core.return_rate_current == core.return_rate_previous == 0.0
-    assert core.revenue_change_pct == 0.0
+    # Were 0.0 (2A); no orders in either month (2E).
+    assert core.aov_current is None and core.aov_previous is None
+    assert core.return_rate_current is None and core.return_rate_previous is None
+    # Was 0.0; an empty file has no previous month to compare with (2E).
+    assert core.revenue_change_pct is None
+    assert core.revenue_change_pct_reason is not None
     assert core.revenue_by_month == []
 
 

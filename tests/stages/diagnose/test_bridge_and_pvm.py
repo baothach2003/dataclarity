@@ -14,7 +14,7 @@ from stages.diagnose.lever import month_revenue, period_totals
 from stages.diagnose.pvm import compute_products
 from stages.diagnose.frame import history_window
 from stages.diagnose.tree import ReconciliationError, _assert_sums, compute_tree
-from tests.stages.diagnose.diagnose_fixtures import MAPPING, row, run_data
+from tests.stages.diagnose.diagnose_fixtures import MAPPING, daily_rows, row, run_data
 from tests.stages.diagnose.test_shapley_and_lever import reconciles
 
 # --- customer bridge ----------------------------------------------------------
@@ -486,6 +486,24 @@ def test_period_totals_agree_with_stage_2() -> None:
     assert totals.revenue == pytest.approx(data.metrics.core.revenue_current)
     assert totals.orders == data.metrics.core.orders_current
     assert totals.customers == data.metrics.core.active_customers_current
+
+
+def test_period_totals_count_orders_as_stage_2_does_on_a_month_with_returns() -> None:
+    """2E: a return line is not an order in either stage. October: three
+    sales and two return lines - orders 3 in both, not 5."""
+    rows = daily_rows(date(2011, 9, 1), date(2011, 10, 31), customer="Alice")
+    rows += [row(date(2011, 10, 5), qty=-1.0, customer="Alice"),
+             row(date(2011, 10, 6), qty=-1.0, customer="Bob")]
+    data = run_data(rows)
+
+    totals = period_totals(data, data.metrics.period.current)
+
+    assert totals.orders == data.metrics.core.orders_current == 31
+    assert totals.revenue == pytest.approx(data.metrics.core.revenue_current)
+    # The lever counts BUYERS since the 2E doubt-review (F1): Bob only
+    # returned goods, so he is active (2) but not a buyer (1).
+    assert totals.customers == data.metrics.core.buyers_current == 1
+    assert data.metrics.core.active_customers_current == 2
 
 
 def test_a_retained_customer_can_go_negative_without_breaking_the_bridge() -> None:

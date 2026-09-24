@@ -61,7 +61,8 @@ class MemberTotals:
     gap_keys: frozenset[str]
 
 
-def build_dimension(name: str, totals: MemberTotals, delta_total: float) -> Dimension:
+def build_dimension(name: str, totals: MemberTotals, delta_total: float,
+                    scale: float = 0.0) -> Dimension:
     """Rank, group and report one dimension.
 
     The invariant every test checks: named members + Other + new + removed
@@ -72,12 +73,13 @@ def build_dimension(name: str, totals: MemberTotals, delta_total: float) -> Dime
     keys = sorted(set(totals.rev_prev.index) | set(totals.rev_cur.index))
     # Presence is simply "this key has a revenue-counted row in that period" -
     # the definition Thach chose for the bridge in 3C, reused so the two
-    # lenses agree about who was there. `groupby().size()` only ever holds
-    # keys that occurred, so membership of the index IS the rule; testing
-    # `> 0` on it would read as if the rule were "non-zero orders", which is
-    # the definition decision (c) rejects.
-    present_prev = set(totals.orders_prev.index)
-    present_cur = set(totals.orders_cur.index)
+    # lenses agree about who was there. The revenue groupby only ever holds
+    # keys that occurred, so membership of its index IS the rule. Not the
+    # orders index: since 2E orders count sale rows only, and a product seen
+    # only through a refund is still present (decision (c) rejects
+    # "non-zero orders" as the rule).
+    present_prev = set(totals.rev_prev.index)
+    present_cur = set(totals.rev_cur.index)
 
     # Everything below keys on the IDENTITY, never on the display name. Two
     # keys can legitimately share a label - two SKUs of one product name is
@@ -87,7 +89,7 @@ def build_dimension(name: str, totals: MemberTotals, delta_total: float) -> Dime
     # `named_names`, was excluded from the remainder, and appeared in neither
     # `members` nor `other`: 6.4% of the change silently vanished and the
     # dimension stopped reconciling (3D doubt-review C1).
-    members = {key: _member(key, totals, delta_total) for key in keys}
+    members = {key: _member(key, totals, delta_total, scale) for key in keys}
 
     # A member whose sales and returns cancelled to zero in both periods is an
     # ordinary member with delta 0: neither new nor removed, never named
@@ -130,7 +132,7 @@ def build_dimension(name: str, totals: MemberTotals, delta_total: float) -> Dime
     return Dimension(
         name=name,
         members=[members[key] for key in named],
-        other=_other(remainder, delta_total),
+        other=_other(remainder, delta_total, scale),
         new_members=new_members,
         removed_members=removed_members,
         # Exactly what the contract says it is: nothing cleared the size bar
@@ -143,7 +145,7 @@ def build_dimension(name: str, totals: MemberTotals, delta_total: float) -> Dime
     )
 
 
-def _member(key: str, totals: MemberTotals, delta_total: float) -> Member:
+def _member(key: str, totals: MemberTotals, delta_total: float, scale: float = 0.0) -> Member:
     rev_prev = float(totals.rev_prev.get(key, 0.0))
     rev_cur = float(totals.rev_cur.get(key, 0.0))
     delta = rev_cur - rev_prev
@@ -152,12 +154,12 @@ def _member(key: str, totals: MemberTotals, delta_total: float) -> Member:
         rev_prev=rev_prev,
         rev_cur=rev_cur,
         delta=delta,
-        share_of_change=_share(delta, delta_total),
+        share_of_change=_share(delta, delta_total, scale),
         is_data_gap=key in totals.gap_keys,
     )
 
 
-def _share(delta: float, delta_total: float) -> float:
+def _share(delta: float, delta_total: float, scale: float = 0.0) -> float:
     """A member's slice of the total change, or 0.0 when the total did not
     really move.
 
@@ -166,9 +168,12 @@ def _share(delta: float, delta_total: float) -> float:
     member a share of -5.4e15 - which step 8 would narrate as "this product
     accounts for -540,000,000,000,000,000% of the change". `lever.py` fixed
     this same mistake twice in 3C; the helper now lives in `numbers.py` so a
-    third place cannot rediscover it.
+    third place cannot rediscover it. `scale` is the money moved (2E doubt-
+    review cycle 3): a +1 change on 3.1e9 of trade is nothing to stage 2, and
+    judged only against the members' own deltas it gave one a share of
+    2,000,000x.
     """
-    if is_negligible(delta_total, delta_total, delta):
+    if is_negligible(delta_total, delta_total, delta, scale):
         return 0.0
     return delta / delta_total
 
@@ -200,7 +205,7 @@ def _large_keys(keys: list[str], totals: MemberTotals) -> set[str]:
     return large
 
 
-def _other(remainder: list[Member], delta_total: float) -> Member | None:
+def _other(remainder: list[Member], delta_total: float, scale: float = 0.0) -> Member | None:
     if not remainder:
         return None
     rev_prev = sum(m.rev_prev for m in remainder)
@@ -211,7 +216,7 @@ def _other(remainder: list[Member], delta_total: float) -> Member | None:
         rev_prev=rev_prev,
         rev_cur=rev_cur,
         delta=delta,
-        share_of_change=_share(delta, delta_total),
+        share_of_change=_share(delta, delta_total, scale),
     )
 
 
@@ -287,7 +292,9 @@ def _totals(
         mask = period_mask(data, month)
         grouped = keys[mask]
         frames[f"rev_{label}"] = data.parsed.revenue_amounts[mask].groupby(grouped).sum()
-        frames[f"orders_{label}"] = grouped.groupby(grouped).size()
+        # Sale rows (2E); a key with only refunds has 0 orders, not an entry.
+        sales = keys[mask & data.parsed.sale]
+        frames[f"orders_{label}"] = sales.groupby(sales).size()
     return MemberTotals(
         rev_prev=frames["rev_prev"],
         rev_cur=frames["rev_cur"],

@@ -92,7 +92,15 @@ LEFT_CENSOR_MONTHS = 3
 # which scales with the size of the figures. An absolute tolerance would be
 # either meaningless on a shop turning over millions or unmeetable on one
 # turning over hundreds (docs/adr/0004, docs/AI_PIPELINE.md 7.6).
-RECONCILE_REL_TOLERANCE = 1e-9
+# The one residue tolerance, shared with stage 2 since 2E (shared/numbers.py).
+from shared.numbers import RESIDUE_REL_TOLERANCE as RECONCILE_REL_TOLERANCE  # noqa: E402
+# Float error on the money moved in the two months, added to the per-lens
+# tolerance above (2E doubt-review cycle 3). A trillionth: enough for sums
+# that cancel to residue. KNOWN LIMIT (2E cycle 4, session 2E-b): a reversed
+# 13-digit price typo still opens room in proportion to price x quantity - a
+# bridge error of 15 (EAN, qty 1) or 150 (qty 12) on a 310 change passes.
+# Each lens needs its own float scale.
+RECONCILE_FLOAT_TOLERANCE = 1e-12
 
 # --- Signal vs noise, XmR (7.5) -----------------------------------------------
 
@@ -157,8 +165,9 @@ XMR_RUN_LENGTH = 8
 # with no variation at all, since 1% of a centre is small next to any real
 # month-to-month movement.
 XMR_MIN_SPREAD_SHARE = 0.01
-# Level mode, rate-like series (a fraction of orders): one percentage point,
-# since a share of a centre near 0.02 would be far too small to mean anything.
+# Level mode, rate-like series (return lines per order - usually near 0.02,
+# but [0, infinity) since 2E, never capped): one point, since a share of a
+# centre near 0.02 would be far too small to mean anything.
 XMR_MIN_SPREAD_RATE = 0.01
 # Year-over-year mode, every series: percentage POINTS, the units the series
 # actually carries. 5.0 hid a grower flipping from +2% to -2.5%; 0.0 left an

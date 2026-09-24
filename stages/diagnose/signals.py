@@ -173,9 +173,11 @@ def monthly_series(data: RunData) -> pd.DataFrame:
     for month in data.complete_months:
         mask = counted & (months == month)
         revenue = float(data.parsed.revenue_amounts[mask].sum())
-        orders = int(mask.sum())
+        # Orders and returns as stage 2 counts them (2E): sale rows and return
+        # lines. Units stay net, as in the lever's level 2.
+        orders = int((mask & data.parsed.sale).sum())
         units = float(data.parsed.quantities[mask].sum())
-        returns = int((data.parsed.quantities[mask] < 0).sum())
+        returns = int((mask & data.parsed.returned).sum())
 
         row: dict[str, float] = {
             "revenue": revenue,
@@ -191,7 +193,10 @@ def monthly_series(data: RunData) -> pd.DataFrame:
             # the consistency test compares these two figures directly.
             customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
             row["active_customers"] = float(customers)
-            row["frequency"] = orders / customers if customers else 0.0
+            # Frequency per BUYER, as the lever computes it (2E doubt-review F1).
+            buying = identified & data.parsed.sale
+            buyers = int(customer_identity(data.df.loc[buying, customer_col]).nunique())
+            row["frequency"] = orders / buyers if buyers else 0.0
         rows.append(row)
 
     table = pd.DataFrame(rows, index=pd.Index(data.complete_months, name="month"))
@@ -217,8 +222,9 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
 
     Which series this reaches: **every series built from signed money**, which
     is `revenue`, `aov`, `units_per_order` and `price_per_unit`. The counts
-    (`orders`, `active_customers`, `frequency`) and the `return_rate` fraction
-    cannot be negative, so `> 0` is exactly the old `!= 0` for them and
+    (`orders`, `active_customers`, `frequency`) and the `return_rate` (return
+    lines per order: [0, infinity) since 2E, not a proportion) cannot be
+    negative, so `> 0` is exactly the old `!= 0` for them and
     nothing about them changes.
 
     `price_per_unit` was claimed in this docstring to be immune, on the

@@ -45,7 +45,7 @@ def _moves_with_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
         return True
     # A change of zero has no best explanation in either direction: the sign
     # test alone admitted every negative cause when net was exactly 0 (cycle 4).
-    if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur):
+    if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale):
         return False
     return (hypothesis.contribution > 0) == (moved.net > 0)
 

@@ -9,28 +9,19 @@ from exactly this mistake, in two different files, because each one wrote its
 own `== 0` guard.
 
 One helper, so the next place that divides by a difference inherits the guard
-instead of rediscovering the bug.
+instead of rediscovering the bug. It lives in `shared/numbers.py` since 2E, so
+stage 2 uses the same definition, and is re-exported here for stage 3's
+callers.
 """
 
 from collections.abc import Iterable
 
 import pandas as pd
 
-from stages.diagnose.thresholds import RECONCILE_REL_TOLERANCE, YOY_MIN_BASE_SHARE
+from shared.numbers import is_negligible
+from stages.diagnose.thresholds import YOY_MIN_BASE_SHARE
 
-
-def is_negligible(delta: float, *magnitudes: float) -> bool:
-    """Is `delta` nothing but floating-point residue, next to these figures?
-
-    Relative, because the residue scales with the numbers it came from: an
-    absolute epsilon is either meaningless on a shop turning over millions or
-    unmeetable on one turning over hundreds. With no magnitude to judge
-    against, falls back to exact zero.
-    """
-    scale = max((abs(value) for value in magnitudes), default=0.0)
-    if not scale:
-        return delta == 0
-    return abs(delta) <= RECONCILE_REL_TOLERANCE * scale
+__all__ = ["is_negligible", "typical_magnitude", "usable_base"]
 
 
 def typical_magnitude(values: Iterable[float]) -> float:

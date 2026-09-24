@@ -8,17 +8,20 @@ from tests.stages.analyze.products_fixtures import MAPPING, MAPPING_WITH_TYPE, f
 
 
 def _decliners_scenario() -> pd.DataFrame:
+    # December rows from the 1st (were the 15th-17th): a December starting
+    # mid-month is an incomplete base since 2E, and this test is about the
+    # ranking. Every value is unchanged.
     return frame(
         [
             # X: previous 100 -> current 50 (change -50%)
-            {"Date": "2019-12-15", "Qty": "10", "Price": "10.0", "Product": "X"},
+            {"Date": "2019-12-01", "Qty": "10", "Price": "10.0", "Product": "X"},
             {"Date": "2020-01-15", "Qty": "5", "Price": "10.0", "Product": "X"},
             # Y: previous 100 -> current 0, entirely absent this period (change -100%)
-            {"Date": "2019-12-16", "Qty": "20", "Price": "5.0", "Product": "Y"},
+            {"Date": "2019-12-02", "Qty": "20", "Price": "5.0", "Product": "Y"},
             # Z: new this period, no previous revenue -> not a decliner
             {"Date": "2020-01-20", "Qty": "10", "Price": "10.0", "Product": "Z"},
             # W: previous 50 -> current 60, growth -> not a decliner
-            {"Date": "2019-12-17", "Qty": "5", "Price": "10.0", "Product": "W"},
+            {"Date": "2019-12-03", "Qty": "5", "Price": "10.0", "Product": "W"},
             {"Date": "2020-01-18", "Qty": "6", "Price": "10.0", "Product": "W"},
             # anchor: fixes data_end at month-end without affecting any decline
             {"Date": "2020-01-31", "Qty": "1", "Price": "1.0", "Product": "Anchor"},
@@ -37,12 +40,15 @@ def test_biggest_decliners_hand_calculated() -> None:
         ("Y", -100.0),
         ("X", -50.0),
     ]
+    # 2E ranks by the fall in money: Y 0 - 100 = -100, X 50 - 100 = -50.
+    assert [d.revenue_change for d in products.biggest_decliners] == [-100.0, -50.0]
 
 
 def test_biggest_decliners_caps_at_ten() -> None:
     rows = []
     for i in range(1, 12):  # 11 products, each declining by a distinct i%
-        rows.append({"Date": "2019-12-10", "Qty": "1", "Price": "100", "Product": f"D{i}"})
+        # The 1st, not the 10th: a complete December base (2E); values unchanged.
+        rows.append({"Date": "2019-12-01", "Qty": "1", "Price": "100", "Product": f"D{i}"})
         rows.append({"Date": "2020-01-15", "Qty": "1", "Price": str(100 - i), "Product": f"D{i}"})
     rows.append({"Date": "2020-01-31", "Qty": "1", "Price": "1.0", "Product": "Anchor"})
     df = frame(rows)
@@ -65,7 +71,10 @@ def test_no_previous_period_data_reports_no_decliners() -> None:
 
     products = compute_product_metrics(df, MAPPING, period)
 
-    assert products.biggest_decliners == []
+    # Was [] ("no decliners"). Since 2E December holds no sale, so there is no
+    # comparison at all: unavailable, and the reason says so.
+    assert products.biggest_decliners is None
+    assert "no sales in 2019-12" in products.biggest_decliners_reason
 
 
 # --- velocity / stockout -----------------------------------------------

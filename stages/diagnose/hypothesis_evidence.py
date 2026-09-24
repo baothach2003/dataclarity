@@ -132,28 +132,37 @@ def t3(inputs: Step7Inputs, moved: Changes) -> Outcome:
 
 # --- lever ----------------------------------------------------------------------
 
-def _returns_in_either_period(inputs: Step7Inputs) -> Outcome | None:
-    """INTERIM (Thach, 3E1), until session 2E counts only sale rows as orders
-    in both stages. Today a return line is an order with negative units, so a
-    month with refunds shows fewer units per order and a lower frequency: B2
-    headlined "baskets got smaller" at 2.4x the change when only returns had
-    changed (3E1 doubt-review cycle 2). B1 and B2 cannot separate buying
-    behaviour from refunds until then."""
+def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
+    """INTERIM for B2 only (Thach, 2E), until the three-factor level 2 (a
+    session after 3E2, before 3F). Since 2E an order is a sale row, so refunds
+    no longer move purchase frequency and B1 is evaluated on refund months.
+    Level 2 still splits AOV into NET units per order x price per net unit, so
+    a refunded unit leaves the basket: with this refusal lifted, a month where
+    ONLY refunds changed headlined "baskets got smaller (100% of the change)"
+    (measured in 2E). Either period with any refund leaves B2 inconclusive."""
+    # Any return LINE, not only refunded money (2E doubt-review cycle 3): a
+    # zero-price write-off carries units but no money, and B2 headlined
+    # "baskets got bigger" while baskets shrank from 3 units to 1.
     returns = inputs.tree.returns
-    if returns.returns_prev > 0 or returns.returns_cur > 0:
+    period = inputs.data.metrics.period
+    lines = {label: int((inputs.data.parsed.returned
+                         & (inputs.data.months == month)).sum())
+             for label, month in (("prev", period.previous), ("cur", period.current))}
+    if lines["prev"] or lines["cur"]:
         return Outcome(verdict="inconclusive",
-                       evidence={"returns_prev": returns.returns_prev,
+                       evidence={"return_lines_prev": lines["prev"],
+                                 "return_lines_cur": lines["cur"],
+                                 "returns_prev": returns.returns_prev,
                                  "returns_cur": returns.returns_cur},
-                       rule="return lines are counted as orders until 2E; the split "
-                            "cannot separate buying behaviour from refunds")
+                       rule="level 2 counts returned units against the basket, so basket "
+                            "size cannot be separated from return lines until level 2 has "
+                            "a refund factor of its own")
     return None
 
 
 def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     if no_customer(inputs):
         return NOT_TESTABLE_NO_CUSTOMER
-    if (refused := _returns_in_either_period(inputs)) is not None:
-        return refused
     # An order is a row count, so a day with no sales removes whole orders and
     # reads as customers buying less often: two missing days under D1's
     # threshold headlined "customers bought less often (100%)" (3E1 doubt-
@@ -171,6 +180,17 @@ def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
                        rule="a day with no sales removes whole orders, so frequency cannot "
                             "be separated from missing or closed days; requires D1 to find "
                             "no excess zero day in either month")
+    # AOV = net revenue / orders is not positive in a month that netted zero
+    # or below, and the Shapley frequency term changes sign with it: B1
+    # headlined "customers bought MORE often (+21,400)" while frequency fell
+    # 9.3 -> 3.1 (2E doubt-review cycle 2, F1). The masked-shift alert
+    # refuses such months for the same reason.
+    if moved.revenue_prev <= 0 or moved.revenue_cur <= 0:
+        return Outcome(verdict="inconclusive",
+                       evidence={"revenue_prev": moved.revenue_prev,
+                                 "revenue_cur": moved.revenue_cur},
+                       rule="a compared month netted zero or below, so its frequency "
+                            "term's sign cannot be read")
     level = inputs.tree.lever.level1
     if level is None or level.formula != "customers*frequency*aov":
         reason = inputs.tree.lever.reasons.get("level1_form") or inputs.tree.lever.reasons.get(
@@ -184,7 +204,7 @@ def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
 
 
 def b2(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    if (refused := _returns_in_either_period(inputs)) is not None:
+    if (refused := _refunds_in_level_2(inputs)) is not None:
         return refused
     level = inputs.tree.lever.level2
     if level is None:
@@ -202,6 +222,11 @@ def b2(inputs: Step7Inputs, moved: Changes) -> Outcome:
 def _pvm(term: str):
     def evaluate(inputs: Step7Inputs, moved: Changes) -> Outcome:
         totals = product_totals(inputs.data)
+        # "Sold in both periods" is L's membership in pvm.py: positive sold
+        # units. Since 2E orders count sale rows only, so the orders index IS
+        # that; a product seen only through a refund this month is present
+        # (members.py) but not sold, and L without it may be empty (2E
+        # mutation check).
         both = set(totals.orders_prev.index) & set(totals.orders_cur.index)
         if not both:
             return Outcome(verdict="inconclusive", evidence={"products_in_both_periods": 0},
@@ -229,7 +254,8 @@ def r1(inputs: Step7Inputs, moved: Changes) -> Outcome:
               for key in keys}
     top = max(sorted(deltas), key=lambda key: abs(deltas[key]), default=None)
     moving = (top is not None and deltas[top] != 0
-              and not is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur)
+              and not is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur,
+                                    moved.scale)
               and (deltas[top] > 0) == (moved.net > 0))
     evidence = {"classification": breadth.classification,
                 "top_member_share": breadth.top_member_share,

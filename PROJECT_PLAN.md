@@ -214,7 +214,10 @@ dataclarity/
       customers, AOV, return rate. Tests with hand-calculated expected values.
       Zero denominators (`revenue_change_pct` with no previous revenue, `aov`
       and return rate with no orders) need a contract decision first: the 1.0
-      contract requires a number there
+      contract requires a number there. (Decided in 2A as "report 0.0";
+      **SUPERSEDED in 2E** by Thach: in `metrics.json` 2.0 every ratio with a
+      zero or negligible denominator is null with a reason - CONTRACTS
+      section 6.)
 - [x] 2B `metrics_customers.py`: RFM scoring + segment assignment (Champions,
       Loyal, At-risk, Hibernating, New). Tests
 - [x] 2C `metrics_products.py`: Pareto concentration, top/bottom movers,
@@ -238,8 +241,13 @@ dataclarity/
 >
 > **Session order from here** (Thach, triaged after 3D5b; amended in 3E1):
 > 3D4, 3D5, 3D5b (all committed together), then **3D6**, then **3D6b**, then
-> **3E1**, then **2E**, then **3E1b**, then **3E2**, then **3D7**, then 3F,
-> 3G (Thach, after 3E1). **2E first** because it corrects the orders
+> **3E1**, then **2E** (done), then **2E-b** (Thach, after 2E: before 3E1b,
+> because it corrupts the shared "negligible" definition 3E1b will calibrate
+> on), then **3E1b**, then **the Online Retail II demo** (Thach, after 2E:
+> built before 3E2, so refund behaviour is measured on real data), then
+> **3E2**, then **3E3**
+> (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
+> 3F, 3G (Thach, after 3E1). **2E first** because it corrects the orders
 > definition B1 and B2 rest on (stage 2 counts return lines as orders -
 > confirmed in `metrics_core._bucket`, so 2E keeps its full scope) and stage
 > 2's partial previous month; calibrating 3E1b on the old definition and
@@ -511,6 +519,25 @@ dataclarity/
       making a claim. It also needs a magnitude ratio around 1e9. It degrades
       3E's coverage, never its correctness.
       Doubt-review: yes. Mutation check: yes.
+- [ ] 3E3 **Three-factor level 2** (Thach, 2E: its own session, after 3E2 and
+      before 3F). Level 2 splits AOV into NET units per order x price per net
+      unit, so a refunded unit leaves the basket: with B2's refusal lifted in
+      2E, a month where ONLY refunds changed headlined "baskets got smaller
+      (100% of the change)" (scratchpad `2e_b1b2_refunds.py`, shape A). The
+      shape: AOV = sold units per order x gross price per sold unit x
+      net/gross revenue ratio, so refunds get a factor of their own; then
+      lift B2's interim (`hypothesis_evidence._refunds_in_level_2`). Order
+      reasoning: 3E2's re-sweep reads the orders x AOV pair on level 1, so
+      level 2 changing afterwards does not invalidate it; 3F narrates level
+      2, so it must be settled by then. **Cost of the interim on real data:**
+      B2 was refused on 0 of 2 demo runs - uninformative rather than
+      reassuring, because neither demo file contains a single return line;
+      the refund-heavy second demo dataset (section 12, action 4) is where
+      the rate can be measured. **Do not "reconcile" the new net/gross factor
+      with P3's returns lens:** they describe the same refunds seen through
+      two lenses (the lever's share of AOV, the returns lens's change in
+      refunds), and lenses are never summed (section 7), so a later session
+      must not fix one to match the other.
 - [ ] 3D7 `_fallback_reason` reports a third fact as one of two labels
       (its own line, Thach, after 3D5b; independent of ADR-0006, may run with
       2E or 3D6).
@@ -574,7 +601,24 @@ dataclarity/
       zero-sale day beyond the learned pattern), both kept on the two demo
       runs; 3E2 reports them. C4 is `inconclusive` in v1 (Backlog).
 - [ ] 3E1b **How D1 learns from history, and rule 6's size test** (one
-      session; Thach, after 3E1: runs after 2E, before 3E2). Merges the two
+      session; Thach, after 3E1: runs after 2E, before 3E2). **Also the
+      pattern-aware incomplete-previous-month rule** (Thach, 2E): leading
+      days beyond the shop's own weekday closing pattern, replacing the
+      file-start rule INSIDE the one shared definition
+      (`shared/periods.previous_coverage`), so stage 2 and stage 3 move
+      together. Measured in 2E: the month's own first sale with no pattern
+      falsely flagged 15-35% of sparse shops and 13-17% of shops closed three
+      days a week (scratchpad `f4_false_flag.py`). **And period selection
+      sale-based at BOTH ends** (Thach, 2E doubt-review cycle 2): 2E made
+      "covered" mean a SALE happened at the previous month's start (and for
+      D1's zero days), but `select_period` still ends at the file's last row
+      of ANY kind, so a refund line on the next month's 1st "completes" a
+      current month whose sales stopped on the 20th (reproduced: -35.5% in
+      metrics.json). The pattern-aware coverage work makes both ends
+      sale-based in the one shared definition, stage 2 and stage 3 together,
+      with its own sweep of how often the diagnosed month changes. Until
+      then the stage 5 rule covers it: stage 3's trust badge sits beside
+      stage 2's KPIs, so the figure is shown with the caution. Merges the two
       items 3E1 recorded as 3E1b and 3E1c. Parts A and B change the same code
       - `trust.d1_coverage`'s learning set and its caution threshold - and
       are decided by the same measurement (sparse, seasonal and half-gapped
@@ -634,7 +678,12 @@ dataclarity/
          `ruled_out` for having the opposite sign. Every printed number is
          true. A design decision: bound a product-lens cause's
          `|contribution / net|` for the headline, or name the offset.
-- [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the
+- [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
+      Online Retail II demo first** (Thach, after 2E; section 12 action 4):
+      neither current demo file holds a single return line, so the cost of
+      B2's refusal and refund behaviour generally cannot be measured on real
+      data; the customer-sampled Online Retail II demo has real
+      cancellations. The
       fixed-seed scenario generator and the
       S0-S11 suite with its acceptance criteria - including **S11, the
       6-month truncated build**, whose headline must NOT be rule 3 (normal
@@ -671,7 +720,31 @@ dataclarity/
       only once this session lands (Thach, 3A). The "normal-variation" state
       is DORMANT in v1 (ADR-0007) - design the rule-7 "no single tested cause"
       state instead.
-- [ ] 2E Percentage change against a non-positive base, in STAGE 2
+- [x] 2E Stage 2 definitions (closed 2026-09-24; session log below). Three
+      definitions stage 3 had exposed, each ONE shared definition in
+      `shared/`: **an order is a sale row** (counted, quantity > 0) in both
+      stages - orders, AOV (net revenue / orders), return rate (return lines /
+      orders), units per order, purchase frequency, RFM frequency; **an
+      incomplete previous month** (`shared/periods.py`: stage 2 reports every
+      comparison null with a reason, stage 3's trust gate blocks); **a
+      percentage against a non-positive or residue base** is null with a
+      reason, and biggest decliners rank by the fall in money.
+      `metrics.json` went to **2.0**; readers refuse 1.x ("re-analyse this
+      run"). B1's refund interim is lifted; **B2's is kept** (Thach) until
+      3E3, because level 2 still counts refunded units against the basket -
+      measured: a refund-only month headlined "baskets got smaller (100%)".
+      **The doubt-review (four cycles) added:** buyers (`core.buyers_*`,
+      customers with a sale row) - the lever's level 1 divides by buyers;
+      D1's trading day and the previous month's coverage judged on SALE rows;
+      every ratio with a zero or negligible denominator null with a reason
+      (superseding 2A's 0.0); cross-block contract rules; B1 refused on a
+      month that netted zero or below; B2 refused on any return LINE;
+      `shared/numbers.is_negligible` and `stages/diagnose/inputs.money_moved`
+      as the one residue test and scale. Cycle 4 found a regression 2E
+      introduced (one reversed barcode-sized typo makes a real change
+      "residue") - split to **2E-b** under the stop rule, with two more.
+      Original item, kept as the record:
+      Percentage change against a non-positive base, in STAGE 2
       (**must land before 3F**, Thach, after 3D4), **and the orders
       definition (moved ahead of 3E2, Thach, 3E1).** Stage 2 counts a
       return line as an order (`metrics_core._bucket`: `orders =
@@ -724,6 +797,62 @@ dataclarity/
       together rather than one silently drifting. Expect stage 2 expectations
       to move; list every one with its recomputed derivation, as 3D3 did.
       Doubt-review: yes. Mutation check: yes.
+- [ ] 2E-b **The residue scale and the reconciliation float term** (split out
+      of 2E under Thach's stop rule: 2E doubt-review cycle 4 found non-local
+      findings; not patched at cycle 4). **Before 3E1b** (Thach, after 2E):
+      it corrupts the shared "negligible" definition 3E1b will calibrate on.
+      **Method before code** (Thach): the regression comes from measuring
+      residue against the money MOVED, which a same-day huge sale and its
+      refund inflate. Propose the alternatives - residue relative to the
+      compared quantities themselves; excluding offsetting same-day pairs;
+      or another - with the barcode reproduction as the first failing test,
+      BEFORE choosing. Also in 2E-b (Thach, after 2E): **RFM recency on sale
+      rows**, like frequency - a refund is not a purchase, a returns-only
+      customer ranks lowest (as with F = 0), monetary stays net; and **split
+      `tests/contracts/test_metrics.py` (318 lines) and
+      `tests/stages/diagnose/test_hypothesis_evidence.py` (327)**, which grew
+      past ~300 in 2E.
+      1. **HIGH - a regression 2E introduced (SUPPRESS with false reasons).**
+         2E cycles 2-3 made the money moved (sum of |amount| over both
+         months) the scale residue is judged against, at a billionth. A
+         self-cancelling outlier pair counts twice its size, so one reversed
+         barcode-sized typo (8,934,567,890,123 sold and refunded on
+         2026-08-20) makes a real +310 (+10%) month "floating-point residue":
+         metrics.json nulls `revenue_change_pct` and `contribution_pct` with
+         false reasons; stage 3 rules T1, C1, C2, B1, P3 out as "the total did
+         not move", zeroes every member share, and headlines rule 7; a real
+         -30% decliner drops out of `biggest_decliners`. A 12-digit typo in
+         the previous month makes metrics.json contradict itself (+10.0% beside
+         "the total change is nothing"). Reproductions: scratchpad
+         `review13/r1_typo_silences.py`, `r5_typo_hides_decliner.py`.
+         Direction: the residue test needs a float-level tolerance against
+         the money moved (as the reconciliation now has), in `shared/numbers`,
+         for all ~8 call sites in both stages (`pct_change`,
+         `contribution_reason`, decliners, segment shares, `share_verdict`,
+         headline, `_share`, breadth).
+      2. **MEDIUM - the reconciliation float term still opens room.** Against
+         1e-12 x money moved, a bridge error of 15 (EAN, qty 1) or 150 (qty 12)
+         on a 310 change passes (`review13/r2_reconcile_room.py`). Each lens
+         needs its own float scale (the bridge: sum of |per-customer net|).
+      3. **LOW - B2 misses refunds booked as qty +1 at a negative price**
+         (a FABRICATE: "baskets got smaller", headline P1 with no price
+         change; `review13/r4_b2_negative_price_refund.py`). Small and local
+         (refuse on any counted row with a negative amount), but it follows
+         from the accepted "a quantity>0 line with a negative price counts as
+         an order" rule, so it belongs with that rule's decision.
+- [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
+      cycle 3; **before Phase 5**). Whether a base is usable is a data
+      judgement, not formatting, and stage 3 already makes it: 3D6's rule -
+      the typical magnitude of the trading months and its 3% share
+      (`YOY_MIN_BASE_SHARE`, `usable_base`, `typical_magnitude`). Move that
+      helper to `shared/` so both stages use ONE rule, and apply it to
+      `revenue_change_pct` and each decliner's `revenue_change_pct` (null
+      with a "too small to be a base" reason). No new constant, only reuse.
+      Reproduction: a complete July netting 0.01 (3,100 of sales and a
+      3,099.99 refund) against an August of 3,100 gives
+      `revenue_change_pct = +30,999,900%` in metrics.json 2.0 (scratchpad
+      `review12/r5_pct_small_base.py`); 2E refuses only a base under a
+      billionth of the money moved, and its reason says exactly that.
 - [x] 3D6 How small a base stops being a usable denominator
       (**BLOCKS 3E - runs immediately before it**, Thach, triaged after 3D5b;
       was "may run with 2E, before 3F").
@@ -1072,7 +1201,23 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3E1** closed
+**Phase in progress:** Phase 2/3, session **2E** closed 2026-09-24: **stage 2
+definitions stage 3 had exposed, each ONE shared definition.** An order is a
+sale row in both stages (orders, AOV = net revenue / orders, return rate =
+return lines / orders in [0, infinity), frequency and RFM frequency);
+`core.buyers_*` is what the lever divides by; the incomplete previous month is
+`shared/periods.py`'s (file start, on sale rows) - stage 2 nulls every
+comparison with a reason, stage 3 blocks; every ratio with a zero or
+negligible denominator is null with a reason (superseding 2A's 0.0); biggest
+decliners rank by money. `metrics.json` went to **2.0** and readers refuse
+1.x ("re-analyse this run"); **runs analysed before 2E keep their 1.0
+metrics.json until re-analysed.** B1's refund interim is lifted; B2's stays
+(refused on any return line) until 3E3. Four doubt-review cycles; cycle 4
+found a regression 2E introduced (a reversed barcode-sized typo makes a real
+change "residue") and two more, split to **2E-b** under the stop rule.
+Mutation check: 89 mutants, all killed but two equivalents. pytest 2438
+passed.
+Previously, session **3E1** closed
 2026-09-24: **the hypothesis catalog, verdicts and headline rules.** The
 catalog is defined once as data (`stages/diagnose/catalog.py`) and
 AI_PIPELINE 7.8's table is tested against it cell by cell. Verdicts by kind
@@ -1420,13 +1565,14 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 2 session **2E** (percentage change against a
-non-positive base, the orders definition, stage 2's incomplete previous
-period), then **3E1b** (how D1 learns from history, and rule 6's size test;
-carries the FABRICATEs), then **3E2** (generator, S0-S11, the
+**Next step:** **2E-b** (the residue scale regression - method before code,
+alternatives proposed first; the reconciliation float term; B2 on
+negative-price refunds; RFM recency on sale rows; two test files split),
+then **3E1b**, then the **Online Retail II demo**, then **3E2**; placed by
+Thach after 2E. 3E1b is how D1 learns from history, and rule 6's size test
+(it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
-S0/S11 expecting rule 7, and the accepted v1 known limits). Order decided by
-Thach after 3E1. 3D9 went to the Backlog ("Unusualness verdicts") with
+S0/S11 expecting rule 7, and the accepted v1 known limits. 3D9 went to the Backlog ("Unusualness verdicts") with
 ADR-0007.
 Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
 but **not yet wired into an engine** - `compute_localization` has no caller
@@ -1439,9 +1585,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run `C:\Users\Happy\commit-3e1.ps1` - commits session 3E1 alone
-   (message file `C:\Users\Happy\commit-3e1-msg.txt`). It stops before
-   pushing. (3D6b is committed: `e920761`.)
+1. Run `C:\Users\Happy\commit-2e.ps1` - commits session 2E alone
+   (message file `C:\Users\Happy\commit-2e-msg.txt`). It stops before
+   pushing. (3E1 is committed: `e720d8e`.)
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -1454,7 +1600,58 @@ still not started; its Insights frame now waits on 3E (see
    customer-sampled with a fixed seed to about 40MB, keeping every row of each
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
-   sampling script and what it sampled go in the README. Not needed before 3E.
+   sampling script and what it sampled go in the README. **Must be built
+   before 3E2** (Thach, after 2E): it has real cancellations, and neither
+   current demo file holds a return line, so refund behaviour - including the
+   cost of B2's refusal - must be measured on real data, not only on the
+   generator.
+- 2026-09-24, Phase 2 session 2E (stage 2 definitions; metrics.json 2.0).
+  Closed. pytest 2438 passed. Committed alone (47 files: stage 2 and stage 3
+  moved together; an untested intermediate commit would be worse - the 3E1
+  precedent).
+  - **Decisions (Thach):** orders = sale rows, AOV net, return rate return
+    lines / orders; RFM frequency on sale rows; comparisons-only nulled on an
+    incomplete previous month (customers_previous too; stage 5 labels partial
+    totals); decliners ranked by money; major bump to 2.0, stage 3 requires
+    2.x; every ratio with a zero/negligible denominator null with a reason
+    (2A superseded, recorded where 2A stated it); B2 keeps its refusal until
+    3E3 (after 3E2, before 3F); lever counts buyers, stage 2 reports buyers;
+    zero days and coverage on sale rows; F4 overturned on measurement
+    (file-start rule, 3E1b builds the pattern-aware one inside the shared
+    definition); D1 pace = a trading day's own net; current-month end and
+    the mid-history gap recorded as known limits (3E1b makes selection
+    sale-based at both ends); usable base for stage 2 scheduled (2F); cycle 4
+    with the stop rule.
+  - **Mutation check:** 89 mutants over five rounds; every survivor got a
+    test and was re-run killed, except P4 and C3, both equivalent by
+    argument (C3's condition was then removed as dead code). One of my own
+    claims about C3 was wrong ("under 10% of a month is at most 2 days" -
+    10% of 31 is 3.1); the conclusion held for another reason, and the test
+    now pins the true one.
+  - **Doubt-review:** four cycles. Cycle 1: 9 findings (3 FABRICATEs) - all
+    fixed or decided. Cycle 2: 7 (a new B1 sign FABRICATE from lifting its
+    refusal) - fixed. Cycle 3: B2 on zero-price return lines (FABRICATE),
+    localization residue, scale mismatch - fixed. Cycle 4: the residue-scale
+    regression, the reconciliation room, B2 on negative-price refunds -
+    split to 2E-b. Cross-model: not offered this session; Thach: skip.
+  - **After the session (Thach):** 47-file commit accepted (3E1's reasoning);
+    2E-b before 3E1b, method before code with alternatives first; RFM
+    recency on sale rows and the two test-file splits in 2E-b; the Online
+    Retail II demo built before 3E2.
+  - **Stage 2 test expectations changed** (old -> new, hand computation in
+    each test): core hand-calculated orders 3 -> 2, AOV 10 -> 15, return
+    rate 1/3 -> 0.5; zero-previous-month revenue_change_pct 0.0 -> None (x3,
+    with reason); aov/return_rate on a no-order month 0.0 -> None (x3);
+    contribution_pct at zero total change 0.0 -> None; pareto concentration
+    with no product 0.0 -> None; decliners with no previous data [] -> None
+    (x2); schema_version "1.0" -> "2.0" (x2). Fixture-only moves (values
+    unchanged): December rows moved to the 1st-3rd in two dimension and two
+    decliner tests; select_period's new argument in four calls.
+  - **Known limits and open items:** B2 refusal until 3E3 (costs 0 of 2 demo
+    runs - uninformative, the demos hold no refunds); RFM recency still reads
+    every counted row (open question); the two coverage limits (3E1b); 2F;
+    2E-b; test_metrics.py (318) and test_hypothesis_evidence.py (327) grew
+    past ~300 lines - split in 2E-b.
 - 2026-09-24, Phase 3 session 3E1 (catalog, verdicts, headline rules).
   Closed. pytest 2347 passed. Committed ALONE (commit boundary before 3E2,
   per Thach's split of 3E).

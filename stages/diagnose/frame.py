@@ -7,9 +7,8 @@ T2, seasonality) and the history window (for the calendar weights and the XmR
 baselines).
 """
 
-from datetime import date
-
 from contracts.diagnosis import Frame
+from shared.periods import PreviousCoverage, previous_coverage
 from stages.diagnose.inputs import RunData, shift_month
 from stages.diagnose.thresholds import HISTORY_MAX_MONTHS, YOY_LAG_MONTHS
 
@@ -43,26 +42,20 @@ def build_frame(data: RunData) -> Frame:
     )
 
 
-def first_sale(data: RunData) -> date | None:
-    """The first revenue-counted row's date (a sale, or a return). Not
-    `period.data_start`, which is the first row of ANY kind: a stock-in row on
-    the 1st hid a missing month, and one on the 10th printed a false "first
-    sale" date (3E1 doubt-review cycle 4)."""
-    dates = data.parsed.dates[data.parsed.counted]
-    return None if dates.empty else dates.min().date()
+def previous_coverage_of(data: RunData) -> PreviousCoverage:
+    """Whether the previous month is a base the current one can be compared
+    with - the ONE definition stage 2 uses too (shared/periods.py, 2E), over
+    the SALE rows' dates: neither a stock-in row nor a refund line completes
+    the month (3E1 doubt-review cycle 4; 2E doubt-review F3). A file that starts on 15
+    January compares February with half a January: "+110, customers bought
+    more often (100%)" on identical daily trading (3E1 cycle 3)."""
+    return previous_coverage(data.parsed.dates[data.parsed.sale],
+                             data.metrics.period.previous)
 
 
 def previous_leading_days_missing(data: RunData) -> int:
-    """Days of the previous month before the file's first sale. A file that
-    starts on 15 January compares February with half a January: "+110,
-    customers bought more often (100%)" on identical daily trading (3E1
-    doubt-review cycle 3). 2A picks the period by elapsed months, which is
-    right for stage 2's question and wrong for a diagnosis of the change."""
-    year, month = (int(part) for part in data.metrics.period.previous.split("-"))
-    start = date(year, month, 1)
-    first = first_sale(data)
-    days = (date(year + month // 12, month % 12 + 1, 1) - start).days
-    return days if first is None else min(days, max(0, (first - start).days))
+    """Days of the previous month before the file's first sale."""
+    return previous_coverage_of(data).leading_days_missing
 
 
 def history_window(data: RunData) -> list[str]:

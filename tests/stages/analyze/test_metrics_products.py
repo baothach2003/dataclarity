@@ -203,9 +203,13 @@ def test_empty_dataframe_returns_empty_lists_and_zero_pareto() -> None:
     products = compute_product_metrics(df, MAPPING, period)
 
     assert (products.pareto.products_for_80pct_revenue, products.pareto.total_products) == (0, 0)
-    assert products.pareto.concentration_pct == 0.0
+    # Was 0.0 (2A); with no product there is no concentration (2E).
+    assert products.pareto.concentration_pct is None
+    assert products.pareto.concentration_reason is not None
     assert products.top_products == []
-    assert products.biggest_decliners == []
+    # Was []. An empty file has no previous month to compare with (2E).
+    assert products.biggest_decliners is None
+    assert products.biggest_decliners_reason is not None
     assert products.velocity == []
 
 

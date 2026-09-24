@@ -333,6 +333,8 @@ def test_stage_3_recomputes_exactly_what_stage_2_reported() -> None:
             rows.append(row(date(2011, month, day), qty=1.0, price=25.0, customer="Bob"))
         rows.append(row(date(2011, month, 28), qty=-1.0, price=10.0, customer="Alice"))
     rows.append(row(date(2011, 11, 30), qty=3.0, price=10.0, customer="Carol"))
+    # A zero-quantity line: neither an order nor a return, in either stage (2E).
+    rows.append(row(date(2011, 11, 15), qty=0.0, price=10.0, customer="Carol"))
     data = run_data(rows)
 
     table = monthly_series(data)
@@ -346,6 +348,12 @@ def test_stage_3_recomputes_exactly_what_stage_2_reported() -> None:
             f"orders disagree for {label}")
         assert table.loc[month, "active_customers"] == getattr(
             core, f"active_customers_{label}"), f"active customers disagree for {label}"
+        # 2E: both stages count only sale rows as orders, so the figures built
+        # on orders must agree too, on months that contain return lines.
+        assert table.loc[month, "aov"] == pytest.approx(getattr(core, f"aov_{label}")), (
+            f"aov disagrees for {label}")
+        assert table.loc[month, "return_rate"] == pytest.approx(
+            getattr(core, f"return_rate_{label}")), f"return rate disagrees for {label}"
 
 
 def test_the_monthly_series_matches_stage_2s_own_revenue_by_month() -> None:

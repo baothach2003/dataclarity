@@ -54,6 +54,14 @@ def compute_mix_rate(data: RunData) -> MixRate | None:
         if any(float(table[f"{weight}_{period}"].sum()) <= 0
                for period in ("prev", "cur")):
             continue
+        # A category with revenue but no weight in a period has no value of
+        # its own (revenue over nothing), so its revenue would drop out of the
+        # weighted average and the split would stop reconciling to the overall
+        # figure. Since 2E a category holding only refunds has 0 orders; the
+        # split is refused rather than made inexact.
+        if any(((table[f"{weight}_{period}"] == 0) & (table[f"rev_{period}"] != 0)).any()
+               for period in ("prev", "cur")):
+            continue
         previous = _weighted_average(table, metric, weight, "prev")
         current = _weighted_average(table, metric, weight, "cur")
         if previous is None or current is None:
@@ -138,7 +146,9 @@ def _by_category(data: RunData) -> pd.DataFrame | None:
         mask = period_mask(data, month)
         grouped = keys[mask]
         columns[f"rev_{label}"] = data.parsed.revenue_amounts[mask].groupby(grouped).sum()
-        columns[f"orders_{label}"] = grouped.groupby(grouped).size()
+        # Sale rows (2E), so the weighted average is stage 2's AOV.
+        sales = keys[mask & data.parsed.sale]
+        columns[f"orders_{label}"] = sales.groupby(sales).size()
         columns[f"units_{label}"] = data.parsed.quantities[mask].groupby(grouped).sum()
     table = pd.DataFrame(columns).fillna(0.0)
     return table if not table.empty else None
