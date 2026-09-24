@@ -286,6 +286,11 @@ CALENDAR_MIN_WEEKS = 8
 D1_CAUTION_DAYS = 3
 D1_CAUTION_SHARE = 0.10
 D1_BLOCK_SHARE = 0.50
+# PROVISIONAL (3E1). A history month with fewer active days than this share of
+# the history's median is itself gapped and is not learned from: a March
+# missing 20 days, or a November holding one row, taught "closed" as normal
+# and hid a real gap in the current month (3E1 doubt-review cycle 3).
+D1_LEARN_MIN_ACTIVE_SHARE = 0.50
 
 # --- D2, uniform price-level shift (7.3) --------------------------------------
 

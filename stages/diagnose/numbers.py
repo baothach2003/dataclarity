@@ -16,7 +16,7 @@ from collections.abc import Iterable
 
 import pandas as pd
 
-from stages.diagnose.thresholds import RECONCILE_REL_TOLERANCE
+from stages.diagnose.thresholds import RECONCILE_REL_TOLERANCE, YOY_MIN_BASE_SHARE
 
 
 def is_negligible(delta: float, *magnitudes: float) -> bool:
@@ -56,3 +56,27 @@ def typical_magnitude(values: Iterable[float]) -> float:
     # typical month at 5.6e-17 (3D6b doubt-review cycle 2).
     magnitudes = [value for value in finite if not is_negligible(value, scale)]
     return float(pd.Series(magnitudes, dtype=float).median()) if magnitudes else float("nan")
+
+
+def usable_base(base: float, typical: float, scale: float) -> bool:
+    """May `base` - a year-ago month - be divided by? The year-over-year base
+    guard (AI_PIPELINE 7.5, sessions 3D4 and 3D6), as ONE predicate.
+
+    Positive (revenue is signed; two negatives divide to a confident
+    positive), more than floating-point residue next to `scale`, and at least
+    YOY_MIN_BASE_SHARE of `typical` (see `typical_magnitude`). A NaN base or a
+    NaN typical fails every comparison and is refused - an unknown base is
+    treated as too small, because refusing one only costs a finding while
+    accepting one can fabricate it.
+
+    Two callers divide by a year-ago month: step 4's year-over-year series and
+    step 7's T2. They share this predicate so its three conditions cannot
+    drift between them. Their `scale` arguments differ - step 4 passes the
+    series' own maximum, T2 the maximum over the history window - which
+    matters only for residue-sized bases (the 3D8 item).
+    """
+    if pd.isna(base):
+        return False
+    base = float(base)
+    return (base > 0 and base >= YOY_MIN_BASE_SHARE * typical
+            and not is_negligible(base, scale))

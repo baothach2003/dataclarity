@@ -135,7 +135,10 @@ def test_a_shop_closed_sundays_still_shows_a_weekday_gap() -> None:
 
 
 def test_d1_is_inconclusive_without_any_history_to_compare_against() -> None:
-    data = run_data(daily_rows(date(2011, 1, 1), date(2011, 1, 31)))
+    """Two months: the only history month is the previous one, which D1 never
+    learns from. (A one-month file is now blocked outright - its previous month
+    is absent - see test_step7_cycle3_fixes; 3E1 moved this fixture on.)"""
+    data = run_data(daily_rows(date(2010, 12, 1), date(2011, 1, 31)))
 
     check = d1_coverage(data, history_window(data))
 
@@ -284,9 +287,11 @@ def test_an_unmapped_customer_column_does_not_break_the_gate() -> None:
 
 def test_a_check_that_could_not_run_downgrades_the_verdict_to_caution() -> None:
     """Thach's call, 3B doubt-review: "trusted" must not be reported on a run
-    where the checks never executed. A single-month file can evaluate neither
-    D1 (no history) nor D2 (nothing sold in both periods)."""
-    data = run_data(daily_rows(date(2011, 1, 1), date(2011, 1, 31)))
+    where the checks never executed. A two-month, one-product file can
+    evaluate neither D1 (no history besides the previous month) nor D2 (one
+    comparable product). The fixture was a single-month file until 3E1, which
+    blocks a file with no previous month at all."""
+    data = run_data(daily_rows(date(2010, 12, 1), date(2011, 1, 31)))
 
     trust = evaluate_trust(data, history_window(data))
 

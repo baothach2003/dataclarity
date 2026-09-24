@@ -27,14 +27,23 @@ def diagnosis_payload() -> dict[str, Any]:
         "frame": {
             "current": "2011-11", "previous": "2011-10",
             "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
-            "history_months": 23, "history_start": "2009-12", "history_end": "2011-10",
+            "history_months": 23, "previous_leading_days_missing": 0,
+            "history_start": "2009-12", "history_end": "2011-10",
         },
         "trust": {
             "verdict": "caution",
             "checks": [{"id": "D1", "status": "caution",
-                        "evidence": {"zero_days_cur": 6, "excess_zero_days": 5.2,
-                                     "estimated_revenue_gap": 18400.0},
-                        "message": "6 days of the current month have no rows at all"}],
+                        "evidence": {"zero_days_cur": 6, "excess_zero_days_cur": 5.2,
+                                     "excess_zero_days_prev": 0.0,
+                                     "estimated_revenue_gap": 18400.0,
+                                     "estimated_revenue_gap_prev": 0.0,
+                                     "sparse_history_months": [],
+                                     "history_months_with_rows": 23,
+                                     "learned_from_months": 22},
+                        "message": "About 5 days in the current month have no sales beyond "
+                                   "this store's normal closing pattern (missing data, or "
+                                   "days the shop was closed), worth roughly 18,400 in "
+                                   "revenue."}],
             "limitations": ["rows dropped in stage 1 cannot be assigned to a period"],
         },
         "calendar": {

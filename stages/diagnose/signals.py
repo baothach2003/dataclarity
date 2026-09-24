@@ -23,7 +23,7 @@ import pandas as pd
 from contracts.diagnosis import Signal
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
-from stages.diagnose.numbers import is_negligible, typical_magnitude
+from stages.diagnose.numbers import typical_magnitude, usable_base
 from stages.diagnose.thresholds import (
     XMR_FACTOR,
     XMR_MEDIAN_FACTOR,
@@ -35,7 +35,6 @@ from stages.diagnose.thresholds import (
     XMR_RESIDUE_FLOOR,
     XMR_RUN_LENGTH,
     YOY_LAG_MONTHS,
-    YOY_MIN_BASE_SHARE,
     YOY_MODE_MIN_MONTHS,
 )
 
@@ -293,8 +292,7 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
         # because every base is then zero and refused anyway.
         # Over the months the shop TRADED - see `typical_magnitude`.
         typical = typical_magnitude(column.reindex(history))
-        usable = (previous > 0) & (previous >= YOY_MIN_BASE_SHARE * typical) & ~previous.apply(
-            lambda base: is_negligible(float(base), scale) if pd.notna(base) else True)
+        usable = previous.apply(lambda base: usable_base(base, typical, scale)).astype(bool)
         previous = previous.where(usable)
         change = (column - previous) / previous * 100
         values[name] = change.replace([float("inf"), float("-inf")], float("nan"))

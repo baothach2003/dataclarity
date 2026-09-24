@@ -111,7 +111,7 @@ customers while still being honest about what this particular file supports.
 
 **Trade-offs accepted**
 - **The engine cannot find a cause that is not in the catalog.** A real cause
-  outside the seventeen tested hypotheses is reported as "no single tested
+  outside the eighteen tested hypotheses is reported as "no single tested
   cause explains most of the change" (headline rule 7), not discovered.
   Extending the catalog is a deliberate act with a code change and tests, not
   something the model can do at runtime - the same trade-off ADR-0002 already
@@ -126,3 +126,19 @@ customers while still being honest about what this particular file supports.
 - Threshold choices (`SUPPORTED_MIN_SHARE` and friends) now carry real weight,
   since they decide verdicts that the AI can no longer soften. They are
   documented heuristics, flagged as uncalibrated until run against real data.
+
+## Clarification (session 3E1): statements rendered from the data's direction
+
+For a cause that can move either way (C1-C4, B1, B2, P2), the catalog tests a
+direction-neutral statement ("Purchase frequency changed") and the statement a
+reader sees is chosen by code from the sign of the contribution ("Customers
+bought less often" / "more often"). The verdict rule already requires the
+contribution to have the same sign as the change, so the rendered wording is
+always the one the data supports. This does not reopen the decision above:
+the catalog, the tests and both wordings are fixed in advance in
+`stages/diagnose/catalog.py`; nothing chooses what to test after seeing the
+data, only which of two pre-written sentences describes it, deterministically.
+The alternative - two ids per cause, one per direction - doubles the table
+and makes one of each pair `ruled_out` on every run by construction. The
+first version tested one-way statements with a sign-blind rule and headlined
+"baskets got smaller" on a month whose baskets grew 2.7x.

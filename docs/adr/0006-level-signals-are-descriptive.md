@@ -70,7 +70,8 @@ Measured against the code and the hypothesis catalog, not assumed:
 
 - In code, exactly one consumer: `lever.py::_masked_shift`. `tree.py` only
   passes the list through.
-- In the catalog, exactly one hypothesis of nineteen: **T3**, "the change is
+- In the catalog, exactly one hypothesis of eighteen (the original text said
+  nineteen; corrected in 3E1 when the catalog became code): **T3**, "the change is
   routine variation". D1-D3, T1-T2, C1-C4, B1-B2, P1-P3 and R1-R3 take their
   evidence from the tree, `metrics.json`, localization or their own check.
 - Those two reach the report as headline rules 3 and 4.

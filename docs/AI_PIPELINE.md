@@ -234,6 +234,27 @@ So `frame.history_months` can be smaller than the gap between `data_start` and
 `current`, and `history_start`/`history_end` are `null` when the window is
 empty.
 
+**The previous month must be covered from its first day** (Thach, 3E1).
+`frame.previous_leading_days_missing` counts the days of the previous month
+before the file's first revenue-counted row (a sale or a return), capped at
+the month's length - not `data_start`, the first row of ANY kind: a stock-in
+row on the 1st hid a missing month, and one on the 10th printed a false
+first-sale date (3E1 cycle 4). The same elapsed-month rule that lets 2A compare
+a whole month with half of one - an export starting on 15 January compared
+February with 17 days of January and headlined "customers bought more often
+(100%)" on identical daily trading - so the D1 check (7.3) **blocks** at its
+own caution size (`D1_CAUTION_DAYS` or `D1_CAUTION_SHARE` of the month), and
+the rule-1 headline tells the user to re-export from the 1st of the previous
+month, or that there is no full month to compare with if the shop opened
+then. Below that size (one closed New Year's Day) nothing blocks. A
+previous month with no counted sale at all blocks too, whether or not the file
+has history: before, a one-month file headlined "products were launched or
+discontinued (100%)" for 0 -> 310, and a product sold for eleven months,
+absent one December, was headlined as launched (cycle 4). The block goes through the trust gate rather than a
+second path because every blocked-run rule (7.8, CONTRACTS section 7) keys on
+`trust.verdict`. Stage 2 compares the same partial month; that is session
+2E's (PROJECT_PLAN).
+
 ### 7.3 Step 2: Trust gate
 
 Three checks, each `ok | caution | blocked | inconclusive`.
@@ -250,8 +271,42 @@ Three checks, each `ok | caution | blocked | inconclusive`.
   it never raised a false caution, but it also partly absorbs a real Tuesday
   gap in a shop that never trades Sundays, which the per-weekday rate exposes).
   `caution` at `D1_CAUTION_DAYS` or `D1_CAUTION_SHARE`; `blocked` at
-  `D1_BLOCK_SHARE`. Estimated gap = `excess_zero_days x mean revenue per active
-  day in prev`. `inconclusive` when there is no history to learn from.
+  `D1_BLOCK_SHARE`, and blocked outright when the previous month is not
+  covered from its first day (7.2). `inconclusive` when no history month
+  other than the previous one has sales to learn from (evidence
+  `history_months_with_rows` and `learned_from_months` say which).
+  **A day with no sales is missing data OR a closure** (3E1 doubt-review
+  cycle 3): a shop that stopped trading on Mondays is indistinguishable from
+  one whose Monday rows were lost, so every D1 message and headline names
+  both, never "missing data" alone.
+  **The previous month is checked too** (Thach, 3E1): its excess zero days
+  cross the same caution thresholds - `caution`, never `blocked`, since the
+  current month is the one diagnosed. A February missing 12 days compared
+  with a full March otherwise read "trusted" while the rise it inflated was
+  credited to another cause.
+  **What D1 learns from.** Only history months that hold rows (an empty month
+  is itself a gap), never the previous month (it is itself under check;
+  learning from it let a 12-day gap teach itself away - cycle 2, M2), and
+  never a month with fewer active days than `D1_LEARN_MIN_ACTIVE_SHARE` of the
+  history's median, listed in `sparse_history_months`: a March missing 20
+  days, or a November holding one row, taught "closed" as normal and hid a
+  12-day gap in the current month (cycle 3). The median is the shop's own, so
+  a sparse shop's ordinary months all stay (measured: no change on 40 sparse
+  shops at either trading rate). **Measured cost, and a limit it does not
+  create:** on seasonal shops with NOTHING missing (daily Apr-Sep, 1-5
+  trading days a month off-season, 120 current months), D1 flags 61 of 120
+  months with or without this exclusion - essentially every off-season month,
+  because D1 has no notion of season. The exclusion turns 33 of those
+  cautions into blocks (rule 1: 7 -> 40 of 120; rule 2: 9 -> 14), since the
+  off-season months no longer teach a closing rate. Recorded with the
+  sparse-shop false cautions in PROJECT_PLAN 3E1b.
+  **Estimated gaps**: `estimated_revenue_gap` (current month) and
+  `estimated_revenue_gap_prev` are each month's excess zero days priced at
+  **that month's own** mean revenue per active day, since its missing days
+  would have traded at its own pace. Pricing at the other month's pace
+  flipped the sign of D1 when both months had gaps and revenue grew (cycle 2,
+  F1), and a caution priced one way beside a verdict priced the other showed
+  the reader two figures for one gap (cycle 3).
 - **D2 uniform price-level shift.** Products sold in both periods with at least
   `D2_MIN_ROWS` rows each. Per product, `median unit_price(cur) / median
   unit_price(prev)`.
@@ -738,26 +793,47 @@ evaluated and reported, including the ones that come out `ruled_out` -
 `docs/adr/0005-pre-registered-hypothesis-catalog.md` explains why choosing
 hypotheses after seeing the data is the failure mode this prevents.
 
-| Id | Lens | Statement | Contribution or test | Requires |
-|---|---|---|---|---|
-| D1 | data | Days of data are missing | minus the estimated revenue gap | none |
-| D2 | data | Prices shifted uniformly (possible unit or currency issue) | directional: supported when D2 cautions | comparable products |
-| D3 | data | Flagged rows concentrated in the current period | directional: supported when D3 cautions | none |
-| T1 | time | The calendar explains the change | `calendar_effect` | none (day-count fallback) |
-| T2 | time | Seasonality explains the change | `revenue_prev * (LY_cur/LY_prev - 1)` | year-ago pair |
-| T3 | time | The change is routine variation | **always `inconclusive` in v1** (ADR-0007): no step-4 row is a verdict, so nothing can establish that the change was routine - `contracts.diagnosis.is_verdict` decides. If the Backlog's "unusualness verdicts" switches verdicts back on: no rule-1 AND no rule-2 verdict on any series, no masked alert, and `inconclusive` whenever `revenue` has no verdict. Evidence lists every series without a verdict | baseline points for revenue |
-| C1 | customers | Fewer new customers | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
-| C2 | customers | More customers lapsed | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
-| C3 | customers | Fewer customers came back | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
-| C4 | customers | Customers migrated to weaker segments | directional: change in (At-risk + Hibernating) share minus change in (Champions + Loyal) share, from `metrics.json` | customer |
-| B1 | lever | Customers buy less often | level-1 frequency contribution | customer |
-| B2 | lever | Baskets got smaller | level-2 units-per-order contribution | net units > 0 |
-| P1 | product | Like-for-like prices changed | PVM price effect | products in L |
-| P2 | product | Sales mix shifted towards cheaper (or pricier) products | PVM mix effect | products in L |
-| P3 | returns | Returns changed | `-delta_returns` | none |
-| R1 | localization | The change is concentrated in one product or category | directional: breadth `concentrated` and top member moving with the total | none |
-| R2 | product | Products were launched or discontinued | `gross_N(cur) - gross_X(prev)` | none |
-| R3 | product | A top product may have run out of stock | active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, then `R3_MIN_ZERO_RUN_DAYS` consecutive zero days in `cur` while the store traded | none |
+**The catalog has ONE home: `stages/diagnose/catalog.py`** (session 3E1).
+The table below is checked against it cell by cell by
+`tests/stages/diagnose/test_catalog.py`, so a rule edited in one place and
+not the other fails the build. `Family` groups ids by letter; `Verdict` is
+`term` (a term of one of the tree's decompositions), `expectation` (an estimate
+or a between-period difference - what the calendar, last year's season, a
+data gap, a stockout or a change in customer flows would have done), or
+`directional` (a test with no share, whose rule is in `Contribution or test`).
+
+**Statements are rendered from the data's direction** (Thach, 3E1). For a
+cause that can move either way, the tested statement is direction-neutral and
+the one a reader sees is chosen by code from the sign of the contribution
+(`Rendered as`: the fall form for a negative one, the rise form for a
+positive one; the neutral form when no number was computed). The verdict rule
+already requires the same sign as the change, so the rendered statement is
+always the one the data supports. ADR-0005 holds: the catalog is fixed in
+advance and nothing chooses what to test; only the wording follows the data,
+deterministically. The first version tested one-way statements with a
+sign-blind rule and headlined "baskets got smaller" on a month whose baskets
+grew 2.7x.
+
+| Id | Family | Lens | Verdict | Statement (tested) | Rendered as | Contribution or test | Requires |
+|---|---|---|---|---|---|---|---|
+| D1 | data_quality | data | expectation | Days with no sales (missing data or a closure) explain the change | - | the previous month's estimated revenue gap minus the current month's, each priced at its own month's pace; `ruled_out` when the D1 check is `ok` | none |
+| D2 | data_quality | data | directional | Prices shifted uniformly (possible unit or currency issue) | - | directional: supported when D2 cautions | comparable products |
+| D3 | data_quality | data | directional | Flagged rows concentrated in the current period | - | directional: supported when D3 cautions | none |
+| T1 | time | time | expectation | The calendar explains the change | - | `calendar_effect` | none (day-count fallback) |
+| T2 | time | time | expectation | Seasonality explains the change | - | `revenue_prev * (LY_cur/LY_prev - 1)`, with `LY_prev` passing the year-over-year base guard (7.5), `revenue_prev`, `LY_cur` positive, and neither year-ago month holding a zero-sale day beyond D1's learned pattern | year-ago pair |
+| T3 | time | time | directional | The change is routine variation | - | **always `inconclusive` in v1** (ADR-0007): no step-4 row is a verdict, so nothing can establish that the change was routine - `contracts.diagnosis.is_verdict` decides. If the Backlog's "unusualness verdicts" switches verdicts back on: no rule-1 AND no rule-2 verdict on any series, no masked alert, and `inconclusive` whenever `revenue` has no verdict. Evidence lists every series without a verdict | baseline points for revenue |
+| C1 | customers | customers | expectation | New-customer revenue changed | fall: New customers brought in less revenue; rise: New customers brought in more revenue | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
+| C2 | customers | customers | expectation | Revenue lost to lapsed customers changed | fall: Lapsed customers took more revenue away; rise: Lapsed customers took less revenue away | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
+| C3 | customers | customers | expectation | Returning-customer revenue changed | fall: Returning customers brought in less revenue; rise: Returning customers brought in more revenue | `resurrected_rev(t) - resurrected_rev(t-1)` | customer, previous transition, no left-censoring |
+| C4 | customers | customers | directional | Customers moved between segments | fall: Customers migrated to weaker segments; rise: Customers migrated to stronger segments | **always `inconclusive` in v1**: stage 2's segment counts are a snapshot at the file's end, not at the end of each compared month. When anchored per month: change in the (At-risk + Hibernating) share of customers minus change in the (Champions + Loyal) share; supported if it moved WITH revenue (towards weaker segments in a fall, stronger in a rise) by at least `C4_SUPPORT_POINTS`, partial from `C4_RULE_OUT_POINTS`; inconclusive unless all six stage-2 segments are listed | customer |
+| B1 | lever | lever | term | Purchase frequency changed | fall: Customers bought less often; rise: Customers bought more often | level-1 frequency contribution | customer; no excess zero day in either month (D1) |
+| B2 | lever | lever | term | Basket size changed | fall: Baskets got smaller; rise: Baskets got bigger | level-2 units-per-order contribution | net units > 0 |
+| P1 | product_returns | product | term | Like-for-like prices changed | - | PVM price effect | products in L |
+| P2 | product_returns | product | term | Sales mix shifted | fall: Sales mix shifted towards cheaper products; rise: Sales mix shifted towards pricier products | PVM mix effect | products in L |
+| P3 | product_returns | returns | term | Returns changed | - | `-delta_returns` | none |
+| R1 | localization_lifecycle | localization | directional | The change is concentrated in one product or category | - | directional: breadth `concentrated` and top member moving with the total | none |
+| R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
+| R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
 
 C4 compares two named segment groups. Stage 2's catalog has six segments: the
 2B doubt-review added **"Needs Attention"** for the four of twenty-five R x F
@@ -771,24 +847,99 @@ POS-only detectors catch roughly 63% of stockouts with about 15% false alerts.
 This is a different signal from stage 2's `products.velocity` projection - see
 `docs/CONTRACTS.md` section 7.
 
-**Verdicts.** `share = contribution / D`, signed, where `D` is the absolute
-total of that hypothesis's own lens (or the sum of absolute contributions when
-the masked-shift alert is on). A hypothesis can only be `supported` if its
-contribution has the same sign as the change it claims to explain.
+**Verdicts.** `share = contribution / D`, signed. `D` is the absolute total
+of the hypothesis's own lens - the change in revenue, or for the product lens
+(P1, P2, R2, R3) the change in GROSS sales. A hypothesis can only be
+`supported` if its contribution has the same sign as that change, and
+thresholds apply to `|share|`. When the change is negligible there is nothing
+to explain: every share hypothesis is `ruled_out` with `share` null.
+
+**When the masked-shift alert is on, `D` for a `term` is the gross of the
+decomposition the term belongs to** (3E1, the question 3D6b left open): level
+1 for B1, level 2 for B2, the product lens for P1, P2, R2, the returns lens
+for P3. A term is bounded by its split's gross, so `|share| <= 1` by
+construction. **An `expectation` keeps `D` = |the change it claims to
+explain|** even under the alert: whether it explains THAT change is the
+question, and against a gross its overshoot vanished - T2 predicting 26 times
+a flat month came out supported at 0.43 of level 1's gross (3E1 doubt-review
+cycle 2, F4). **Never the orders x AOV pair.** The pair is the
+alert's decision device and deliberately hides the customers/frequency
+movement, so its gross understates how much moved, and a share whose
+numerator comes from one split and denominator from another is not bounded
+by 1: on the pair review's S6-like case B1's frequency term (+756.7) is
+0.31 of level 1's gross (2,406.7) and would be 0.95 of the pair's (800).
+
+**D1 follows its check** (Thach, 3E1). When the D1 check is `ok`, D1 is
+`ruled_out`: a few excess zero days under the check's thresholds are noise in
+a sparse shop, and D1 came out supported on 17-24 of 40 sparse shops with no
+missing data; its rule states the excess days the check found. Otherwise its
+contribution is `estimated_revenue_gap_prev - estimated_revenue_gap` (7.3):
+days with no sales this month pull the change down, last month's push it up.
+
+**B1 is `inconclusive` whenever a day may be missing** (Thach, 3E1 cycle 3):
+any excess zero day in either month, or a D1 check that learned no pattern.
+An order is a row count, so a day with no sales removes whole orders and
+reads as customers buying less often: two missing days under D1's threshold
+headlined "customers bought less often (100% of the change)". **B2 is not
+refused**: removing whole orders leaves units per order unchanged - measured
+on 48 shops whose days are identical, B2 moved 0 with nothing planted and at
+most 9.7% (towards zero, the missing orders' Shapley weight) with a planted
+basket change, and its rendered statement never changed. Measured cost: B1
+is refused on 28 of 40 sparse shops (trading on 45% or 80% of days), and on
+neither demo run.
+
+**T2 is `inconclusive` when a year-ago month has a zero-sale day beyond
+D1's learned pattern** (3E1 cycle 3), or D1 learned none. D1 checks only the
+compared months; last February's 10-day gap was headlined as the season.
+Checked after the base guard and the positivity checks. Measured cost: T2 is
+refused for coverage on 30 and 32 of 40 sparse shops (trading on 45% and 80%
+of days), and on neither demo run.
+
+**C4 is `inconclusive` in v1** (Thach, 3E1 cycle 3). Stage 2's segment
+counts are a snapshot at the file's end, over every row including the
+partial month after the current one, not at the end of each compared month:
+the same January came out `ruled_out` or "migrated to weaker segments",
+`supported`, depending on who bought on 2-10 February. The rule is kept
+behind a switch for when stage 2 anchors a snapshot per month (Backlog).
+
+**B1 and B2 are `inconclusive` while return lines count as orders**
+(INTERIM, Thach, 3E1, until session 2E). Stage 2 counts a return line as an
+order with negative units, so a month with refunds shows smaller baskets and
+rarer purchases: B2 headlined "baskets got smaller" at 2.4x the change when
+only returns had changed. Either period with any refund makes both
+`inconclusive` until 2E counts only sale rows as orders.
+
+`contribution` and `share` are null for directional hypotheses and for any
+hypothesis whose verdict is `inconclusive` or `not_testable` (no number was
+computed). On a blocked run the D family is still evaluated from the trust
+checks; every other id is `inconclusive`.
 
 | Verdict | Rule |
 |---|---|
-| supported | same sign and `share >= SUPPORTED_MIN_SHARE` |
+| supported | same sign and `share >= SUPPORTED_MIN_SHARE`; for an `expectation`, `SUPPORTED_MIN_SHARE <= share <= 2 - SUPPORTED_MIN_SHARE` |
 | partial | same sign and `PARTIAL_MIN_SHARE <= share < SUPPORTED_MIN_SHARE` |
-| ruled_out | opposite sign, or below `PARTIAL_MIN_SHARE`, with sufficient data |
+| ruled_out | opposite sign, or below `PARTIAL_MIN_SHARE`, or (an `expectation`) above `2 - SUPPORTED_MIN_SHARE`, with sufficient data |
 | inconclusive | data insufficient (history, left-censoring, too few products) |
 | not_testable | no data exists for this cause |
+
+**Why an expectation has a ceiling** (Thach, 3E1). A `term` is part of one of
+the tree's splits: if it is larger than the change, the other terms offset it
+and the overshoot is real. An `expectation` - what the calendar, last year's
+season, a data gap, a stockout or a change in customer flows WOULD have done -
+explains the change only if it leaves at most `1 - SUPPORTED_MIN_SHARE` of it
+unexplained in either direction. Last year January to February went +50%;
+this year +5%: T2 predicted +500 for a +50 month, share 10, and without the
+ceiling it headlined "1000% of the change is consistent with seasonality"
+while the month fell 450 short of its season. Written as a band, not
+`|1 - share| <= 0.8`, because `1 - 1.8` is not exactly `-0.8` in binary.
 
 **Headline (code, not AI).** First match wins:
 
 1. Trust `blocked` - state the data problem.
-2. D1 supported with `share >= HEADLINE_CONTEXT_MIN_SHARE` - most of the change
-   is consistent with missing days, with the estimated gap.
+2. D1 supported with `share >= HEADLINE_CONTEXT_MIN_SHARE` - the change is
+   consistent with days that have no sales at all, "missing data, or days
+   the shop was closed", with D1's netted contribution - as part of the
+   change up to 100%, otherwise printed against the change.
 3. T3 supported and no masked-shift alert - within normal variation.
    **DORMANT in v1** (ADR-0007): T3 cannot be `supported`, so this rule never
    matches. Kept in place for the Backlog's "unusualness verdicts".
@@ -802,18 +953,45 @@ contribution has the same sign as the change it claims to explain.
    degraded mode, where no narration validator runs.
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
    state that.
-6. Otherwise the `supported` hypothesis with the largest absolute share, naming
-   its lens.
+6. Otherwise the best-fitting `supported` hypothesis, naming its lens and
+   its rendered statement - **except D2 and D3**, whose finding is the trust
+   caution shown beside every headline; caution never changes the headline
+   (Thach, 3E1) - and only a hypothesis whose contribution moved the same way
+   as the NET change the headline states, and none when that change is
+   negligible (a zero change has no best explanation either way; cycle 4) (a directional one carries no
+   number and tests its own direction). A price rise lifting gross sales
+   while refunds sank revenue was named "the best explanation" of the fall
+   (3E1 cycle 3).
 7. Nothing supported - no single tested cause explains most of the change,
    followed by the `partial` ones.
 
 Trust `caution` never changes the headline and is always shown beside it.
 
-**Not testable with this schema** (always listed, never evaluated): X1
-marketing and promotions, X2 competitor actions, X3 weather and macro events,
-X4 traffic and conversion, X5 margin, X6 country or region (no canonical field,
-the 2D finding), X7 sales channel or payment method. Saying what could not be
-tested is part of the answer, not an omission.
+**Ranking by fit** (Thach, 3E1), for rules 5 and 6, ties broken by catalog
+order: a term by `min(|share|, 1)`; an expectation by `min(|share|, 2 -
+|share|)`, the closer to the change the better; a directional hypothesis
+after every share. Ranking by the largest `|share|` picked the WORST
+overshoot - T2 at 1.75 over T1 at 1.00.
+
+**No percentage above 100.** A share up to 100% is written as a percentage of
+the change; above that, as the contribution against the change ("+800.00
+against the change of +200.00"), because a percentage over 100 reads as a
+finding when it is the mark of an overshoot. The product lens's share is of
+the change in GROSS sales and says so, with that figure, since the headline
+opens with the net change.
+
+**Not testable with this schema** (always listed, never evaluated). Saying
+what could not be tested is part of the answer, not an omission.
+
+| Id | Statement | Reason |
+|---|---|---|
+| X1 | Marketing and promotions | no campaign data; discount columns are not canonical |
+| X2 | Competitor actions | no competitor data |
+| X3 | Weather and macro events | no external data |
+| X4 | Traffic and conversion | no footfall or session data; sales rows record only purchases |
+| X5 | Margin | no cost column |
+| X6 | Country or region | no canonical country field (the 2D finding) |
+| X7 | Sales channel or payment method | no canonical channel or payment field |
 
 ### 7.9 Step 8: AI narration (the only AI call in stage 3)
 
@@ -885,6 +1063,7 @@ are heuristics until calibrated against real data.
 | `CALENDAR_MIN_WEEKS` | 8 | 7.4 |
 | `D1_CAUTION_DAYS` / `D1_CAUTION_SHARE` | 3 / 0.10 | 7.3 |
 | `D1_BLOCK_SHARE` | 0.50 | 7.3 |
+| `D1_LEARN_MIN_ACTIVE_SHARE` | 0.50 (PROVISIONAL) | 7.3 |
 | `D2_MIN_PRODUCTS` / `D2_MIN_ROWS` | 20 / 3 | 7.3 |
 | `D2_CLUSTER_SHARE` / `D2_CLUSTER_WIDTH` | 0.80 / 0.02 | 7.3 |
 | `D2_NEUTRAL_BAND` | 0.90 to 1.10 | 7.3 |

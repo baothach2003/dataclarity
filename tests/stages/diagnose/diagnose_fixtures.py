@@ -80,6 +80,23 @@ def run_data(rows: list[dict], mapping: dict[str, str] | None = None) -> RunData
     return build_run_data(df, mapping, metrics)
 
 
+def daily_months(revenue_by_month: dict[str, float]) -> list[dict]:
+    """One row on EVERY calendar day, each month's days sharing its revenue.
+
+    For tests about a monthly total that also pass D1's coverage checks: a
+    one-row-per-month file has ~30 zero-sale days a month, which D1 (and T2's
+    year-ago check, 3E1) correctly reads as a pattern with fractional excess.
+    """
+    rows = []
+    for month, value in revenue_by_month.items():
+        year, number = int(month[:4]), int(month[5:7])
+        days = (date(year + number // 12, number % 12 + 1, 1) - date(year, number, 1)).days
+        for offset in range(days):
+            rows.append(row(date(year, number, 1) + timedelta(days=offset), qty=1.0,
+                            price=value / days))
+    return rows
+
+
 def full_months(revenue_by_month: dict[str, float], *, price: float = 10.0) -> list[dict]:
     """One row per month carrying that month's whole revenue.
 

@@ -12,25 +12,18 @@ must not claim to tell those apart.
 import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
-from shared.transactions import is_blank, product_identity, require_column
 from stages.diagnose.inputs import RunData, days_in_month, month_dates
-from stages.diagnose.numbers import is_negligible
+from stages.diagnose.frame import first_sale, previous_leading_days_missing
 from stages.diagnose.thresholds import (
     D1_BLOCK_SHARE,
     D1_CAUTION_DAYS,
     D1_CAUTION_SHARE,
-    D2_CLUSTER_SHARE,
-    D2_CLUSTER_WIDTH,
-    D2_MIN_PRODUCTS,
-    D2_MIN_ROWS,
-    D2_NEUTRAL_BAND,
-    D2_SMALL_CLUSTER_SHARE,
-    D2_SMALL_MIN_PRODUCTS,
-    D2_SMALL_RATIO_HIGH,
-    D2_SMALL_RATIO_LOW,
-    D3_MIN_SHARE,
-    D3_RATIO,
+    D1_LEARN_MIN_ACTIVE_SHARE,
 )
+# D2 and D3 live in trust_checks.py; re-exported so callers keep one import.
+from stages.diagnose.trust_checks import d2_price_level, d3_flagged_rows
+
+__all__ = ["evaluate_trust", "d1_coverage", "d2_price_level", "d3_flagged_rows"]
 
 # Rows stage 1 removed are simply not in cleaned.csv, so nothing here can tell
 # which period they belonged to. Stated in the output rather than quietly
@@ -78,28 +71,77 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
     Sundays, which a scalar rate partly absorbs.
     """
     period = data.metrics.period
+    # A previous month the file only partly covers is not a comparison base,
+    # whatever the history says (Thach, 3E1): blocked at D1's own caution size,
+    # so one leading closed day (New Year's Day) is not read as a cut export.
+    # A file with NO row in the previous month is the extreme case: it
+    # headlined "products were launched or discontinued (100%)" for 0 -> 310,
+    # the launch being where the export starts (3E1, run to the headline).
+    # And a previous month with NO sale anywhere in it, even in a file with
+    # history: it only cautioned "worth roughly 0" and a product sold for
+    # eleven months was headlined as launched (3E1 doubt-review cycle 4).
+    leading = previous_leading_days_missing(data)
+    days_prev = days_in_month(period.previous)
+    # Any counted row in the month, NOT `months_with_rows`: that set holds only
+    # complete months, so a January starting on the 2nd read as "no sales".
+    empty_prev = not bool((data.parsed.counted & (data.months == period.previous)).any())
+    if empty_prev or leading >= D1_CAUTION_DAYS or leading >= D1_CAUTION_SHARE * days_prev:
+        first = str(first_sale(data))
+        where = (f"the file has no sales in {period.previous}, the month the current one is "
+                 f"compared with" if empty_prev else
+                 f"the file's first sale is on {first}, {leading} days into {period.previous}, "
+                 "the month the current one is compared with, so that month is incomplete")
+        return TrustCheck(
+            id="D1", status="blocked",
+            evidence={"previous_leading_days_missing": leading, "first_sale": first,
+                      "previous_month_has_sales": not empty_prev},
+            message=f"{where[0].upper()}{where[1:]}. If the export was cut short, re-export "
+                    f"the file from {period.previous}-01; if the shop opened then, there is "
+                    "no full month to compare with yet.")
     # Only months that hold rows can teach what normal looks like. A history
     # month with nothing in it is itself a gap, and letting it set the
     # expectation lets missing data hide missing data: three empty months lift
     # the learned zero-rate enough to absorb a real six-day hole in the current
     # month, and the file with MORE missing data gets the cleaner verdict
     # (3B doubt-review finding 2).
-    learned_from = [month for month in history if month in data.months_with_rows]
+    # ...and never from the PREVIOUS month: it is itself checked below, and
+    # learning "normal" from it let a 12-day February gap teach itself away
+    # (3E1 doubt-review cycle 2, M2).
+    candidates = [month for month in history if month in data.months_with_rows
+                  and month != period.previous]
     empty_history = [month for month in history if month not in data.months_with_rows]
+    active = _active_dates(data)
+    # ...nor from a month that is itself mostly gap: a March missing 20 days,
+    # or a November holding one row, taught "closed" as normal and hid a real
+    # gap in the current month (3E1 doubt-review cycle 3). Measured against
+    # the history's own median, so a sparse shop's ordinary months all stay.
+    active_days = {month: len(month_dates(month)) - _zero_days(active, month)
+                   for month in candidates}
+    floor = D1_LEARN_MIN_ACTIVE_SHARE * float(pd.Series(active_days).median()) \
+        if active_days else 0.0
+    learned_from = [month for month in candidates if active_days[month] >= floor]
+    sparse_history = [month for month in candidates if active_days[month] < floor]
     if not learned_from:
+        # The previous month is never learned from, so a two-month file lands
+        # here with a complete, full history month: say so rather than "no
+        # month holds rows" (3E1 doubt-review cycle 4).
         return TrustCheck(
             id="D1", status="inconclusive",
-            evidence={"history_months": len(history), "history_months_with_rows": 0},
-            message="No complete month before the current one holds any rows, so there is "
-                    "no normal trading pattern to compare coverage against.")
+            evidence={"history_months": len(history),
+                      "history_months_with_rows": len(history) - len(empty_history),
+                      "learned_from_months": 0},
+            message="No complete month before the current one, other than the month it is "
+                    "compared with (which is itself under check), has sales to learn this "
+                    "store's normal trading pattern from.")
 
-    active = _active_dates(data)
     zero_rates = _zero_rate_by_weekday(active, learned_from)
 
     evidence: dict[str, object] = {
         "zero_rate_by_weekday": {str(day): round(rate, 4) for day, rate in zero_rates.items()},
-        "history_months_with_rows": len(learned_from),
+        "history_months_with_rows": len(history) - len(empty_history),
+        "learned_from_months": len(learned_from),
         "empty_history_months": empty_history,
+        "sparse_history_months": sparse_history,
     }
     excess = {}
     for label, month in (("cur", period.current), ("prev", period.previous)):
@@ -110,25 +152,57 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
         evidence[f"expected_zero_days_{label}"] = round(expected, 3)
         evidence[f"excess_zero_days_{label}"] = round(excess[label], 3)
 
-    gap = excess["cur"] * _mean_revenue_per_active_day(data, period.previous)
+    # Each gap at its OWN month's pace, since a month's missing days would have
+    # traded at that month's rate: pricing at the other month's pace flipped
+    # the sign of D1 when both months had gaps and revenue grew (3E1
+    # doubt-review cycle 2, F1), and a message priced one way beside a verdict
+    # priced the other showed the reader two figures for one gap (cycle 3).
+    # The PREVIOUS month can be the incomplete one, inflating the change
+    # upward (3E1 doubt-review #4): it cautions but never blocks - the
+    # current month is the one being diagnosed.
+    gap = excess["cur"] * _mean_revenue_per_active_day(data, period.current)
+    gap_prev = excess["prev"] * _mean_revenue_per_active_day(data, period.previous)
     evidence["estimated_revenue_gap"] = round(gap, 2)
+    evidence["estimated_revenue_gap_prev"] = round(gap_prev, 2)
 
     days = days_in_month(period.current)
     if excess["cur"] >= D1_BLOCK_SHARE * days:
         observed = evidence["zero_days_cur"]
         return TrustCheck(
             id="D1", status="blocked", evidence=evidence,
-            message=f"{observed} of {days} days in the current month have no rows at all, "
+            message=f"{observed} of {days} days in the current month have no sales at all, "
                     f"about {excess['cur']:.0f} more than this store's normal closing "
-                    "pattern explains. The period is too incomplete to diagnose.")
+                    "pattern explains - missing data, or days the shop was closed. Too few "
+                    "trading days to diagnose.")
     if excess["cur"] >= D1_CAUTION_DAYS or excess["cur"] >= D1_CAUTION_SHARE * days:
         return TrustCheck(
             id="D1", status="caution", evidence=evidence,
-            message=f"About {excess['cur']:.0f} days in the current month have no rows beyond "
-                    f"this store's normal closing pattern, worth roughly {gap:,.0f} in revenue.")
+            message=f"About {excess['cur']:.0f} days in the current month have no sales beyond "
+                    "this store's normal closing pattern (missing data, or days the shop was "
+                    f"closed), worth roughly {gap:,.0f} in revenue.")
+    days_prev = days_in_month(period.previous)
+    if excess["prev"] >= D1_CAUTION_DAYS or excess["prev"] >= D1_CAUTION_SHARE * days_prev:
+        return TrustCheck(
+            id="D1", status="caution", evidence=evidence,
+            message=f"About {excess['prev']:.0f} days in the previous month have no sales "
+                    "beyond this store's normal closing pattern (missing data, or days the "
+                    f"shop was closed), worth roughly {gap_prev:,.0f} in revenue - the change "
+                    "is measured against an incomplete month.")
     return TrustCheck(
         id="D1", status="ok", evidence=evidence,
         message="Coverage matches this store's normal trading pattern.")
+
+
+def excess_zero_days(data: RunData, check: TrustCheck, month: str) -> float | None:
+    """Zero-sale days in any `month` beyond D1's learned weekday pattern, or
+    None when D1 learned none. For T2's year-ago pair, which D1 does not check
+    (3E1 doubt-review cycle 3: a year-ago gap read as the season)."""
+    rates = check.evidence.get("zero_rate_by_weekday")
+    if rates is None:
+        return None
+    zero_rates = {int(day): rate for day, rate in rates.items()}
+    return max(0.0, _zero_days(_active_dates(data), month)
+               - _expected_zero_days(zero_rates, month))
 
 
 def _active_dates(data: RunData) -> pd.Series:
@@ -169,164 +243,3 @@ def _mean_revenue_per_active_day(data: RunData, month: str) -> float:
     active = _active_dates(data)
     in_month = active[active.index.to_period("M").astype(str) == month]
     return float(in_month.mean()) if len(in_month) else 0.0
-
-
-# --- D2: uniform price-level shift --------------------------------------------
-
-
-def d2_price_level(data: RunData) -> TrustCheck:
-    """A whole catalogue repricing by the same factor is the signature of a
-    unit or currency change in the data - or of a deliberate repricing. This
-    check never blocks, because nothing in point-of-sale rows can tell those
-    two apart."""
-    ratios = _price_ratios(data)
-    count = len(ratios)
-    evidence: dict[str, object] = {"comparable_products": count}
-
-    if count >= D2_MIN_PRODUCTS:
-        median = float(ratios.median())
-        within = float((ratios.sub(median).abs() <= D2_CLUSTER_WIDTH * median).mean())
-        evidence |= {"median_ratio": round(median, 4), "share_in_cluster": round(within, 4),
-                     "rule": "cluster"}
-        low, high = D2_NEUTRAL_BAND
-        if within >= D2_CLUSTER_SHARE and not (low <= median <= high):
-            return TrustCheck(
-                id="D2", status="caution", evidence=evidence,
-                message=f"Prices moved by about the same factor ({median:.2f}x) across "
-                        f"{within:.0%} of comparable products. Verify whether this is a unit "
-                        "or currency change in the data, or a deliberate repricing.")
-        return TrustCheck(id="D2", status="ok", evidence=evidence,
-                          message="No uniform price-level shift across products.")
-
-    if count >= D2_SMALL_MIN_PRODUCTS:
-        # Small catalogue: only an order-of-magnitude move is evidence, since a
-        # tight cluster among a handful of products happens by chance.
-        extreme = float(((ratios >= D2_SMALL_RATIO_HIGH) | (ratios <= D2_SMALL_RATIO_LOW)).mean())
-        median = float(ratios.median())
-        evidence |= {"median_ratio": round(median, 4), "share_extreme": round(extreme, 4),
-                     "rule": "small_catalog_order_of_magnitude"}
-        if extreme >= D2_SMALL_CLUSTER_SHARE:
-            return TrustCheck(
-                id="D2", status="caution", evidence=evidence,
-                message=f"Prices changed by an order of magnitude (about {median:.2f}x) across "
-                        f"{extreme:.0%} of the {count} comparable products. That is the "
-                        "signature of a unit or currency error rather than repricing; verify "
-                        "the price column.")
-        return TrustCheck(
-            id="D2", status="ok", evidence=evidence,
-            message=f"No order-of-magnitude price shift across the {count} comparable products.")
-
-    return TrustCheck(
-        id="D2", status="inconclusive", evidence=evidence,
-        message=f"Only {count} products sold in both periods with enough rows to compare "
-                "prices; too few to tell a uniform shift from coincidence.")
-
-
-def _price_ratios(data: RunData) -> pd.Series:
-    """Median unit price this period over median unit price last period, per
-    product sold in both with at least D2_MIN_ROWS counted rows in each."""
-    reverse = data.parsed.reverse
-    name_col = require_column(reverse, "product_name")
-    identity = product_identity(data.df, name_col, reverse.get("sku"))
-    period = data.metrics.period
-
-    frame = pd.DataFrame({
-        "identity": identity,
-        "month": data.months,
-        "price": data.parsed.prices,
-    })[data.parsed.counted]
-
-    medians = {}
-    for label, month in (("cur", period.current), ("prev", period.previous)):
-        rows = frame[frame["month"] == month]
-        grouped = rows.groupby("identity")["price"]
-        medians[label] = grouped.median()[grouped.size() >= D2_MIN_ROWS]
-
-    shared = medians["cur"].index.intersection(medians["prev"].index)
-    previous = medians["prev"].reindex(shared)
-    current = medians["cur"].reindex(shared)
-    # A zero or negative previous price cannot produce a meaningful ratio.
-    usable = previous > 0
-    return (current[usable] / previous[usable]).dropna()
-
-
-# --- D3: flagged rows concentrated in the current period ----------------------
-
-
-def d3_flagged_rows(data: RunData) -> TrustCheck:
-    """Stage 1 marks cells it could not trust with `__flag_*` columns. A jump
-    in their share between the periods means the current month's rows are of a
-    different quality from the ones it is compared with."""
-    uncategorised = _uncategorised_share(data)
-    flag_columns = [column for column in data.df.columns if str(column).startswith("__flag_")]
-    if not flag_columns:
-        return TrustCheck(id="D3", status="ok",
-                          evidence={"flag_columns": 0, **uncategorised},
-                          message="Stage 1 flagged no rows in this file.")
-
-    flagged = _any_flag_set(data.df[flag_columns])
-    period = data.metrics.period
-    shares = {}
-    for label, month in (("cur", period.current), ("prev", period.previous)):
-        in_month = data.parsed.counted & (data.months == month)
-        rows = int(in_month.sum())
-        shares[label] = float(flagged[in_month].mean()) if rows else 0.0
-
-    evidence = {"flag_columns": len(flag_columns),
-                "flagged_share_cur": round(shares["cur"], 4),
-                "flagged_share_prev": round(shares["prev"], 4),
-                **uncategorised}
-    if shares["cur"] >= D3_RATIO * shares["prev"] and shares["cur"] >= D3_MIN_SHARE:
-        return TrustCheck(
-            id="D3", status="caution", evidence=evidence,
-            message=f"{shares['cur']:.1%} of this month's rows carry a data-quality flag, "
-                    f"against {shares['prev']:.1%} last month.")
-    return TrustCheck(id="D3", status="ok", evidence=evidence,
-                      message="Flagged rows are not concentrated in the current period.")
-
-
-def _uncategorised_share(data: RunData) -> dict[str, float | None]:
-    """How much of each period's revenue carries no category.
-
-    Reported as D3 evidence because it is a data-completeness fact, not a
-    business one (Thach, 3D): step 6 shows "(uncategorised)" as a member so
-    the dimension still adds up, and this is what tells a reader whether that
-    member is a rounding detail or most of the shop. Absent when no category
-    column is mapped - there is nothing incomplete about a file that never
-    claimed to have categories.
-
-    Three things the first version got wrong (3D doubt-review R10). It
-    measured the current month only, so a file whose category column went
-    blank *last* month reported 0.0 while step 6 showed a large `rev_prev`
-    for the gap bucket. It divided absolute revenue while step 6's member
-    reports net, so the two numbers a reader would naturally compare did not
-    match. And it returned 0.0 for a month with no revenue at all, which
-    reads as "nothing uncategorised" rather than "nothing to measure" -
-    `None` says the second.
-    """
-    column = data.parsed.reverse.get("category")
-    if column is None:
-        return {}
-    blank = is_blank(data.df[column])
-    period = data.metrics.period
-    shares: dict[str, float | None] = {}
-    for label, month in (("cur", period.current), ("prev", period.previous)):
-        mask = data.parsed.counted & (data.months == month)
-        revenue = data.parsed.revenue_amounts[mask]
-        total = float(revenue.sum())
-        # Net, matching the member step 6 reports, and relative rather than
-        # `== 0` so a month whose sales and refunds cancel is reported as
-        # unmeasurable instead of dividing by residue.
-        if is_negligible(total, float(revenue.abs().sum()), total):
-            shares[f"uncategorised_revenue_share_{label}"] = None
-            continue
-        shares[f"uncategorised_revenue_share_{label}"] = round(
-            float(revenue[blank[mask]].sum()) / total, 4)
-    return shares
-
-
-def _any_flag_set(flags: pd.DataFrame) -> pd.Series:
-    """cleaned.csv is read as text, so a flag arrives as "True"/"False"."""
-    truthy = flags.apply(lambda column: column.astype(object).str.strip().str.lower().isin(
-        ("true", "1")))
-    return truthy.any(axis=1)

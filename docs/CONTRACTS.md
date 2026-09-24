@@ -249,13 +249,19 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
   "schema_version": "1.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "frame": {"current": "2011-11", "previous": "2011-10",
             "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
-            "history_months": 23, "history_start": "2009-12", "history_end": "2011-10"},
+            "history_months": 23, "previous_leading_days_missing": 0,
+            "history_start": "2009-12", "history_end": "2011-10"},
   "trust": {
     "verdict": "caution",
     "checks": [{"id": "D1", "status": "caution",
-                "evidence": {"zero_days_cur": 6, "excess_zero_days": 5.2,
-                             "estimated_revenue_gap": 18400.0},
-                "message": "6 days of the current month have no rows at all"}],
+                "evidence": {"zero_days_cur": 6, "excess_zero_days_cur": 5.2,
+                             "excess_zero_days_prev": 0.0,
+                             "estimated_revenue_gap": 18400.0,
+                             "estimated_revenue_gap_prev": 0.0,
+                             "sparse_history_months": [],
+                             "history_months_with_rows": 23,
+                             "learned_from_months": 22},
+                "message": "About 5 days in the current month have no sales beyond this store's normal closing pattern (missing data, or days the shop was closed), worth roughly 18,400 in revenue."}],
     "limitations": ["rows dropped in stage 1 cannot be assigned to a period"]
   },
   "calendar": {"method": "weekday_weights", "expected_cur": 1180000.0,
@@ -301,18 +307,18 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
     "breadth": {"declining_base_share": 0.74, "top_member_share": 0.41,
                 "classification": "broad"}
   },
-  "hypotheses": [{"id": "P2", "family": "price_mix", "lens": "product",
+  "hypotheses": [{"id": "P2", "family": "product_returns", "lens": "product",
                   "statement": "Sales mix shifted towards cheaper products",
-                  "verdict": "supported", "contribution": -21000.0, "share": 0.21,
-                  "evidence": {"mix_effect": -21000.0, "delta_gross": -100000.0},
-                  "rule": "same sign and share >= 0.20"}],
-  "not_testable": [{"id": "X1", "statement": "Marketing, promotions, discounts",
+                  "verdict": "partial", "contribution": -21000.0, "share": -0.15,
+                  "evidence": {"mix_effect": -21000.0, "products_in_both_periods": 412},
+                  "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05"}],
+  "not_testable": [{"id": "X1", "statement": "Marketing and promotions",
                     "reason": "no campaign data; discount columns are not canonical"}],
-  "headline": {"rule": 6, "hypothesis_id": "P2", "lens": "product",
-               "message": "Most of the decline is consistent with a shift in sales mix towards cheaper products."},
+  "headline": {"rule": 7, "hypothesis_id": null, "lens": null,
+               "message": "Revenue went from 1,290,000.00 to 1,150,000.00 (-140,000.00). No single tested cause explains most of the change. Partly consistent: sales mix shifted towards cheaper products (P2)."},
   "ai_findings": {
     "summary": "Revenue fell 10.9% this month...",
-    "headline_explanation": "The mix effect accounts for 21% of the drop...",
+    "headline_explanation": "The mix effect accounts for 15% of the drop in gross sales...",
     "hypothesis_notes": [{"id": "P2", "text": "Shoppers bought more of the cheaper lines..."}],
     "not_tested_note": "This data cannot test marketing, competitors, weather or footfall."
   }
@@ -322,7 +328,12 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 **Types.** `frame.current`/`previous`/`year_ago_*`/`history_start`/`history_end`
 are `YYYY-MM` strings; `year_ago_current` and `year_ago_previous` are `null`
 together when the year-ago pair is not in the data. `history_months` is a
-non-negative integer. `trust.verdict` is `trusted | caution | blocked`; each
+non-negative integer. `previous_leading_days_missing` (non-negative integer) is
+the number of days of the previous month before the file's first
+revenue-counted row (a sale or a return; not a stock-in row), capped at the
+month's length; at
+D1's caution size the D1 check blocks, since the comparison base is an
+incomplete month (`docs/AI_PIPELINE.md` 7.2). `trust.verdict` is `trusted | caution | blocked`; each
 check's `status` is `ok | caution | blocked | inconclusive` and its `id` is
 `D1 | D2 | D3`. `signals[].series` is one of `revenue`, `orders`,
 `active_customers`, `frequency`, `aov`, `units_per_order`, `price_per_unit`,
@@ -493,7 +504,25 @@ ways contributes 2). A large number says the customer column is inconsistently
 entered, which is context for every C-family verdict built on it. `hypotheses[].verdict` is
 `supported | partial | ruled_out | inconclusive | not_testable`; `contribution`
 and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
-carry their test in `evidence` and `rule` instead. `headline.rule` is `1`-`7`
+carry their test in `evidence` and `rule` instead, and for any hypothesis
+whose verdict is `inconclusive` or `not_testable`; `share` is also `null` when
+the change is negligible or `D` is zero. `statement` is the RENDERED
+statement: for a cause that can move either way, code picks the fall or rise
+wording from the sign of `contribution`, and the direction-neutral tested
+statement is kept when no number was computed (ADR-0005 clarification).
+D1's `evidence` carries `estimated_revenue_gap` and
+`estimated_revenue_gap_prev` (each month's gap at its own month's pace) and
+`d1_status`; T2's carries `excess_zero_days_year_ago_cur` and `_prev`; B1,
+when refused on a possible gap, carries `d1_status` and both months'
+`excess_zero_days`; B1 and B2, while inconclusive on refunds, carry
+`returns_prev` and `returns_cur`. The D1 trust check's `evidence` lists
+`sparse_history_months` (history months too gapped to learn from),
+`history_months_with_rows` and `learned_from_months`; on a block for an
+incomplete previous month it carries only `previous_leading_days_missing`,
+`first_sale` and `previous_month_has_sales`. `family` is one of `data_quality | time | customers
+| lever | product_returns | localization_lifecycle`; `id`, `family`, `lens`
+and `statement` come from `stages/diagnose/catalog.py`, the catalog's single
+home, which `docs/AI_PIPELINE.md` 7.8 mirrors under test. `headline.rule` is `1`-`7`
 (`docs/AI_PIPELINE.md` section 7); `hypothesis_id` and `lens` are `null` for
 rules that name no hypothesis (1, 2, 3, 4, 5, 7). Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in

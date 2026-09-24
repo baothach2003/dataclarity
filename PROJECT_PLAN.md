@@ -236,9 +236,17 @@ dataclarity/
 > section 7; DIAGNOSE_DESIGN.md remains the record of *why*. Only 3F spends
 > API credit.
 >
-> **Session order from here** (Thach, triaged after 3D5b): 3D4, 3D5, 3D5b
-> (all committed together), then **3D6**, then **3D6b**, then **3E**, then
-> **2E** and **3D7**, then 3F, 3G. **3D8 moves after 3E, low priority**
+> **Session order from here** (Thach, triaged after 3D5b; amended in 3E1):
+> 3D4, 3D5, 3D5b (all committed together), then **3D6**, then **3D6b**, then
+> **3E1**, then **2E**, then **3E1b**, then **3E2**, then **3D7**, then 3F,
+> 3G (Thach, after 3E1). **2E first** because it corrects the orders
+> definition B1 and B2 rest on (stage 2 counts return lines as orders -
+> confirmed in `metrics_core._bucket`, so 2E keeps its full scope) and stage
+> 2's partial previous month; calibrating 3E1b on the old definition and
+> then changing it would mean calibrating twice. **3E1b before 3E2** because
+> it carries FABRICATEs (asymmetry rule), and 3E2 measures a settled engine.
+> 3E1b merges what 3E1 recorded as 3E1b and 3E1c: both change how D1 learns
+> from history months with missing days, in the same function. **3D8 moves after 3E, low priority**
 > (Thach, 3D6b): since ADR-0007 losing year-over-year mode loses only a
 > descriptive row, so its effect is display only.
 > **3D9 left the critical path** (Thach, after 3D6): instead of a further
@@ -531,8 +539,103 @@ dataclarity/
       A fourth fact for the same field. Reproduction: 24 months at 500, then
       12 at about 50,000, current 50,000 (3D6 scratchpad `review/r4.py`).
       Doubt-review: yes. Mutation check: yes.
-- [ ] 3E Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the fixed catalog,
-      verdicts, the 7 headline rules, the fixed-seed scenario generator and the
+- [x] 3E1 The catalog, verdicts and headline rules (Thach split 3E in two
+      with a commit boundary). Closed 2026-09-24. The catalog is DEFINED ONCE
+      AS DATA in `stages/diagnose/catalog.py`, and AI_PIPELINE 7.8's table is
+      checked against it cell by cell. Verdicts by kind (term / expectation
+      with the residual band / directional); D decided: under the alert a
+      TERM's own split's gross, an expectation always |the change|, never
+      the pair; statements rendered from the sign (ADR-0005 clarification);
+      rules 1-7 with rule 3 dormant and rule 4 hedged beside the net change;
+      ranking by fit; T2 behind the 3D4/3D6 base guard. Session log below.
+      **Interim in place until 2E:** B1 and B2 are `inconclusive` when either
+      month has a refund, because stage 2 AND stage 3 count a return line as
+      an order (verified in `metrics_core._bucket`: `orders = int(mask.sum())`
+      over every row). **Observed on the demo runs, not changed:** headline
+      rule 5 (T2, "+7,284.95 against the change of +4,925.00", share 1.48)
+      outranks the better-fitting B1 (0.96) by rule order; 3E2's suite
+      measures whether that order is right.
+      **Doubt-review cycle 3 found five FABRICATEs** (sub-threshold missing
+      days credited to B1; a gapped history month hiding a gap; an export
+      starting mid-month; a year-ago gap read as the season; rule 6 naming a
+      price rise as the cause of a fall) plus C4 reading rows after the
+      period and four wording defects. All fixed by Thach's decisions, with a
+      fourth cycle scoped to the fixes (Thach's stop rule: a critical there
+      that is not a small local fix splits the remainder into 3E1c - since
+      merged into 3E1b). **Cycle
+      4** found two criticals, both small and local, fixed without a fifth
+      cycle: a previous month with no sale in a file WITH history only
+      cautioned (a product sold for eleven months headlined as "launched");
+      the leading-days count keyed on the first row of any kind (a stock-in
+      row hid a missing month). Also fixed: rule 6 on an exactly-zero change,
+      a false D1 message, CONTRACTS drift. Its non-local High and Medium went
+      to 3E1c (now part of 3E1b). **Known limits, accepted for v1 by Thach:**
+      B1 is refused on 28 of 40 sparse shops and T2 on 30-32 of 40 (any
+      zero-sale day beyond the learned pattern), both kept on the two demo
+      runs; 3E2 reports them. C4 is `inconclusive` in v1 (Backlog).
+- [ ] 3E1b **How D1 learns from history, and rule 6's size test** (one
+      session; Thach, after 3E1: runs after 2E, before 3E2). Merges the two
+      items 3E1 recorded as 3E1b and 3E1c. Parts A and B change the same code
+      - `trust.d1_coverage`'s learning set and its caution threshold - and
+      are decided by the same measurement (sparse, seasonal and half-gapped
+      shops together), so splitting them would calibrate one rule twice.
+      Part C is independent code (`headline.py`) and is here, not in 3E2,
+      because 3E2 measures the headline and must measure a settled rule.
+      Parts B and C need their own doubt-review scope. Since 3E2 now comes
+      after, the measurements use the hand-built sweeps from 3E1's
+      scratchpad (sparse r5b, seasonal, review9 r6/r7), and 3E2 re-checks on
+      the generator. Re-measure B1's and T2's refusal rates afterwards: both
+      read D1's learned pattern.
+      **A. D1's check false-cautions on sparse and seasonal shops - a
+      FABRICATE** (found in 3E1). With NO missing data, the D1
+      check cautions on 11-12 of 40 sparse shops (6 on the current month,
+      5-6 on the previous one), and because D1 now follows its check, D1 is
+      supported and **headline rule 2 ("consistent with missing days of
+      data") fires on 6-7 of 40**. The cause is the check's absolute
+      `D1_CAUTION_DAYS` = 3: in a shop that trades a few days a week, three
+      excess zero days is ordinary variation, not a gap. Tying D1 to its
+      check (Thach, 3E1) cut the headline rate from 17-24 of 40 but cannot
+      reach below the check. By the asymmetry rule a FABRICATE blocks; the
+      candidate direction is a threshold scaled to the shop's own zero-day
+      variability, measured on the 3E2 generator's sparse shapes.
+      **Seasonal shops too (measured in 3E1 cycle 3):** on seasonal shops with
+      NOTHING missing (daily Apr-Sep, 1-5 trading days a month off-season),
+      D1 flags 61 of 120 current months - essentially every off-season month -
+      because it learns one weekday pattern for the whole year. The 3E1
+      learning exclusion (`D1_LEARN_MIN_ACTIVE_SHARE`) does not create this
+      but turns 33 of those cautions into blocks (rule 1: 7 -> 40 of 120;
+      rule 2: 9 -> 14). Wording since 3E1 names closures, so the rule-2
+      sentence ("days with no sales - missing data, or days the shop was
+      closed") is literally true of an off-season month, but a seasonal
+      decline is not diagnosed as seasonal. Same item: D1 needs a notion of
+      the shop's season before its absence-of-sales reading is a finding.
+      **B. A half-gapped history month still hides a gap (FABRICATE)** (3E1
+      doubt-review cycle 4, split out under Thach's stop rule rather than
+      patched at cycle 4).
+         `D1_LEARN_MIN_ACTIVE_SHARE` drops a history month only below half
+         the history's median active days. With history {30, 17} active days
+         (median 23.5, floor 11.75) a December missing 14 days is still
+         learned from; D1 then expects 6.7 zero days in a February missing 6,
+         reads `ok` with 0.0 excess, B1 is not refused, and rule 6 says
+         "customers bought less often (lever lens, 100% of the change)" for
+         930 -> 690. Also with December missing 15 and February 7. Near
+         misses (excess 0.33; 2.57 with 3 of 8 months half-gapped) refuse B1
+         but leave D1 `ok`, so the missing week (78% of the change) is never
+         named - SUPPRESS. The same learned rates feed T2's year-ago check
+         (not reproduced). Reproductions: scratchpad `review9/r6`, `r7`.
+         Direction: learning needs a robust per-month test against the
+         weekday pattern (e.g. leave-one-out), not a floor on active days;
+         measure against part A's sparse and seasonal shapes together, since
+         the same rule decides both.
+      **C. Rule 6 checks the sign, not the size (misleading, not false).**
+         Prices 10 -> 12 (+62 of gross) and a 60.00 refund: net +2, and the
+         headline names "like-for-like prices changed (100% of the change in
+         gross sales (+62.00))" while the refund that cancelled 97% of it is
+         `ruled_out` for having the opposite sign. Every printed number is
+         true. A design decision: bound a product-lens cause's
+         `|contribution / net|` for the headline, or name the offset.
+- [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11): the
+      fixed-seed scenario generator and the
       S0-S11 suite with its acceptance criteria - including **S11, the
       6-month truncated build**, whose headline must NOT be rule 3 (normal
       variation). Doubt-review: yes.
@@ -554,13 +657,39 @@ dataclarity/
       moves with it - and how often an alert that fires dilutes
       7.8's shares below SUPPORTED_MIN_SHARE, since D becomes the gross,
       which exceeds three times the change whenever the alert is on.
+      **3E1 decided D** (level 1's gross for B1, never the pair's; terms
+      only); 3E2 still measures the dilution. **Also in 3E2** (Thach, 3E1):
+      decide what happens to the known-limit tests pinned in 3D6 now that no
+      signal is a verdict; **report the accepted v1 known limits** (Thach,
+      after 3E1) as their own rows, re-measured on the engine as it stands
+      after 3E1b and on the generator's shapes: B1 refused on 28 of 40 sparse
+      shops and T2 on 30-32 of 40 at 3E1, both kept on the two demo runs; build the generator so it cannot be fitted to the
+      engine (causes planted by construction from the scenario spec, never by
+      inspecting engine output) and state how; runs AFTER 2E.
       **Also the trigger for the Figma Insights frame** (trust badge,
       hypothesis list with verdict labels): the shapes those need are final
       only once this session lands (Thach, 3A). The "normal-variation" state
       is DORMANT in v1 (ADR-0007) - design the rule-7 "no single tested cause"
       state instead.
 - [ ] 2E Percentage change against a non-positive base, in STAGE 2
-      (**must land before 3F**, Thach, after 3D4). `shared/transactions.py`'s
+      (**must land before 3F**, Thach, after 3D4), **and the orders
+      definition (moved ahead of 3E2, Thach, 3E1).** Stage 2 counts a
+      return line as an order (`metrics_core._bucket`: `orders =
+      int(mask.sum())` over all rows, returns included), and stage 3's tree
+      matches it, so a month with refunds shows fewer units per order and a
+      lower purchase frequency. Count only sale rows as orders in BOTH
+      stages; the stage 2 / stage 3 consistency test ties them, so they move
+      together. Then remove the B1/B2 returns interim in
+      `hypothesis_evidence._returns_in_either_period` and its tests.
+      **Also an incomplete previous period in stage 2** (Thach, 3E1 cycle 3).
+      Stage 3 now blocks when the file starts partway through (or after) the
+      previous month (`frame.previous_leading_days_missing`, AI_PIPELINE
+      7.2), but stage 2 compares the same partial month, so
+      `revenue_change_pct` and every period-over-period KPI on the Insights
+      page are wrong for such a file. Stage 2 must detect an incomplete
+      previous period and report the comparison as unavailable rather than a
+      percentage, with the same advice: re-export from the 1st of the
+      previous month. `shared/transactions.py`'s
       `pct_change` guards with `if previous else 0.0` - non-zero, not
       positive - so it inverts exactly as `_as_yoy` did before 3D4. This is
       the more serious instance, because it reaches the figures rather than
@@ -842,6 +971,18 @@ dataclarity/
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
 
+**Period-anchored customer segments, for C4** (3E1 doubt-review cycle 3).
+C4 is `inconclusive` in v1 behind `SEGMENTS_ANCHORED_TO_THE_PERIOD` in
+`hypothesis_evidence_customers.py`. Stage 2's segment counts are a snapshot
+anchored at `data_end + 1` over every row, including the partial month after
+the current one (`metrics_customers.py`), while the previous snapshot is
+anchored at the previous month's end: the same January came out `ruled_out`
+or "migrated to weaker segments", `supported`, depending on who bought on
+2-10 February. Needs a snapshot at the end of each compared month. Second
+defect to fix at the same time: R is scored by quintile rank, so R <= 2 is
+always about 40% of customers and C4's "weak" half (At-risk + Hibernating
+share) cannot move - `weak_share_change_points` was 0.0 in every run.
+
 **Unusualness verdicts** (replaces 3D9; ADR-0007). Letting a step-4 row be a
 verdict again - so T3 can be `supported` and headline rule 3 can speak -
 needs BOTH:
@@ -931,7 +1072,23 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3D6b** closed
+**Phase in progress:** Phase 3 (Stage 3 Diagnose), session **3E1** closed
+2026-09-24: **the hypothesis catalog, verdicts and headline rules.** The
+catalog is defined once as data (`stages/diagnose/catalog.py`) and
+AI_PIPELINE 7.8's table is tested against it cell by cell. Verdicts by kind
+(term, expectation with the residual band, directional); D decided (a term's
+own split's gross under the alert, never the pair; an expectation always
+|the change|); statements rendered from the data's direction (ADR-0005
+clarification); rules 1-7 with rule 3 dormant and rule 4 hedged; ranking by
+fit. Four doubt-review cycles, the last one beyond the bound by Thach's
+approval with a stop rule: cycles 1-3 found fabrications that were all
+fixed; cycle 4's two criticals were small and local and are fixed, and its
+non-local FABRICATE (a half-gapped history month still hides a gap) is
+**3E1c** (since merged into 3E1b), not patched. The measured costs are stated, not hidden: B1 is
+refused on 28 of 40 sparse shops and T2 on 30-32 of 40; D1 flags 61 of 120
+off-season months of seasonal shops with nothing missing (3E1b). pytest 2347
+passed.
+Previously, session **3D6b** closed
 2026-09-23: **ADR-0007 - no step-4 row is a verdict in v1.** Thach's call
 after 3D6, whose triage found five fabricating cases from two root causes -
 one year-ago comparator that cannot vouch for itself, and a mean centre one
@@ -1263,10 +1420,14 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Phase 3 session **3E** (hypotheses and scenarios). Its scope
-now includes re-running the `MASKED_MIN_CONTRIBUTION_SHARE` sweep on the real
-S0-S11 suite, with the value allowed to change, and S0/S11 expecting rule 7.
-3D9 went to the Backlog ("Unusualness verdicts") with ADR-0007.
+**Next step:** Phase 2 session **2E** (percentage change against a
+non-positive base, the orders definition, stage 2's incomplete previous
+period), then **3E1b** (how D1 learns from history, and rule 6's size test;
+carries the FABRICATEs), then **3E2** (generator, S0-S11, the
+`MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
+S0/S11 expecting rule 7, and the accepted v1 known limits). Order decided by
+Thach after 3E1. 3D9 went to the Backlog ("Unusualness verdicts") with
+ADR-0007.
 Then 3E (Hypotheses and scenarios), which also carries S11. Step 6 is written
 but **not yet wired into an engine** - `compute_localization` has no caller
 outside its tests - so on Thach's instruction 3D added the contract round-trip
@@ -1278,9 +1439,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run `C:\Users\Happy\commit-3d6b.ps1` - commits session 3D6b alone
-   (message file `C:\Users\Happy\commit-3d6b-msg.txt`). It stops before
-   pushing. (The 3D4-3D6 signals group is committed: `a48009b`.)
+1. Run `C:\Users\Happy\commit-3e1.ps1` - commits session 3E1 alone
+   (message file `C:\Users\Happy\commit-3e1-msg.txt`). It stops before
+   pushing. (3D6b is committed: `e920761`.)
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -1294,6 +1455,41 @@ still not started; its Insights frame now waits on 3E (see
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
    sampling script and what it sampled go in the README. Not needed before 3E.
+- 2026-09-24, Phase 3 session 3E1 (catalog, verdicts, headline rules).
+  Closed. pytest 2347 passed. Committed ALONE (commit boundary before 3E2,
+  per Thach's split of 3E).
+  - **Decisions (Thach):** 3E split into 3E1/3E2; D (terms: own split's
+    gross under the alert; expectations: |the change|; never the pair);
+    the residual band for expectations; D1 caution on the previous month and
+    tied to its check; R3 top products still selling; rule 6 excludes D2/D3;
+    statements rendered from the sign; fit ranking; B1/B2 refund interim with
+    2E moved before 3E2; B1 (not B2) refused on any possible gap, after an
+    execution check that a gap does not move B2; block an incomplete
+    previous month through the trust gate; 2E also carries stage 2's
+    incomplete previous period; cycle 4 with a stop rule.
+  - **Mutation check:** 45 + 16 + 27 + 21 + 8 mutants across the session's
+    rounds. Survivors were each given a test and re-run killed, except two
+    shown equivalent by computation: A6 (a zero contribution already fails
+    the same-sign test) and D0 (a split's gross is at least |its terms' sum|,
+    which is the lens total for level 1, product and returns and AOV's
+    non-zero contribution for level 2 under the alert - identity residuals
+    0.0 on both demo runs).
+  - **Doubt-review:** four cycles (cycle 4 beyond the bound, approved with a
+    stop rule). Cycle 3: five FABRICATEs + C4 leak + four wording defects,
+    all fixed. Cycle 4: two small criticals fixed; the non-local FABRICATE
+    and one design question to 3E1c. Cross-model: skipped (Thach).
+  - **After the session (Thach):** one 31-file commit accepted; a
+    one-month file blocked accepted; B1/T2 refusal rates accepted as v1
+    known limits (reported in 3E2); order 2E -> 3E1b -> 3E2, with 3E1c
+    merged into 3E1b (same code, same measurement).
+  - **Tests changed, each with its reason:** the headline fixture's
+    contribution sign (share = contribution / D; it was inverted, harmless
+    until rule 6 read signs); two 3B tests moved from a one-month file to a
+    two-month file (a one-month file is now blocked - it fabricated "products
+    launched (100%)"), intent kept; two T2 arithmetic tests moved to daily
+    rows (one row a month is a legitimate zero-sale pattern T2 now refuses);
+    one product-overshoot wording test moved to a net change that moves with
+    the product cause; C4 rule tests switched on explicitly. None deleted.
 - 2026-09-23, Phase 3 session 3D6b (ADR-0007: no step-4 row is a verdict in
   v1; the masked-shift alert on the tree). Closed. pytest 2198 passed. New:
   `tests/stages/diagnose/test_no_step4_verdicts.py` (7 tests written first,

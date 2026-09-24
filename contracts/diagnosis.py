@@ -31,6 +31,11 @@ class Frame(ContractModel):
     year_ago_current: YearMonth | None
     year_ago_previous: YearMonth | None
     history_months: NonNegativeInt
+    # Days of the previous month before the file's first sale. Nonzero when
+    # the export starts mid-month (or the shop opened then): the month the
+    # current one is compared with is incomplete. The trust gate blocks on it
+    # at D1's caution size (docs/AI_PIPELINE.md 7.2, Thach, 3E1).
+    previous_leading_days_missing: NonNegativeInt
     # Null together when history_months is 0: a file whose only complete month
     # is `current` has no history window at all.
     history_start: YearMonth | None
