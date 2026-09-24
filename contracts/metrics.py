@@ -1,7 +1,7 @@
 """metrics.json (docs/CONTRACTS.md section 6). Stage 2 never calls the AI."""
 
 from datetime import date
-from typing import ClassVar, Self
+from typing import ClassVar, Literal, Self
 
 from pydantic import NonNegativeInt, model_validator
 
@@ -17,7 +17,8 @@ from contracts._base import (
 # rates stay unbounded: refunds can make net revenue negative, and returns in a
 # period can belong to orders from an earlier one.
 #
-# Schema 2.0 (session 2E). An order is a sale row (shared/transactions.py):
+# Schema 2.0 (session 2E; 5.0 in 2E-e: orders by `orders_basis`). An order is
+# a sale row (shared/transactions.py):
 # orders, AOV, return_rate and RFM frequency changed meaning. A figure whose
 # base is unusable, or whose only purpose is to compare the two months when
 # the previous one is incomplete, is null and a `*_reason` says why - never a
@@ -75,6 +76,11 @@ class CoreMetrics(ContractModel):
     revenue_previous: float
     revenue_change_pct: float | None
     revenue_change_pct_reason: str | None
+    # Distinct order ids with a sale row when `order_id` is mapped and passes
+    # stage 1's check; else sale LINES (2E-e). The basis names which, so
+    # stage 5 labels honestly ("average line value", "lines per customer").
+    orders_basis: Literal["order_id", "lines"]
+    orders_basis_reason: str | None
     orders_current: NonNegativeInt
     orders_previous: NonNegativeInt
     # Any revenue-counted row (3C). Buyers: customers with a sale row (2E) -
@@ -88,7 +94,9 @@ class CoreMetrics(ContractModel):
     aov_current_reason: str | None
     aov_previous: float | None
     aov_previous_reason: str | None
-    # Return lines / orders: range [0, infinity), not a proportion (2E).
+    # Return lines / sale lines on basis "lines"; orders holding a return line /
+    # orders holding a sale line on basis "order_id" (2E-e). Range [0,
+    # infinity), not a proportion (2E).
     return_rate_current: NonNegativeFloat | None
     return_rate_current_reason: str | None
     return_rate_previous: NonNegativeFloat | None
@@ -97,6 +105,9 @@ class CoreMetrics(ContractModel):
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
+        if self.orders_basis == "order_id" and self.orders_basis_reason is not None:
+            raise ValueError("orders_basis_reason explains a fallback to lines; "
+                             "it is null when the basis is order_id")
         for name in ("revenue_change_pct", "aov_current", "aov_previous",
                      "return_rate_current", "return_rate_previous"):
             _paired(getattr(self, name) is None, getattr(self, f"{name}_reason"), name)
@@ -221,13 +232,14 @@ class DimensionBreakdown(ContractModel):
 
 
 class MetricsContract(ContractFile):
-    # 3 since 2E-c: a sale row needs a positive amount, new customers exclude
+    # 5 since 2E-e: orders are order ids when order_id is mapped (and its
+    # basis is a required field). 3 since 2E-c: a sale row needs a positive amount, new customers exclude
     # histories that open with a refund, RFM ties score alike - orders,
     # buyers, AOV, new customers and RFM scores changed MEANING, and a 2.x
     # and a 3.x file must not be compared silently (Thach). 4 since 2E-c2: a
     # return line needs a negative amount (return_rate) and any return on a
     # customer's first day means they are not new (new_vs_returning).
-    supported_major: ClassVar[int] = 4
+    supported_major: ClassVar[int] = 5
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

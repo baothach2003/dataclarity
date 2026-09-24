@@ -16,6 +16,7 @@ from stages.ingest.issue_counts import (
     count_column_issue,
     count_column_issues,
     count_duplicate_business_key,
+    STAGE_CHECKED_CODES,
 )
 
 NA = None
@@ -34,7 +35,8 @@ EVERY_CODE = sorted(COMPUTED_COLUMN_CODES)
 
 
 def test_every_issue_code_has_a_source_for_its_count() -> None:
-    covered = PROFILED_CODES | COMPUTED_COLUMN_CODES | COMPUTED_DATASET_CODES
+    covered = (PROFILED_CODES | COMPUTED_COLUMN_CODES | COMPUTED_DATASET_CODES
+               | STAGE_CHECKED_CODES)  # 2E-e: stage 1's own order_id check
 
     assert covered == set(get_args(IssueCode))
 
@@ -42,6 +44,8 @@ def test_every_issue_code_has_a_source_for_its_count() -> None:
 def test_the_three_groups_do_not_overlap() -> None:
     assert not PROFILED_CODES & COMPUTED_COLUMN_CODES
     assert not COMPUTED_DATASET_CODES & (PROFILED_CODES | COMPUTED_COLUMN_CODES)
+    assert not STAGE_CHECKED_CODES & (PROFILED_CODES | COMPUTED_COLUMN_CODES
+                                      | COMPUTED_DATASET_CODES)
 
 
 @pytest.mark.parametrize("code", sorted(PROFILED_CODES))

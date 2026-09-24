@@ -53,6 +53,9 @@ class Changes:
     # cycles 2 and 3). Judged against the two nets alone, a change stage 2
     # called residue got a "best explanation" in stage 3.
     scale: float = 0.0
+    # What stage 2's orders are (2E-e): the wording says "lines" when they are
+    # lines. A hand-built Changes (tests) is on lines, the honest default.
+    orders_basis: str = "lines"
 
 
 def changes(inputs: Step7Inputs) -> Changes:
@@ -62,4 +65,7 @@ def changes(inputs: Step7Inputs) -> Changes:
     tree = inputs.tree
     gross = (tree.returns.gross_cur - tree.returns.gross_prev) if tree else None
     alert = bool(tree and tree.lever.masked_shift_alert)
-    return Changes(prev, cur, cur - prev, gross, alert, money_moved(inputs.data))
+    return Changes(prev, cur, cur - prev, gross, alert, money_moved(inputs.data),
+                   # The basis the lever counted on (F10): the same shared
+                   # rule stage 2 wrote into metrics.json.
+                   orders_basis=inputs.data.parsed.orders_basis)

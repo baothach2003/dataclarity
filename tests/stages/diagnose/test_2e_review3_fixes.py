@@ -17,7 +17,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from shared.transactions import pct_change
+from shared.numbers import pct_change
 from stages.diagnose.frame import history_window
 from stages.diagnose.headline import choose_headline
 from stages.diagnose.hypotheses import evaluate_hypotheses

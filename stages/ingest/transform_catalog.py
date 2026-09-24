@@ -46,6 +46,17 @@ IMPUTATION_ACTIONS: frozenset[TransformAction] = frozenset(
 REQUIRED_CANONICAL_FIELDS: frozenset[CanonicalField] = frozenset(
     {"product_name", "transaction_date", "quantity"}
 )
+# Never imputed: the required fields (an invented value would be counted as
+# measured), and order_id (2E-e) - one filled-in id would merge every blank
+# line into a single giant order, and AOV would read it as one basket.
+NEVER_IMPUTED_FIELDS: frozenset[CanonicalField] = REQUIRED_CANONICAL_FIELDS | {"order_id"}
+# The only actions an order_id column takes: none of them rewrites an id. A
+# cast to a number blanked every "C..." cancellation id (return rate 0.25 ->
+# 1.25), clip_outliers_iqr wrote "1334.5" into 28 walk-in receipt ids (same-day
+# receipts merged), fix_negative rewrites "-5", and a case change can merge two
+# ids (2E-e doubt-review F3, cycle 2 F3).
+ORDER_ID_ACTIONS: frozenset[TransformAction] = frozenset(
+    {"drop_rows_missing", "drop_column", "flag_only", "trim_whitespace"})
 
 # The semantic types each column action is legal for. Absent from the catalog
 # table means "any" (drop_rows_missing, drop_column, cast_type, flag_only): they
@@ -138,11 +149,19 @@ def illegality_reason(
         return f"{action} applies to a column, not to the dataset"
     if semantic_type not in LEGAL_SEMANTIC_TYPES[action]:
         return f"{action} is not legal for a {semantic_type} column"
-    if canonical_field in REQUIRED_CANONICAL_FIELDS and action in IMPUTATION_ACTIONS:
+    if (canonical_field == "order_id" and action not in ORDER_ID_ACTIONS
+            and action not in IMPUTATION_ACTIONS):
+        return (f"{action} is not legal for order_id: an id is text and must stay as it "
+                f"is - rewriting ids splits or merges orders")
+    if canonical_field in NEVER_IMPUTED_FIELDS and action in IMPUTATION_ACTIONS:
         # Imputation only: a filled-in product name or quantity would be
         # counted in the report as if it had been measured (CLAUDE.md 3.2).
         # Every other action the semantic type allows stays legal here, or
         # transaction_date could never be parsed (AI_PIPELINE section 6).
+        if canonical_field == "order_id":
+            return (f"{action} is not legal for order_id: one filled-in id would merge "
+                    f"every blank line into a single order - drop those rows, or leave "
+                    f"them and the figures count lines")
         return (
             f"{action} is not legal for {canonical_field}, a required field: "
             f"use drop_rows_missing or flag_only"

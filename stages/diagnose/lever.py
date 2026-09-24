@@ -15,6 +15,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import Lever, LeverFactor, LeverLevel
+from shared.orders import count_orders
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
@@ -48,9 +49,9 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
         customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
     return PeriodTotals(
         revenue=float(data.parsed.revenue_amounts[mask].sum()),
-        # Sale rows only (shared/transactions.py, 2E): a return line is not an
-        # order, so refunds no longer read as rarer purchases.
-        orders=int((mask & data.parsed.sale).sum()),
+        # Distinct orders among the sale rows (shared/orders.py, 2E-e): order
+        # ids when order_id is mapped, else each sale line - as stage 2 counts.
+        orders=count_orders(data.parsed.order_key, mask & data.parsed.sale),
         customers=customers,
         # Sale and return lines' units (shared/transactions.py, 2E-c): a free
         # gift's quantity is not a unit in the basket.

@@ -31,7 +31,7 @@ PCT_TOLERANCE = 0.1
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "schema_inference"  # prompts/schema_inference.md
 OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"  # 2E-e: order_id in the canonical enum
 
 
 class SchemaInferenceAnswer(BaseModel):

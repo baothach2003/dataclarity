@@ -45,13 +45,22 @@ class HypothesisSpec:
     # sign-blind rule headlined "baskets got smaller" on a month whose
     # baskets grew 2.7x (3E1 doubt-review).
     rendered: tuple[str, str] | None = None
+    # The same hypothesis worded on a LINES basis (2E-e): with no order_id the
+    # lever's "orders" are sale lines, so B1 measures lines per customer and B2
+    # units per line - a correct reading under its own name, not a refusal.
+    lines_statement: str | None = None
+    lines_rendered: tuple[str, str] | None = None
 
-    def render(self, sign: float | None) -> str:
+    def render(self, sign: float | None, orders_basis: str = "order_id") -> str:
         """The statement for a contribution of this sign; the neutral one when
-        there is no signed number."""
-        if self.rendered is None or not sign:
-            return self.statement
-        return self.rendered[0] if sign < 0 else self.rendered[1]
+        there is no signed number. On basis "lines" the lines wording, where
+        the hypothesis has one."""
+        on_lines = orders_basis == "lines" and self.lines_statement is not None
+        statement = self.lines_statement if on_lines else self.statement
+        rendered = self.lines_rendered if on_lines else self.rendered
+        if rendered is None or not sign:
+            return statement
+        return rendered[0] if sign < 0 else rendered[1]
 
 
 @dataclass(frozen=True)
@@ -140,14 +149,20 @@ CATALOG: tuple[HypothesisSpec, ...] = (
         "level-1 frequency contribution",
         "customer; no excess zero day in either month (D1)",
         rendered=("Customers bought less often",
-                  "Customers bought more often")),
+                  "Customers bought more often"),
+        lines_statement="Lines per customer changed",
+        lines_rendered=("Customers bought fewer lines",
+                        "Customers bought more lines")),
     HypothesisSpec(
         "B2", "lever", "lever", "term",
         "Basket size changed",
         "level-2 units-per-order contribution",
         "net units > 0",
         rendered=("Baskets got smaller",
-                  "Baskets got bigger")),
+                  "Baskets got bigger"),
+        lines_statement="Units per line changed",
+        lines_rendered=("Lines carried fewer units",
+                        "Lines carried more units")),
     HypothesisSpec(
         "P1", "product_returns", "product", "term",
         "Like-for-like prices changed",

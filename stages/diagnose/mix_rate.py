@@ -44,7 +44,14 @@ def compute_mix_rate(data: RunData) -> MixRate | None:
         return None
 
     moves = {}
+    spanning = _orders_span_categories(data)
     for metric, weight in METRICS.items():
+        # One order in three categories is one order overall and one in each,
+        # so category orders stop adding up to the total and the AOV split
+        # stops reconciling to the lever's AOV (Thach, 2E-e): refused, while
+        # units (additive) still split price per unit.
+        if weight == "orders" and spanning:
+            continue
         # The DENOMINATOR has to be positive in both periods, not merely the
         # metric. Two negatives divide to a healthy-looking positive: a month
         # that sold 50 and refunded 165 had units go 20 -> -1, so price per
@@ -129,6 +136,25 @@ def _weighted_average(
     return float(table[f"rev_{period}"].sum()) / total
 
 
+def _category_keys(data: RunData) -> pd.Series:
+    column = data.parsed.reverse.get("category")
+    return normalize_text(data.df[column]).where(~is_blank(data.df[column]), UNCATEGORISED_KEY)
+
+
+def _orders_span_categories(data: RunData) -> bool:
+    """Does any order hold sale lines in two categories, in either compared
+    month? Never on basis "lines" - a line is in one category."""
+    if data.parsed.orders_basis != "order_id":
+        return False
+    period = data.metrics.period
+    sale = data.parsed.sale & data.months.isin([period.previous, period.current])
+    # The order key carries its day (shared/orders.py), so an order never
+    # spans two months: a line on 31 October and one on 1 November are two
+    # keys, each adding up in its own month's table (2E-e doubt-review F8).
+    categories = _category_keys(data)[sale].groupby(data.parsed.order_key[sale]).nunique()
+    return bool((categories > 1).any())
+
+
 def _by_category(data: RunData) -> pd.DataFrame | None:
     """Revenue, orders and units per category, per period.
 
@@ -137,8 +163,7 @@ def _by_category(data: RunData) -> pd.DataFrame | None:
     stop equalling the overall figure, and the split would silently be of a
     different quantity from the one the report names.
     """
-    column = data.parsed.reverse.get("category")
-    keys = normalize_text(data.df[column]).where(~is_blank(data.df[column]), UNCATEGORISED_KEY)
+    keys = _category_keys(data)
 
     period = data.metrics.period
     columns = {}
@@ -146,9 +171,10 @@ def _by_category(data: RunData) -> pd.DataFrame | None:
         mask = period_mask(data, month)
         grouped = keys[mask]
         columns[f"rev_{label}"] = data.parsed.revenue_amounts[mask].groupby(grouped).sum()
-        # Sale rows (2E), so the weighted average is stage 2's AOV.
-        sales = keys[mask & data.parsed.sale]
-        columns[f"orders_{label}"] = sales.groupby(sales).size()
+        # Orders by the orders basis (2E-e), so the weighted average is stage
+        # 2's AOV - exactly, while no order spans two categories (see below).
+        sale = mask & data.parsed.sale
+        columns[f"orders_{label}"] = data.parsed.order_key[sale].groupby(keys[sale]).nunique()
         # The lever's units (2E-c), so the weighted average reconciles to it.
         columns[f"units_{label}"] = data.parsed.units[mask].groupby(grouped).sum()
     table = pd.DataFrame(columns).fillna(0.0)

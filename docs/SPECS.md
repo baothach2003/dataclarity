@@ -260,7 +260,9 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 Canonical fields: `product_name` (required), `sku`, `category`,
 `transaction_date` (required), `quantity` (required), `unit_price`,
 `transaction_type` (in|out, default out), `supplier`, `customer`, `note`,
-`ignore`.
+`order_id` (optional, 2E-e: the id shared by every line of one order,
+invoice, receipt or transaction - when mapped, orders are order ids, not
+lines), `ignore`.
 
 ```sql
 runs(id, filename, size_bytes, status, created_at, expires_at, error_code)

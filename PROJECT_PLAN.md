@@ -1159,7 +1159,74 @@ dataclarity/
          (TypeError sorting float and str when every row of a product has no
          name; 2E-c review cycle 2), failing test first - the demo build
          will hit it.
-- [ ] 2E-e **Optional canonical field `order_id`** (Thach, at 2E-c2's start;
+- [x] 2E-e **Closed 2026-09-25** (section 12's session log). Shipped as
+      decided (1-6): the optional canonical field `order_id`
+      (shared/orders.py); orders, AOV, frequency, units per order, return rate,
+      RFM frequency, step 4, orders per product and per category all count
+      order keys; `metrics.json` `core.orders_basis` / `orders_basis_reason`;
+      wording by basis (B1/B2, rule 4); stage 1's check (10%, measured gap
+      0.0% vs 74-100%) as a Review flag and a stage 2 fallback; never imputed
+      or cast; the business key includes it; AOV category split refused when
+      an order spans categories; versions metrics 5.0, diagnosis 4.0, stage 1
+      contracts 2.0, and the enum rule in CONTRACTS section 10. Measured on
+      Online Retail II through the real stage 2 code, October -> November
+      2011: orders 59,304 -> 83,369 lines vs 2,040 -> 2,769 invoices; AOV
+      18.05 -> 17.53 (FELL) on lines vs 524.86 -> 527.90 (ROSE) by invoice.
+      **From the doubt-review (review22/23):** an order key is the id on one
+      day for one customer - reused receipt numbers split, never merge (F5,
+      a change inside decision 1, on the safe side; zero effect on both real
+      files, where no id spans); the frontend's hand-built plan now writes
+      2.0 (F1 - the no-AI path had broken); cast_type illegal on order_id
+      (F3); no flag without a sale line to judge (F6); blocked-run wording
+      (F7); reason to one decimal (F9); wording from the basis the lever
+      counted on (F10).
+      **Open for Thach:** (F4) with NO customer column mapped, only the day
+      test is left, so a batch / Z-report id - one per trading day - passes
+      and B2 can headline "baskets got smaller" when only the number of lines
+      fell (FABRICATE; `review22/probe_fixtures.py` P5). "No day holds two
+      ids" was tried and withdrawn: it also refuses a real shop taking one
+      order a day, and the data cannot tell the two apart. Options: require a
+      customer column to trust order_id (the safe side; costs customerless
+      files their invoice basis), or accept it as a known limit. A
+      row-unique line number mapped as order_id is likewise indistinguishable
+      from one-line orders (figures right, wording says baskets). Recorded,
+      not decisions: an old run whose stage-1 files are 1.x returns 500 on
+      /analyze instead of the "re-upload" hint (backend error mapping, F2);
+      pandas' object-dtype `nunique` counts strings that differ after a
+      leading NUL as one value (why the lines key has no NUL).
+      **Review cycle 2 (review23), fixed:** F2 HIGH - my F5 key made a blank
+      customer a customer "", so header-style exports (customer on a receipt's
+      first line only) split every order (93 -> 186): a blank customer now
+      takes the receipt's one named customer that day. F1 HIGH - blank ids
+      counted as orders on their own let a file whose ids start mid-way (a POS
+      upgrade) show orders 279 -> 93 and a masked shift on an unchanged
+      business: ANY sale line with a blank id now makes the file count lines,
+      with the count in the reason. **This supersedes decision 1's "a blank
+      id is an order on its own" on the safe side - Thach to confirm or set a
+      tolerance** (both real files have none). F3 - clip_outliers_iqr and
+      fix_negative also rewrote numeric ids: an order_id column now takes only
+      drop_rows_missing, drop_column, flag_only, trim_whitespace (backend and
+      frontend). F4 - the reason gives counts and "more than 10%". F5 (stage 1
+      checks only the AI's mapping; a remap is checked by stage 2 only and the
+      badge is not recomputed) recorded.
+      **Review cycle 3 (review24, the bound), fixed:** F1 HIGH - blank ids on
+      RETURN lines were each "an order holding a return line": the return
+      rate went 0.097 -> 0.387 on an unchanged business. The blank-id rule
+      now covers sale AND return lines. F2 - the imputation refusal still
+      said a blank id "counts as an order of its own", and blanks in order_id
+      showed as medium: text fixed, and missing values in order_id are high
+      on the Review screen. F5 - reason for a file with no sale line.
+      **Recorded for Thach:** F3 - on a header-style export the fill fixes
+      the order COUNT, but revenue by customer (new vs returning, RFM
+      monetary, segment shares, C1-C3) still reads the raw customer column,
+      so only a receipt's first line counts as the customer's revenue (new
+      revenue 310 against 1,860; C1 supported -> partial). Not introduced by
+      2E-e - revenue attribution never filled the customer - and it belongs
+      with 2E-f's customer classification. F4 (LOW) - the fill counts named
+      customers on every row, the check on sale rows only; an id with a
+      named zero-price line can split into 2 orders.
+      Original item text below, kept as the record.
+      Optional canonical field `order_id` (Thach, at 2E-c2's start;
       after 2E-c2, before 2E-f). The schema has no order or invoice field, so
       every "order" is a LINE: on a one-line-per-transaction file that is
       harmless, on Online Retail II AOV is average line value (18.20 against
@@ -1643,7 +1710,17 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E-c2** closed 2026-09-24 (the
+**Phase in progress:** Phase 2/3, session **2E-e** closed 2026-09-25: the
+optional canonical field `order_id` (see its checklist item). Orders are
+order keys - an order id on one day for one customer - when it is mapped and
+passes stage 1's check, else sale lines, and `metrics.json` names the basis
+so every label is honest. metrics.json 5.0, diagnosis.json 4.0, stage 1
+contracts 2.0; the enum rule is in CONTRACTS section 10. Open for
+Thach: F4 (a one-per-day batch id with no customer column) and the blank-id
+rule, which review cycle 2 moved to the safe side (any blank id -> lines).
+Mutation check 35 mutants, all killed but one equivalent (explained); three
+doubt-review cycles (the bound). pytest 2541, Vitest 60.
+Previously, session **2E-c2** closed 2026-09-24 (the
 follow-ups to 2E-c's review): a return line needs a negative amount; any
 return line on a customer's first day means they are not new (167 of 5,726
 Online Retail II customers lose "new": 69 pre-file, 98 genuinely new - the
@@ -2047,8 +2124,9 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-e** (optional `order_id`; the assessment's four design
-points first - method before code), after Thach's approval. Order (Thach, at
+**Next step:** **2E-f** (the RFM tie rule on invoice frequency, and
+per-product same-day netting), after Thach's approval and his call on 2E-e's
+F4. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2): **2E-c -> 2E-c2 -> 2E-e
 order_id -> 2E-f tie rule and per-product netting -> 2E-g product tables ->
 2E-d2 non-product lines -> Online Retail II demo -> 2E-d -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
@@ -2068,9 +2146,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Run `C:\Users\Happy\commit-2ec2.ps1` - commits session 2E-c2 alone
-   (message file `C:\Users\Happy\commit-2ec2-msg.txt`). It stops before
-   pushing. 2E-c is `47cb35b`.
+1. Session 2E-e is committed and pushed by the CLAUDE.md "Pushing" rule
+   (commit script `C:\Users\Happy\commit-2ee.ps1`, four checks). Decide F4
+   (the 2E-e item) and approve 2E-f.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -2101,6 +2179,45 @@ still not started; its Insights frame now waits on 3E (see
    11,812 exact-duplicate lines remain after dropping it (genuine repeated
    lines `duplicated()` would delete; `oretail/overlap.out`). Concatenated:
    95.9MB as CSV; 1,044,848 rows once the overlap is dropped.
+- 2026-09-25, Phase 2 session 2E-e (the optional canonical field order_id).
+  Closed. pytest 2541 passed; Vitest 60 passed; tsc and ESLint clean.
+  - **Decisions (Thach):** definitions (1); the 10% check with the measured
+    gap recorded beside the constant (2); wording by basis (3); refuse the
+    AOV category split when orders span categories (4); return rate by basis
+    (5); metrics 5.0, diagnosis 4.0, and the enum rule - widening a closed
+    enum is major - so the stage 1 contracts went to 2.0 (6). Blank order id
+    restated: a sale line with a blank order_id is an order on its own;
+    Online Retail II has none.
+  - **Measured:** Online Retail II KPIs by basis (assessment and the real
+    stage 2 code); the check's gap on both real files; the business key's
+    7,316 false duplicates removed; Kaggle demo unchanged.
+  - **Mutation check:** 22 mutants on the design - 3 survivors (return rate
+    by orders, step 4's orders, category orders) got tests and were killed;
+    7 on the cycle-1 fixes - 1 survivor (the key's customer) got a test, 1
+    equivalent (a month grouping made redundant by the day in the key) was
+    removed from the code; 5 on the cycle-2 fixes - 1 survivor (an ambiguous
+    blank customer) got a test; 1 on the cycle-3 rule, killed. 35 in all,
+    every non-equivalent one killed.
+  - **Doubt-review:** two cycles. Cycle 1: 11 findings - F1 (manual plan
+    still 1.0) HIGH, fixed; F3, F5, F6, F7, F9, F10, F11 fixed; F8 moot
+    once keys carry the day; F2 (500 on old runs) recorded; F4 withdrawn
+    after its rule refused real one-order-a-day shops - open for Thach.
+    Cycle 2: 5 findings - F2 (my key split header-style orders) and F1
+    (blank ids as orders fabricate on a mid-file id start) HIGH, fixed, F1 on
+    the safe side superseding decision 1's blank-id clause (for Thach); F3
+    (clip / fix_negative rewrite ids) fixed by an action allow-list; F4
+    wording fixed; F5 recorded. Cycle 3 (the bound): blank ids on return
+    lines (HIGH) fixed by widening the rule; stale refusal text and blank-id
+    severity fixed; header-style revenue attribution (pre-existing) and a
+    LOW fill/check mismatch recorded for Thach.
+  - **Tests changed** (old -> new, why): stage 1 contract versions "1.0" ->
+    "2.0" in 13 places, metrics "4.0" -> "5.0" in 7, diagnosis "3.0" ->
+    "4.0" (decision 6); the metrics payload gained orders_basis; B1/B2 and
+    rule 4 wording on lines-basis fixtures (5 tests) and the catalog-order
+    test's statements (decision 3); the issue-code partition test gained the
+    stage-checked group; my own 2E-e test's reason "11%" -> "11.1%" (F9).
+    Two RED tests written for the withdrawn F4 rule were removed with it. No
+    pre-existing test deleted, skipped or weakened.
 - 2026-09-24, Phase 2 session 2E-c2 (2E-c's review follow-ups; metrics.json
   4.0, diagnosis.json 3.0). Closed. pytest 2501 passed. To be committed alone.
   - **Decisions (Thach):** items 1, 2, 3, 5 and the _velocity crash; item 4

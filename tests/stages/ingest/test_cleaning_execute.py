@@ -58,7 +58,7 @@ def test_the_report_holds_what_ran_in_the_order_it_ran(tmp_path: Path) -> None:
 
     report = execute_run(tmp_path, run_id, DEDUPLICATING, now=NOW)
 
-    assert (report.schema_version, report.generated_at) == ("1.0", NOW)
+    assert (report.schema_version, report.generated_at) == ("2.0", NOW)  # 2E-e: order_id widened the enum (major)
     assert (report.rows_in, report.rows_out) == (5, 4)
     # 5 source columns, plus the two flag columns the run added.
     assert (report.columns_in, report.columns_out) == (5, 7)

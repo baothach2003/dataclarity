@@ -54,7 +54,7 @@ Design decisions (Thach, Phase 2C):
   scored +100% and was dropped, and a recovery (-100 -> +500) scored -600% and
   was ranked the biggest decliner. The percentage is still reported beside
   the money, null with a reason where its base is not positive
-  (shared/transactions.pct_change). The whole list is null, with the period's
+  (shared/numbers.pct_change). The whole list is null, with the period's
   reason, when the previous month is incomplete: every entry compares it.
 """
 
@@ -66,13 +66,11 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, ProductVelocity, TopProduct
-from shared.numbers import is_negligible
+from shared.numbers import is_negligible, pct_change
 from shared.run_registry import run_file
 from shared.transactions import (
     is_blank,
-    normalize_text,
     parse_transactions,
-    pct_change,
     product_identity,
     require_column,
 )

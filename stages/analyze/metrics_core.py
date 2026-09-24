@@ -18,12 +18,14 @@ fields:
   2A's "a zero denominator reports 0.0" (Thach, 2E): "AOV 0" was a false
   statement about a month with no orders, not the absence of one, and 2.0
   lets the contract say "unavailable".
-- An order is a sale row (shared/transactions.py, 2E): aov = NET revenue /
-  orders, so customers x frequency x aov is net revenue exactly (stage 3's
-  lever); return_rate = return lines / orders, and can exceed 1.
+- An order is a sale row (shared/transactions.py, 2E) - or, with order_id
+  mapped, a distinct order id with a sale row (shared/orders.py, 2E-e): aov =
+  NET revenue / orders, so customers x frequency x aov is net revenue exactly
+  (stage 3's lever); return_rate = returns / orders on the same basis, and can
+  exceed 1.
 - revenue_change_pct is null with a reason when the previous month is not a
   base: incomplete in the file (shared/periods.py), or a non-positive or
-  residue base (shared/transactions.pct_change) - never 2A's 0.0, which said
+  residue base (shared/numbers.pct_change) - never 2A's 0.0, which said
   "nothing moved" when revenue appeared from nothing (2E).
 """
 
@@ -35,6 +37,8 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CoreMetrics, MonthlyRevenue, Period
+from shared.numbers import pct_change
+from shared.orders import count_orders
 from shared.periods import previous_coverage
 from shared.run_registry import run_file
 from shared.transactions import (
@@ -45,7 +49,6 @@ from shared.transactions import (
     customer_identity,
     is_blank,
     parse_transactions,
-    pct_change,
 )
 
 __all__ = [
@@ -109,6 +112,8 @@ def compute_core_metrics(
         revenue_previous=revenue_previous,
         revenue_change_pct=change[0],
         revenue_change_pct_reason=change[1],
+        orders_basis=parsed.orders_basis,
+        orders_basis_reason=parsed.orders_basis_reason,
         orders_current=orders_current,
         orders_previous=orders_previous,
         active_customers_current=customers_current,
@@ -181,9 +186,11 @@ def _bucket(
     returns-only customer is active); orders and returns over sale and return
     rows (2E)."""
     revenue = float(parsed.revenue_amounts[mask].sum())
-    orders = int((mask & parsed.sale).sum())
+    # Distinct orders (shared/orders.py, 2E-e): order ids when order_id is
+    # mapped and trusted, else each line - so on lines these are line counts.
+    orders = count_orders(parsed.order_key, mask & parsed.sale)
     customers = _active_customers(df, parsed.reverse, mask)
-    returns = int((mask & parsed.returned).sum())
+    returns = count_orders(parsed.order_key, mask & parsed.returned)
     return revenue, orders, customers, returns
 
 

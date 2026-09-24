@@ -25,8 +25,9 @@ unchanged in Phase 3 session 3B:
   the one signal available, and it does not depend on transaction_type being
   mapped.
 - An ORDER is a sale row: a counted row with positive quantity (Thach, session
-  2E) AND a positive line amount (Thach, 2E-c). The schema has no invoice id,
-  so a row is the unit of purchase; a return line sold nothing, and neither
+  2E) AND a positive line amount (Thach, 2E-c). Without the optional
+  `order_id` a row is the unit of purchase; with it, the order id is
+  (shared/orders.py, 2E-e); a return line sold nothing, and neither
   did a zero-quantity line. Counting every counted row made a month with
   refunds look like smaller baskets and rarer purchases in both stages (3E1
   doubt-review). A zero-amount line is not a purchase either - on Online
@@ -53,12 +54,11 @@ unchanged in Phase 3 session 3B:
 """
 
 from dataclasses import dataclass
-from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
 
-from shared.numbers import is_negligible
+from shared.orders import IdCheck, OrdersBasis, order_basis, spanning_ids
 
 
 class RequiredColumnMissingError(ValueError):
@@ -104,6 +104,12 @@ class ParsedTransactions:
     deduction: pd.Series
     # Net units: the quantity of sale and return lines, 0 elsewhere (2E-c).
     units: pd.Series
+    # The order each row belongs to, and whether that is a real order id or
+    # the row itself (shared/orders.py, 2E-e). `orders_basis_reason` says why
+    # a mapped order_id was not used.
+    order_key: pd.Series
+    orders_basis: OrdersBasis
+    orders_basis_reason: str | None
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
@@ -150,6 +156,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     amounts = quantities * prices
     sale = counted & (quantities > 0) & (amounts > 0)
     returned = counted & (quantities < 0) & (amounts < 0)
+    orders = order_basis(_filled(df, reverse.get("order_id")), dates.dt.normalize(),
+                         _customers(df, reverse.get("customer")), sale, returned)
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,
@@ -162,7 +170,39 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         returned=returned,
         deduction=counted & ~sale & ~returned,
         units=quantities.where(sale | returned, 0.0),
+        order_key=orders.key,
+        orders_basis=orders.basis,
+        orders_basis_reason=orders.reason,
     )
+
+
+def order_id_spanning(df: pd.DataFrame, column_mapping: dict[str, str]) -> IdCheck | None:
+    """The order_id check's figures over the sale lines, for stage 1's check on
+    the file as uploaded (2E-e); None when order_id is not mapped or the file
+    cannot be parsed into sale lines."""
+    try:
+        parsed = parse_transactions(df, column_mapping)
+    except RequiredColumnMissingError:
+        return None
+    column = parsed.reverse.get("order_id")
+    if column is None:
+        return None
+    sale = parsed.sale
+    return spanning_ids(_filled(df, column)[sale], parsed.dates.dt.normalize()[sale],
+                        _customers(df, parsed.reverse.get("customer"))[sale])
+
+
+def _filled(df: pd.DataFrame, column: str | None) -> pd.Series | None:
+    """The column stripped, blank cells as NaN; None when not mapped."""
+    if column is None:
+        return None
+    return df[column].astype(object).str.strip().where(~is_blank(df[column]))
+
+
+def _customers(df: pd.DataFrame, column: str | None) -> pd.Series:
+    if column is None:
+        return pd.Series(float("nan"), index=df.index, dtype=object)
+    return customer_identity(df[column]).where(~is_blank(df[column]))
 
 
 def require_column(reverse: dict[str, str], canonical_field: str) -> str:
@@ -178,44 +218,6 @@ def is_blank(values: pd.Series) -> pd.Series:
     drop_rows_missing, applied to optional columns (`customer`, `sku`,
     `category`) stage 1 has no reason to have trimmed."""
     return values.isna() | (values.astype(object).str.strip() == "")
-
-
-class PctChange(NamedTuple):
-    """A percentage change, or why there is none."""
-
-    value: float | None
-    reason: str | None
-
-
-def pct_change(current: float, previous: float, *magnitudes: float) -> PctChange:
-    """Signed percentage change against a positive base; otherwise
-    unavailable, with the reason (Thach, session 2E).
-
-    Against a negative base the sign inverts: -100 -> -200 read +100% (a
-    doubled loss as growth) and -100 -> +500 read -600% (a recovery as a
-    collapse). Against zero there is nothing to divide by - 2A reported 0.0,
-    "nothing moved", which is false when revenue appeared from nothing.
-    Against residue the figure is astronomical and meaningless.
-
-    `magnitudes` is the money that moved to produce the two figures (their
-    gross): residue is judged against it. Judged only against the two nets, a
-    residue base next to a month that also netted to residue was never
-    negligible, and 0.1 + 0.2 - 0.3 -> 0 read -100% (2E doubt-review F6)."""
-    if previous == 0:
-        return PctChange(None, "there is no previous value to compare against, so there "
-                               "is no percentage")
-    # Residue of either sign before the sign test: a residue base is not a
-    # loss, and calling -1e-17 "negative" misdescribed it (F9).
-    if is_negligible(previous, current, previous, *magnitudes):
-        # "Negligible", not only "residue": a real 0.01 against 31,000,000 is
-        # no base either, and calling it float residue was false (F5).
-        return PctChange(None, f"the previous value ({previous:.3g}) is floating-point "
-                               "residue next to the money compared (under a billionth of "
-                               "it), so it is no base for a percentage")
-    if previous < 0:
-        return PctChange(None, f"the previous value ({previous:,.2f}) is negative, so a "
-                               "percentage change against it would invert its sign")
-    return PctChange((current - previous) / previous * 100, None)
 
 
 def normalize_text(values: pd.Series) -> pd.Series:

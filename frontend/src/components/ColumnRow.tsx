@@ -31,6 +31,7 @@ const CANONICAL_FIELDS: CanonicalField[] = [
   'supplier',
   'customer',
   'note',
+  'order_id',
   'ignore',
 ]
 

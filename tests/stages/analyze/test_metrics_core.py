@@ -261,7 +261,7 @@ def test_core_metrics_for_run_reads_cleaned_csv_and_the_mapping(tmp_path: Path) 
         encoding="utf-8",
     )
     report = CleaningReportContract(
-        schema_version="1.0",
+        schema_version="2.0",  # 2E-e: order_id widened the enum (major)
         generated_at=NOW,
         rows_in=1,
         rows_out=1,

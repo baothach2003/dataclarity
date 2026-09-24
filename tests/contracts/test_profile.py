@@ -42,7 +42,7 @@ def profile_payload() -> dict[str, Any]:
 def inference_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 3 ("..." replaced by a timestamp).
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",  # 2E-e: order_id widened the enum (major)
         "generated_at": "2026-09-18T04:12:05Z",
         "model_used": "claude-sonnet-5",
         "domain_confidence": 0.93,

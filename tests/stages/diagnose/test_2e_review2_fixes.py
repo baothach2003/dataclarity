@@ -19,7 +19,7 @@ import pytest
 from pydantic import ValidationError
 
 from contracts.metrics import MetricsContract
-from shared.transactions import pct_change
+from shared.numbers import pct_change
 from stages.analyze.assemble import assemble_metrics
 from stages.diagnose.headline import choose_headline
 from stages.diagnose.hypotheses import evaluate_hypotheses

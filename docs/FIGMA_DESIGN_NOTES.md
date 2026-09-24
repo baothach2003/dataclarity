@@ -113,8 +113,9 @@ Open issues:
   (1.1%, required field so rows are dropped, never imputed); cust missing 980 (7.9%,
   >= 5% so filled with "Unknown"); supplier missing 54 (0.43%, < 5% so mode).
   Rows after cleaning: 12,480 - 37 - 142 = 12,301. Overall missing 0.7%.
-- Semantic types use the 8 SPECS 4.2 values only; mappings use the 11 canonical
-  fields only (region, brand, unit_cost, internal_notes -> ignore).
+- Semantic types use the 8 SPECS 4.2 values only; mappings use the 12 canonical
+  fields only (region, brand, unit_cost, internal_notes -> ignore; `order_id`
+  added in 2E-e, labelled "order / invoice id").
 - Insights, June vs May 2026: customers 1,240 -> 1,112; orders per customer
   2.10 -> 2.14 (orders 2,604 -> 2,380); AOV $40.00 -> $40.40; revenue
   $104,160 -> $96,152 (-$8,008, -7.7%).

@@ -14,7 +14,7 @@ def plan_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 4, with `source` resolved to one
     # of its three documented values.
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",  # 2E-e: order_id widened the enum (major)
         "generated_at": "2026-09-18T04:13:00Z",
         "source": "user_edited",
         "dataset_actions": [
@@ -44,7 +44,7 @@ def plan_payload() -> dict[str, Any]:
 def report_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 5.
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",  # 2E-e: order_id widened the enum (major)
         "generated_at": "2026-09-18T04:14:00Z",
         "rows_in": 152430,
         "rows_out": 151988,

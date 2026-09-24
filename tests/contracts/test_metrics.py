@@ -10,7 +10,7 @@ from contracts.metrics import MetricsContract
 def metrics_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 6 ("..." product names filled in).
     return {
-        "schema_version": "4.0",  # 2E-c: what a sale is; 2E-c2: what a return is
+        "schema_version": "5.0",  # 2E-c: sale; 2E-c2: return; 2E-e: orders by basis
         "generated_at": "2026-09-18T04:15:00Z",
         "period": {
             "current": "2011-11",
@@ -25,6 +25,8 @@ def metrics_payload() -> dict[str, Any]:
             "revenue_previous": 1290000.0,
             "revenue_change_pct": -10.9,
             "revenue_change_pct_reason": None,
+            "orders_basis": "order_id",
+            "orders_basis_reason": None,
             "orders_current": 1820,
             "orders_previous": 1950,
             "active_customers_current": 812,

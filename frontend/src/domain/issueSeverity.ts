@@ -27,7 +27,13 @@ const LOW: ReadonlySet<IssueCode> = new Set([
   'zero_values',
 ])
 
-const HIGH: ReadonlySet<IssueCode> = new Set(['all_null_column', 'non_numeric_in_numeric'])
+// order_id_not_one_order (2E-e): the mapping would rewrite every order KPI;
+// stage 2 falls back to lines, but the user should fix the mapping.
+const HIGH: ReadonlySet<IssueCode> = new Set([
+  'all_null_column',
+  'non_numeric_in_numeric',
+  'order_id_not_one_order',
+])
 
 export function columnIssueSeverity(
   code: IssueCode,
@@ -35,7 +41,9 @@ export function columnIssueSeverity(
   pct: number | null,
 ): Severity {
   if (code === 'missing_values') {
-    if (REQUIRED_CANONICAL_FIELDS.has(canonicalField)) {
+    // order_id (2E-e): one blank id on a sale or return line turns every order
+    // figure in the file into lines, whatever the share.
+    if (REQUIRED_CANONICAL_FIELDS.has(canonicalField) || canonicalField === 'order_id') {
       return 'high'
     }
     return pct !== null && pct >= MISSING_HIGH_ABOVE_PCT ? 'high' : 'medium'

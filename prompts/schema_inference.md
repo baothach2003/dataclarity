@@ -25,7 +25,7 @@ ENUMS
 semantic_type: numeric_continuous | numeric_discrete | categorical_nominal |
 categorical_ordinal | datetime | identifier | boolean | text
 canonical_field: product_name | sku | category | transaction_date | quantity |
-unit_price | transaction_type | supplier | customer | note | ignore
+unit_price | transaction_type | supplier | customer | note | order_id | ignore
 issue code: missing_values | invalid_dates | mixed_date_formats | negative_values |
 zero_values | inconsistent_case | trailing_whitespace | near_duplicate_labels |
 outliers_iqr | mixed_types | constant_column | all_null_column | duplicate_rows |
@@ -41,6 +41,11 @@ CANONICAL FIELD NOTES
   stretching it to fit. Example: a column named "Payment Method" with values
   Cash / Credit Card / Digital Wallet is NOT transaction_type - map it to
   "ignore".
+- order_id is the id shared by every line of ONE order, invoice, receipt or
+  transaction (e.g. "Invoice", "Order ID", "Receipt No", "Transaction ID"). It
+  may repeat across rows (several lines per order) or be unique per row (one
+  line per order). It is never a customer id, a product code or SKU, a line
+  number, or a store / till / register id. If no column is one, map none.
 
 DATASET PROFILE (JSON)
 {profile_json}

@@ -21,6 +21,7 @@ Two detection rules only. More rules catch more, and raise more false alarms.
 import pandas as pd
 
 from contracts.diagnosis import Signal
+from shared.orders import count_orders
 from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
 from stages.diagnose.numbers import typical_magnitude, usable_base
@@ -176,9 +177,10 @@ def monthly_series(data: RunData) -> pd.DataFrame:
         # Orders and returns as stage 2 counts them (2E): sale rows and return
         # lines. Units stay net, as in the lever's level 2, and skip deduction
         # lines (2E-c).
-        orders = int((mask & data.parsed.sale).sum())
+        # Orders and returns by the orders basis (2E-e), as stage 2 counts.
+        orders = count_orders(data.parsed.order_key, mask & data.parsed.sale)
         units = float(data.parsed.units[mask].sum())
-        returns = int((mask & data.parsed.returned).sum())
+        returns = count_orders(data.parsed.order_key, mask & data.parsed.returned)
 
         row: dict[str, float] = {
             "revenue": revenue,
@@ -223,8 +225,8 @@ def _as_yoy(table: pd.DataFrame, history: list[str]) -> pd.DataFrame:
 
     Which series this reaches: **every series built from signed money**, which
     is `revenue`, `aov`, `units_per_order` and `price_per_unit`. The counts
-    (`orders`, `active_customers`, `frequency`) and the `return_rate` (return
-    lines per order: [0, infinity) since 2E, not a proportion) cannot be
+    (`orders`, `active_customers`, `frequency`) and the `return_rate` (returns
+    per order on the orders basis: [0, infinity) since 2E, not a proportion) cannot be
     negative, so `> 0` is exactly the old `!= 0` for them and
     nothing about them changes.
 

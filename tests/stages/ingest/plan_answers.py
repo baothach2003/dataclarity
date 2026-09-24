@@ -51,7 +51,7 @@ def make_schema(
     dataset_issues: list[DatasetIssue] | None = None,
 ) -> SchemaInferenceContract:
     return SchemaInferenceContract(
-        schema_version="1.0", generated_at=NOW, model_used="claude-served",
+        schema_version="2.0", generated_at=NOW, model_used="claude-served",
         domain_confidence=0.93, domain_reasoning="looks like sales data",
         dataset_issues=dataset_issues or [], columns=columns or SCHEMA_COLUMNS,
     )

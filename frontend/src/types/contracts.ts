@@ -23,6 +23,7 @@ export type CanonicalField =
   | 'supplier'
   | 'customer'
   | 'note'
+  | 'order_id'
   | 'ignore'
 
 export type IssueCode =
@@ -41,6 +42,7 @@ export type IssueCode =
   | 'duplicate_rows'
   | 'duplicate_business_key'
   | 'non_numeric_in_numeric'
+  | 'order_id_not_one_order'
 
 export type Severity = 'low' | 'medium' | 'high'
 

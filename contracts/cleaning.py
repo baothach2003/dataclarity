@@ -1,7 +1,7 @@
 """plan_proposed.json, plan_final.json and cleaning_report.json
 (docs/CONTRACTS.md sections 4 and 5)."""
 
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 from pydantic import NonNegativeInt
 
@@ -56,6 +56,14 @@ class ColumnAction(ContractModel):
 
 class CleaningPlanContract(ContractFile):
     """Shared by plan_proposed.json and plan_final.json ("identical schema")."""
+    # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
+    # "order_id_not_one_order"). A reader validating these as closed enums
+    # rejects the new values, so widening is breaking - a major bump
+    # (CONTRACTS section 10, Thach).
+    supported_major: ClassVar[int] = 2
+    stale_major_hint: ClassVar[str] = (
+        ": this file was written by an earlier stage 1 without the order_id field; "
+        "re-upload the file")
 
     source: PlanSource
     dataset_actions: list[DatasetAction]
@@ -81,6 +89,14 @@ class CleaningWarning(ContractModel):
 
 
 class CleaningReportContract(ContractFile):
+    # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
+    # "order_id_not_one_order"). A reader validating these as closed enums
+    # rejects the new values, so widening is breaking - a major bump
+    # (CONTRACTS section 10, Thach).
+    supported_major: ClassVar[int] = 2
+    stale_major_hint: ClassVar[str] = (
+        ": this file was written by an earlier stage 1 without the order_id field; "
+        "re-upload the file")
     rows_in: NonNegativeInt
     rows_out: NonNegativeInt
     columns_in: NonNegativeInt

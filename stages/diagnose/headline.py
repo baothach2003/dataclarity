@@ -104,10 +104,13 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
     # the real net change beside the pair, so "stable" is never read as zero.
     if alert:
         pair = {f.name: f.contribution for f in tree.lever.masked_shift_pair.factors}
+        # Named by what was counted (2E-e): lines, unless order_id was mapped.
+        unit, average = (("orders", "average order value") if moved.orders_basis == "order_id"
+                         else ("lines", "average line value"))
         return Headline(
             rule=4, hypothesis_id=None, lens=None,
-            message=f"{change} Underneath that, orders contributed {pair['orders']:+,.2f} and "
-                    f"average order value {pair['aov']:+,.2f}: large movements that "
+            message=f"{change} Underneath that, {unit} contributed {pair['orders']:+,.2f} and "
+                    f"{average} {pair['aov']:+,.2f}: large movements that "
                     "largely cancelled out. This may be seasonal.")
 
     # 5. Calendar or seasonality explains most of it.

@@ -21,7 +21,7 @@ def diagnosis_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 7, with the arrays that the
     # documentation shows one element of filled in completely.
     return {
-        "schema_version": "3.0",  # 2E-c: deductions; 2E-c2: the bridge's new
+        "schema_version": "4.0",  # 2E-c: deductions; 2E-c2: the bridge's new; 2E-e: orders by basis
         "generated_at": "2026-09-18T04:16:00Z",
         "model_used": "claude-sonnet-5",
         "frame": {

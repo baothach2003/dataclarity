@@ -28,10 +28,15 @@ def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
         return pd.DataFrame(
             columns=["last_purchase", "frequency", "monetary", "recency_days", "r_score", "f_score", "segment"]
         )
-    grouped = table.groupby("customer").agg(
-        frequency=("sale", "sum"),
-        monetary=("revenue", "sum"),
-    )
+    grouped = table.groupby("customer").agg(monetary=("revenue", "sum"))
+    # Frequency counts ORDERS (2E-e): distinct order keys among the sale rows -
+    # order ids when order_id is mapped, else each sale line. A table built
+    # without an order column (a test's) counts every sale row as one.
+    sales = table[table["sale"]]
+    orders = sales["order"] if "order" in table else sales.index.to_series()
+    grouped["frequency"] = orders.groupby(sales["customer"]).nunique().reindex(
+        grouped.index, fill_value=0).astype(int)
+    grouped = grouped[["frequency", "monetary"]]
     grouped["last_purchase"] = table[table["sale"]].groupby("customer")["date"].max()
     recency = (pd.Timestamp(reference_date) - grouped["last_purchase"]).dt.days
     never = (pd.Timestamp(reference_date) - table["date"].min()).days + 1

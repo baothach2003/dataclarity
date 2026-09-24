@@ -75,7 +75,7 @@ def make_plan(
     source: str = "user_edited",
 ) -> CleaningPlanContract:
     return CleaningPlanContract(
-        schema_version="1.0", generated_at=NOW, source=source,  # type: ignore[arg-type]  # a plain str for the Literal, checked by pydantic
+        schema_version="2.0", generated_at=NOW, source=source,  # type: ignore[arg-type]  # a plain str for the Literal, checked by pydantic
         dataset_actions=dataset_actions or [],
         column_actions=column_actions if column_actions is not None else default_column_actions(),
     )

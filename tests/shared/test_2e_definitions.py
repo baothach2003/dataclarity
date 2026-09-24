@@ -14,7 +14,8 @@ import pandas as pd
 import pytest
 
 from shared.periods import previous_coverage
-from shared.transactions import parse_transactions, pct_change
+from shared.numbers import pct_change
+from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price"}
 

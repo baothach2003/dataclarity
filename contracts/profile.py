@@ -1,7 +1,7 @@
 """profile.json and schema_inference.json (docs/CONTRACTS.md sections 2 and 3)."""
 
 from collections import Counter
-from typing import Annotated, Literal, Self
+from typing import Annotated, ClassVar, Literal, Self
 
 from pydantic import Field, NonNegativeInt, model_validator
 
@@ -30,6 +30,7 @@ CanonicalField = Literal[
     "supplier",
     "customer",
     "note",
+    "order_id",
     "ignore",
 ]
 IssueCode = Literal[
@@ -47,6 +48,9 @@ IssueCode = Literal[
     "all_null_column",
     "duplicate_rows",
     "duplicate_business_key",
+    # Stage 1's own check, never the AI's (2E-e): a column mapped to order_id
+    # whose ids span several days or customers is not an order id.
+    "order_id_not_one_order",
     "non_numeric_in_numeric",
 ]
 Severity = Literal["low", "medium", "high"]
@@ -121,6 +125,14 @@ class ColumnInference(ContractModel):
 
 
 class SchemaInferenceContract(ContractFile):
+    # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
+    # "order_id_not_one_order"). A reader validating these as closed enums
+    # rejects the new values, so widening is breaking - a major bump
+    # (CONTRACTS section 10, Thach).
+    supported_major: ClassVar[int] = 2
+    stale_major_hint: ClassVar[str] = (
+        ": this file was written by an earlier stage 1 without the order_id field; "
+        "re-upload the file")
     model_used: str
     domain_confidence: UnitInterval
     domain_reasoning: str

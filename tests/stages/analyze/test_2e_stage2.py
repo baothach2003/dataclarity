@@ -184,5 +184,6 @@ def test_a_doubled_loss_is_a_decliner_and_a_recovery_is_not() -> None:
 def test_metrics_json_is_the_current_major_version() -> None:
     # Was "2.0" (the 2E bump); 2E-c bumped it to "3.0" (Thach: orders,
     # buyers, AOV, new customers and RFM scores changed meaning); 2E-c2 to
-    # "4.0" (return rate and new customers changed meaning again).
-    assert SCHEMA_VERSION == "4.0"
+    # "4.0" (return rate and new customers changed meaning again); 2E-e to
+    # "5.0" (orders are order ids when order_id is mapped).
+    assert SCHEMA_VERSION == "5.0"

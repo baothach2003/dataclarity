@@ -44,7 +44,7 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
     on_disk = CleaningPlanContract.model_validate_json(
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
-    assert (returned.schema_version, returned.generated_at, returned.source) == ("1.0", NOW, "ai")
+    assert (returned.schema_version, returned.generated_at, returned.source) == ("2.0", NOW, "ai")
     assert not any(a.edited_by_user for a in returned.column_actions)
     assert not any(a.edited_by_user for a in returned.dataset_actions)
 

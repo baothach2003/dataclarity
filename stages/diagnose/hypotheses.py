@@ -126,24 +126,25 @@ def evaluate_hypotheses(inputs: Step7Inputs) -> list[Hypothesis]:
         if blocked and spec.family != "data_quality":
             results.append(_make(spec, "inconclusive", None, None,
                                  {"reason": "the trust gate blocked this run"},
-                                 "not evaluated: blocked run (CONTRACTS section 7)"))
+                                 "not evaluated: blocked run (CONTRACTS section 7)",
+                                 None, moved.orders_basis))
             continue
         outcome = EVIDENCE[spec.id](inputs, moved)
         evidence = outcome.evidence or {}
         if outcome.verdict is not None:
             results.append(_make(spec, outcome.verdict, None, None, evidence,
-                                 outcome.rule or spec.test, outcome.sign))
+                                 outcome.rule or spec.test, outcome.sign, moved.orders_basis))
             continue
         verdict, share, rule = share_verdict(spec, outcome.contribution, inputs, moved)
         results.append(_make(spec, verdict, outcome.contribution, share, evidence, rule,
-                             outcome.contribution))
+                             outcome.contribution, moved.orders_basis))
     return results
 
 
 def _make(spec: HypothesisSpec, verdict: str, contribution: float | None,
           share: float | None, evidence: dict, rule: str,
-          sign: float | None = None) -> Hypothesis:
+          sign: float | None, orders_basis: str) -> Hypothesis:
     return Hypothesis(id=spec.id, family=spec.family, lens=spec.lens,
-                      statement=spec.render(sign), verdict=verdict,
+                      statement=spec.render(sign, orders_basis), verdict=verdict,
                       contribution=contribution, share=share,
                       evidence=evidence, rule=rule)

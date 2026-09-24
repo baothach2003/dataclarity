@@ -38,6 +38,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.profile import ColumnInference, ColumnIssue, DatasetIssue, IssueCode
+from shared.orders import looks_like_order_ids
+from shared.transactions import order_id_spanning
 from stages.ingest.issue_counts import (
     COMPUTED_COLUMN_CODES,
     COMPUTED_DATASET_CODES,
@@ -48,6 +50,28 @@ from stages.ingest.issue_counts import (
 from stages.ingest.transform_catalog import TEXTUAL_TYPES
 
 logger = logging.getLogger(__name__)
+
+
+def _flag_order_id(columns: list[ColumnInference], frame: pd.DataFrame) -> list[ColumnInference]:
+    """Stage 1's own check of an order_id mapping (2E-e), never the AI's: a
+    real order is one order, so its lines share one day and one customer. When
+    more than 10% of the column's ids span several days or customers
+    (shared/orders.py; measured 0.0% for real order ids, 74-100% for every
+    other column of both real files) the column is flagged for the Review
+    screen, with the count of such ids. Stage 2 falls back to lines on the same
+    rule, so a mapping the user keeps is still safe."""
+    mapping = {c.source_name: c.canonical_field for c in columns if c.canonical_field != "ignore"}
+    measured = order_id_spanning(frame, mapping)
+    # No sale line to judge on the raw file (a currency sign in the prices,
+    # dates only cleaning parses): no evidence, no flag - it said "not an
+    # order id" with a count of 0 (2E-e doubt-review F6). Stage 2 checks the
+    # cleaned file on the same rule.
+    if measured is None or measured.total == 0 or looks_like_order_ids(measured):
+        return columns
+    flagged = ColumnIssue(code="order_id_not_one_order", count=measured.spanning, pct=None,
+                          examples=[])
+    return [c.model_copy(update={"issues": [*c.issues, flagged]})
+            if c.canonical_field == "order_id" else c for c in columns]
 
 # The levels each code can be reported at. A profile-measured code is here too:
 # it is kept as `check_answer` left it.
@@ -105,6 +129,7 @@ def recount_issues(
         recounted.append(column.model_copy(update={"issues": issues}) if issues != column.issues
                          else column)
 
+    recounted = _flag_order_id(recounted, frame)
     keys = business_key_columns(columns)
     dataset: list[DatasetIssue] = []
     seen_dataset: set[IssueCode] = set()

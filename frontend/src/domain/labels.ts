@@ -15,6 +15,7 @@ export const CANONICAL_FIELD_LABELS: Record<CanonicalField, string> = {
   supplier: 'supplier',
   customer: 'customer',
   note: 'note',
+  order_id: 'order / invoice id',
   ignore: 'ignore',
 }
 
@@ -45,6 +46,7 @@ export const ISSUE_LABELS: Record<IssueCode, string> = {
   duplicate_rows: 'duplicate rows',
   duplicate_business_key: 'duplicate key',
   non_numeric_in_numeric: 'non-numeric values',
+  order_id_not_one_order: 'not an order id',
 }
 
 export function joinFieldLabels(fields: CanonicalField[]): string {

@@ -21,8 +21,9 @@ from stages.analyze.metrics_products import compute_product_metrics
 
 # A major bump whenever a field changes meaning (docs/CONTRACTS.md section
 # 10): 2.0 in 2E (orders, nullable comparisons), 3.0 in 2E-c (what a sale is,
-# new customers, RFM ties), 4.0 in 2E-c2 (what a return is, first-day rule).
-SCHEMA_VERSION = "4.0"
+# new customers, RFM ties), 4.0 in 2E-c2 (what a return is, first-day rule),
+# 5.0 in 2E-e (orders are order ids when order_id is mapped; the basis).
+SCHEMA_VERSION = "5.0"
 METRICS_FILENAME = "metrics.json"
 
 

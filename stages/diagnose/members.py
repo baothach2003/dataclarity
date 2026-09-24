@@ -293,9 +293,11 @@ def _totals(
         mask = period_mask(data, month)
         grouped = keys[mask]
         frames[f"rev_{label}"] = data.parsed.revenue_amounts[mask].groupby(grouped).sum()
-        # Sale rows (2E); a key with only refunds has 0 orders, not an entry.
-        sales = keys[mask & data.parsed.sale]
-        frames[f"orders_{label}"] = sales.groupby(sales).size()
+        # Orders containing the member (2E-e): distinct order keys among its
+        # sale rows - order ids when order_id is mapped, else each sale line. A
+        # key with only refunds has 0 orders, not an entry.
+        sale = mask & data.parsed.sale
+        frames[f"orders_{label}"] = data.parsed.order_key[sale].groupby(keys[sale]).nunique()
     return MemberTotals(
         rev_prev=frames["rev_prev"],
         rev_cur=frames["rev_cur"],

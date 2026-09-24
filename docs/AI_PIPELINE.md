@@ -95,7 +95,24 @@ whitelist, legality, column coverage) lives in the stage packages.
 - `semantic_type`: numeric_continuous | numeric_discrete | categorical_nominal |
   categorical_ordinal | datetime | identifier | boolean | text
 - `canonical_field`: product_name | sku | category | transaction_date |
-  quantity | unit_price | transaction_type | supplier | customer | note | ignore.
+  quantity | unit_price | transaction_type | supplier | customer | note |
+  order_id | ignore. `order_id` (2E-e) is the id shared by every line of one
+  order, invoice, receipt or transaction; it may repeat or be unique per row,
+  and is never a customer id, a product code, a line number or a till id. It
+  is never imputed (one filled-in id would merge blank lines into one order).
+  Stage 1 CHECKS the AI's choice: a real order's lines share one day and one
+  customer, so a column where more than 10% of the ids span several days or
+  customers gets the issue `order_id_not_one_order` (stage 1's own count,
+  never the AI's; measured 0.0% for real order ids, 74-100% for every other
+  column of both real files), and stage 2 falls back to lines. It takes only
+  actions that keep ids as they are - drop_rows_missing, drop_column,
+  flag_only, trim_whitespace: a cast blanked every "C..." cancellation id, a
+  clip wrote "1334.5" into receipt ids, a case change can merge two ids. An
+  order is the id on one day for one customer (a blank customer takes its
+  receipt's one named customer), so a reused id splits rather than merges; any
+  sale or return line with a blank id makes the file count lines. Known limit (open for Thach): with
+  no customer column only the day test is left, and a one-per-day batch id
+  passes.
   `transaction_type` is the stock movement direction only, `in` or `out`
   (`docs/SPECS.md` section 9) - never a payment method, a sales channel, or an
   order/shipping status. `prompts/schema_inference.md`'s "CANONICAL FIELD NOTES"
@@ -107,7 +124,7 @@ whitelist, legality, column coverage) lives in the stage packages.
   negative_values | zero_values | inconsistent_case | trailing_whitespace |
   near_duplicate_labels | outliers_iqr | mixed_types | constant_column |
   all_null_column | duplicate_rows | duplicate_business_key |
-  non_numeric_in_numeric
+  non_numeric_in_numeric | order_id_not_one_order (stage 1's check, 2E-e)
 - `severity`: low | medium | high
 
 ## 6. Transform Catalog (`stages/ingest/transforms.py`)
@@ -883,6 +900,19 @@ grew 2.7x.
 | R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
 | R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
 
+**Wording by the orders basis** (Thach, 2E-e). Without `order_id` the lever's
+"orders" are sale LINES (`metrics.json` `core.orders_basis` = "lines"), so B1
+measures lines per customer and B2 units per line - a correct reading under
+its own name, not a refusal. On that basis B1 reads "Lines per customer
+changed" (fall: "Customers bought fewer lines"; rise: "Customers bought more
+lines") and B2 "Units per line changed" (fall: "Lines carried fewer units";
+rise: "Lines carried more units"); headline rule 4 says "lines contributed"
+and "average line value". With `order_id` mapped the table's wording stands.
+`catalog.py` holds both (`lines_statement`, `lines_rendered`). The category
+mix/rate split refuses AOV when an order spans categories (category orders
+then no longer add up to the total); price per unit, weighted by additive
+units, still splits.
+
 C4 compares two named segment groups. Stage 2's R x F grid has six segments:
 the 2B doubt-review added **"Needs Attention"** for the four of twenty-five
 R x F combinations the five named rules leave uncovered. 2E-b added a seventh
@@ -1280,7 +1310,9 @@ to `sku` (the `product_name` column when there is none), the `transaction_date`
 column, and the `transaction_type` column when there is one. Without an identity
 column and a date there is no key: the count is 0 and `flag_duplicate_keys` is
 not proposable. Including the type keeps a stock-in and a stock-out of the same
-product on the same day from being reported as one collision. Rows with a
+product on the same day from being reported as one collision. With `order_id`
+mapped the key includes it too (2E-e): the same product at the same time on
+two orders is not a duplicate (7,316 such rows on Online Retail II). Rows with a
 missing part of the key count as sharing it, exactly as `flag_duplicate_keys`
 marks them (decided by Thach in 1E).
 

@@ -20,7 +20,7 @@ import pytest
 from pydantic import ValidationError
 
 from contracts.metrics import MetricsContract
-from shared.transactions import pct_change
+from shared.numbers import pct_change
 from stages.analyze.assemble import assemble_metrics
 from tests.contracts.test_metrics import REASON, metrics_payload
 

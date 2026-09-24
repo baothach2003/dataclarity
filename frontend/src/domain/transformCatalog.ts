@@ -55,6 +55,15 @@ export const IMPUTATION_ACTIONS: ReadonlySet<TransformAction> = new Set([
   'impute_constant',
 ])
 
+// The only actions an order_id column takes - none rewrites an id (2E-e);
+// mirrors stage 1's transform_catalog.ORDER_ID_ACTIONS.
+const ORDER_ID_ACTIONS: ReadonlySet<TransformAction> = new Set([
+  'drop_rows_missing',
+  'drop_column',
+  'flag_only',
+  'trim_whitespace',
+])
+
 // Without these three a row cannot be counted at all (AI_PIPELINE section 6).
 export const REQUIRED_CANONICAL_FIELDS: ReadonlySet<CanonicalField> = new Set([
   'product_name',
@@ -97,6 +106,14 @@ export function illegalityReason(
   }
   if (!legalTypes.has(semanticType)) {
     return `${action} is not legal for a ${semanticType} column`
+  }
+  // order_id is never imputed either (2E-e): one filled-in id would merge every
+  // blank line into a single order. Same words as stage 1's transform_catalog.
+  if (canonicalField === 'order_id' && !ORDER_ID_ACTIONS.has(action) && !IMPUTATION_ACTIONS.has(action)) {
+    return `${action} is not legal for order_id: an id is text and must stay as it is - rewriting ids splits or merges orders`
+  }
+  if (canonicalField === 'order_id' && IMPUTATION_ACTIONS.has(action)) {
+    return `${action} is not legal for order_id: one filled-in id would merge every blank line into a single order - drop those rows, or leave them and the figures count lines`
   }
   if (REQUIRED_CANONICAL_FIELDS.has(canonicalField) && IMPUTATION_ACTIONS.has(action)) {
     return `${action} is not legal for ${canonicalField}, a required field: use drop_rows_missing or flag_only`

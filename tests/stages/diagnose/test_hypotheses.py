@@ -52,8 +52,10 @@ def test_every_catalog_id_is_reported_in_catalog_order() -> None:
 
     results = evaluate_hypotheses(step7(data))
 
+    # On basis "lines" (no order_id here) B1 and B2 carry their lines
+    # statements (2E-e); every other hypothesis its one statement.
     assert [(h.id, h.family, h.lens, h.statement) for h in results] == \
-        [(s.id, s.family, s.lens, s.statement) for s in CATALOG]
+        [(s.id, s.family, s.lens, s.lines_statement or s.statement) for s in CATALOG]
 
 
 def test_directional_hypotheses_carry_no_share() -> None:
@@ -288,7 +290,7 @@ def test_a_statement_is_rendered_from_the_direction_the_data_moved() -> None:
     headline = choose_headline(inputs.trust, results, inputs.tree, changes(inputs))
 
     assert verdicts["C1"].statement == "New customers brought in more revenue"
-    assert verdicts["B2"].statement == "Baskets got bigger"
+    assert verdicts["B2"].statement == "Lines carried more units"  # lines wording (2E-e, Thach): no order_id mapped here
     wrong_way = ("less revenue", "smaller", "less often", "weaker", "cheaper", "more revenue away")
     for hypothesis in results:
         if hypothesis.verdict in ("supported", "partial"):

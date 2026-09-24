@@ -53,6 +53,11 @@ COMPUTED_COLUMN_CODES: frozenset[IssueCode] = frozenset(
     }
 )
 COMPUTED_DATASET_CODES: frozenset[IssueCode] = frozenset({"duplicate_business_key"})
+# Raised by stage 1 itself, never by the AI (2E-e): a column mapped to order_id
+# that is not one (issue_recount._flag_order_id). An AI-reported copy is
+# dropped because the code is not in the recount's column-level codes; this set
+# records where the count comes from (the partition test).
+STAGE_CHECKED_CODES: frozenset[IssueCode] = frozenset({"order_id_not_one_order"})
 
 # Everything a label can differ by and still mean the same product: case,
 # surrounding and inner spacing, and punctuation ("Coca-Cola", "coca cola").
@@ -98,6 +103,10 @@ def business_key_columns(columns: Sequence[ColumnInference]) -> list[str]:
     key = [identity, date]
     if "transaction_type" in by_field:
         key.append(by_field["transaction_type"])
+    # With an order id, the same product at the same time on two orders is not
+    # a duplicate: 7,316 such rows on Online Retail II (2E-e).
+    if "order_id" in by_field:
+        key.append(by_field["order_id"])
     return key
 
 

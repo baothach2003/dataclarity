@@ -181,4 +181,4 @@ def test_a_refund_outside_the_two_months_does_not_refuse_b2() -> None:
         row(date(2026, 3, 10), qty=1.0, price=-30.0, customer="C1"),
     ])))))["B2"]
 
-    assert (b2.verdict, b2.statement) == ("supported", "Baskets got bigger")
+    assert (b2.verdict, b2.statement) == ("supported", "Lines carried more units")  # lines wording (2E-e, Thach): no order_id mapped here

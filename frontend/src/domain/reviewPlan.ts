@@ -46,7 +46,9 @@ export function buildManualPlan(profile: ProfileContract, schema: SchemaInferenc
     }
   })
   return {
-    schema_version: '1.0',
+    // The plan contract's major (2.0 since 2E-e: order_id widened the canonical
+    // enum). A '1.0' manual plan was refused, so the no-AI path could not clean.
+    schema_version: '2.0',
     generated_at: new Date().toISOString(),
     source: 'manual',
     dataset_actions: [],

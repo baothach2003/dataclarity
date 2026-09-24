@@ -140,6 +140,7 @@ def compute_customer_metrics(
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
             "sale": parsed.sale[identified],
+            "order": parsed.order_key[identified],
             "returned": parsed.returned[identified],
         }
     )

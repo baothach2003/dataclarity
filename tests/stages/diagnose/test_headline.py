@@ -84,8 +84,10 @@ def test_rule_4_states_the_real_change_beside_the_pair_and_is_hedged() -> None:
 
     assert headline.rule == 4
     assert "1,000.00 to 840.00 (-160.00)" in headline.message
-    assert "orders contributed -480.00" in headline.message
-    assert "average order value +320.00" in headline.message
+    # A hand-built Changes is on basis "lines" (2E-e); the order_id wording
+    # is pinned in test_2ee_stage3.py.
+    assert "lines contributed -480.00" in headline.message
+    assert "average line value +320.00" in headline.message
     assert headline.message.endswith("This may be seasonal.")
     assert headline.hypothesis_id is None
 

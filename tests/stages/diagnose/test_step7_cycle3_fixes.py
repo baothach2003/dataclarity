@@ -79,7 +79,7 @@ def test_b2_keeps_its_verdict_across_a_gap() -> None:
 
     assert verdicts["B1"].verdict == "inconclusive"
     assert verdicts["B2"].verdict == "supported"
-    assert verdicts["B2"].statement == "Baskets got bigger"
+    assert verdicts["B2"].statement == "Lines carried more units"  # lines wording (2E-e, Thach): no order_id mapped here
 
 
 # --- 1b. learning from a partly-empty history month -------------------------------

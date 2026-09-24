@@ -70,7 +70,7 @@ def test_b2_still_reads_a_real_basket_change_without_refunds() -> None:
     """Quantity 2 -> 1.5 and no refunds: B2 is evaluated and supported."""
     b2 = by_id(evaluate_hypotheses(step7(run_data(_steady(qty_cur=1.5)))))["B2"]
 
-    assert (b2.verdict, b2.statement) == ("supported", "Baskets got smaller")
+    assert (b2.verdict, b2.statement) == ("supported", "Lines carried fewer units")  # lines wording (2E-e, Thach): no order_id mapped here
 
 
 # --- 2. mix_rate ------------------------------------------------------------------------
@@ -106,7 +106,7 @@ def test_stage_3_refuses_a_1x_metrics_file_and_says_to_re_analyse(tmp_path) -> N
     df = pd.DataFrame(_steady())
     df.to_csv(run.path / "cleaned.csv", index=False)
     (run.path / "cleaning_report.json").write_text(json.dumps({
-        "schema_version": "1.0", "generated_at": "2026-09-24T00:00:00Z", "rows_in": 1,
+        "schema_version": "2.0", "generated_at": "2026-09-24T00:00:00Z", "rows_in": 1,
         "rows_out": 1, "columns_in": 1, "columns_out": 1, "changes": [], "warnings": [],
         "column_mapping": MAPPING}), encoding="utf-8")
     metrics = json.loads(assemble_metrics(df, MAPPING).model_dump_json())

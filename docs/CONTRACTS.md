@@ -72,7 +72,7 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "generated_at": "...",
   "model_used": "claude-sonnet-5",
   "domain_confidence": 0.93,
@@ -97,7 +97,9 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
 ```
 Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
 column appears exactly once; at most one column per canonical field except
-`ignore`; confidence in [0,1]. An issue's `pct` is a number in [0,100] or
+`ignore`; confidence in [0,1]. Since 2E-e the canonical enum holds `order_id`
+and the issue enum `order_id_not_one_order` (raised by stage 1 itself, never
+by the AI), and schema_inference / plan / cleaning_report are `2.0`. An issue's `pct` is a number in [0,100] or
 `null` when the profile holds no percentage for that issue (the AI never
 invents one); the key is always present. An issue's `count` is never the AI's
 estimate: it comes from `profile.json` (`missing_values`, `all_null_column`,
@@ -110,7 +112,7 @@ Identical schema; `plan_final.json` additionally records user edits.
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "2.0",
   "generated_at": "...",
   "source": "ai" | "user_edited" | "manual",
   "dataset_actions": [
@@ -146,7 +148,7 @@ the 25 the AI sees get `flag_only` with a note that they were not analyzed.
 
 ```json
 {
-  "schema_version": "1.0", "generated_at": "...",
+  "schema_version": "2.0", "generated_at": "...",
   "rows_in": 152430, "rows_out": 151988,
   "columns_in": 9, "columns_out": 8,
   "changes": [
@@ -184,7 +186,7 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "4.0", "generated_at": "...",
+  "schema_version": "5.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
              "previous_complete": true, "previous_incomplete_reason": null},
@@ -235,9 +237,31 @@ Rules for the values (no field changed):
 **Definitions (schema 2.0, session 2E).** They live in `shared/transactions.py`
 and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
 
+- **`orders_basis`** (2E-e): "order_id" when the optional field `order_id` is
+  mapped and passes stage 1's check - then orders are the distinct order keys
+  that have a sale row, an order key being the id ON ONE DAY FOR ONE CUSTOMER
+  (an id reused elsewhere - two tills sharing a receipt numbering - is two
+  orders, never merged; 2E-e doubt-review) and a line with no customer takes
+  its receipt's one named customer that day (header-style exports). If ANY
+  sale or return line has a blank id, the file counts lines, with the count in the
+  reason - superseding decision 1's "a blank id is an order on its own" on the
+  safe side after review (ids blank until a POS upgrade made orders fall 279
+  -> 93 on an unchanged business); Online Retail II and the Kaggle demo have
+  none; else "lines", every sale line an order, with
+  `orders_basis_reason` saying why a mapped order_id was refused (more than
+  10% of its ids span several days or customers). Stage 5 and the frontend
+  LABEL by it: basis order_id - orders, AOV, orders per customer, units per
+  order, return rate; basis lines - lines, average line value, lines per
+  customer, units per line, return lines per sale line. RFM frequency counts
+  orders on the same basis. Measured on Online Retail II with Invoice mapped:
+  AOV 376-565 against 16-21 on lines, frequency 1.3-1.6 against 26-39, one-
+  time buyers 27.6% against 2.0%; the Kaggle demo (one line per Transaction
+  ID) is unchanged.
+- `return_rate_*` on basis order_id is orders holding a return line / orders
+  holding a sale line (2E-e); on lines, return lines / sale lines.
 - An **order** is a sale row: a revenue-counted row with quantity > 0 AND a
-  positive line amount (Thach, 2E-c). The schema has no invoice id, so a row
-  is the unit of purchase. A return line (quantity < 0) is not an order, and
+  positive line amount (Thach, 2E-c). Without `order_id` a row is the unit of
+  purchase (2E-e: with it, the order id is). A return line (quantity < 0) is not an order, and
   neither is a zero-quantity line, a zero-amount line (a free item, a stock
   adjustment) or a line with a negative amount (a coupon, a discount, a
   bad-debt write-off) - a **deduction**. Its money stays in net revenue.
@@ -406,7 +430,7 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 
 ```json
 {
-  "schema_version": "3.0", "generated_at": "...", "model_used": "claude-sonnet-5",
+  "schema_version": "4.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "frame": {"current": "2011-11", "previous": "2011-10",
             "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
             "history_months": 23, "previous_leading_days_missing": 0,
@@ -814,6 +838,12 @@ the report defensible.
 ## 10. Versioning and change policy
 
 - Adding an optional field: minor bump (`1.0` -> `1.1`), readers unaffected.
+- **Adding a value to an enum** (Thach, 2E-e): if a reader validates the enum
+  as CLOSED - rejects a value it does not know - the addition is breaking and
+  is a MAJOR bump. Every contract here is validated with closed Pydantic
+  `Literal` enums, so in practice adding an enum value is always major. (Only
+  an enum a reader explicitly treats as open, passing unknown values through,
+  could take a minor bump; none exists today.)
 - Renaming/removing a field or changing its meaning: major bump, update the
   Pydantic model, update every consumer stage in the SAME session, and record
   the change in `PROJECT_PLAN.md` section 12 Notes.
@@ -858,6 +888,15 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-24: **session 2E-e, the optional canonical field `order_id`.**
+  `schema_inference.json`, `plan_proposed.json` / `plan_final.json` and
+  `cleaning_report.json` went to `2.0` (the canonical enum gained `order_id`,
+  the issue enum `order_id_not_one_order` - major by the enum rule above);
+  `metrics.json` to `5.0` (orders are order ids when mapped, the required
+  `orders_basis` and `orders_basis_reason`); `diagnosis.json` to `4.0` (the
+  lever's orders and the B1/B2 statements follow the basis). `profile.json`
+  stays `1.x`: it carries neither enum. Every reader refuses the older major
+  with "re-upload" / "re-analyse".
 - 2026-09-24: **`metrics.json` went to `4.0` and `diagnosis.json` to `3.0`**
   (session 2E-c2, Thach's rule that a change of meaning is a major bump): a
   return line needs a negative amount (`return_rate_*`), any return on a
