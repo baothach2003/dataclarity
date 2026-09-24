@@ -184,7 +184,7 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "2.0", "generated_at": "...",
+  "schema_version": "3.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
              "previous_complete": true, "previous_incomplete_reason": null},
@@ -235,10 +235,16 @@ Rules for the values (no field changed):
 **Definitions (schema 2.0, session 2E).** They live in `shared/transactions.py`
 and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
 
-- An **order** is a sale row: a revenue-counted row with quantity > 0. The
-  schema has no invoice id, so a row is the unit of purchase. A return line
-  (quantity < 0) is not an order, and neither is a zero-quantity line.
-  `orders_*` count sale rows.
+- An **order** is a sale row: a revenue-counted row with quantity > 0 AND a
+  positive line amount (Thach, 2E-c). The schema has no invoice id, so a row
+  is the unit of purchase. A return line (quantity < 0) is not an order, and
+  neither is a zero-quantity line, a zero-amount line (a free item, a stock
+  adjustment) or a line with a negative amount (a coupon, a discount, a
+  bad-debt write-off) - a **deduction**. Its money stays in net revenue.
+  `orders_*` count sale rows; so do buyers, RFM frequency and recency, and
+  the period's ends. Measured on Online Retail II: 2,561 of its 2,631
+  zero-amount lines carry no customer, 61 of the other 70 ride on an invoice
+  with a paid line, and its five negative-amount lines are "Adjust bad debt".
 - `aov_*` = **net** revenue / orders. Net, because only then does customers x
   frequency x AOV equal net revenue exactly (stage 3's lever lens).
 - `return_rate_*` = return lines / orders: returns per order sold, the retail
@@ -267,7 +273,23 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   negative. This supersedes 2B's "scored like any other customer" and
   "quintiles on the run's own data" for R and F. Monetary stays net (every
   counted row) and is never quintiled, so it has no population to choose.
+  **Identical customers get identical scores** (Thach, 2E-c, superseding 2B's
+  tie-break by position): every position is scored as before - five equal
+  groups over the ranks - and a tied group takes the mean of its positions'
+  scores, exact halves rounded down, so a tie never lifts a group. A file
+  with no ties scores exactly as before; a population that ties throughout
+  scores 3 on that dimension. A customer who never bought now also includes
+  one who only got free items or coupons: they are "Returns only" too.
   Old metrics.json files keep the old segments until re-analysed.
+- **`new_vs_returning`**: a customer is **new** when their first purchase (first
+  sale row) falls in the current month AND their history does not open with a
+  refund (`shared/first_purchase.py`, Thach, 2E-c, rule C). A refund proves a
+  purchase before the file, so a refund-only customer is returning and their
+  negative money is `returning_revenue`. The opening day nets sale and return
+  quantities, so a same-day buy-and-refund is not an opening refund. The same
+  rule decides `new` in stage 3's customer bridge. Measured on Online Retail
+  II: the first row of any kind called 172 refund-only customers new with
+  -91,486.72 of "new revenue".
 - **A ratio whose denominator is zero - or negligible, i.e. floating-point
   residue next to the money that moved to produce it (`shared/numbers.py`
   `is_negligible`, the same test stage 3 uses; judged against the GROSS money
@@ -371,7 +393,7 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 
 ```json
 {
-  "schema_version": "1.0", "generated_at": "...", "model_used": "claude-sonnet-5",
+  "schema_version": "2.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "frame": {"current": "2011-11", "previous": "2011-10",
             "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
             "history_months": 23, "previous_leading_days_missing": 0,
@@ -411,10 +433,11 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
                   "contraction": -88000.0, "lapsed": -219000.0,
                   "unattributed": 0.0, "previous_transition": {},
                   "evidence": {"new_customers": 148, "left_censored": false,
-                               "new_customers_whose_first_activity_is_a_return": 3,
+                               "arrivals_with_no_first_purchase_in_the_file": 3,
                                "empty_period": []}},
     "returns": {"gross_prev": 1338000.0, "gross_cur": 1198000.0,
-                "returns_prev": 48000.0, "returns_cur": 48000.0},
+                "returns_prev": 48000.0, "returns_cur": 48000.0,
+                "deductions_prev": 0.0, "deductions_cur": 0.0},
     "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
                  "new_products": 12000.0, "discontinued_products": -27000.0}
   },
@@ -618,10 +641,13 @@ carries a reconciliation duty.
 before trusting the `new` term: `left_censored` (whether `cur` falls in the
 file's first `LEFT_CENSOR_MONTHS` months), `empty_period` (which side of the
 transition, if either, holds no rows at all), and
-`new_customers_whose_first_activity_is_a_return` - customers classified as new
-whose earliest row in the whole file is a refund, which usually means their
-purchase predates the file. That count is evidence only and changes no term;
-excluding those customers would break the bridge identity. It also carries
+`arrivals_with_no_first_purchase_in_the_file` - customers absent from the
+previous month whose history opens with a refund (or holds no sale at all).
+Since 2E-c they are **resurrected, not new** (rule C, CONTRACTS section 6's
+`new_vs_returning`): a refund proves a purchase before the file. This
+supersedes 3C's `new_customers_whose_first_activity_is_a_return`, a note on
+`new` that changed no term; moving a customer between `new` and
+`resurrected` changes no total, so the identity holds. It also carries
 `customer_values_merged_by_normalisation`: how many distinct raw customer
 values the shared `customer_identity` key collapsed across the whole file
 (distinct raw values minus distinct identities, so a customer written three
@@ -673,7 +699,9 @@ validator, `docs/AI_PIPELINE.md` section 7.9, not by this schema).
   reach at all. It is constant per run, not data-dependent.
 - Lenses never sum together. The lever and customer lenses each reconcile to
   `delta_net`, the product lens to `delta_gross`, the returns lens to
-  `delta_net`. A reader must not add shares across lenses, and stage 5 must not
+  `delta_net` (`delta_gross - delta_returns - delta_deductions`; gross is the
+  sale rows, returns the return lines, deductions every other counted row -
+  2E-c, `diagnosis.json` 2.0). A reader must not add shares across lenses, and stage 5 must not
   present them as one total.
 - `tree.customers` is `null` when no column is mapped to `customer`, and
   `tree.lever.level1.formula` is then `"orders*aov"`. `tree.lever.level2` is
@@ -817,6 +845,18 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-24: **`metrics.json` went to `3.0` and `diagnosis.json` to `2.0`**
+  (session 2E-c, Thach). metrics.json: a sale row needs a positive amount, a
+  new customer's history must not open with a refund, and RFM ties score
+  alike, so `orders_*`, `buyers_*`, `aov_*`, `return_rate_*`,
+  `new_vs_returning` and every RFM score changed MEANING while the schema did
+  not. The version is a promise to every reader - stage 5, the frontend,
+  anyone opening the file - and a 2.x and a 3.x file whose "orders" differ
+  must not be compared silently; readers require `3.x`, and a `2.x` file is
+  refused with "re-analyse this run". diagnosis.json: the returns lens gained
+  the required `deductions_prev` / `deductions_cur`, and gross sales became
+  the sale rows only; readers require `2.x`. No writer of diagnosis.json
+  exists yet (session 3G), so no file on disk is stranded.
 - 2026-09-24: **`metrics.json` went to `2.0`** (session 2E): a major bump under
   the rule above, because `orders_*`, `aov_*`, `return_rate_*` and RFM
   frequency changed meaning (an order is a sale row) and

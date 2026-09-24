@@ -12,7 +12,7 @@ means the sessions that produce them are validated from their first line.
 """
 
 from math import isclose, isfinite
-from typing import Any, Literal, Self
+from typing import Any, ClassVar, Literal, Self
 
 from pydantic import NonNegativeInt, model_validator
 
@@ -420,17 +420,22 @@ class CustomerLens(BridgeTerms):
 
 
 class ReturnsLens(ContractModel):
-    """Levels, not changes: `delta_net = delta_gross - delta_returns`.
-    `returns_*` are positive magnitudes."""
+    """Levels, not changes: `delta_net = delta_gross - delta_returns -
+    delta_deductions`. Gross is the sale rows; returns the return lines;
+    deductions every other counted row - coupons, discounts, write-offs
+    (2E-c). `returns_*` and `deductions_*` are positive magnitudes."""
 
     gross_prev: float
     gross_cur: float
     returns_prev: float
     returns_cur: float
+    deductions_prev: float
+    deductions_cur: float
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
-        values = (self.gross_prev, self.gross_cur, self.returns_prev, self.returns_cur)
+        values = (self.gross_prev, self.gross_cur, self.returns_prev, self.returns_cur,
+                  self.deductions_prev, self.deductions_cur)
         if not all(isfinite(value) for value in values):
             raise ValueError("returns lens figures must be finite")
         return self
@@ -601,6 +606,13 @@ class AiFindings(ContractModel):
 
 
 class DiagnosisContract(ContractFile):
+    # 2 since 2E-c: the returns lens gained deductions, and gross sales became
+    # the sale rows only (Thach).
+    supported_major: ClassVar[int] = 2
+    stale_major_hint: ClassVar[str] = (
+        ": this diagnosis.json was written by an earlier stage 3 without the "
+        "returns lens's deductions; re-analyse this run")
+
     # Required but nullable: null means the AI step was unavailable, and a
     # missing key must not be mistaken for that (CONTRACTS.md section 7).
     model_used: str | None

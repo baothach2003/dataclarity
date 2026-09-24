@@ -24,12 +24,25 @@ unchanged in Phase 3 session 3B:
   so this is the one signal available, and it does not depend on
   transaction_type being mapped.
 - An ORDER is a sale row: a counted row with positive quantity (Thach, session
-  2E). The schema has no invoice id, so a row is the unit of purchase; a
-  return line sold nothing, and neither did a zero-quantity line. Counting
-  every counted row made a month with refunds look like smaller baskets and
-  rarer purchases in both stages (3E1 doubt-review). Every figure built on
+  2E) AND a positive line amount (Thach, 2E-c). The schema has no invoice id,
+  so a row is the unit of purchase; a return line sold nothing, and neither
+  did a zero-quantity line. Counting every counted row made a month with
+  refunds look like smaller baskets and rarer purchases in both stages (3E1
+  doubt-review). A zero-amount line is not a purchase either - on Online
+  Retail II 2,561 of 2,631 carry no customer (stock bookkeeping) and 61 of
+  the other 70 ride on an invoice with a paid line - nor is a line with a
+  negative amount (a coupon, a discount, a bad-debt write-off): counted as
+  orders, forty coupon lines made customers "buy more often" and a refund at
+  a negative price a "price cut" (2E-b review F1, P1). Every figure built on
   orders - orders, AOV, return rate, units per order, purchase frequency, RFM
-  frequency - counts `sale` rows, in stage 2 and stage 3 alike.
+  frequency and recency, buyers, D1's trading days, the product lens -
+  counts `sale` rows, in stage 2 and stage 3 alike.
+- A DEDUCTION is a counted row that is neither a sale nor a return (2E-c):
+  its money stays in net revenue, and stage 3's returns lens carries it as a
+  term of its own. Its quantity is not a unit sold: `units` counts sale and
+  return lines only. Summed over every row, a free gift line a day took
+  units per order from 3.0 to 4.0 while every paid basket held 3 units, and
+  B2 headlined "baskets got bigger" over a price rise (2E-c doubt-review F1).
 """
 
 from dataclasses import dataclass
@@ -74,10 +87,16 @@ class ParsedTransactions:
     # only rows explicitly "in". `valid & ~counted` is every explicit "in"
     # row (metrics_products.py's stock-in side).
     counted: pd.Series
-    # `counted` AND quantity > 0: an order (module docstring, 2E).
+    # `counted` AND quantity > 0 AND a positive amount: an order (module
+    # docstring, 2E and 2E-c).
     sale: pd.Series
     # `counted` AND quantity < 0: a return line.
     returned: pd.Series
+    # `counted` and neither of the two: a coupon, a discount, a write-off, a
+    # free item (module docstring, 2E-c).
+    deduction: pd.Series
+    # Net units: the quantity of sale and return lines, 0 elsewhere (2E-c).
+    units: pd.Series
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
@@ -121,16 +140,21 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         counts_as_sale = ~df[type_col].astype(object).str.strip().str.lower().eq("in")
 
     counted = valid & counts_as_sale
+    amounts = quantities * prices
+    sale = counted & (quantities > 0) & (amounts > 0)
+    returned = counted & (quantities < 0)
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,
         quantities=quantities,
         prices=prices,
-        revenue_amounts=quantities * prices,
+        revenue_amounts=amounts,
         valid=valid,
         counted=counted,
-        sale=counted & (quantities > 0),
-        returned=counted & (quantities < 0),
+        sale=sale,
+        returned=returned,
+        deduction=counted & ~sale & ~returned,
+        units=quantities.where(sale | returned, 0.0),
     )
 
 

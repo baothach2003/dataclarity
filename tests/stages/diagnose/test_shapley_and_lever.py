@@ -432,8 +432,10 @@ def test_the_returns_lens_separates_gross_sales_from_refunds() -> None:
 
     levels = returns_levels(data)
 
-    assert levels == {"gross_prev": 200.0, "returns_prev": 50.0,
-                      "gross_cur": 180.0, "returns_cur": 20.0}
+    # No deduction line (2E-c: a counted row that is neither a sale nor a
+    # return), so that term is 0 in both months.
+    assert levels == {"gross_prev": 200.0, "returns_prev": 50.0, "deductions_prev": 0.0,
+                      "gross_cur": 180.0, "returns_cur": 20.0, "deductions_cur": 0.0}
     # A zero-quantity row is neither a sale nor a refund. Note that mutating
     # the returns filter from `< 0` to `<= 0` is an EQUIVALENT mutant, not a
     # gap in this test: such a row contributes `0 * price == 0.0` to the sum

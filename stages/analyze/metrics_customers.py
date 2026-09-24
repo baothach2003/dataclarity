@@ -19,10 +19,11 @@ Design decisions (Thach, Phase 2B):
   (4,2), (5,2) - a customer who is reasonably recent but low-to-middling
   frequency). `segment` is a plain string in the contract, so a sixth value
   validates fine (contracts/metrics.py).
-- Quintiles are rank-based (ties broken by `rank(method="first")` before
-  `qcut`), so a genuine quintile (five equal-sized groups) survives even with
-  many tied Recency/Frequency values - verified empirically that this also
-  spreads 2, 3 or 4 distinct customers across 1-5 without error. A single
+- Quintiles are rank-based: positions scored by `qcut` over
+  `rank(method="first")` into five equal groups. 2B broke ties by that
+  position; SUPERSEDED (Thach, 2E-c): identical customers get identical
+  scores - a tied group takes the mean of its positions' scores, exact
+  halves rounded down (stages/analyze/rfm.py `score_quintile`). A single
   customer has no one to rank against and scores 5 and 5 (best available):
   a sample of one cannot be meaningfully placed on a 1-5 scale otherwise.
 - A customer who never bought (only refunds) is counted, with Monetary
@@ -68,6 +69,7 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
+from shared.first_purchase import first_purchase_months
 from shared.numbers import is_negligible
 from shared.transactions import customer_identity, is_blank, parse_transactions
 from stages.analyze.metrics_core import (
@@ -75,12 +77,7 @@ from stages.analyze.metrics_core import (
     CLEANING_REPORT_FILENAME,
     select_period,
 )
-
-NEEDS_ATTENTION = "Needs Attention"
-# Never bought in the snapshot, only refunded (Thach, 2E-b). In Hibernating
-# they inflated its count and dragged its avg_monetary and share negative.
-RETURNS_ONLY = "Returns only"
-
+from stages.analyze.rfm import rfm_snapshot
 
 def _empty_new_vs_returning() -> NewVsReturning:
     # A fresh instance every call: ContractModel is not frozen, so a single
@@ -142,7 +139,9 @@ def compute_customer_metrics(
             "customer": customer_identity(df.loc[identified, customer_col]),
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
+            "quantity": parsed.quantities[identified],
             "sale": parsed.sale[identified],
+            "returned": parsed.returned[identified],
         }
     )
 
@@ -178,70 +177,6 @@ def compute_customer_metrics(
     )
 
 
-def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
-    """One row per customer: last_purchase, frequency, monetary, recency_days,
-    r_score, f_score, segment - over every row in `table` (already
-    revenue-counted and customer-identified), anchored at `reference_date`.
-    `table["sale"]` marks the rows that are orders: frequency (2E) and
-    recency (2E-b) count those; monetary uses every counted row."""
-    if table.empty:
-        return pd.DataFrame(
-            columns=["last_purchase", "frequency", "monetary", "recency_days", "r_score", "f_score", "segment"]
-        )
-    grouped = table.groupby("customer").agg(
-        frequency=("sale", "sum"),
-        monetary=("revenue", "sum"),
-    )
-    grouped["last_purchase"] = table[table["sale"]].groupby("customer")["date"].max()
-    recency = (pd.Timestamp(reference_date) - grouped["last_purchase"]).dt.days
-    never = (pd.Timestamp(reference_date) - table["date"].min()).days + 1
-    grouped["recency_days"] = recency.fillna(never).astype(int)
-    # Buyers-only quintiles: a buyer's R and F depend on other buyers alone.
-    never_bought = grouped["frequency"] == 0
-    grouped["r_score"] = 1
-    grouped["f_score"] = 1
-    buyers = ~never_bought
-    if buyers.any():
-        grouped.loc[buyers, "r_score"] = score_quintile(grouped.loc[buyers, "recency_days"],
-                                                        ascending=False)
-        grouped.loc[buyers, "f_score"] = score_quintile(grouped.loc[buyers, "frequency"],
-                                                        ascending=True)
-    grouped["segment"] = [
-        RETURNS_ONLY if none else assign_segment(r, f)
-        for none, r, f in zip(never_bought, grouped["r_score"], grouped["f_score"], strict=True)
-    ]
-    return grouped
-
-
-def score_quintile(values: pd.Series, *, ascending: bool) -> pd.Series:
-    """Rank-based quintiles (1-5, 5 is always "best" given `ascending`): ties
-    are broken by `rank(method="first")` so a genuine quintile (five
-    equal-sized groups) survives even when many customers share the same
-    Recency or Frequency value. `ascending=False` scores the smallest raw
-    value as 5 (Recency: fewest days since purchase is best);
-    `ascending=True` scores the largest raw value as 5 (Frequency: most
-    orders is best). A single customer has no one to rank against and scores
-    5 (Thach's decision, Phase 2B)."""
-    if len(values) == 1:
-        return pd.Series([5], index=values.index)
-    ranks = values.rank(method="first", ascending=ascending)
-    return pd.qcut(ranks, 5, labels=[1, 2, 3, 4, 5]).astype(int)
-
-
-def assign_segment(r_score: int, f_score: int) -> str:
-    if r_score >= 4 and f_score >= 4:
-        return "Champions"
-    if r_score >= 3 and f_score >= 3:
-        return "Loyal"
-    if r_score <= 2 and f_score >= 3:
-        return "At-risk"
-    if r_score <= 2 and f_score <= 2:
-        return "Hibernating"
-    if r_score >= 4 and f_score <= 1:
-        return "New"
-    return NEEDS_ATTENTION
-
-
 def _segment_summary(
     snapshot: pd.DataFrame, moved: float = 0.0,
 ) -> tuple[list[tuple[str, int, float | None, float]], str | None]:
@@ -274,6 +209,11 @@ def _segment_summary(
 
 
 def _new_vs_returning(table: pd.DataFrame, period: Period) -> NewVsReturning:
+    """New = the first purchase falls in the current month and the history
+    does not open with a refund (shared/first_purchase.py, Thach, 2E-c): a
+    refund proves a purchase before the file, so a refund-only customer is
+    returning, with their negative money in returning_revenue. The first row
+    of any kind called them new with negative "new revenue"."""
     if table.empty:
         return _empty_new_vs_returning()
 
@@ -282,9 +222,10 @@ def _new_vs_returning(table: pd.DataFrame, period: Period) -> NewVsReturning:
     if current_rows.empty:
         return _empty_new_vs_returning()
 
-    first_purchase_month = table.groupby("customer")["date"].min().dt.to_period("M").astype(str)
+    first_purchase = first_purchase_months(table["customer"], table["date"], table["quantity"],
+                                           table["sale"], table["returned"])
     current_customers = current_rows["customer"].unique()
-    is_first_period = first_purchase_month.loc[current_customers] == period.current
+    is_first_period = first_purchase.loc[current_customers] == period.current
     new_customers = set(is_first_period[is_first_period].index)
 
     revenue_by_customer = current_rows.groupby("customer")["revenue"].sum()

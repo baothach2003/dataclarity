@@ -21,7 +21,7 @@ from stages.analyze.metrics_products import compute_product_metrics
 
 # 2.0 in session 2E: orders, AOV, return_rate and RFM frequency changed
 # meaning, and comparisons became nullable (docs/CONTRACTS.md section 10).
-SCHEMA_VERSION = "2.0"
+SCHEMA_VERSION = "3.0"
 METRICS_FILENAME = "metrics.json"
 
 

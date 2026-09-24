@@ -20,6 +20,8 @@ from stages.diagnose.hypothesis_evidence_customers import (
     c4,
     no_customer,
 )
+# B2 and its interim refusal live in their own module (file size, 2E-c).
+from stages.diagnose.hypothesis_evidence_lever import b2
 
 def _check(inputs: Step7Inputs, check_id: str):
     return next(check for check in inputs.trust.checks if check.id == check_id)
@@ -132,44 +134,6 @@ def t3(inputs: Step7Inputs, moved: Changes) -> Outcome:
 
 # --- lever ----------------------------------------------------------------------
 
-def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
-    """INTERIM for B2 only (Thach, 2E), until the three-factor level 2 (a
-    session after 3E2, before 3F). Since 2E an order is a sale row, so refunds
-    no longer move purchase frequency and B1 is evaluated on refund months.
-    Level 2 still splits AOV into NET units per order x price per net unit, so
-    a refunded unit leaves the basket: with this refusal lifted, a month where
-    ONLY refunds changed headlined "baskets got smaller (100% of the change)"
-    (measured in 2E). Either period with any refund leaves B2 inconclusive."""
-    # Any return LINE, not only refunded money (2E doubt-review cycle 3): a
-    # zero-price write-off carries units but no money, and B2 headlined
-    # "baskets got bigger" while baskets shrank from 3 units to 1.
-    period = inputs.data.metrics.period
-    lines = {label: int((inputs.data.parsed.returned
-                         & (inputs.data.months == month)).sum())
-             for label, month in (("prev", period.previous), ("cur", period.current))}
-    # ...and any counted row with a negative amount: a refund booked as
-    # quantity +1 at a negative price is a "sale row" of one unit to level 2,
-    # and B2 read "baskets got smaller" while every real basket was 3 units
-    # (2E doubt-review cycle 4; Thach, 2E-b).
-    for label, month in (("prev", period.previous), ("cur", period.current)):
-        lines[label] += int((inputs.data.parsed.counted
-                             & (inputs.data.parsed.revenue_amounts < 0)
-                             & ~inputs.data.parsed.returned
-                             & (inputs.data.months == month)).sum())
-    if lines["prev"] or lines["cur"]:
-        return Outcome(verdict="inconclusive",
-                       # Line counts only: the returns lens's money counts
-                       # qty<0 rows alone, so "12 refund lines, 0.0 refunded"
-                       # side by side read as a contradiction (2E-b review).
-                       evidence={"refund_lines_prev": lines["prev"],
-                                 "refund_lines_cur": lines["cur"]},
-                       rule="level 2 counts refunded units against the basket, so basket "
-                            "size cannot be separated from refund lines (return lines, or "
-                            "lines with a negative amount - a refund, or a discount or "
-                            "coupon line) until level 2 has a refund factor of its own")
-    return None
-
-
 def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     if no_customer(inputs):
         return NOT_TESTABLE_NO_CUSTOMER
@@ -211,20 +175,6 @@ def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     return Outcome(contribution=factor.contribution,
                    evidence={"frequency_prev": factor.value_prev,
                              "frequency_cur": factor.value_cur})
-
-
-def b2(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    if (refused := _refunds_in_level_2(inputs)) is not None:
-        return refused
-    level = inputs.tree.lever.level2
-    if level is None:
-        return Outcome(verdict="inconclusive",
-                       evidence={"reason": inputs.tree.lever.reasons.get("level2", "")},
-                       rule="requires net units > 0 in both periods and a change in AOV")
-    factor = next(f for f in level.factors if f.name == "units_per_order")
-    return Outcome(contribution=factor.contribution,
-                   evidence={"units_per_order_prev": factor.value_prev,
-                             "units_per_order_cur": factor.value_cur})
 
 
 # --- product and returns --------------------------------------------------------

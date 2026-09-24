@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
-from stages.analyze.metrics_customers import rfm_snapshot
+from stages.analyze.rfm import rfm_snapshot
 from stages.diagnose.hypotheses import evaluate_hypotheses
 from tests.stages.diagnose.diagnose_fixtures import row, run_data
 from tests.stages.diagnose.test_hypotheses import by_id, step7

@@ -17,7 +17,7 @@ import pytest
 
 from stages.analyze.assemble import SCHEMA_VERSION, assemble_metrics
 from stages.analyze.metrics_core import compute_core_metrics
-from stages.analyze.metrics_customers import rfm_snapshot
+from stages.analyze.rfm import rfm_snapshot
 
 NOW = datetime(2026, 9, 19, 12, 0, tzinfo=UTC)
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
@@ -181,5 +181,7 @@ def test_a_doubled_loss_is_a_decliner_and_a_recovery_is_not() -> None:
     assert decliners[1].revenue_change_pct == pytest.approx(-50.0)
 
 
-def test_metrics_json_is_schema_version_2() -> None:
-    assert SCHEMA_VERSION == "2.0"
+def test_metrics_json_is_the_current_major_version() -> None:
+    # Was "2.0" (the 2E bump); 2E-c bumped it to "3.0" (Thach: orders,
+    # buyers, AOV, new customers and RFM scores changed meaning).
+    assert SCHEMA_VERSION == "3.0"

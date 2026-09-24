@@ -52,7 +52,9 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
         # order, so refunds no longer read as rarer purchases.
         orders=int((mask & data.parsed.sale).sum()),
         customers=customers,
-        units=float(data.parsed.quantities[mask].sum()),
+        # Sale and return lines' units (shared/transactions.py, 2E-c): a free
+        # gift's quantity is not a unit in the basket.
+        units=float(data.parsed.units[mask].sum()),
     )
 
 
@@ -351,23 +353,29 @@ def _masked_shift(
 
 
 def returns_levels(data: RunData) -> dict[str, float]:
-    """Gross sales and returns per period, the additive returns lens.
+    """Gross sales, returns and deductions per period, the additive returns
+    lens: `delta_net = delta_gross - delta_returns - delta_deductions`.
 
-    `returns_*` are positive magnitudes, so `delta_net = delta_gross -
-    delta_returns`. A return is a counted row with negative quantity - the one
-    signal the canonical schema carries (`shared/transactions.py`).
+    The three are `shared/transactions.py`'s sale, return and deduction rows.
+    Gross used to be every quantity > 0 row, so a refund booked at a negative
+    price sat inside gross sales and the product lens read it as a price cut -
+    P1 headlined "like-for-like prices changed" when none had (2E-b review).
+    A deduction (a coupon, a discount, a write-off) is neither a sale nor a
+    return, so it has a term of its own and no hypothesis in v1: a change it
+    carries stays unexplained (Thach, 2E-c).
     """
     levels = {}
+    parsed = data.parsed
     for label, month in (("prev", data.metrics.period.previous),
                          ("cur", data.metrics.period.current)):
         mask = period_mask(data, month)
-        quantities = data.parsed.quantities
-        amounts = data.parsed.revenue_amounts
+        amounts = parsed.revenue_amounts
         # `+ 0.0` normalises the negative zero that negating an empty sum
         # produces, which would otherwise be written into the contract file
         # literally as `-0.0`.
-        levels[f"gross_{label}"] = float(amounts[mask & (quantities > 0)].sum()) + 0.0
-        levels[f"returns_{label}"] = -float(amounts[mask & (quantities < 0)].sum()) + 0.0
+        levels[f"gross_{label}"] = float(amounts[mask & parsed.sale].sum()) + 0.0
+        levels[f"returns_{label}"] = -float(amounts[mask & parsed.returned].sum()) + 0.0
+        levels[f"deductions_{label}"] = -float(amounts[mask & parsed.deduction].sum()) + 0.0
     return levels
 
 

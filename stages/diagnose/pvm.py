@@ -74,7 +74,10 @@ def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
     # are not a product, but they are revenue and the identity must close.
     identity = identity.fillna(UNIDENTIFIED_PRODUCT)
 
-    mask = period_mask(data, month) & (data.parsed.quantities > 0)
+    # Sale rows (shared/transactions.py, 2E-c), the same rows as the returns
+    # lens's gross: a refund booked as quantity 1 at a negative price was a
+    # "product sold at a lower price" here, and P1 headlined a price cut.
+    mask = period_mask(data, month) & data.parsed.sale
     keys = identity[mask]
     units = data.parsed.quantities[mask].groupby(keys).sum()
     revenue = data.parsed.revenue_amounts[mask].groupby(keys).sum()

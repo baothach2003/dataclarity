@@ -9,7 +9,7 @@ from datetime import date
 
 import pytest
 
-from stages.diagnose.bridge import compute_bridge
+from stages.diagnose.bridge import compute_bridge, customer_classes
 from stages.diagnose.lever import month_revenue, period_totals
 from stages.diagnose.pvm import compute_products
 from stages.diagnose.frame import history_window
@@ -150,11 +150,12 @@ def test_a_transition_with_an_empty_side_says_so_in_its_evidence() -> None:
     assert bridge.evidence["empty_period"] == ["previous"]
 
 
-def test_a_returns_only_new_customer_keeps_the_identity_and_is_flagged() -> None:
+def test_a_returns_only_arrival_keeps_the_identity_and_is_flagged() -> None:
     """Thach's call, 3C: the term carries the sign the arithmetic gives, with
-    no clamping, and the count of such customers is recorded as a
-    left-censoring hint - returning goods never bought inside the file usually
-    means the purchase predates it."""
+    no clamping - returning goods never bought inside the file usually means
+    the purchase predates it. 3C left Rita in `new` with a note; SUPERSEDED
+    (Thach, 2E-c, rule C): she has no first purchase in the file, so she is
+    resurrected, and the note counts her there."""
     rows = [
         *_bridge_rows(),
         row(date(2011, 11, 28), qty=-1, price=30.0, customer="Rita"),
@@ -164,8 +165,9 @@ def test_a_returns_only_new_customer_keeps_the_identity_and_is_flagged() -> None
     bridge = compute_bridge(data)
 
     assert bridge is not None
-    assert bridge.new == pytest.approx(10.0)  # Dan's +40 and Rita's -30
-    assert bridge.evidence["new_customers_whose_first_activity_is_a_return"] == 1
+    # Was 10 (Dan's +40 and Rita's -30); now Dan's +40 alone.
+    assert bridge.new == pytest.approx(40.0)
+    assert bridge.evidence["arrivals_with_no_first_purchase_in_the_file"] == 1
     delta = month_revenue(data, "2011-11") - month_revenue(data, "2011-10")
     assert reconciles(
         [bridge.new, bridge.resurrected, bridge.expansion,
@@ -203,9 +205,14 @@ def test_the_returns_first_count_asks_about_the_first_row_not_the_month() -> Non
     bridge = compute_bridge(data)
 
     assert bridge is not None
-    assert bridge.evidence["new_customers"] == 3  # Nora, Rita and Tom
-    # Rita alone. Inverted, this would be 2 (Nora and Tom).
-    assert bridge.evidence["new_customers_whose_first_activity_is_a_return"] == 1
+    # Was 3 (Nora, Rita and Tom) with Rita noted. Since 2E-c (rule C) Rita's
+    # history opens with a refund, so she is not new: Nora and Tom. Inverted
+    # (the sign of the month), Nora would be out and Rita in - the classes
+    # tell the two apart, as the count did.
+    assert bridge.evidence["new_customers"] == 2
+    classes = customer_classes(data)
+    assert (classes["nora"], classes["tom"], classes["rita"]) == ("new", "new", "resurrected")
+    assert bridge.evidence["arrivals_with_no_first_purchase_in_the_file"] == 1
 
 
 def test_the_bridge_flags_left_censoring_near_the_start_of_the_file() -> None:

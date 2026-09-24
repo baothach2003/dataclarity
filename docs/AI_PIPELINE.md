@@ -202,8 +202,8 @@ directory. Stage 3 must not import `stages/analyze`: the shared transaction
 parsing (`ParsedTransactions`, `parse_transactions`, `require_column`,
 `pct_change`, `is_blank`) moves to `shared/` first, so both stages compute
 revenue, orders and "revenue-counted rows" from one definition. Since 2E an
-**order is a sale row** (a counted row with quantity > 0; a return line is
-not one), the **incomplete previous month** is `shared/periods.py`'s, and the
+**order is a sale row** (a counted row with quantity > 0 and, since 2E-c, a
+positive amount; a return line, a free item and a coupon are not), the **incomplete previous month** is `shared/periods.py`'s, and the
 **residue test** is `shared/numbers.is_negligible` - each one definition for
 both stages (CONTRACTS section 6). Every figure
 stage 3 recomputes that also exists in `metrics.json` must match it exactly; a
@@ -744,15 +744,23 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   gives; nothing is clamped, because a clamp replaces a measurement with an
   invented number and breaks the identity. This also keeps "active" identical
   to stage 2's `active_customers`, so the two stages cannot disagree about who
-  was active. `evidence` records how many customers classified as new have a
-  first-ever row that is a refund - a left-censoring hint, since they are
-  returning something the file never recorded them buying - and whether either
-  side of the transition holds no rows at all.
+  was active. **New** is the customer's first purchase - first sale row - and
+  a customer whose history opens with a refund is never new: they are
+  returning something bought before the file, so they are resurrected (Thach,
+  2E-c, rule C, `shared/first_purchase.py`, the same rule as stage 2's
+  `new_vs_returning`; it supersedes 3C's evidence-only note). `evidence`
+  counts those arrivals (`arrivals_with_no_first_purchase_in_the_file`) and
+  records whether either side of the transition holds no rows at all.
   The previous transition is computed only when **both** its months contain
   revenue-counted rows, not merely when they are complete by the calendar: an
   empty month produced an all-zero bridge that was then offered to C1-C3 as a
   real comparison of flows (3B finding 2, again).
-- **Returns lens.** `delta_net = delta_gross - delta_returns`.
+- **Returns lens.** `delta_net = delta_gross - delta_returns -
+  delta_deductions`. Gross is the sale rows (quantity > 0, positive amount),
+  returns the return lines, deductions every other counted row - a coupon, a
+  discount, a bad-debt write-off (Thach, 2E-c). A refund booked at a negative
+  price used to sit inside gross sales, and P1 read it as a price cut.
+  Deductions have no hypothesis in v1: a change they carry stays unexplained.
 - **Product lens (PVM, exact).** Partition products into L (in both periods), N
   (new) and X (discontinued). `delta_gross = delta_gross_L + gross_N(cur) -
   gross_X(prev)`; for L, three-player Shapley over volume, mix and price.
@@ -819,7 +827,9 @@ a data-completeness fact rather than a business one.
 a `concentrated` verdict over members that are all small. A dimension whose
 members all fit in the named slots skips the filter without setting that flag:
 `customer_type` has four fixed members and the bar is a share of *previous*
-revenue, which `new` has none of by definition.
+revenue, which `new` has none of - or only a deduction's worth: since 2E-c a
+customer present last month only through a coupon or a free item is new when
+their first purchase comes, and the bridge's `new` term is their change.
 
 ### 7.8 Step 7: Hypothesis evaluation
 
@@ -942,7 +952,9 @@ the same January came out `ruled_out` or "migrated to weaker segments",
 behind a switch for when stage 2 anchors a snapshot per month (Backlog).
 
 **B2 is `inconclusive` on any refund line - a return line, or any counted row
-with a negative amount** (INTERIM, Thach; B1 and B2 in 3E1, B2 alone since
+with a negative amount, which since 2E-c is a deduction (a refund at a
+negative price, a discount, a coupon, a write-off): no longer an order, but
+level 2 still counts its money in net revenue** (INTERIM, Thach; B1 and B2 in 3E1, B2 alone since
 2E; lines, not refunded money, since the 2E doubt-review cycle 3: a
 zero-price write-off carries units and no money, and B2 headlined "baskets
 got bigger" while baskets shrank from 3 units to 1; negative amounts since

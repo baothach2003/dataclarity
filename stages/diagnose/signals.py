@@ -174,9 +174,10 @@ def monthly_series(data: RunData) -> pd.DataFrame:
         mask = counted & (months == month)
         revenue = float(data.parsed.revenue_amounts[mask].sum())
         # Orders and returns as stage 2 counts them (2E): sale rows and return
-        # lines. Units stay net, as in the lever's level 2.
+        # lines. Units stay net, as in the lever's level 2, and skip deduction
+        # lines (2E-c).
         orders = int((mask & data.parsed.sale).sum())
-        units = float(data.parsed.quantities[mask].sum())
+        units = float(data.parsed.units[mask].sum())
         returns = int((mask & data.parsed.returned).sum())
 
         row: dict[str, float] = {

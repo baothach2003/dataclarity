@@ -149,6 +149,7 @@ def _by_category(data: RunData) -> pd.DataFrame | None:
         # Sale rows (2E), so the weighted average is stage 2's AOV.
         sales = keys[mask & data.parsed.sale]
         columns[f"orders_{label}"] = sales.groupby(sales).size()
-        columns[f"units_{label}"] = data.parsed.quantities[mask].groupby(grouped).sum()
+        # The lever's units (2E-c), so the weighted average reconciles to it.
+        columns[f"units_{label}"] = data.parsed.units[mask].groupby(grouped).sum()
     table = pd.DataFrame(columns).fillna(0.0)
     return table if not table.empty else None

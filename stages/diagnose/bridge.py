@@ -16,6 +16,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import BridgeTerms, CustomerLens
+from shared.first_purchase import first_purchase_months
 from shared.transactions import customer_identity, is_blank, merged_identity_count
 from stages.diagnose.inputs import RunData, period_mask, shift_month
 from stages.diagnose.lever import customer_revenue
@@ -76,11 +77,22 @@ def classify(
     in_prev, in_cur = set(previous.index), set(current.index)
     classes = {name: "retained" for name in in_prev & in_cur}
     classes |= {name: "lapsed" for name in in_prev - in_cur}
-    for name in in_cur - in_prev:
-        # "New" is first activity anywhere in the file, not merely absence
+    # New before present: a free sample or a coupon last month makes a
+    # customer present in it, yet their first purchase is this month - the
+    # bridge called them retained while stage 2 called them new (2E-c
+    # doubt-review F2). A customer who BOUGHT last month cannot have their
+    # first purchase this month, and one who refunded before their first sale
+    # has none in the file (their history opens with a refund), so only a
+    # deduction moves anyone here.
+    classes |= {name: "new" for name in in_cur if first_month.get(name) == month}
+    for name in in_cur - in_prev - {n for n, c in classes.items() if c == "new"}:
+        # "New" is the FIRST PURCHASE anywhere in the file, not merely absence
         # from the previous month: a customer who bought in March, skipped
-        # April and came back in May is resurrected, not new.
-        classes[name] = "new" if first_month.get(name) == month else "resurrected"
+        # April and came back in May is resurrected, not new. A customer whose
+        # history opens with a refund has no first purchase in the file - the
+        # refund proves one before it - so they come back, never arrive
+        # (shared/first_purchase.py; Thach, 2E-c, superseding 3C's "note only").
+        classes[name] = "resurrected"
     return classes
 
 
@@ -93,7 +105,7 @@ def customer_classes(data: RunData) -> dict[str, str]:
     return classify(
         customer_revenue(data, period.previous, customer_col),
         customer_revenue(data, period.current, customer_col),
-        _first_activity(data, customer_col)["month"].to_dict(),
+        _first_purchase(data, customer_col).to_dict(),
         period.current,
     )
 
@@ -103,8 +115,7 @@ def _bridge(
 ) -> tuple[BridgeTerms, dict]:
     previous = customer_revenue(data, transition.previous, customer_col)
     current = customer_revenue(data, transition.current, customer_col)
-    first = _first_activity(data, customer_col)
-    first_month = first["month"].to_dict()
+    first_month = _first_purchase(data, customer_col).to_dict()
 
     # One statement of the rule, shared with step 6 (see `classify`).
     classes = classify(previous, current, first_month, transition.current)
@@ -117,7 +128,9 @@ def _bridge(
     losses = sum(max(0.0, previous[name] - current[name]) for name in retained)
 
     terms = BridgeTerms(
-        new=float(current.reindex(new).sum()),
+        # Each new customer's CHANGE: a coupon of -5 last month and 100 now
+        # brings +105, so the six terms still sum to the change.
+        new=float(current.reindex(new).sum() - previous.reindex(new).fillna(0.0).sum()),
         resurrected=float(current.reindex(resurrected).sum()),
         expansion=float(gains),
         # Signed, so the six terms simply add up to the revenue change.
@@ -125,7 +138,8 @@ def _bridge(
         lapsed=-float(previous.reindex(lapsed).sum()),
         unattributed=_unattributed(data, customer_col, transition),
     )
-    return terms, _evidence(data, customer_col, transition, new, first, previous, current)
+    return terms, _evidence(data, customer_col, transition, new, resurrected, first_month,
+                            previous, current)
 
 
 def _unattributed(data: RunData, customer_col: str, transition: Transition) -> float:
@@ -139,39 +153,26 @@ def _unattributed(data: RunData, customer_col: str, transition: Transition) -> f
     return current - previous
 
 
-def _first_activity(data: RunData, customer_col: str) -> pd.DataFrame:
-    """Each customer's first appearance in the file: the month of it, and
-    whether that first appearance was a return.
+def _first_purchase(data: RunData, customer_col: str) -> pd.Series:
+    """Each customer's first purchase month in the file, or None when the file
+    holds none (shared/first_purchase.py: only refunds, or a history that
+    opens with one). Keyed on the normalised identity (3C2), so "first
+    purchase in the file" is the PERSON's: keyed raw, a customer's second
+    spelling looked like someone who had never bought, and landed in `new`.
 
     "Anywhere in the file" includes months too partial to be complete months,
-    because the question is only whether we have ever seen this customer
-    before. Where several rows share a customer's earliest date, the net
-    quantity of that day decides - a same-day buy-and-refund is not a customer
-    whose first act was a return.
+    because the question is only whether we have ever seen this customer buy.
     """
     mask = data.parsed.counted & ~is_blank(data.df[customer_col])
-    if not mask.any():
-        return pd.DataFrame(columns=["month", "first_is_return"])
-    frame = pd.DataFrame({
-        # Normalised (3C2), so "first appearance in the file" is the first
-        # appearance of the PERSON. Keyed raw, a customer's second spelling
-        # looks like someone who has never bought before, and lands in `new`.
-        "customer": customer_identity(data.df.loc[mask, customer_col]),
-        "month": data.months[mask],
-        "date": data.parsed.dates[mask],
-        "quantity": data.parsed.quantities[mask],
-    })
-    first_date = frame.groupby("customer")["date"].transform("min")
-    opening = frame[frame["date"] == first_date]
-    return pd.DataFrame({
-        "month": opening.groupby("customer")["month"].min(),
-        "first_is_return": opening.groupby("customer")["quantity"].sum() < 0,
-    })
+    parsed = data.parsed
+    return first_purchase_months(customer_identity(data.df.loc[mask, customer_col]),
+                                 parsed.dates[mask], parsed.quantities[mask],
+                                 parsed.sale[mask], parsed.returned[mask])
 
 
 def _evidence(
     data: RunData, customer_col: str, transition: Transition, new: list[str],
-    first: pd.DataFrame, previous: pd.Series, current: pd.Series,
+    resurrected: list[str], first_month: dict, previous: pd.Series, current: pd.Series,
 ) -> dict:
     """What C1 and C3 need to know before trusting the "new" term."""
     file_start = data.metrics.period.data_start
@@ -179,22 +180,17 @@ def _evidence(
         (int(transition.current[:4]) * 12 + int(transition.current[5:7]))
         - (file_start.year * 12 + file_start.month)
     )
-    returns_first = first["first_is_return"].reindex(new, fill_value=False)
     return {
         "transition": f"{transition.previous} -> {transition.current}",
         "new_customers": len(new),
-        # A customer whose first-ever activity in the file is a return almost
-        # certainly bought before the file starts - they are returning
-        # something they were never recorded buying. A left-censoring hint for
-        # the narration (Thach, 3C); it changes no term, because excluding
-        # them would break the identity.
-        #
-        # This asks about the customer's FIRST ROW, not the sign of their month
-        # (3C doubt-review R2): a customer who bought on the 5th and refunded
-        # more on the 20th has a negative month but did not start with a
-        # return, and one who refunded on the 6th and bought on the 21st has a
-        # positive month and did. The first version counted both backwards.
-        "new_customers_whose_first_activity_is_a_return": int(returns_first.sum()),
+        # Customers who arrived this month (absent from the previous one) with
+        # no first purchase in the file - their history opens with a refund,
+        # or they only got refunds, coupons or free items. Since 2E-c they are
+        # resurrected, not new (Thach, rule C); 3C recorded them as a note on
+        # `new` instead. The opening day is judged on its net quantity, not
+        # the sign of the month (3C doubt-review R2).
+        "arrivals_with_no_first_purchase_in_the_file": sum(
+            first_month.get(name) is None for name in resurrected),
         # Within the first few months of the file, "new" mostly means "first
         # seen", not "first ever": everyone looks new when the file starts.
         "left_censored": months_in < LEFT_CENSOR_MONTHS,

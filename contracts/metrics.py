@@ -221,10 +221,15 @@ class DimensionBreakdown(ContractModel):
 
 
 class MetricsContract(ContractFile):
-    supported_major: ClassVar[int] = 2
+    # 3 since 2E-c: a sale row needs a positive amount, new customers exclude
+    # histories that open with a refund, RFM ties score alike - orders,
+    # buyers, AOV, new customers and RFM scores changed MEANING, and a 2.x
+    # and a 3.x file must not be compared silently (Thach).
+    supported_major: ClassVar[int] = 3
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
-        "definitions (orders, AOV, return rate); re-analyse this run")
+        "definitions (orders, buyers, AOV, return rate, new customers, RFM "
+        "scores); re-analyse this run")
 
     period: Period
     core: CoreMetrics

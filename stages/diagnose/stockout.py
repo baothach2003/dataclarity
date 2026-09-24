@@ -43,7 +43,9 @@ def detect_stockouts(data: RunData) -> list[Stockout]:
     on those days at last month's pace.
     """
     period = data.metrics.period
-    sales = data.parsed.counted & (data.parsed.quantities > 0)
+    # Sale rows (2E-c): a free item booked on the days a product was out
+    # sold nothing, and it hid the run.
+    sales = data.parsed.sale
     column = require_column(data.parsed.reverse, "product_name")
     keys = product_identity(data.df, column, data.parsed.reverse.get("sku"))
     days = data.parsed.dates.dt.normalize()

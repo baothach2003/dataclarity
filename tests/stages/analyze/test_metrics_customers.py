@@ -7,13 +7,8 @@ import pytest
 from contracts.cleaning import CleaningReportContract
 from shared.run_registry import create_run
 from stages.analyze.metrics_core import compute_core_metrics
-from stages.analyze.metrics_customers import (
-    NEEDS_ATTENTION,
-    assign_segment,
-    compute_customer_metrics,
-    customer_metrics_for_run,
-    score_quintile,
-)
+from stages.analyze.metrics_customers import compute_customer_metrics, customer_metrics_for_run
+from stages.analyze.rfm import NEEDS_ATTENTION, assign_segment, score_quintile
 
 NOW = datetime(2026, 9, 19, 12, 0, tzinfo=UTC)
 
@@ -68,13 +63,14 @@ def test_five_distinct_values_map_one_to_one_onto_1_through_5() -> None:
     assert list(score_quintile(values, ascending=True)) == [1, 2, 3, 4, 5]
 
 
-def test_many_ties_still_spread_across_all_five_quintiles() -> None:
-    # Verified against real pandas behavior: rank(method="first") breaks ties
-    # by original position, so an all-equal column still forms 5 real,
-    # evenly-sized groups rather than colliding into one bucket or raising.
+def test_an_all_equal_column_scores_the_middle_not_by_position() -> None:
+    # Was [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]: rank(method="first") broke ties by
+    # position, so identical customers were split by customer id (2B).
+    # SUPERSEDED (Thach, 2E-c): a tied group takes the mean of its positions'
+    # scores, (1+1+2+2+3+3+4+4+5+5) / 10 = 3.
     values = pd.Series([5] * 10)
 
-    assert list(score_quintile(values, ascending=True)) == [1, 1, 2, 2, 3, 3, 4, 4, 5, 5]
+    assert list(score_quintile(values, ascending=True)) == [3] * 10
 
 
 # --- compute_customer_metrics: the hand-calculated scenario -----------------
@@ -199,8 +195,13 @@ def test_a_return_only_customer_is_scored_like_any_other() -> None:
     assert segment.segment == "Returns only"
     assert (segment.customers, segment.avg_monetary) == (1, -10.0)
 
-    assert customers.new_vs_returning.new_customers == 1
-    assert customers.new_vs_returning.new_revenue == -10.0
+    # Was new (1 customer, -10 of new revenue): the first row of any kind.
+    # SUPERSEDED (Thach, 2E-c, rule C): a refund proves a purchase before the
+    # file, so they are returning, and their -10 is returning revenue.
+    assert customers.new_vs_returning.new_customers == 0
+    assert customers.new_vs_returning.new_revenue == 0.0
+    assert customers.new_vs_returning.returning_customers == 1
+    assert customers.new_vs_returning.returning_revenue == -10.0
 
 
 def test_whitespace_only_customer_value_is_excluded_like_a_missing_one() -> None:

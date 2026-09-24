@@ -21,7 +21,7 @@ def diagnosis_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 7, with the arrays that the
     # documentation shows one element of filled in completely.
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",  # 2E-c: the returns lens gained deductions
         "generated_at": "2026-09-18T04:16:00Z",
         "model_used": "claude-sonnet-5",
         "frame": {
@@ -86,7 +86,8 @@ def diagnosis_payload() -> dict[str, Any]:
                           "unattributed": 0.0, "previous_transition": None,
                           "evidence": {"new_customers": 148, "left_censored": False}},
             "returns": {"gross_prev": 1338000.0, "gross_cur": 1198000.0,
-                        "returns_prev": 48000.0, "returns_cur": 48000.0},
+                        "returns_prev": 48000.0, "returns_cur": 48000.0,
+                        "deductions_prev": 0.0, "deductions_cur": 0.0},
             "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
                          "new_products": 12000.0, "discontinued_products": -27000.0},
         },

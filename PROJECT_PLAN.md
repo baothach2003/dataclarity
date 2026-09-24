@@ -241,12 +241,14 @@ dataclarity/
 >
 > **Session order from here** (Thach, triaged after 3D5b; amended in 3E1):
 > 3D4, 3D5, 3D5b (all committed together), then **3D6**, then **3D6b**, then
-> **3E1**, then **2E** (done), then **2E-b** (done), then **2E-c** (what counts
-> as a purchase, RFM ties), then **2E-d** (implausible lines, then the
-> residue scale) - both before 3E1b by the asymmetry rule, each with its
-> reproduction in its checklist item - then **3E1b**, then **the Online Retail II demo** (Thach, after 2E:
-> built before 3E2, so refund behaviour is measured on real data), then
-> **3E2**, then **3E3**
+> **3E1**, then **2E** (done), then **2E-b** (done), then **2E-c** (done; what counts
+> as a purchase, RFM ties), then **2E-c2** (Thach, after 2E-c: the review's
+> follow-ups, before the demo build), then **the Online Retail II demo** (Thach, at
+> 2E-c's start: moved from "before 3E2" to BETWEEN 2E-c and 2E-d, because
+> 2E-d's sweep needs real legitimate large lines and a real typo pair),
+> then **2E-d** (implausible lines, then the residue scale) - 2E-c and 2E-d
+> both before 3E1b by the asymmetry rule, each with its reproduction in its
+> checklist item - then **3E1b**, then **3E2**, then **3E3**
 > (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
 > 3F, 3G (Thach, after 3E1). **2E first** because it corrects the orders
 > definition B1 and B2 rest on (stage 2 counts return lines as orders -
@@ -679,8 +681,17 @@ dataclarity/
          `ruled_out` for having the opposite sign. Every printed number is
          true. A design decision: bound a product-lens cause's
          `|contribution / net|` for the headline, or name the offset.
+         **A new same-sign route since 2E-c (doubt-review F3):** prices
+         30 -> 29 (gross -279) and twenty coupon lines at -100 (-2,000, now
+         deductions, which have no hypothesis): net -2,279 is headlined
+         "like-for-like prices changed (100% of the change in gross sales
+         (-279.00))" while 88% of the fall sits in deductions. Before 2E-c
+         the coupon "product" sat in gross and R2 could see it. Part C's
+         size test must cover a change carried by deductions too (repro
+         scratchpad `review17/p2_deduction_headline.py`).
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
-      Online Retail II demo first** (Thach, after 2E; section 12 action 4):
+      Online Retail II demo first** (Thach, after 2E; built between 2E-c
+      and 2E-d since 2E-c's start; section 12 action 4):
       neither current demo file holds a single return line, so the cost of
       B2's refusal and refund behaviour generally cannot be measured on real
       data; the customer-sampled Online Retail II demo has real
@@ -901,8 +912,111 @@ dataclarity/
          (refuse on any counted row with a negative amount), but it follows
          from the accepted "a quantity>0 line with a negative price counts as
          an order" rule, so it belongs with that rule's decision.
-- [ ] 2E-c **What counts as a purchase, and RFM ties** (Thach, after 2E-b;
-      **before 3E1b**, then 2E-d). Method before code: the sale-row
+- [x] 2E-c **Closed 2026-09-24** (details in section 12's session log).
+      Shipped, by Thach's decisions D1-D6: a sale row needs quantity > 0 AND
+      a positive amount (one definition, `shared/transactions.py`); a
+      counted row that is neither a sale nor a return is a DEDUCTION, with
+      its own term in the returns lens (diagnosis.json 2.0); units are sale
+      and return lines only; the product lens, the level-1 split, stockout,
+      step 4's units and the category split all read those rows; new = the
+      first purchase in the month and a history that does not open with a
+      refund (`shared/first_purchase.py`, rule C, stage 2 and the bridge);
+      RFM ties score alike (meanpos); metrics.json 3.0. P1 (price cut on
+      negative-price refunds), F1 (B1 on coupon lines, then B2 on free
+      gifts), F2 (ties by name) and F3 (refund-only customers as new) are
+      closed and pinned by tests.
+      **Open for Thach after the three review cycles** (repros in scratchpad
+      `review17/`, `review18/`, `review19/`):
+      1. **D6 revisited - lift B2's negative-amount clause?** Its premise
+         ("their unit is in the basket") became false with the units fix: a
+         deduction is neither an order nor a unit, its money lands in price
+         per unit. Cost of keeping it: one 1 @ -5 coupon made B2
+         inconclusive on a basket that fell 3 -> 2 units, and the headline
+         fell to rule 7 (`review18/p6_b2_coupon.py`); B2's contribution
+         moved only -2,790 -> -2,788.75. Proposed: lift it, keep the
+         return-line clause until 3E3.
+      2. **Rule C nets the opening day by QUANTITY across products - a
+         FABRICATE remains (review cycle 3, HIGH).** A first day that buys 10
+         pens at 1 and returns 1 chair at 500 bought before the file nets +9,
+         so the customer is new with -490 of new revenue, and C1 flips from
+         ruled_out to supported ("new-customer revenue collapsed") while C3
+         loses its -500 (`review19/f1_netting.py`, `f1b_c1.py`). NOT
+         introduced by 2E-c - HEAD called every customer whose first row fell
+         in the month new, so it fabricated this and more; rule C narrowed it
+         without closing it. The reverse is SUPPRESS: a first visit buying a
+         box of 12 (qty 1) and returning 2 singles (qty -2) is never new.
+         Candidate (asymmetry rule): an opening day holding ANY return line
+         opens with a refund - no netting. It only moves customers from new
+         to not-new (SUPPRESS side), but it overturns D3's "a same-day
+         buy-and-refund nets by day", so it is Thach's call. Other holes, the
+         code following the rule as decided: a refund booked at +1 and a negative price is a
+         deduction, so it never opens a history; buying 1 on day 1 and
+         returning 5 on day 2 is new; netting by quantity across products
+         (1 at 500 and a return of 2 at 1 on the opening day) is never new
+         though 498 was spent. On Online Retail II, 615 of 5,729 customers
+         with a first purchase return more of some SKU than the file shows
+         them buying (indicative: stock codes vary). A cumulative or
+         money-based rule is a decision (`review17/p3_first_purchase.py`,
+         `p6_orii_cum.py`).
+      3. **Zero-amount lines with negative quantity are still return lines.**
+         3,393 on Online Retail II, none with a customer ("check",
+         "damages", "damaged", "missing", "thrown away" - stock bookkeeping,
+         the reason 2E-c took zero-amount lines out of sales); they inflate
+         return_rate by 7% to 78% a month (2010-02: 3.62% against 2.03%) and
+         trigger B2's refusal (`review17/p11_orii_zero_returns.py`). The
+         same asymmetry opens a purchase history on no money: a -1 @ 0 line
+         two days before a first purchase makes the customer "resurrected",
+         never new, while +1 @ 0 is ignored (review cycle 3 F2,
+         `review19/f2_f3.py`). Proposed: a return line needs a negative
+         amount too, the symmetric rule.
+      4. **The tie rule and one-row-per-order exports.** When more than 40%
+         of buyers share the lowest frequency they score F = 2, so "New"
+         (F <= 1) is unreachable: 100 buyers with 50 one-timers gave 40
+         recent one-timers "Needs Attention" instead of "New" (old rule: New
+         20, `review17/p7_rfm.py`). Online Retail II is unaffected (2% share
+         the lowest frequency, as frequency counts lines). Also: a
+         population that ties throughout scores 3/3 = "Loyal" - a positive
+         label with no information behind it (five identical one-time
+         buyers). Both are label questions for the segment grid.
+      5. **Labels:** a customer who only got free items or coupons is
+         "Returns only" though they returned nothing; a free sample first,
+         a purchase next month reads "returning" in stage 2 and
+         "resurrected" in the bridge that month; a customer present through
+         a coupon two months before their first purchase is resurrected in
+         the earlier transition, then new - the coupon's 5 feeds C3 then C1
+         (`review18/p8_lifecycle.py`); a coupon this month before a first
+         purchase next month reads "resurrected" now, and is not in the
+         arrivals count because the file does hold a later first purchase
+         (review cycle 3 F3). Stage 2's new_revenue is a level
+         (200), the bridge's `new` a change (205): both correct, both will
+         be printed.
+      **Recorded, not decisions:** one uncategorised coupon line refuses the
+      category mix/rate split for the month (its bucket has revenue but no
+      orders or units) - SUPPRESS, safe (`review18/p5_mixrate_coupon.py`);
+      30 refund-only arrivals headline C3 "returning customers brought in
+      less revenue" at 100%, tied with P3 on catalog order - true now (HEAD
+      said "new customers", false), but the refund lens is the more telling
+      name: a ranking question for 3E1b part C (`review18/p1_c3_refunds.py`);
+      `metrics_products._velocity` crashes (TypeError sorting float and str)
+      on raw Online Retail II when every row of a product has no name -
+      pre-existing, and the demo session must meet it before 2E-d; on Online
+      Retail II the new definition moves two headlines (2011-01 P1 -> P2,
+      2011-04 P2 -> C2), because zero-price lines left the product lens.
+      Review cycle 3's low items, recorded: the opening-day residue test is
+      relative (1e-9), so a whole unit is "residue" once a day's gross passes
+      about 1e9 units - grams or millilitres only; real `int` customer keys
+      in a DataFrame built in code become NaN in `customer_identity` (the
+      bridge then stops adding up) - unreachable from cleaned.csv, which is
+      read as strings, but the pure entry points accept it; `classify` would
+      put two NaN keys in two classes, unreachable while `customer_revenue`
+      drops NaN; `first_purchase_months` raises on an empty call with
+      object-dtype dates (callers always pass datetimes).
+      Pre-existing file-size debt, not split here: `lever.py` 394,
+      `contracts/diagnosis.py` 654, and four test files over 300 lines.
+      Original item text below, kept as the record.
+      What counts as a purchase, and RFM ties (Thach, after 2E-b;
+      **before 3E1b**; order from 2E-c's start: 2E-c -> Online Retail II
+      demo -> 2E-d -> 3E1b -> 3E2). Method before code: the sale-row
       definition is shared by both stages (`shared/transactions.py`), and
       D1's trading days rest on it.
       - **F1 + F3 + P1, one root.** A line with positive quantity and a
@@ -933,9 +1047,54 @@ dataclarity/
       alone could not go before by the rule: stage 3 reads segments only in
       C4 (off in v1) and never reads `new_vs_returning`; they ride with
       2E-c because they are the same definitions.
+- [ ] 2E-c2 **Follow-up to 2E-c's review** (Thach, after 2E-c; a short
+      session BEFORE the Online Retail II demo). Order: 2E-c -> 2E-c2 ->
+      Online Retail II demo -> 2E-d -> 3E1b -> 3E2. Decided by Thach:
+      1. **Drop B2's negative-amount clause.** It REMOVES a refusal, so prove
+         it: a test that a deduction line cannot move B2 now, and a mutation
+         check. The return-line clause stays until 3E3.
+      2. **First-day rule for "new": any return line on the customer's first
+         day means the history starts with a refund - no same-day netting.**
+         This REVERSES D3's "a same-day buy-and-refund nets by day" (2E-c),
+         because netting by quantity across products fabricated "new" (10
+         pens and a returned 500 chair: new, C1 supported at -490; 2E-c
+         review cycle 3). Measure how many genuinely new customers on Online
+         Retail II lose the label.
+      3. **Symmetric return rule: a return line needs quantity < 0 AND a
+         negative amount.** Zero-amount negative-quantity lines are stock
+         write-offs, not customer returns; they leave return_rate and
+         returned units (3,393 such lines on Online Retail II inflated
+         return_rate by 7% to 78% a month).
+      4. **The tie rule's flaw - method before code.** One-time buyers tie on
+         F, so "New" (F <= 1) is unreachable when more than 40% share the
+         lowest frequency, and a full tie makes everyone "Loyal". Propose
+         alternatives measured on Online Retail II. Note for the method: the
+         engine's frequency counts sale LINES (the schema has no invoice id),
+         so on Online Retail II only 2.0% of buyers have frequency 1; "most
+         customers buy once" holds for invoices, not for today's frequency.
+         Measure both, and say which one the tie rule is judged on.
+      5. **Rename "Returns only"** to a label true for gift-only customers
+         too, e.g. "No purchases in file".
+      6. **Fix `metrics_products._velocity`'s crash on unnamed products**
+         (TypeError sorting float and str when every row of a product has no
+         name; 2E-c review cycle 2), failing test first - the demo build
+         will hit it.
 - [ ] 2E-d **Implausible lines, then the residue scale** (Thach, after 2E-b;
       split from 2E-c because it needs a new threshold and a sweep of
-      legitimate large lines; **before 3E1b, after 2E-c**). A barcode-sized
+      legitimate large lines; **before 3E1b, after 2E-c, 2E-c2 and the Online
+      Retail II demo**). **Real-world reproduction, verified against the UCI
+      download** (2026-09-24, scratchpad `oretail/verify_80995.out`):
+      invoice 581483, 80,995 x "PAPER CRAFT , LITTLE BIRDIE" at 2.08
+      (168,469.60), customer 16446, 2011-12-09 09:15, cancelled by C581484
+      (-80,995) at 09:27 - the file's last day (it ends 12:50). A second
+      pair of the same shape: 541431 / C541433, 74,215 x "MEDIUM CERAMIC TOP
+      STORAGE JAR" at 1.04, customer 12346, 2011-01-18. Both are QUANTITY
+      typos of about 1.7e5 and 7.7e4 a line, not 1e13 barcode prices, so the
+      sweep covers both magnitudes; say which diagnosed month each pair
+      falls in (the 80,995 pair sits in the partial month after the last
+      complete one). Legitimate large lines to keep unflagged, from the
+      same file: wholesale orders such as customer 13902's 19,152 mugs at
+      0.10 and 12,960 paper cups at 0.10. A barcode-sized
       line is BAD DATA, and
       stage 1 already detects outliers (`outliers_iqr` in profiling, the
       cleaning plan's `clip_outliers_iqr`). **Primary fix in stage 1:** the
@@ -968,6 +1127,28 @@ dataclarity/
       exactly those verdicts, so its calibration would sit on fabricated
       inputs. **Why after 2E-c:** the implausible-line sweep measures line
       amounts, and 2E-c decides which lines are sales.
+- [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
+      decisions; recorded next to 2E-d because it is the same stage 1 work -
+      a Review flag and a cleaning-plan proposal - and Thach places it).
+      Postage, manual adjustments, bank charges, marketplace fees and
+      bad-debt write-offs are not products, yet stage 2 counts them in
+      revenue and AOV. **Verified in the Online Retail II download**
+      (scratchpad `2ec/non_product_lines.out`; a scan of every StockCode with
+      no digit, each checked against its description): POST postage (2,086
+      lines, +110,430), DOT dotcom postage (1,425, +309,844), M manual
+      (1,403, -82,936), D discount (173, -12,880), S samples (102, -6,001),
+      BANK CHARGES (100, -35,482), ADJUST adjustments (67, +6,835),
+      AMAZONFEE (36, -221,521), CRUK commission (16, -7,933), B adjust bad
+      debt (6, -147,614). Not included: DCGSS*/DCGSL* party bags and PADS,
+      which are products; a description scan for digit-bearing codes was
+      noise ("FEE" in COFFEE, "BANK" in MONEY BANK) and found none. Together
+      5,414 of 1,044,848 lines (0.52%), net -87,256.56. **Effect on the full
+      file, month by month:** revenue moves -7.64% (2010-04, the bad-debt
+      write-off) to +2.87%; AOV -8.14% to +2.44% (orders are sale rows, 2E-c).
+      The demo session re-measures this on the customer-sampled file, which
+      is what the demo will show. Method before code there: the codes are
+      specific to this export, so stage 1 must PROPOSE (AI schema step or a
+      pattern the user confirms), never silently drop; the user decides.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -1340,7 +1521,19 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E-b** closed 2026-09-24, with
+**Phase in progress:** Phase 2/3, session **2E-c** closed 2026-09-24: **what
+counts as a purchase, one definition for both stages.** A sale row needs
+quantity > 0 AND a positive amount; every other non-return counted row is a
+deduction with its own term in the returns lens; units are sale and return
+lines; the product lens, level-1 split, stockout, step 4 and the category
+split read those rows; new customers follow rule C (`shared/first_purchase.py`,
+stage 2 and the bridge); RFM ties score alike (meanpos). metrics.json 3.0,
+diagnosis.json 2.0. Closed P1, F1 (B1, then the B2 it moved to), F2, F3 and
+the stage 2 / bridge disagreement. Three doubt-review cycles, the bound:
+cycle 3's HIGH (rule C nets the opening day by quantity across products - a
+FABRICATE HEAD had too) and four more rule questions are open for Thach
+under the 2E-c item. Mutation check: 35 mutants, all killed. pytest 2487.
+Previously, session **2E-b** closed 2026-09-24, with
 its residue-scale part REVERTED to 2E's behaviour and moved to **2E-d**
 (Thach: option A made the net change right on barcode-typo files and so
 exposed the typo in the gross lenses - 23 of 30 files headlined an invented
@@ -1720,11 +1913,14 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-c** (what counts as a purchase - F1, F3, P1 - and RFM
-ties, F2; method before code), after Thach's approval; then **2E-d**
-(implausible lines, then the residue scale). Both go before 3E1b by the
-asymmetry rule (reproductions in their checklist items). Then **3E1b**, then the **Online Retail II demo**, then **3E2**; placed by
-Thach after 2E. 3E1b is how D1 learns from history, and rule 6's size test
+**Next step:** **2E-c2** (Thach decided 2E-c's open items: drop B2's
+negative-amount clause with proof, first-day rule for "new", symmetric
+return rule, the tie rule by method before code, the label rename, the
+_velocity crash), after Thach's approval; then the **Online Retail II
+demo**, then **2E-d** (implausible lines, then the residue scale), then
+**3E1b**, then **3E2**. Order (Thach, after 2E-c): **2E-c -> 2E-c2 -> Online
+Retail II demo -> 2E-d -> 3E1b -> 3E2**. The demo moved ahead of 2E-d because 2E-d's sweep needs
+real legitimate large lines and the real 80,995-unit typo pair. 3E1b is how D1 learns from history, and rule 6's size test
 (it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
 S0/S11 expecting rule 7, and the accepted v1 known limits. 3D9 went to the Backlog ("Unusualness verdicts") with
@@ -1740,8 +1936,8 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Session 2E-b is committed and pushed (one-time push exception, Thach;
-   the normal rule applies again: scripts stop before push). Approve 2E-c
+1. Session 2E-c is committed and pushed (one-time push exception, Thach;
+   the normal rule applies again: scripts stop before push). Approve 2E-c2
    before it starts.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
@@ -1755,11 +1951,69 @@ still not started; its Insights frame now waits on 3E (see
    customer-sampled with a fixed seed to about 40MB, keeping every row of each
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
-   sampling script and what it sampled go in the README. **Must be built
-   before 3E2** (Thach, after 2E): it has real cancellations, and neither
-   current demo file holds a return line, so refund behaviour - including the
-   cost of B2's refusal - must be measured on real data, not only on the
-   generator.
+   sampling script and what it sampled go in the README. **Built between
+   2E-c2 and 2E-d** (Thach; was "before 3E2", then "after 2E-c"): it has real
+   cancellations, and neither current demo file holds a return line, so
+   refund behaviour - including the cost of B2's refusal - must be measured
+   on real data; and 2E-d's implausible-line sweep needs its real
+   legitimate large B2B lines and its real typo pairs. **The sample must
+   keep both typo invoice pairs** (verified in the UCI download, see the
+   2E-d item): customers 16446 (581483 / C581484, 80,995 units) and 12346
+   (541431 / C541433, 74,215 units) are included whole, whatever the
+   seed draws. Found in the download: the two sheets (2009-2010,
+   2010-2011) overlap on 2010-12-01..09 - drop the overlap by date range,
+   not with `duplicated()`: the overlap is 22,523 identical rows, and
+   11,812 exact-duplicate lines remain after dropping it (genuine repeated
+   lines `duplicated()` would delete; `oretail/overlap.out`). Concatenated:
+   95.9MB as CSV; 1,044,848 rows once the overlap is dropped.
+- 2026-09-24, Phase 2 session 2E-c (what counts as a purchase; RFM ties;
+  metrics.json 3.0, diagnosis.json 2.0). Closed. pytest 2487 passed.
+  Committed and pushed alone (35 files accepted by Thach: one shared
+  definition moves both stages, the contracts and their tests together -
+  the 2E precedent; one-time push exception).
+  - **After the session (Thach):** all five open items decided - see the
+    2E-c2 item (B2 clause dropped with proof; first-day rule reverses D3's
+    netting clause; symmetric return rule; the tie rule back to method
+    before code; "Returns only" renamed; the _velocity crash) - and the
+    order 2E-c -> 2E-c2 -> demo -> 2E-d -> 3E1b.
+  - **Decisions (Thach):** D1 a sale row needs a positive amount, zero-amount
+    lines are not sales (measured on Online Retail II: 2,561 of 2,631 have no
+    customer, 61 of the other 70 ride on a paid invoice; AOV moves at most
+    0.52% a month); D2 deductions as a third returns-lens term, no hypothesis
+    in v1, diagnosis.json 2.0; D3 rule C in stage 2 and the bridge,
+    superseding 3C's "note only"; D4 meanpos for RFM ties, superseding 2B's
+    tie-break by position; D5 metrics.json 3.0 (a change of meaning is a
+    major bump - the version is a promise to every reader); D6 B2's refusal
+    kept. At the start: the Online Retail II demo moves between 2E-c and
+    2E-d (the 80,995 and 74,215 typo pairs verified in the download);
+    non-product lines recorded as 2E-d2 with codes verified and the effect
+    measured.
+  - **Mutation check:** 26 mutants on the decisions (two survivors - the
+    opening day netting every line, and D ignoring deductions - got tests and
+    were killed) and 9 on cycle 1's fixes (two survivors - step 4's and the
+    category split's units - got tests and were killed): 35, all killed.
+    Cycle 2's NaN fix was shown RED first.
+  - **Doubt-review:** three cycles (the bound). Cycle 1: 10 findings - F1
+    free gifts made B2 headline "baskets got bigger" (the fabrication moved
+    from B1), F2 the bridge and stage 2 disagreed on who is new, both fixed
+    with F4a (a deduction day hid a refund), F5 (residue), F9 (a version test
+    loosened - restored to "3.0") and F10 (stale text); the rest recorded.
+    Cycle 2 on the fixes: 5 findings - NaN instead of None for deduction-only
+    customers (fixed), B2's rule text false after the units fix (fixed; lifting
+    the clause is Thach's call), the rest recorded. Cycle 3 on
+    `first_purchase`: rule C's cross-product netting FABRICATES "new"
+    (pre-existing at HEAD, narrowed not closed) - escalated at the bound.
+    Cross-model: skipped (Thach).
+  - **Tests changed** (old -> new, why): metrics version "2.0" -> "3.0" in
+    four places and diagnosis "1.0" -> "2.0" (D5, D2); the returns-lens
+    payload and `returns_levels` gained deductions 0.0 (D2); an all-equal
+    RFM column 1,1,2,2,3,3,4,4,5,5 -> all 3 (D4, hand mean in the test); the
+    lone refunder new 1 / -10 -> returning 1 / -10 (D3); the 3C bridge
+    tests: Rita moves from new to resurrected, so `new` 10 -> 40 and new
+    customers 3 -> 2, with the classes asserted so an inverted rule still
+    fails; the evidence key renamed. Import paths moved with the file splits
+    (`stages/analyze/rfm.py`, `hypothesis_evidence_lever.py`). No test
+    deleted, skipped or weakened.
 - 2026-09-24, Phase 2 session 2E-b (RFM on sale rows and buyers; B2 on
   negative amounts; test splits; the residue scale reverted to 2E-d).
   Closed. pytest 2449 passed. Committed and pushed alone (one-time push

@@ -18,7 +18,8 @@ decomposition the term belongs to**:
     B1                   level 1 (customers x frequency x AOV)
     B2                   level 2 (units per order x price per unit)
     P1, P2, R2           the product lens (price-volume-mix)
-    P3                   the returns lens (|change in gross| + |change in returns|)
+    P3                   the returns lens (|change in gross| + |change in returns|
+                         + |change in deductions|, 2E-c)
 
 A term is bounded by its split's gross, so |share| <= 1 holds by construction.
 
@@ -67,7 +68,8 @@ def decomposition_gross(tree: Tree, name: str) -> float | None:
         return (abs(p.volume) + abs(p.mix) + abs(p.price) + abs(p.new_products)
                 + abs(p.discontinued_products))
     r = tree.returns
-    return abs(r.gross_cur - r.gross_prev) + abs(r.returns_cur - r.returns_prev)
+    return (abs(r.gross_cur - r.gross_prev) + abs(r.returns_cur - r.returns_prev)
+            + abs(r.deductions_cur - r.deductions_prev))
 
 
 def share_verdict(spec: HypothesisSpec, contribution: float, inputs: Step7Inputs,

@@ -119,8 +119,9 @@ def build_dimension(name: str, totals: MemberTotals, delta_total: float,
     # list, and there is no tail when the whole dimension fits in the named
     # slots. This is not hypothetical tidiness - `customer_type` has four
     # fixed members and the bar is a share of PREVIOUS revenue, which `new`
-    # has none of by definition, so a filtered customer_type dimension would
-    # hide new customers every single run.
+    # has none of - or only a deduction's worth, since 2E-c lets a customer
+    # present through a coupon last month be new now - so a filtered
+    # customer_type dimension would hide new customers every single run.
     everything_fits = len(keys) <= MEMBERS_PER_DIMENSION
     candidates = keys if (not large or everything_fits) else \
         [key for key in keys if key in large]
