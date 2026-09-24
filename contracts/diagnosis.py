@@ -607,11 +607,14 @@ class AiFindings(ContractModel):
 
 class DiagnosisContract(ContractFile):
     # 2 since 2E-c: the returns lens gained deductions, and gross sales became
-    # the sale rows only (Thach).
-    supported_major: ClassVar[int] = 2
+    # the sale rows only (Thach). 3 since 2E-c2: the bridge's `new` and
+    # `resurrected` changed meaning (any return on a customer's first day),
+    # and returns exclude zero-amount write-offs.
+    supported_major: ClassVar[int] = 3
     stale_major_hint: ClassVar[str] = (
-        ": this diagnosis.json was written by an earlier stage 3 without the "
-        "returns lens's deductions; re-analyse this run")
+        ": this diagnosis.json was written by an earlier stage 3 with different "
+        "definitions (returns lens, new and resurrected customers); re-analyse "
+        "this run")
 
     # Required but nullable: null means the AI step was unavailable, and a
     # missing key must not be mistaken for that (CONTRACTS.md section 7).

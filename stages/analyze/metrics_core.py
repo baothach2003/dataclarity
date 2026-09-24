@@ -9,7 +9,8 @@ What a row *is* - whether it parses, and whether it counts towards revenue -
 is not decided here: `shared/transactions.py` owns that, so stage 3 can
 recompute the same figures without importing this stage (CLAUDE.md 3.1). The
 Phase 2A decisions behind it (transaction_type is stock movement direction
-only; a return is a negative-quantity counted row) are documented there.
+only; a return is a counted row with negative quantity and, since 2E-c2, a
+negative amount) are documented there.
 
 Design decisions that stay here, because they are about this contract's own
 fields:

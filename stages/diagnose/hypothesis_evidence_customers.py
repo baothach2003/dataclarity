@@ -18,8 +18,8 @@ SEGMENTS_ANCHORED_TO_THE_PERIOD = False
 
 WEAK = ("At-risk", "Hibernating")
 STRONG = ("Champions", "Loyal")
-# Stage 2's R x F grid (stages/analyze/rfm.assign_segment). "Returns only"
-# (2E-b, never-buyers) is left out: most files have none, so requiring it
+# Stage 2's R x F grid (stages/analyze/rfm.assign_segment). "No purchases
+# in file" (2E-b's "Returns only", renamed in 2E-c2; never-buyers) is left out: most files have none, so requiring it
 # would refuse C4 everywhere - its place is decided when C4 is switched on.
 ALL_SEGMENTS = frozenset({"Champions", "Loyal", "At-risk", "Hibernating", "New",
                           "Needs Attention"})

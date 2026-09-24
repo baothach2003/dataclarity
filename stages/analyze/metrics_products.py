@@ -40,9 +40,10 @@ Design decisions (Thach, Phase 2C):
   and product_name-sourced halves are kept in separate namespaces
   (`sku:`/`name:` prefixes) so a SKU that happens to read the same as an
   unrelated product's name can never merge them. The displayed `product`
-  name is that identity's first-seen product_name anywhere in the file
-  (never the identity key itself), so every list names the same product the
-  same, human-readable way regardless of which rows resolved it by SKU.
+  name is that identity's first non-blank product_name anywhere in the file,
+  else its first non-blank SKU, else "(no product name)" (2E-c2) - never the
+  identity key itself - so every list names the same product the same,
+  human-readable way regardless of which rows resolved it by SKU.
 - `top_products` excludes a net-negative-revenue product (returns
   outweighing sales for that product this period): it is not a "top"
   performer.
@@ -68,6 +69,7 @@ from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, Pr
 from shared.numbers import is_negligible
 from shared.run_registry import run_file
 from shared.transactions import (
+    is_blank,
     normalize_text,
     parse_transactions,
     pct_change,
@@ -108,8 +110,12 @@ def compute_product_metrics(
     product_name_col = require_column(parsed.reverse, "product_name")
     sku_col = parsed.reverse.get("sku")
 
-    identity = product_identity(df, product_name_col, sku_col)
-    names = pd.DataFrame({"identity": identity, "name": df[product_name_col]}).groupby("identity")["name"].first()
+    # A missing name with no SKU keys to NaN, and `groupby` dropped those rows
+    # from every product table while a whitespace name kept its own bucket -
+    # the file's largest line vanished (2E-c2 doubt-review F2). One bucket for
+    # both, under the key stage 3's product lens uses (pvm.UNIDENTIFIED_PRODUCT).
+    identity = product_identity(df, product_name_col, sku_col).fillna(NAMELESS_KEY)
+    names = _display_names(df, identity, product_name_col, sku_col)
 
     table = pd.DataFrame(
         {"identity": identity, "quantity": parsed.quantities, "revenue": parsed.revenue_amounts}
@@ -164,6 +170,29 @@ def _pareto(current: pd.DataFrame, month: str) -> Pareto:
         concentration_pct=count_for_80pct / total_products * 100,
         concentration_reason=None,
     )
+
+
+NO_PRODUCT_NAME = "(no product name)"
+NAMELESS_KEY = "name:"
+
+
+def _display_names(
+    df: pd.DataFrame, identity: pd.Series, product_name_col: str, sku_col: str | None
+) -> pd.Series:
+    """Each product's first non-blank name, else its first non-blank SKU (2E-c2).
+    Raw Online Retail II crashed stage 2 here: every row of a product had no
+    Description, its name was NaN, and sorting it against real names raised
+    TypeError - and NaN or "" is no name to show a reader either."""
+    def first_filled(column: str) -> pd.Series:
+        values = df[column].where(~is_blank(df[column])).astype(object).str.strip()
+        return pd.DataFrame({"identity": identity, "value": values}).groupby("identity")["value"].first()
+
+    names = first_filled(product_name_col).reindex(identity.dropna().unique())
+    if sku_col is not None:
+        names = names.fillna(first_filled(sku_col))
+    # Blank name and no SKU: one bucket (`product_identity` keys every blank
+    # name alike), shown in the words stage 3 uses for it (members.py).
+    return names.fillna(NO_PRODUCT_NAME)
 
 
 def _top_products(current: pd.DataFrame, names: pd.Series) -> list[TopProduct]:

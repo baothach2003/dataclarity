@@ -154,16 +154,17 @@ def test_a_day_with_only_a_free_item_is_not_a_trading_day() -> None:
 
 def test_b2_names_deductions_in_its_refusal() -> None:
     """D6: B2 still refuses on negative-amount lines until 3E3, and names them
-    for what they are."""
+    for what they are (2E-c2: dropping the clause failed its proof)."""
     b2 = by_id(evaluate_hypotheses(step7(run_data(_refunds_at_a_negative_price()))))["B2"]
 
     assert b2.verdict == "inconclusive"
     assert "deduction" in b2.rule
 
 
-def test_diagnosis_json_2_requires_the_deductions_term() -> None:
+def test_diagnosis_json_requires_the_deductions_term() -> None:
+    # 2.0 in 2E-c; 3.0 since 2E-c2 (the bridge's `new` changed meaning).
     payload = diagnosis_payload()
-    assert DiagnosisContract.model_validate(payload).schema_version == "2.0"
+    assert DiagnosisContract.model_validate(payload).schema_version == "3.0"
 
     del payload["tree"]["returns"]["deductions_cur"]
     with pytest.raises(ValidationError, match="deductions_cur"):

@@ -128,16 +128,17 @@ def test_a_file_with_no_ties_scores_exactly_as_before(ascending: bool) -> None:
 # --- metrics.json 3.0 --------------------------------------------------------------
 
 
-def test_metrics_json_is_major_version_3() -> None:
-    assert SCHEMA_VERSION == "3.0"
+def test_metrics_json_is_the_current_major_version() -> None:
+    # 3.0 in 2E-c; 4.0 since 2E-c2 (test_2ec2_stage2.py).
+    assert SCHEMA_VERSION == "4.0"
     metrics = assemble_metrics(pd.DataFrame(_two_months([])), MAPPING, now=NOW)
-    assert metrics.schema_version == "3.0"
+    assert metrics.schema_version == "4.0"
 
 
 def test_a_2x_metrics_json_is_refused_with_a_reason_to_reanalyse() -> None:
     payload = assemble_metrics(pd.DataFrame(_two_months([])), MAPPING,
                                now=NOW).model_dump(mode="json")
-    payload["schema_version"] = "2.0"
+    payload["schema_version"] = "2.0"  # any older major is refused
 
     with pytest.raises(ValidationError, match="re-analyse"):
         MetricsContract.model_validate(payload)

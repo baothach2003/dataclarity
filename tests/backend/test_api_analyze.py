@@ -45,7 +45,7 @@ def test_analyze_computes_metrics_and_moves_the_run_to_analyzed(make_api: MakeAp
     metrics = body["metrics"]
     assert metrics["by_dimension"]["country"] == []  # no canonical field carries country data
     assert api.status(run_id) is RunStatus.ANALYZED
-    assert api.read_json(run_id, "metrics.json")["schema_version"] == "3.0"  # 2E-c major bump
+    assert api.read_json(run_id, "metrics.json")["schema_version"] == "4.0"  # 2E-c2 major bump (return rate, new customers)
 
 
 def test_analyze_is_allowed_from_an_already_analyzed_run(make_api: MakeApi) -> None:

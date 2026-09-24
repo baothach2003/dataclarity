@@ -166,8 +166,7 @@ def _first_purchase(data: RunData, customer_col: str) -> pd.Series:
     mask = data.parsed.counted & ~is_blank(data.df[customer_col])
     parsed = data.parsed
     return first_purchase_months(customer_identity(data.df.loc[mask, customer_col]),
-                                 parsed.dates[mask], parsed.quantities[mask],
-                                 parsed.sale[mask], parsed.returned[mask])
+                                 parsed.dates[mask], parsed.sale[mask], parsed.returned[mask])
 
 
 def _evidence(
@@ -187,8 +186,9 @@ def _evidence(
         # no first purchase in the file - their history opens with a refund,
         # or they only got refunds, coupons or free items. Since 2E-c they are
         # resurrected, not new (Thach, rule C); 3C recorded them as a note on
-        # `new` instead. The opening day is judged on its net quantity, not
-        # the sign of the month (3C doubt-review R2).
+        # `new` instead. The opening day is judged on its own lines - any
+        # return line there, since 2E-c2 - not the sign of the month (3C
+        # doubt-review R2).
         "arrivals_with_no_first_purchase_in_the_file": sum(
             first_month.get(name) is None for name in resurrected),
         # Within the first few months of the file, "new" mostly means "first

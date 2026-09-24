@@ -203,7 +203,9 @@ parsing (`ParsedTransactions`, `parse_transactions`, `require_column`,
 `pct_change`, `is_blank`) moves to `shared/` first, so both stages compute
 revenue, orders and "revenue-counted rows" from one definition. Since 2E an
 **order is a sale row** (a counted row with quantity > 0 and, since 2E-c, a
-positive amount; a return line, a free item and a coupon are not), the **incomplete previous month** is `shared/periods.py`'s, and the
+positive amount; a return line, a free item and a coupon are not), a
+**return line** needs quantity < 0 and a negative amount (2E-c2: a
+zero-amount write-off is not a return), the **incomplete previous month** is `shared/periods.py`'s, and the
 **residue test** is `shared/numbers.is_negligible` - each one definition for
 both stages (CONTRACTS section 6). Every figure
 stage 3 recomputes that also exists in `metrics.json` must match it exactly; a
@@ -745,7 +747,8 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   invented number and breaks the identity. This also keeps "active" identical
   to stage 2's `active_customers`, so the two stages cannot disagree about who
   was active. **New** is the customer's first purchase - first sale row - and
-  a customer whose history opens with a refund is never new: they are
+  a customer whose history opens with a refund - any return line on their
+  first day, no same-day netting since 2E-c2 - is never new: they are
   returning something bought before the file, so they are resurrected (Thach,
   2E-c, rule C, `shared/first_purchase.py`, the same rule as stage 2's
   `new_vs_returning`; it supersedes 3C's evidence-only note). `evidence`
@@ -883,10 +886,10 @@ grew 2.7x.
 C4 compares two named segment groups. Stage 2's R x F grid has six segments:
 the 2B doubt-review added **"Needs Attention"** for the four of twenty-five
 R x F combinations the five named rules leave uncovered. 2E-b added a seventh
-label outside the grid, **"Returns only"**, for customers who never bought in
-the snapshot. It, "Needs Attention" and "New" count towards neither group by
+label outside the grid, **"No purchases in file"** (2E-b's "Returns only",
+renamed in 2E-c2), for customers who never bought in the snapshot. It, "Needs Attention" and "New" count towards neither group by
 design - C4 asks whether customers moved from strong to weak, not whether
-every segment is accounted for. "Returns only" is not in C4's
+every segment is accounted for. "No purchases in file" is not in C4's
 `ALL_SEGMENTS` (it is absent from most files, so requiring it would refuse
 C4 everywhere); decide its place when C4 is switched on (Backlog).
 
@@ -951,10 +954,12 @@ the same January came out `ruled_out` or "migrated to weaker segments",
 `supported`, depending on who bought on 2-10 February. The rule is kept
 behind a switch for when stage 2 anchors a snapshot per month (Backlog).
 
-**B2 is `inconclusive` on any refund line - a return line, or any counted row
-with a negative amount, which since 2E-c is a deduction (a refund at a
-negative price, a discount, a coupon, a write-off): no longer an order, but
-level 2 still counts its money in net revenue** (INTERIM, Thach; B1 and B2 in 3E1, B2 alone since
+**B2 is `inconclusive` on any return line, or any counted line with a
+negative amount** (INTERIM, Thach; 2E-c2 was to drop the negative-amount
+clause on proof that a deduction cannot move B2, and the proof failed: a
+refund booked +1 at a negative price is a deduction whose units leave level
+2, and B2 headlined "baskets got bigger" while each order kept fewer units;
+a coupon and such a refund cannot be told apart; B1 and B2 in 3E1, B2 alone since
 2E; lines, not refunded money, since the 2E doubt-review cycle 3: a
 zero-price write-off carries units and no money, and B2 headlined "baskets
 got bigger" while baskets shrank from 3 units to 1; negative amounts since
@@ -968,8 +973,8 @@ sign - "customers bought MORE often (+21,400)" was headlined while frequency
 fell 9.3 -> 3.1 (2E doubt-review cycle 2). Level 2 still counts
 refunded units against the basket, and with the refusal lifted a month where
 ONLY refunds changed headlined "baskets got smaller (100% of the change)"
-(measured in 2E). Either period with any refund line - a return line, or a
-counted line with a negative amount - leaves B2
+(measured in 2E). Either period with any return line or negative-amount
+line leaves B2
 `inconclusive` until the three-factor level 2 (session 3E3) gives refunds a factor of their
 own. **P1's gate is "sold in both periods"** - L's membership in the product
 lens, positive sold units - so a product seen only through a refund this

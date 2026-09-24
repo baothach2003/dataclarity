@@ -60,9 +60,16 @@ def test_b2_is_refused_on_zero_price_return_lines() -> None:
         rows += [row(day, qty=1.0, price=120.0, customer=f"C{(day.day + k) % 30}") for k in range(5)]
     rows.append(row(date(2026, 9, 1), qty=1.0, price=100.0, customer="C1"))
 
-    _, _, verdicts, headline = _diagnose(rows)
+    _, inputs, verdicts, headline = _diagnose(rows)
+    basket = next(f for f in inputs.tree.lever.level2.factors if f.name == "units_per_order")
 
-    assert verdicts["B2"].verdict == "inconclusive"
+    # Was: inconclusive (a return line refused B2). Since 2E-c2 (Thach) a
+    # zero-price line is a stock write-off, not a return, and its units are
+    # not in the basket: B2 reads the real 3 -> 1, which moved AGAINST a
+    # revenue rise (11,160 -> 18,600), so it is ruled out - and the symptom,
+    # "baskets got bigger", still cannot appear.
+    assert (basket.value_prev, basket.value_cur) == (pytest.approx(3.0), pytest.approx(1.0))
+    assert verdicts["B2"].verdict == "ruled_out"
     assert "bigger" not in headline.message
 
 

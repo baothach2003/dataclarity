@@ -139,7 +139,6 @@ def compute_customer_metrics(
             "customer": customer_identity(df.loc[identified, customer_col]),
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
-            "quantity": parsed.quantities[identified],
             "sale": parsed.sale[identified],
             "returned": parsed.returned[identified],
         }
@@ -222,7 +221,7 @@ def _new_vs_returning(table: pd.DataFrame, period: Period) -> NewVsReturning:
     if current_rows.empty:
         return _empty_new_vs_returning()
 
-    first_purchase = first_purchase_months(table["customer"], table["date"], table["quantity"],
+    first_purchase = first_purchase_months(table["customer"], table["date"],
                                            table["sale"], table["returned"])
     current_customers = current_rows["customer"].unique()
     is_first_period = first_purchase.loc[current_customers] == period.current

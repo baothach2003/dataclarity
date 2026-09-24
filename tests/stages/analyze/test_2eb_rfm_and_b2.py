@@ -61,8 +61,14 @@ def test_b2_is_refused_on_a_refund_booked_at_a_negative_price() -> None:
              for d in range(1, 13)]
     rows.append(row(date(2026, 9, 1), qty=1.0, price=30.0, customer="C1"))
 
-    b2 = by_id(evaluate_hypotheses(step7(run_data(rows))))["B2"]
+    # The clause stays (2E-c2: dropping it failed its proof - a refund at a
+    # negative price cannot be told from a coupon). Since 2E-c the lines are
+    # not in the basket either: 3 units in both months.
+    inputs = step7(run_data(rows))
+    basket = next(f for f in inputs.tree.lever.level2.factors if f.name == "units_per_order")
+    b2 = by_id(evaluate_hypotheses(inputs))["B2"]
 
+    assert (basket.value_prev, basket.value_cur) == (pytest.approx(3.0), pytest.approx(3.0))
     assert b2.verdict == "inconclusive"
     assert b2.evidence == {"refund_lines_prev": 0, "refund_lines_cur": 12}
 
@@ -80,8 +86,11 @@ def test_b2_is_refused_when_only_the_previous_month_has_negative_price_refunds()
              for d in range(1, 13)]
     rows.append(row(date(2026, 9, 1), qty=1.0, price=30.0, customer="C1"))
 
-    b2 = by_id(evaluate_hypotheses(step7(run_data(rows))))["B2"]
+    inputs = step7(run_data(rows))
+    basket = next(f for f in inputs.tree.lever.level2.factors if f.name == "units_per_order")
+    b2 = by_id(evaluate_hypotheses(inputs))["B2"]
 
+    assert (basket.value_prev, basket.value_cur) == (pytest.approx(3.0), pytest.approx(3.0))
     assert b2.verdict == "inconclusive"
     assert b2.evidence == {"refund_lines_prev": 12, "refund_lines_cur": 0}
 
@@ -105,7 +114,7 @@ def test_a_returns_only_customer_is_never_ranked_above_the_bottom(returners, buy
     never = snapshot.loc[[f"ret{i}" for i in range(returners)]]
 
     assert (never["r_score"] == 1).all() and (never["f_score"] == 1).all()
-    assert (never["segment"] == "Returns only").all()
+    assert (never["segment"] == "No purchases in file").all()  # 2E-b's "Returns only"
 
 
 @pytest.mark.parametrize("refunders", [3, 10, 20])
@@ -134,7 +143,8 @@ def test_refund_only_customers_do_not_move_any_buyer(refunders) -> None:
 
     columns = ["r_score", "f_score", "segment"]
     assert both.loc[alone.index, columns].equals(alone[columns])
-    assert (both.loc[[f"r{i}" for i in range(refunders)], "segment"] == "Returns only").all()
+    assert (both.loc[[f"r{i}" for i in range(refunders)], "segment"]
+            == "No purchases in file").all()  # 2E-b's "Returns only", renamed in 2E-c2
 
 
 def _b2_file(refund_rows: list[dict]) -> list[dict]:

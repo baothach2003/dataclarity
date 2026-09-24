@@ -192,7 +192,7 @@ def test_a_return_only_customer_is_scored_like_any_other() -> None:
 
     assert len(customers.segments) == 1
     segment = customers.segments[0]
-    assert segment.segment == "Returns only"
+    assert segment.segment == "No purchases in file"  # "Returns only" until 2E-c2
     assert (segment.customers, segment.avg_monetary) == (1, -10.0)
 
     # Was new (1 customer, -10 of new revenue): the first row of any kind.
@@ -256,12 +256,12 @@ def test_revenue_share_pct_stays_sign_consistent_when_whole_file_monetary_is_neg
     # 2E-b; it was Hibernating by row-order tie-break before). SmallBuyer is
     # the only buyer, so the buyers-only quintiles put it at the top ->
     # Champions. The shares are unchanged: the denominator is still |-899|.
-    assert by_segment["Returns only"].avg_monetary == -900.0
+    assert by_segment["No purchases in file"].avg_monetary == -900.0
     assert by_segment["Champions"].avg_monetary == 1.0
 
-    assert by_segment["Returns only"].revenue_share_pct == pytest.approx(-900 / 899 * 100)
+    assert by_segment["No purchases in file"].revenue_share_pct == pytest.approx(-900 / 899 * 100)
     assert by_segment["Champions"].revenue_share_pct == pytest.approx(1 / 899 * 100)
-    assert by_segment["Returns only"].revenue_share_pct < 0  # the loss-making segment reads negative...
+    assert by_segment["No purchases in file"].revenue_share_pct < 0  # the loss-making segment reads negative...
     assert by_segment["Champions"].revenue_share_pct > 0  # ...never inverted past +100%
 
 

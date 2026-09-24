@@ -184,7 +184,7 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "3.0", "generated_at": "...",
+  "schema_version": "4.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
              "previous_complete": true, "previous_incomplete_reason": null},
@@ -248,7 +248,11 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
 - `aov_*` = **net** revenue / orders. Net, because only then does customers x
   frequency x AOV equal net revenue exactly (stage 3's lever lens).
 - `return_rate_*` = return lines / orders: returns per order sold, the retail
-  convention. **Range [0, infinity)**, not a proportion: it exceeds 1 in a
+  convention. A **return line** is a counted row with quantity < 0 AND a
+  negative amount (Thach, 2E-c2, symmetric with the sale row): a zero-amount
+  negative-quantity line is a stock write-off ("damaged", "missing"), not a
+  customer return - 3,393 of them inflated Online Retail II's return rate by
+  7% to 78% a month. **Range [0, infinity)**, not a proportion: it exceeds 1 in a
   month where customers return goods bought earlier. No reader may cap it or
   treat it as a share. Rejected alternatives (2E): return lines / (sales +
   returns) is bounded but its denominator grows with the returns it
@@ -266,7 +270,9 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   **recency** the days since the last one (Thach, 2E-b): a refund is not a
   purchase. **R and F quintiles are cut from buyers only**, and a customer
   who never bought (only refunds) scores 1 on both by rule and lands in a
-  segment of their own, **"Returns only"** (Thach, 2E-b; `segment` is a plain
+  segment of their own, **"No purchases in file"** (Thach; named "Returns
+  only" in 2E-b, renamed in 2E-c2 because a gift-only customer returned
+  nothing; `segment` is a plain
   string, as with 2B's "Needs Attention"). Ranked among buyers, 20 refunders
   pushed 10 lapsed one-time buyers up to Champions; in Hibernating they
   inflated its count and dragged its `avg_monetary` and `revenue_share_pct`
@@ -279,14 +285,21 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   scores, exact halves rounded down, so a tie never lifts a group. A file
   with no ties scores exactly as before; a population that ties throughout
   scores 3 on that dimension. A customer who never bought now also includes
-  one who only got free items or coupons: they are "Returns only" too.
+  one who only got free items or coupons: "No purchases in file" is true of
+  them too.
   Old metrics.json files keep the old segments until re-analysed.
 - **`new_vs_returning`**: a customer is **new** when their first purchase (first
   sale row) falls in the current month AND their history does not open with a
   refund (`shared/first_purchase.py`, Thach, 2E-c, rule C). A refund proves a
   purchase before the file, so a refund-only customer is returning and their
-  negative money is `returning_revenue`. The opening day nets sale and return
-  quantities, so a same-day buy-and-refund is not an opening refund. The same
+  negative money is `returning_revenue`. **Any return line on the customer's
+  first day** (their first day with a sale or return line) means the history
+  opens with a refund - no same-day netting (Thach, 2E-c2, reversing 2E-c's
+  netting clause: 10 pens bought and a 500 chair from before the file
+  returned the same day netted +9, and the customer was "new" with -490).
+  Measured on Online Retail II: 167 customers lose the label - 69 returned
+  something not bought that day (pre-file), 98 only what they bought that day
+  (genuinely new, the price of no netting). The same
   rule decides `new` in stage 3's customer bridge. Measured on Online Retail
   II: the first row of any kind called 172 refund-only customers new with
   -91,486.72 of "new revenue".
@@ -393,7 +406,7 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 
 ```json
 {
-  "schema_version": "2.0", "generated_at": "...", "model_used": "claude-sonnet-5",
+  "schema_version": "3.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "frame": {"current": "2011-11", "previous": "2011-10",
             "year_ago_current": "2010-11", "year_ago_previous": "2010-10",
             "history_months": 23, "previous_leading_days_missing": 0,
@@ -666,9 +679,9 @@ D1's `evidence` carries `estimated_revenue_gap` and
 `d1_status`; T2's carries `excess_zero_days_year_ago_cur` and `_prev`; B1,
 when refused on a possible gap, carries `d1_status` and both months'
 `excess_zero_days`; B2, while inconclusive on refund lines, carries
-`refund_lines_prev` and `refund_lines_cur` (line counts only - the returns
-lens's money counts quantity < 0 rows alone and read as a contradiction
-beside negative-price lines, 2E-b). B1 is no longer refused on refunds (2E). The D1 trust check's `evidence` lists
+`refund_lines_prev` and `refund_lines_cur` (counts of return lines and
+negative-amount lines, each once; 2E-c2 kept the negative-amount clause when
+the proof for dropping it failed). B1 is no longer refused on refunds (2E). The D1 trust check's `evidence` lists
 `sparse_history_months` (history months too gapped to learn from),
 `history_months_with_rows` and `learned_from_months`; on a block for an
 incomplete previous month it carries only `previous_leading_days_missing`,
@@ -845,6 +858,13 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-24: **`metrics.json` went to `4.0` and `diagnosis.json` to `3.0`**
+  (session 2E-c2, Thach's rule that a change of meaning is a major bump): a
+  return line needs a negative amount (`return_rate_*`), any return on a
+  customer's first day means they are not new (`new_vs_returning`, the
+  bridge's `new` and `resurrected`), and the segment "Returns only" is now
+  "No purchases in file". Readers refuse `3.x` metrics and `2.x` diagnosis
+  files with "re-analyse this run".
 - 2026-09-24: **`metrics.json` went to `3.0` and `diagnosis.json` to `2.0`**
   (session 2E-c, Thach). metrics.json: a sale row needs a positive amount, a
   new customer's history must not open with a refund, and RFM ties score

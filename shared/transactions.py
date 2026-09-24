@@ -20,9 +20,10 @@ unchanged in Phase 3 session 3B:
   unrecognised per-row value, defaults to "out" (SPECS section 9:
   "in|out, default out").
 - A return is a counted row with negative quantity, the common POS convention
-  of a negative-quantity sale line. The canonical schema has no returns field,
-  so this is the one signal available, and it does not depend on
-  transaction_type being mapped.
+  of a negative-quantity sale line - and, since 2E-c2, a negative amount (see
+  RETURN LINE below). The canonical schema has no returns field, so this is
+  the one signal available, and it does not depend on transaction_type being
+  mapped.
 - An ORDER is a sale row: a counted row with positive quantity (Thach, session
   2E) AND a positive line amount (Thach, 2E-c). The schema has no invoice id,
   so a row is the unit of purchase; a return line sold nothing, and neither
@@ -37,6 +38,12 @@ unchanged in Phase 3 session 3B:
   orders - orders, AOV, return rate, units per order, purchase frequency, RFM
   frequency and recency, buyers, D1's trading days, the product lens -
   counts `sale` rows, in stage 2 and stage 3 alike.
+- A RETURN LINE is a counted row with quantity < 0 AND a negative amount
+  (Thach, 2E-c2 - symmetric with the sale row). A zero-amount negative-
+  quantity line is a stock write-off, not a customer return: on Online
+  Retail II 3,393 such lines ("check", "damaged", "missing", "thrown away")
+  inflated return_rate by 7% to 78% a month, refused B2, and opened
+  purchase histories with a "refund" of no money.
 - A DEDUCTION is a counted row that is neither a sale nor a return (2E-c):
   its money stays in net revenue, and stage 3's returns lens carries it as a
   term of its own. Its quantity is not a unit sold: `units` counts sale and
@@ -90,10 +97,10 @@ class ParsedTransactions:
     # `counted` AND quantity > 0 AND a positive amount: an order (module
     # docstring, 2E and 2E-c).
     sale: pd.Series
-    # `counted` AND quantity < 0: a return line.
+    # `counted` AND quantity < 0 AND a negative amount: a return line (2E-c2).
     returned: pd.Series
     # `counted` and neither of the two: a coupon, a discount, a write-off, a
-    # free item (module docstring, 2E-c).
+    # free item, a zero-amount stock write-off (module docstring, 2E-c, 2E-c2).
     deduction: pd.Series
     # Net units: the quantity of sale and return lines, 0 elsewhere (2E-c).
     units: pd.Series
@@ -142,7 +149,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     counted = valid & counts_as_sale
     amounts = quantities * prices
     sale = counted & (quantities > 0) & (amounts > 0)
-    returned = counted & (quantities < 0)
+    returned = counted & (quantities < 0) & (amounts < 0)
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,

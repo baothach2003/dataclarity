@@ -14,21 +14,25 @@ def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
     a refunded unit leaves the basket: with this refusal lifted, a month where
     ONLY refunds changed headlined "baskets got smaller (100% of the change)"
     (measured in 2E). Either period with any refund leaves B2 inconclusive."""
-    # Any return LINE, not only refunded money (2E doubt-review cycle 3): a
-    # zero-price write-off carries units but no money, and B2 headlined
-    # "baskets got bigger" while baskets shrank from 3 units to 1.
+    # Any return LINE, not only refunded money (2E doubt-review cycle 3).
+    # Since 2E-c2 a return line needs a negative amount, so a zero-price
+    # write-off is a deduction and carries no unit into the basket.
     period = inputs.data.metrics.period
     lines = {label: int((inputs.data.parsed.returned
                          & (inputs.data.months == month)).sum())
              for label, month in (("prev", period.previous), ("cur", period.current))}
-    # ...and any counted row with a negative amount: a refund booked as
-    # quantity +1 at a negative price read as a one-unit order, and B2 said
-    # "baskets got smaller" while every real basket was 3 units (2E
-    # doubt-review cycle 4; Thach, 2E-b). Since 2E-c such a line is a
-    # deduction: not an order and not a unit, so it no longer distorts the
-    # basket - its money lands in price per unit. The clause stays by Thach's
-    # decision (2E-c D6) until he rules on lifting it: with one coupon, B2 went
-    # inconclusive on a basket that fell 3 -> 2 units (2E-c review cycle 2).
+    # ...and any counted row with a negative amount (2E-b). Thach decided in
+    # 2E-c2 to drop this clause IF a test proved a deduction line cannot move
+    # B2; the proof failed. A refund booked +1 at a negative price is a
+    # deduction, so its units leave level 2 - while the same refund booked as
+    # a return line counts against the basket: fifteen such refunds a day made
+    # B2 headline "baskets got bigger" (+8,525 against +3,100) while each
+    # order kept 2.5 units, down from 3 (2E-c2 doubt-review cycle 2). A coupon
+    # and a refund at a negative price cannot be told apart, so both refuse B2
+    # until 3E3 gives refunds a factor of their own - the SUPPRESS side. It
+    # also covers a month netting zero or below, where price per unit and the
+    # basket term's sign flip: only return lines or negative amounts can
+    # take a month there, and both refuse B2 first (2E-c2 doubt-review F1).
     for label, month in (("prev", period.previous), ("cur", period.current)):
         lines[label] += int((inputs.data.parsed.counted
                              & (inputs.data.parsed.revenue_amounts < 0)
@@ -36,16 +40,16 @@ def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
                              & (inputs.data.months == month)).sum())
     if lines["prev"] or lines["cur"]:
         return Outcome(verdict="inconclusive",
-                       # Line counts only: the returns lens's money counts
-                       # qty<0 rows alone, so "12 refund lines, 0.0 refunded"
-                       # side by side read as a contradiction (2E-b review).
+                       # Line counts only: money beside them read as a
+                       # contradiction when it was a different set of rows
+                       # (2E-b review).
                        evidence={"refund_lines_prev": lines["prev"],
                                  "refund_lines_cur": lines["cur"]},
                        rule="level 2 counts refunded units against the basket, so basket "
-                            "size cannot be separated from return lines until level 2 has a "
-                            "refund factor of its own; deduction lines with a negative "
-                            "amount (a refund booked at a negative price, a discount, a "
-                            "coupon, a write-off) are refused with them for now (interim)")
+                            "size cannot be separated from return lines, or from deduction "
+                            "lines with a negative amount (a refund booked at a negative "
+                            "price cannot be told from a coupon), until level 2 has a "
+                            "refund factor of its own")
     return None
 
 

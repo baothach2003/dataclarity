@@ -224,12 +224,14 @@ class MetricsContract(ContractFile):
     # 3 since 2E-c: a sale row needs a positive amount, new customers exclude
     # histories that open with a refund, RFM ties score alike - orders,
     # buyers, AOV, new customers and RFM scores changed MEANING, and a 2.x
-    # and a 3.x file must not be compared silently (Thach).
-    supported_major: ClassVar[int] = 3
+    # and a 3.x file must not be compared silently (Thach). 4 since 2E-c2: a
+    # return line needs a negative amount (return_rate) and any return on a
+    # customer's first day means they are not new (new_vs_returning).
+    supported_major: ClassVar[int] = 4
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "
-        "scores); re-analyse this run")
+        "scores, segment names); re-analyse this run")
 
     period: Period
     core: CoreMetrics

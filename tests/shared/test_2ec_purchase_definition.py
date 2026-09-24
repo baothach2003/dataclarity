@@ -44,8 +44,7 @@ def test_a_sale_row_needs_a_positive_amount() -> None:
 
 def _months(rows):
     df, parsed = _parsed(rows)
-    return first_purchase_months(df["Cust"], parsed.dates, parsed.quantities,
-                                 parsed.sale, parsed.returned)
+    return first_purchase_months(df["Cust"], parsed.dates, parsed.sale, parsed.returned)
 
 
 def test_the_first_purchase_is_the_first_sale_row() -> None:
@@ -69,12 +68,15 @@ def test_a_refund_only_customer_has_no_first_purchase() -> None:
     assert months["refunder"] is None
 
 
-def test_a_same_day_buy_and_refund_is_not_an_opening_refund() -> None:
-    """Bought 1 and returned 1 on the opening day: net 0, not below zero."""
+def test_a_same_day_buy_and_refund_opens_with_a_refund() -> None:
+    """Bought 1 and returned 1 on the opening day. Was "2026-01" (net 0 - not
+    an opening refund, 2E-c D3). REVERSED (Thach, 2E-c2): any return line on
+    the first day opens the history with a refund - netting quantities
+    across products fabricated "new" (10 pens and a returned chair)."""
     months = _months([("2026-01-05", "1", "10", "sameday"),
                       ("2026-01-05", "-1", "10", "sameday")])
 
-    assert months["sameday"] == "2026-01"
+    assert months["sameday"] is None
 
 
 def test_returning_more_than_was_bought_on_the_opening_day_is_an_opening_refund() -> None:
@@ -128,17 +130,19 @@ def test_a_deduction_only_day_does_not_move_the_opening_day() -> None:
     assert (months["x"], months["y"]) == (None, None)
 
 
-def test_an_opening_day_that_nets_to_residue_is_not_a_refund() -> None:
+def test_the_opening_day_reads_the_same_in_any_row_order() -> None:
     """2E-c doubt-review F5: bought 0.3 and returned 0.1 + 0.2 on the opening
-    day. In one row order the sum is -5.6e-17 - "a refund" - in the other
-    +0. Residue is not a refund, whatever the order."""
+    day; the netted sum was -5.6e-17 in one row order and +0 in the other.
+    Was "2026-01" for both (residue is not a refund). Since 2E-c2 no sum is
+    taken - a return line on the first day opens with a refund - so both row
+    orders read None, and the order can never matter."""
     rows = [("2026-01-05", "0.3", "10", "a"), ("2026-01-05", "-0.1", "10", "a"),
             ("2026-01-05", "-0.2", "10", "a"), ("2026-08-05", "1", "10", "a"),
             ("2026-01-05", "-0.1", "10", "b"), ("2026-01-05", "-0.2", "10", "b"),
             ("2026-01-05", "0.3", "10", "b"), ("2026-08-05", "1", "10", "b")]
     months = _months(rows)
 
-    assert (months["a"], months["b"]) == ("2026-01", "2026-01")
+    assert (months["a"], months["b"]) == (None, None)
 
 
 def test_a_customer_with_only_deductions_has_no_first_purchase() -> None:
@@ -149,3 +153,33 @@ def test_a_customer_with_only_deductions_has_no_first_purchase() -> None:
                       ("2026-08-06", "2", "0", "freeonly")])
 
     assert (months["coupononly"], months["freeonly"]) == (None, None)
+
+
+# --- 2E-c2 (Thach, after 2E-c's review) ------------------------------------------
+
+
+def test_a_return_line_needs_a_negative_amount() -> None:
+    """Symmetric with the sale row (2E-c2): a zero-amount negative-quantity
+    line is a stock write-off ("damaged"), not a customer return."""
+    _, parsed = _parsed([("2026-01-05", "-1", "10", "a"),    # a return: -10
+                         ("2026-01-05", "-1", "0", "a")])    # a write-off: 0
+
+    assert parsed.returned.tolist() == [True, False]
+    assert parsed.deduction.tolist() == [False, True]
+
+
+def test_any_return_line_on_the_first_day_opens_the_history_with_a_refund() -> None:
+    """2E-c2 (Thach), reversing 2E-c's same-day netting: 10 pens bought and a
+    chair returned on the first day net +9 units, but the chair was bought
+    before the file."""
+    months = _months([("2026-08-07", "10", "1", "x"), ("2026-08-07", "-1", "500", "x")])
+
+    assert months["x"] is None
+
+
+def test_a_write_off_on_the_first_day_does_not_open_with_a_refund() -> None:
+    """2E-c review cycle 3 F2: a -1 @ 0 line two days before a first purchase
+    made the customer never new. A write-off is not a return (2E-c2)."""
+    months = _months([("2026-08-03", "-1", "0", "zed"), ("2026-08-05", "2", "50", "zed")])
+
+    assert months["zed"] == "2026-08"

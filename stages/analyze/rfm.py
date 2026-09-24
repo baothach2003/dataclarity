@@ -10,10 +10,12 @@ import numpy as np
 import pandas as pd
 
 NEEDS_ATTENTION = "Needs Attention"
-# Never bought in the snapshot, only refunded (Thach, 2E-b) - or, since the
-# sale row needs a positive amount (2E-c), only got free items or coupons. In
-# Hibernating they inflated its count and dragged its money negative.
-RETURNS_ONLY = "Returns only"
+# Never bought in the snapshot: only refunds (Thach, 2E-b) or, since the sale
+# row needs a positive amount (2E-c), only free items or coupons. In
+# Hibernating they inflated its count and dragged its money negative. Named
+# "Returns only" in 2E-b; renamed (Thach, 2E-c2) because a gift-only customer
+# returned nothing.
+NO_PURCHASES = "No purchases in file"
 
 
 def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
@@ -45,7 +47,7 @@ def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
         grouped.loc[buyers, "f_score"] = score_quintile(grouped.loc[buyers, "frequency"],
                                                         ascending=True)
     grouped["segment"] = [
-        RETURNS_ONLY if none else assign_segment(r, f)
+        NO_PURCHASES if none else assign_segment(r, f)
         for none, r, f in zip(never_bought, grouped["r_score"], grouped["f_score"], strict=True)
     ]
     return grouped

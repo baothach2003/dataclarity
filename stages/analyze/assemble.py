@@ -19,9 +19,10 @@ from stages.analyze.metrics_customers import compute_customer_metrics
 from stages.analyze.metrics_dimensions import compute_dimension_metrics
 from stages.analyze.metrics_products import compute_product_metrics
 
-# 2.0 in session 2E: orders, AOV, return_rate and RFM frequency changed
-# meaning, and comparisons became nullable (docs/CONTRACTS.md section 10).
-SCHEMA_VERSION = "3.0"
+# A major bump whenever a field changes meaning (docs/CONTRACTS.md section
+# 10): 2.0 in 2E (orders, nullable comparisons), 3.0 in 2E-c (what a sale is,
+# new customers, RFM ties), 4.0 in 2E-c2 (what a return is, first-day rule).
+SCHEMA_VERSION = "4.0"
 METRICS_FILENAME = "metrics.json"
 
 

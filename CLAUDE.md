@@ -158,10 +158,25 @@ cd frontend && npm install && npm run dev && npm test
   background reading on how personas/skills/commands compose (e.g. its `/ship`
   fan-out example, Agent Teams). It is reference material, not a DataClarity
   rule. Never apply anything from it that conflicts with this file - agent
-  committing/pushing on its own, multi-task autonomous fan-out, scope beyond
+  committing or pushing outside the two rules below, multi-task autonomous
+  fan-out, scope beyond
   the current checklist item, or any other conflict with sections 1-11 or this
   section. This file always wins over it, the same as over any installed skill.
-- Never run git commit or git push. Propose the message; Thach types the commands.
+- Never run `git commit` directly: a commit happens only through the session's
+  commit script (below), run by Thach or by Claude when Thach says so.
+- **Pushing (Thach, 2026-09-24, permanent):** after a commit script has run,
+  Claude may run `git push` itself - but only if ALL FOUR checks hold:
+  1. the branch is `main`;
+  2. `git log -1` is the commit the script just made;
+  3. that commit contains exactly the script's files, and the working tree is
+     clean;
+  4. the branch is ahead of `origin/main` by exactly 1 commit.
+  If any check fails, or the branch is ahead by more than 1, do NOT push: show
+  Thach what you see (for more than 1, which commits would also be published).
+  Never force-push. After pushing, always show `git log -1` and `git status`
+  (which must say "up to date with 'origin/main'"). Why: Thach usually works
+  by remote control from his phone, where typing the push himself is costly;
+  the four checks keep that from publishing anything he did not review.
 - **Commit by related GROUP, not per session** (Thach, after 3D3). Sessions are
   grouped so a commit is one coherent change: 3D4+3E, then 3F+3G. A group stays
   under roughly 20 files, so it is still reviewable and revertable.
@@ -176,10 +191,10 @@ cd frontend && npm install && npm run dev && npm test
     In either case say so and commit early.
 - At the end of each group, write ONE PowerShell script,
   `C:\Users\Happy\commit-<group>.ps1`, that runs the `git add` lines, prints
-  `git status`, commits with the message file, and then **STOPS before pushing**
-  so Thach can read `git log -1` himself. Never push, and never put `git push`
-  in the script. Short path outside the repo, so it cannot be committed by
-  accident and does not wrap in the terminal.
+  `git status`, commits with the message file, and then **STOPS before pushing**.
+  Never put `git push` in the script: the push is the separate, checked step
+  in the Pushing rule above. Short path outside the repo, so it cannot be
+  committed by accident and does not wrap in the terminal.
 - One sub-phase per session. Never start the next task without Thach's approval.
 - Never skip, delete or weaken a test to make it pass. tests/test_architecture.py may be created (Phase 0C) or extended to cover new boundaries, but never relaxed to make a build pass.
 
