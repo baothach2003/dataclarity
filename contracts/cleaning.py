@@ -3,7 +3,7 @@
 
 from typing import Any, ClassVar, Literal
 
-from pydantic import NonNegativeInt
+from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
 from contracts._base import ContractFile, ContractModel
 from contracts.profile import CanonicalField, SemanticType
@@ -30,6 +30,27 @@ TransformAction = Literal[
     "flag_only",
 ]
 PlanSource = Literal["ai", "user_edited", "manual"]
+
+
+class OrderConfirmations(ContractModel):
+    """Two answers only the user can give, asked on the Review screen (Thach,
+    2E-e2). None: not asked, or not answered.
+
+    - order_id_is_receipt: when no line names a customer an order id is
+      checked by date only, and a daily batch or Z-report code passes that
+      check; unless this is True the figures count lines (unconfirmed means
+      untrusted, Thach).
+    - customer_on_first_line_only: a receipt's unnamed lines take its one
+      named customer (2E-f) unless this is False - a batch code with one named
+      line and walk-ins looks the same (2E-f known limit L1, which Thach
+      accepted as rare). Withheld when unanswered, a header-style credit
+      note's named line kept its customer while the purchase it refunds lost
+      it (2E-e2 review A), so no answer fills, as 2E-f did.
+
+    Strict booleans: "yes" or 1 is no answer anyone gave (review N)."""
+
+    order_id_is_receipt: StrictBool | None = None
+    customer_on_first_line_only: StrictBool | None = None
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------
@@ -68,6 +89,16 @@ class CleaningPlanContract(ContractFile):
     source: PlanSource
     dataset_actions: list[DatasetAction]
     column_actions: list[ColumnAction]
+    # 2.1 (2E-e2): optional, the user's own answers; the AI's proposal never
+    # carries one (stage 1 builds it field by field).
+    confirmations: OrderConfirmations = Field(default_factory=OrderConfirmations)
+
+    @field_validator("confirmations", mode="before")
+    @classmethod
+    def _null_is_unanswered(cls, value: object) -> object:
+        # A client that sends null answered nothing; refusing the whole plan
+        # for it (review N) helped no one.
+        return {} if value is None else value
 
 
 # --- cleaning_report.json ---------------------------------------------------
@@ -104,3 +135,11 @@ class CleaningReportContract(ContractFile):
     changes: list[ChangeLogEntry]
     warnings: list[CleaningWarning]
     column_mapping: dict[str, CanonicalField]
+    # 2.1 (2E-e2): the answers that ran, for stages 2 and 3; a 2.0 report
+    # reads as nothing confirmed, and so does null (review cycle 3 F6).
+    confirmations: OrderConfirmations = Field(default_factory=OrderConfirmations)
+
+    @field_validator("confirmations", mode="before")
+    @classmethod
+    def _null_is_unanswered(cls, value: object) -> object:
+        return {} if value is None else value

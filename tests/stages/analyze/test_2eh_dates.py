@@ -14,12 +14,20 @@ from datetime import date, timedelta
 import pandas as pd
 import pytest
 
+from contracts.cleaning import OrderConfirmations
 from contracts.diagnosis import DiagnosisContract
 from contracts.metrics import MetricsContract
 from shared.orders import IdCheck
-from shared.transactions import order_id_spanning, parse_transactions
+from shared.order_checks import order_id_spanning
+from shared.transactions import parse_transactions
 from stages.analyze.assemble import SCHEMA_VERSION
 from tests.stages.diagnose.diagnose_fixtures import row, run_data
+
+# The user's Yes to Review's fill question (2E-e2), explicit although an
+# unanswered question fills too (test_2ee2_review.py).
+# And the Yes to the receipt question: these files name one customer, which
+# leaves the check on dates only (2E-e2 review cycle 2 F4).
+FIRST_LINE = OrderConfirmations(order_id_is_receipt=True, customer_on_first_line_only=True)
 
 
 def _sydney_shop() -> list[dict]:
@@ -62,7 +70,7 @@ def test_a_receipt_across_seven_in_the_morning_is_one_order() -> None:
                        ("2026-08-03T07:01+07:00", "1", "40", None, "100")],
                       columns=["Date", "Qty", "Price", "Cust", "Inv"])
 
-    parsed = parse_transactions(df, mapping)
+    parsed = parse_transactions(df, mapping, FIRST_LINE)
 
     assert parsed.order_key.nunique() == 1
     assert parsed.customers.tolist() == ["ann", "ann"]
@@ -151,7 +159,7 @@ def test_a_receipt_header_line_with_no_quantity_still_names_its_receipt() -> Non
                        ("2026-08-03", "2", "10", None, "100")],
                       columns=["Date", "Qty", "Price", "Cust", "Inv"])
 
-    parsed = parse_transactions(df, mapping)
+    parsed = parse_transactions(df, mapping, FIRST_LINE)
 
     assert parsed.customers.tolist()[1:] == ["ann", "ann"]
 
@@ -266,7 +274,7 @@ def test_a_credit_notes_customer_is_not_taken_from_a_restock_line() -> None:
     rows += [("2026-08-11", "1", "10", f"Pad{i}", f"p{i}", "out") for i in range(10)]
     df = pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Inv", "Type"])
 
-    parsed = parse_transactions(df, mapping)
+    parsed = parse_transactions(df, mapping, FIRST_LINE)
 
     assert parsed.orders_basis == "order_id"
     assert pd.isna(parsed.customers.iloc[0])
@@ -325,13 +333,14 @@ def test_a_returns_only_id_is_judged_on_its_counted_lines() -> None:
     rows += [("2026-08-10", "1", "10", f"Pad{i}", f"p{i}", "out") for i in range(10)]
     df = pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Inv", "Type"])
 
-    parsed = parse_transactions(df, mapping)
+    parsed = parse_transactions(df, mapping, FIRST_LINE)
 
     assert parsed.orders_basis == "order_id"
     assert parsed.customers.iloc[1] == "ann"
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "8.0"
-    assert MetricsContract.supported_major == 8
-    assert DiagnosisContract.supported_major == 7
+    # 8.0 / 7.0 in 2E-h; 9.0 / 8.0 since 2E-e2 (test_2ee2_stage2.py).
+    assert SCHEMA_VERSION == "9.0"
+    assert MetricsContract.supported_major == 9
+    assert DiagnosisContract.supported_major == 8

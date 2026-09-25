@@ -20,10 +20,12 @@ change.
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
 from shared.first_purchase import first_purchase_months
 from shared.products import product_keys
 from shared.orders import IdCheck
-from shared.transactions import order_id_spanning, parse_transactions
+from shared.order_checks import order_id_spanning
+from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
            "Cust": "customer", "Product": "product_name", "Sku": "sku"}
@@ -167,7 +169,12 @@ CUSTOMER_MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "uni
 
 def _customers(rows, mapping=CUSTOMER_MAPPING):
     df = pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Inv"])
-    return parse_transactions(df, mapping)
+    # The user's Yes to Review's fill question (2E-e2), explicit although an
+    # unanswered question fills too, so these rule tests hold whatever the default.
+    # And the Yes to the receipt question: most of these files name one customer,
+    # which leaves the check on dates only (2E-e2 review cycle 2 F4).
+    return parse_transactions(df, mapping, OrderConfirmations(order_id_is_receipt=True,
+                                                              customer_on_first_line_only=True))
 
 
 def test_a_blank_customer_takes_its_receipts_named_customer() -> None:

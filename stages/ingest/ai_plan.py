@@ -33,7 +33,7 @@ from stages.ingest.profiling import PROFILE_FILENAME
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "cleaning_plan"  # prompts/cleaning_plan.md
 OUTPUT_FILENAME = "plan_proposed.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "2.0"  # 2E-e: order_id in the canonical enum
+SCHEMA_VERSION = "2.1"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations
 
 
 

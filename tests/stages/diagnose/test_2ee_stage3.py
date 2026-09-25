@@ -10,6 +10,7 @@ from datetime import date, timedelta
 import pytest
 from pydantic import ValidationError
 
+from contracts.cleaning import OrderConfirmations
 from contracts.diagnosis import DiagnosisContract
 from stages.diagnose.frame import history_window
 from stages.diagnose.headline import choose_headline
@@ -26,6 +27,9 @@ from tests.stages.diagnose.test_headline import catalog, tree, trust
 from tests.stages.diagnose.test_hypotheses import by_id, step7
 
 WITH_ORDERS = {**MAPPING, "Inv": "order_id"}
+# These files name one customer ("Alice"), which leaves the check on dates
+# only: the user's Yes to Review's receipt question (2E-e2 review cycle 2 F4).
+RECEIPT = OrderConfirmations(order_id_is_receipt=True)
 
 
 def _invoiced() -> list[dict]:
@@ -45,7 +49,7 @@ def _invoiced() -> list[dict]:
 def test_the_lever_counts_invoices_as_stage_2_does() -> None:
     """August: 4 orders from 4 buyers (frequency 1), 12 units, so 3 units
     per order - and the same order count as metrics.json."""
-    data = run_data(_invoiced(), WITH_ORDERS)
+    data = run_data(_invoiced(), WITH_ORDERS, RECEIPT)
     totals = period_totals(data, "2026-08")
 
     assert totals.orders == data.metrics.core.orders_current == 4
@@ -55,7 +59,7 @@ def test_the_lever_counts_invoices_as_stage_2_does() -> None:
 def test_a_product_counts_the_orders_that_contain_it() -> None:
     """Product Widget sits on every line: 4 August orders contain it, not
     12 lines."""
-    totals = product_totals(run_data(_invoiced(), WITH_ORDERS))
+    totals = product_totals(run_data(_invoiced(), WITH_ORDERS, RECEIPT))
 
     assert int(totals.orders_cur.sum()) == 4
 
@@ -73,7 +77,7 @@ def test_basket_wording_says_baskets_when_order_id_is_mapped() -> None:
     figures are identical and the wording is about baskets."""
     rows = [{**r, "Inv": f"T{i}"} for i, r in enumerate(_smaller_baskets([]))]
 
-    b2 = by_id(evaluate_hypotheses(step7(run_data(rows, WITH_ORDERS))))["B2"]
+    b2 = by_id(evaluate_hypotheses(step7(run_data(rows, WITH_ORDERS, RECEIPT))))["B2"]
 
     assert (b2.verdict, b2.statement) == ("supported", "Baskets got smaller")
 
@@ -117,17 +121,17 @@ def test_the_category_aov_split_is_refused_when_an_order_spans_categories() -> N
     would not reconcile to the lever's AOV: refused."""
     mapping = {**WITH_ORDERS, "Cat": "category"}
 
-    control = compute_mix_rate(run_data(_simpson(span=False), mapping))
-    spanning = compute_mix_rate(run_data(_simpson(span=True), mapping))
+    control = compute_mix_rate(run_data(_simpson(span=False), mapping, RECEIPT))
+    spanning = compute_mix_rate(run_data(_simpson(span=True), mapping, RECEIPT))
 
     assert control is not None and control.metric == "aov"
     assert spanning is None or spanning.metric != "aov"
 
 
 def test_diagnosis_json_is_major_version_4_or_the_current_one() -> None:
-    # 4.0 in 2E-e; 5.0 in 2E-f; 6.0 in 2E-g; 7.0 since 2E-h. A 3.x file is refused.
+    # 4.0 in 2E-e; 5.0 in 2E-f; 6.0 in 2E-g; 7.0 in 2E-h; 8.0 since 2E-e2. A 3.x file is refused.
     payload = diagnosis_payload()
-    assert DiagnosisContract.model_validate(payload).schema_version == "7.0"
+    assert DiagnosisContract.model_validate(payload).schema_version == "8.0"
 
     payload["schema_version"] = "3.0"
     with pytest.raises(ValidationError, match="re-analyse"):
@@ -142,7 +146,7 @@ def test_step_4_counts_orders_by_invoice() -> None:
         rows += [{**row(day), "Inv": f"I{day.isoformat()}"} for _ in range(3)]
         day += timedelta(days=1)
     rows.append({**row(date(2026, 9, 1)), "Inv": "S"})
-    data = run_data(rows, WITH_ORDERS)
+    data = run_data(rows, WITH_ORDERS, RECEIPT)
 
     orders = next(s for s in compute_signals(data, history_window(data)) if s.series == "orders")
 
@@ -169,7 +173,7 @@ def test_a_category_counts_each_order_once() -> None:
     for index in range(2):
         line(date(2011, 11, 30), 5, 21.0, "Dear", f"ND{index}")
 
-    split = compute_mix_rate(run_data(rows, {**WITH_ORDERS, "Cat": "category"}))
+    split = compute_mix_rate(run_data(rows, {**WITH_ORDERS, "Cat": "category"}, RECEIPT))
 
     assert split is not None and split.metric == "aov"
     assert split.mix + split.rate == pytest.approx(38.6 - 60.0)
@@ -203,6 +207,6 @@ def test_an_order_crossing_the_month_boundary_does_not_refuse_the_split() -> Non
     rows.append({**row(date(2011, 10, 31), qty=1, price=20.0), "Cat": "Cheap", "Inv": "X1"})
     rows.append({**row(date(2011, 11, 1), qty=5, price=21.0), "Cat": "Dear", "Inv": "X1"})
 
-    split = compute_mix_rate(run_data(rows, {**WITH_ORDERS, "Cat": "category"}))
+    split = compute_mix_rate(run_data(rows, {**WITH_ORDERS, "Cat": "category"}, RECEIPT))
 
     assert split is not None and split.metric == "aov"

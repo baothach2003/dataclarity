@@ -69,13 +69,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from contracts.cleaning import CleaningReportContract
+from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
 from shared.first_purchase import first_purchase_months
 from shared.products import product_keys
 from shared.numbers import is_negligible
-from shared.transactions import parse_transactions
+from shared.transactions import ParsedTransactions, parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
@@ -103,18 +103,19 @@ def customer_metrics_for_run(
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    parsed = parse_transactions(frame, report.column_mapping)
+    parsed = parse_transactions(frame, report.column_mapping, report.confirmations)
     period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
-    return compute_customer_metrics(frame, report.column_mapping, period)
+    return compute_customer_metrics(frame, report.column_mapping, period, report.confirmations)
 
 
 def compute_customer_metrics(
-    df: pd.DataFrame, column_mapping: dict[str, str], period: Period
+    df: pd.DataFrame, column_mapping: dict[str, str], period: Period,
+    confirmations: OrderConfirmations | None = None,
 ) -> CustomerMetrics:
     """Pure computation. `period` is metrics_core's `Period` for this same
     run (docs/CONTRACTS.md section 6 has one `period` shared by every
     block)."""
-    parsed = parse_transactions(df, column_mapping)
+    parsed = parse_transactions(df, column_mapping, confirmations)
     reference_date = period.data_end + timedelta(days=1)
     customer_col = parsed.reverse.get("customer")
     previous_reason = None if period.previous_complete else period.previous_incomplete_reason
@@ -126,6 +127,8 @@ def compute_customer_metrics(
             new_vs_returning=_empty_new_vs_returning(),
             customers_previous_reason=previous_reason,
             revenue_share_reason=None,
+            unfilled_receipt_lines=0,
+            unfilled_receipt_lines_reason=None,
         )
 
     # A counted row with no customer value, or one holding only whitespace
@@ -182,7 +185,26 @@ def compute_customer_metrics(
         new_vs_returning=_new_vs_returning(table, period),
         customers_previous_reason=previous_reason,
         revenue_share_reason=share_reason,
+        **_unfilled(parsed),
     )
+
+
+def _unfilled(parsed: ParsedTransactions) -> dict:
+    """Lines the fill would have given their receipt's customer, left
+    unattributed because the user answered No in Review (Thach, 2E-e2):
+    counted, never lost silently."""
+    count = int((parsed.receipt_fillable & parsed.customers.isna()).sum())
+    if count == 0:
+        return {"unfilled_receipt_lines": 0, "unfilled_receipt_lines_reason": None}
+    subject, were, their = (("1 line has no customer but shares", "it was", "its") if count == 1
+                            else (f"{count:,} lines have no customer but share", "they were",
+                                  "their"))
+    return {"unfilled_receipt_lines": count,
+            "unfilled_receipt_lines_reason": (
+                f"{subject} a receipt with a line that names one; {were} not given that "
+                "customer because the answer in Review was that the customer is not written "
+                f"on a receipt's first line only, so {their} revenue is in no customer's "
+                "figures")}
 
 
 def _segment_summary(

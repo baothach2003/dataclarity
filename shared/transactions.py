@@ -58,8 +58,9 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
 from shared.dates import as_dates
-from shared.orders import IdCheck, OrdersBasis, order_basis, spanning_ids
+from shared.orders import OrdersBasis, order_basis, receipt_refusal
 
 
 class RequiredColumnMissingError(ValueError):
@@ -116,14 +117,22 @@ class ParsedTransactions:
     # id a blank cell takes its receipt's one named customer: read raw, a
     # header-style export gave each customer only a receipt's first line
     # (Online Retail II rewritten so: new revenue 8,783.75 against 79,845.90).
+    # Unless the user answered in Review that the customer is not written on
+    # a receipt's first line only (2E-e2).
     customers: pd.Series
+    # The counted lines with no customer that the fill gives, or would give,
+    # their receipt's customer - confirmed or not (2E-e2).
+    receipt_fillable: pd.Series
 
 
-def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
+def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
+                       confirmations: OrderConfirmations | None = None) -> ParsedTransactions:
     """`column_mapping` is cleaning_report.json's mapping of source column
-    name -> canonical field. Raises RequiredColumnMissingError if
+    name -> canonical field, `confirmations` its answers from Review (None:
+    nothing confirmed). Raises RequiredColumnMissingError if
     transaction_date, quantity or unit_price has no mapped column."""
     reverse = {field: source for source, field in column_mapping.items()}
+    answers = confirmations or OrderConfirmations()
 
     date_col = require_column(reverse, "transaction_date")
     quantity_col = require_column(reverse, "quantity")
@@ -165,9 +174,17 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     amounts = quantities * prices
     sale = counted & (quantities > 0) & (amounts > 0)
     returned = counted & (quantities < 0) & (amounts < 0)
-    orders = order_basis(_filled(df, reverse.get("order_id")), dates.dt.normalize(),
-                         _customers(df, reverse.get("customer")), sale, returned, counted,
-                         ~counts_as_sale)
+    customers = customers_of(df, reverse.get("customer"))
+    # The fill happens unless the user answered No (2E-e2 review A): withheld
+    # by default, a header-style receipt's unnamed purchase lines lost their
+    # customer while its credit note's named line kept it, and a first-time
+    # buyer's history "opened with a refund". Filling on no answer is 2E-f's
+    # rule and its known limit L1, which Thach accepted as rare.
+    orders = order_basis(order_ids(df, reverse.get("order_id")), dates.dt.normalize(),
+                         customers, sale, returned, counted, ~counts_as_sale,
+                         refused=receipt_refusal(reverse, answers,
+                                          customers[counts_as_sale].nunique() >= 2),
+                         fill=answers.customer_on_first_line_only is not False)
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,
@@ -184,33 +201,18 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         orders_basis=orders.basis,
         orders_basis_reason=orders.reason,
         customers=orders.customers,
+        receipt_fillable=orders.fillable,
     )
 
 
-def order_id_spanning(df: pd.DataFrame, column_mapping: dict[str, str]) -> IdCheck | None:
-    """The order_id check's figures over the sale lines, for stage 1's check on
-    the file as uploaded (2E-e); None when order_id is not mapped or the file
-    cannot be parsed into sale lines."""
-    try:
-        parsed = parse_transactions(df, column_mapping)
-    except RequiredColumnMissingError:
-        return None
-    column = parsed.reverse.get("order_id")
-    if column is None:
-        return None
-    sale = parsed.sale
-    return spanning_ids(_filled(df, column)[sale], parsed.dates.dt.normalize()[sale],
-                        _customers(df, parsed.reverse.get("customer"))[sale])
-
-
-def _filled(df: pd.DataFrame, column: str | None) -> pd.Series | None:
+def order_ids(df: pd.DataFrame, column: str | None) -> pd.Series | None:
     """The column stripped, blank cells as NaN; None when not mapped."""
     if column is None:
         return None
     return df[column].astype(object).str.strip().where(~is_blank(df[column]))
 
 
-def _customers(df: pd.DataFrame, column: str | None) -> pd.Series:
+def customers_of(df: pd.DataFrame, column: str | None) -> pd.Series:
     if column is None:
         return pd.Series(float("nan"), index=df.index, dtype=object)
     return customer_identity(df[column]).where(~is_blank(df[column]))

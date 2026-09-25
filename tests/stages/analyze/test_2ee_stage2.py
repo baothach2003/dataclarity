@@ -80,8 +80,8 @@ def test_rfm_frequency_counts_orders_not_lines() -> None:
 
 
 def test_metrics_json_is_major_version_5_or_the_current_one() -> None:
-    # 5.0 in 2E-e; 6.0 in 2E-f; 7.0 in 2E-g; 8.0 since 2E-h. A 4.x file is refused.
-    assert SCHEMA_VERSION == "8.0"
+    # 5.0 in 2E-e; 6.0 in 2E-f; 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2. A 4.x file is refused.
+    assert SCHEMA_VERSION == "9.0"
     payload = assemble_metrics(pd.DataFrame(_invoiced()), WITH_ORDERS,
                                now=NOW).model_dump(mode="json")
     payload["schema_version"] = "4.0"

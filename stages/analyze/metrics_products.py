@@ -63,7 +63,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from contracts.cleaning import CleaningReportContract
+from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, ProductVelocity, TopProduct
 from shared.numbers import is_negligible, pct_change
 from shared.products import product_keys, product_labels
@@ -90,16 +90,17 @@ def product_metrics_for_run(
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    parsed = parse_transactions(frame, report.column_mapping)
+    parsed = parse_transactions(frame, report.column_mapping, report.confirmations)
     period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
-    return compute_product_metrics(frame, report.column_mapping, period)
+    return compute_product_metrics(frame, report.column_mapping, period, report.confirmations)
 
 
 def compute_product_metrics(
-    df: pd.DataFrame, column_mapping: dict[str, str], period: Period
+    df: pd.DataFrame, column_mapping: dict[str, str], period: Period,
+    confirmations: OrderConfirmations | None = None,
 ) -> ProductMetrics:
     """Pure computation."""
-    parsed = parse_transactions(df, column_mapping)
+    parsed = parse_transactions(df, column_mapping, confirmations)
     require_column(parsed.reverse, "product_name")
 
     # Keys and labels are stage 3's too (shared/products.py). A line with no

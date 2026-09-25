@@ -137,6 +137,10 @@ export interface SchemaInferenceContract {
   domain_reasoning: string
   dataset_issues: DatasetIssue[]
   columns: ColumnInference[]
+  // 2.1 (2E-e2): stage 1's own measure on the raw file and these columns'
+  // mapping - the lines the customer fill would give their receipt's
+  // customer. null (or absent, a 2.0 file): not measured.
+  receipt_fill_lines?: number | null
 }
 
 // --- plan_proposed.json / plan_final.json --------------------------------------
@@ -166,12 +170,21 @@ export interface ColumnAction {
   edited_by_user: boolean
 }
 
+// Two answers only the user can give on the Review screen (2E-e2). null: not
+// asked or not answered, which stages 2 and 3 read as "no".
+export interface OrderConfirmations {
+  order_id_is_receipt: boolean | null
+  customer_on_first_line_only: boolean | null
+}
+
 export interface CleaningPlan {
   schema_version: string
   generated_at: string
   source: PlanSource
   dataset_actions: DatasetAction[]
   column_actions: ColumnAction[]
+  // 2.1 (2E-e2); absent from a 2.0 plan, which reads as nothing confirmed.
+  confirmations?: OrderConfirmations
 }
 
 // --- cleaning_report.json -----------------------------------------------------
@@ -202,6 +215,8 @@ export interface CleaningReport {
   // Keyed by source column name, valued by the canonical field it maps to
   // (docs/CONTRACTS.md section 5): {"Prod Name": "product_name"}.
   column_mapping: Record<string, CanonicalField>
+  // 2.1 (2E-e2): the answers that ran.
+  confirmations?: OrderConfirmations
 }
 
 // --- preview (stages/ingest/preview.py PreviewResult) --------------------------

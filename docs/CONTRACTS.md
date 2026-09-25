@@ -72,7 +72,7 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "generated_at": "...",
   "model_used": "claude-sonnet-5",
   "domain_confidence": 0.93,
@@ -92,7 +92,8 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
          "examples": ["row 88", "row 105"]}
       ]
     }
-  ]
+  ],
+  "receipt_fill_lines": null
 }
 ```
 Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
@@ -105,6 +106,15 @@ invents one); the key is always present. An issue's `count` is never the AI's
 estimate: it comes from `profile.json` (`missing_values`, `all_null_column`,
 `duplicate_rows`) or is computed by pandas from the raw file, and an issue whose
 count is 0 is left out (`docs/AI_PIPELINE.md` section 11).
+`receipt_fill_lines` (`2.1`, session 2E-e2) is stage 1's own measure, never
+the AI's: on the raw file and these columns' mapping, the lines with no
+customer that the customer fill (section 6) would give their receipt's one
+named customer - `0` when `order_id` or `customer` is not mapped, `null` when
+the raw file cannot tell: no sale line parses before the plan's cleaning, or
+blank ids make it count lines while the cleaning may still let the fill
+happen (2E-e2 doubt-review cycle 2). The Review screen asks the user about
+the fill when it is above 0 or `null` (and when the user remapped a field it
+reads, so it was not measured). A `2.0` file reads as `null`.
 
 ## 4. `plan_proposed.json` and `plan_final.json` (stage 1 steps C and D)
 
@@ -112,7 +122,7 @@ Identical schema; `plan_final.json` additionally records user edits.
 
 ```json
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "generated_at": "...",
   "source": "ai" | "user_edited" | "manual",
   "dataset_actions": [
@@ -126,7 +136,9 @@ Identical schema; `plan_final.json` additionally records user edits.
      "rationale": "4.2% missing; median robust given IQR outliers",
      "alternatives": ["impute_mean", "drop_rows_missing"],
      "edited_by_user": true}
-  ]
+  ],
+  "confirmations": {"order_id_is_receipt": null,
+                    "customer_on_first_line_only": null}
 }
 ```
 `plan_final.json` is what stage 1 executes. The backend validates it against the
@@ -144,11 +156,40 @@ the 25 the AI sees get `flag_only` with a note that they were not analyzed.
 `plan_final.json` is written by the execution together with `cleaned.csv` and
 `cleaning_report.json` (section 5), and is the plan exactly as it ran.
 
+`confirmations` (`2.1`, session 2E-e2, Thach) holds the user's answers to the
+Review screen's two questions (booleans or `null`, never coerced; a `null`
+object reads as no answers); `null` is "not asked or not answered":
+- `order_id_is_receipt`: asked when `order_id` is mapped and the file names
+  fewer than two different customers (no column mapped to `customer`, or one
+  that is blank, or "Walk-in", on every line), because the id could then be
+  checked by date only and a daily batch or Z-report code passes that check.
+  Unless `true`, the figures count lines (section 6) - unconfirmed means
+  untrusted. `false` counts lines whatever the customer column holds after
+  cleaning (a plan that imputes it cannot silence the answer).
+- `customer_on_first_line_only`: asked when the customer fill would happen
+  (`receipt_fill_lines` above 0, section 3). `false` withholds the fill: a
+  receipt's unnamed lines keep no customer (section 6). Unanswered, the fill
+  happens, as in 2E-f: withheld by default, a header-style credit note's named
+  line kept its customer while the purchase it refunds lost it, and a
+  first-time buyer read as returning (2E-e2 doubt-review A).
+The AI's proposal never carries an answer (stage 1 builds it field by field),
+and the Review screen sends only answers to questions that still apply, about
+the columns they were given for - except a No to the receipt question, sent
+while that column is the order id, asked or not. `confirmations: null` reads as
+no answers in the plan and in the report alike.
+**Known limit (2E-e2 doubt-review cycle 3 F1, for Thach):** a plan that
+imputes the customer column (the cleaning prompt's default, "Unknown", for a
+text column 5% or more missing) gives stage 2 a second "customer", so an
+unanswered receipt question is read as trusted on a file Review judged by
+date only; the user's No still counts, and Review says so. A plan whose only change from the proposal is
+its answers has `source` "user_edited". A `2.0` plan reads as nothing
+confirmed.
+
 ## 5. `cleaning_report.json` (stage 1 output F)
 
 ```json
 {
-  "schema_version": "2.0", "generated_at": "...",
+  "schema_version": "2.1", "generated_at": "...",
   "rows_in": 152430, "rows_out": 151988,
   "columns_in": 9, "columns_out": 8,
   "changes": [
@@ -161,7 +202,9 @@ the 25 the AI sees get `flag_only` with a note that they were not analyzed.
   "warnings": [
     {"code": "encoding_fallback", "detail": "file decoded as latin-1"}
   ],
-  "column_mapping": {"Prod Name": "product_name", "Qty": "quantity"}
+  "column_mapping": {"Prod Name": "product_name", "Qty": "quantity"},
+  "confirmations": {"order_id_is_receipt": null,
+                    "customer_on_first_line_only": null}
 }
 ```
 
@@ -173,6 +216,9 @@ Rules for the values (no field changed):
   added.
 - `column_mapping` lists the columns that are in `cleaned.csv` and mapped to a
   canonical field other than `ignore`: an ignored or dropped column is not there.
+- `confirmations` (`2.1`, 2E-e2) are the plan's answers exactly as submitted
+  (section 4); stages 2 and 3 read them here, with `column_mapping`. A `2.0`
+  report reads as nothing confirmed.
 - `encoding_fallback` is warned, with the detail "file decoded as latin-1", when the
   file was not UTF-8. `cleaned.csv` is always UTF-8. `text_reads_as_missing` is warned,
   with the count and the columns, when cells hold text that reads back as missing
@@ -186,7 +232,7 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "5.0", "generated_at": "...",
+  "schema_version": "9.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
              "previous_complete": true, "previous_incomplete_reason": null},
@@ -211,7 +257,8 @@ Rules for the values (no field changed):
     ],
     "new_vs_returning": {"new_customers": 74, "returning_customers": 738,
                          "new_revenue": 92000.0, "returning_revenue": 1058000.0},
-    "customers_previous_reason": null, "revenue_share_reason": null
+    "customers_previous_reason": null, "revenue_share_reason": null,
+    "unfilled_receipt_lines": 0, "unfilled_receipt_lines_reason": null
   },
   "products": {
     "pareto": {"products_for_80pct_revenue": 63, "total_products": 412,
@@ -262,7 +309,16 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   -> 93 on an unchanged business); Online Retail II and the Kaggle demo have
   none; else "lines", every sale line an order, with
   `orders_basis_reason` saying why a mapped order_id was refused (more than
-  10% of its ids span several days or customers). Stage 5 and the frontend
+  10% of its ids span several days or customers). **When the lines that are
+  not stock-in name fewer than two different customers** (no customer
+  column, or one that is blank or "Walk-in" on every line) the id could be
+  checked by date only, and a daily batch or Z-report code passes that
+  check: it is trusted only when the user confirmed in Review that it is a
+  receipt number (`confirmations.order_id_is_receipt`, sections 4-5; Thach,
+  2E-e2 - unconfirmed means untrusted), else lines, with the reason. The
+  user's No always counts. The blank-id count in the reason is stage 2's own, on
+  cleaned.csv: the exact number of sale and return lines with no id, written
+  whatever the answers. Stage 5 and the frontend
   LABEL by it: basis order_id - orders, AOV, orders per customer, units per
   order, return rate; basis lines - lines, average line value, lines per
   customer, units per line, return lines per sale line. RFM frequency counts
@@ -315,7 +371,15 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   days later under the receipt it refunds leaves the receipt one - it is
   just not filled on its own day. This decides whose REVENUE a line is,
   never how orders count: the order key keeps the receipt's customer, as in
-  2E-e. A line with no parseable date belongs to no receipt day.
+  2E-e. A line with no parseable date belongs to no receipt day. **Since
+  2E-e2 the user can withhold the fill** by answering in Review that the
+  customer is not written on a receipt's first line only
+  (`confirmations.customer_on_first_line_only` = `false`; Thach, mitigating
+  the known limit below); unanswered, it fills. Withheld, the lines stay
+  unattributed and **`customers.unfilled_receipt_lines`** counts the
+  revenue-counted ones the fill would have given a customer, with
+  `unfilled_receipt_lines_reason` (null exactly when the count is 0), so their
+  money is never lost silently.
   **Known limit (for Thach, 2E-f doubt-review cycle 2 F2):** a per-day batch
   id (a Z-report, a shift, a daily returns desk) with one named line and
   unnamed walk-in lines looks exactly like a header-style receipt on its
@@ -975,6 +1039,15 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-26: **session 2E-e2, the order basis decided in Review.**
+  `plan_proposed.json` / `plan_final.json` and `cleaning_report.json` went to
+  `2.1` (optional `confirmations`), `schema_inference.json` to `2.1`
+  (optional `receipt_fill_lines`) - minor, readers unaffected;
+  `metrics.json` to `9.0` and `diagnosis.json` to `8.0` (Thach's rule that a
+  change of meaning is a major bump): an order id checked by date only counts
+  only with the user's Yes, the customer fill stops at the user's No, and
+  `customers.unfilled_receipt_lines` with its reason is required. Readers
+  refuse `8.x` metrics and `7.x` diagnosis files with "re-analyse this run".
 - 2026-09-26: **`metrics.json` went to `8.0` and `diagnosis.json` to `7.0`**
   (session 2E-h, Thach): every day and month is read on the wall clock as
   written (UTC before) with 1F's cell rule, `core.undated_lines` and its

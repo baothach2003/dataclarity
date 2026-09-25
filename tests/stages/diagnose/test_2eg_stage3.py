@@ -117,5 +117,5 @@ def test_the_gap_is_never_a_price_check_product() -> None:
 
 
 def test_diagnosis_json_is_version_6_or_the_current_one() -> None:
-    # 6.0 in 2E-g; 7.0 since 2E-h (test_2eh_dates.py).
-    assert DiagnosisContract.supported_major == 7
+    # 6.0 in 2E-g; 7.0 in 2E-h; 8.0 since 2E-e2 (test_2ee2_stage2.py).
+    assert DiagnosisContract.supported_major == 8

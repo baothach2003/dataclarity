@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from contracts.cleaning import CleaningReportContract
+from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import CoreMetrics, MonthlyRevenue, Period
 from shared.numbers import pct_change
 from shared.orders import count_orders
@@ -76,16 +76,18 @@ def core_metrics_for_run(
     # cast (AI_PIPELINE.md section 12: a plan cannot require transaction_date
     # to be parsed).
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    return compute_core_metrics(frame, report.column_mapping, now)
+    return compute_core_metrics(frame, report.column_mapping, now, report.confirmations)
 
 
 def compute_core_metrics(
-    df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None
+    df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None,
+    confirmations: OrderConfirmations | None = None,
 ) -> tuple[Period, CoreMetrics]:
     """Pure computation. `column_mapping` is cleaning_report.json's mapping of
-    source column name -> canonical field."""
+    source column name -> canonical field, `confirmations` its answers from
+    Review (2E-e2)."""
     now = now or datetime.now(UTC)
-    parsed = parse_transactions(df, column_mapping)
+    parsed = parse_transactions(df, column_mapping, confirmations)
     period = select_period(parsed.dates, now, parsed.dates[parsed.sale])
 
     months = parsed.dates.dt.to_period("M").astype(str)

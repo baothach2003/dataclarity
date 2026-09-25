@@ -14,6 +14,7 @@ by invoice) and frequency was lines per customer (32.2 against 1.58).
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
 from shared.orders import ORDER_ID_MAX_SPANNING_SHARE, count_orders
 from shared.transactions import parse_transactions
 
@@ -22,8 +23,10 @@ MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
 
 
 def _parsed(rows, mapping=MAPPING):
+    # One customer on every line: the check reads dates only, so the user's
+    # Yes to Review's receipt question is given (2E-e2 review cycle 2 F4).
     df = pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Inv"])
-    return parse_transactions(df, mapping)
+    return parse_transactions(df, mapping, OrderConfirmations(order_id_is_receipt=True))
 
 
 def test_orders_are_distinct_order_ids_with_a_sale_row() -> None:

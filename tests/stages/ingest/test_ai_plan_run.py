@@ -44,7 +44,8 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
     on_disk = CleaningPlanContract.model_validate_json(
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
-    assert (returned.schema_version, returned.generated_at, returned.source) == ("2.0", NOW, "ai")
+    # 2.0 in 2E-e (order_id widened the enum: major); 2.1 since 2E-e2 (confirmations: minor).
+    assert (returned.schema_version, returned.generated_at, returned.source) == ("2.1", NOW, "ai")
     assert not any(a.edited_by_user for a in returned.column_actions)
     assert not any(a.edited_by_user for a in returned.dataset_actions)
 
@@ -304,7 +305,7 @@ def test_the_contract_written_is_plain_json_a_later_stage_can_read(tmp_path: Pat
     data = json.loads(written(tmp_path, run_id).read_text(encoding="utf-8"))
 
     assert set(data) == {"schema_version", "generated_at", "source", "dataset_actions",
-                         "column_actions"}
+                         "column_actions", "confirmations"}  # 2E-e2: always written, None unanswered
 
 
 # --- cycle-2 review ---------------------------------------------------------------

@@ -11,12 +11,17 @@ from datetime import date
 import pandas as pd
 import pytest
 
+from contracts.cleaning import OrderConfirmations
 from contracts.diagnosis import DiagnosisContract
 from stages.diagnose.bridge import compute_bridge, customer_classes
 from stages.diagnose.lever import period_totals
 from stages.diagnose.members import customer_type_totals
 from stages.diagnose.signals import monthly_series
 from tests.stages.diagnose.diagnose_fixtures import MAPPING, daily_rows, row, run_data
+
+# The user's Yes to Review's fill question (2E-e2), explicit although an
+# unanswered question fills too (test_2ee2_review.py).
+FIRST_LINE = OrderConfirmations(customer_on_first_line_only=True)
 
 WITH_ORDERS = {**MAPPING, "Inv": "order_id"}
 
@@ -80,8 +85,8 @@ def test_the_bridge_reads_a_header_style_export_as_the_fully_named_file() -> Non
     """By hand, July -> August: E new +50; D lapsed -30; C contracted 30 ->
     20 = -10; nothing unattributed. Read raw, the header-style copy put every
     unnamed line in `unattributed` (+20) and E's new revenue at 0."""
-    named = run_data(_receipts(header_style=False), WITH_ORDERS)
-    header = run_data(_receipts(header_style=True), WITH_ORDERS)
+    named = run_data(_receipts(header_style=False), WITH_ORDERS, FIRST_LINE)
+    header = run_data(_receipts(header_style=True), WITH_ORDERS, FIRST_LINE)
 
     terms = _terms(header)
 
@@ -93,8 +98,8 @@ def test_the_bridge_reads_a_header_style_export_as_the_fully_named_file() -> Non
 def test_the_lever_and_the_monthly_series_count_the_same_customers() -> None:
     """E is named only on a free sample: read raw, E was no buyer in August
     (3 buyers, not 4) and customers x frequency x AOV moved with it."""
-    named = run_data(_receipts(header_style=False), WITH_ORDERS)
-    header = run_data(_receipts(header_style=True), WITH_ORDERS)
+    named = run_data(_receipts(header_style=False), WITH_ORDERS, FIRST_LINE)
+    header = run_data(_receipts(header_style=True), WITH_ORDERS, FIRST_LINE)
 
     assert period_totals(header, "2026-08") == period_totals(named, "2026-08")
     pd.testing.assert_frame_equal(monthly_series(header), monthly_series(named))
@@ -103,7 +108,7 @@ def test_the_lever_and_the_monthly_series_count_the_same_customers() -> None:
 def test_customer_type_members_carry_every_line_of_a_receipt() -> None:
     """August by class, by hand: new E 50, retained A (31 days x 10 = 310) +
     B 30 + C 20 = 360, lapsed D 0; no line without a customer."""
-    header = run_data(_receipts(header_style=True), WITH_ORDERS)
+    header = run_data(_receipts(header_style=True), WITH_ORDERS, FIRST_LINE)
 
     totals = customer_type_totals(header, customer_classes(header))
 
@@ -113,5 +118,5 @@ def test_customer_type_members_carry_every_line_of_a_receipt() -> None:
 
 
 def test_diagnosis_json_is_version_5_or_the_current_one() -> None:
-    # 5.0 in 2E-f; 6.0 in 2E-g; 7.0 since 2E-h.
-    assert DiagnosisContract.supported_major == 7
+    # 5.0 in 2E-f; 6.0 in 2E-g; 7.0 in 2E-h; 8.0 since 2E-e2.
+    assert DiagnosisContract.supported_major == 8

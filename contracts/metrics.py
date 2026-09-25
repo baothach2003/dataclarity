@@ -154,9 +154,19 @@ class CustomerMetrics(ContractModel):
     new_vs_returning: NewVsReturning
     customers_previous_reason: str | None
     revenue_share_reason: str | None
+    # Counted lines with no customer that share a receipt with a line naming
+    # one, left unattributed because the user answered in Review that the
+    # customer is not written on a receipt's first line only (2E-e2): their
+    # revenue is in no customer's figures, and a reader must see that. The
+    # reason is null exactly when the count is 0.
+    unfilled_receipt_lines: NonNegativeInt
+    unfilled_receipt_lines_reason: str | None
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
+        if (self.unfilled_receipt_lines == 0) != (self.unfilled_receipt_lines_reason is None):
+            raise ValueError("unfilled_receipt_lines_reason says why lines were left "
+                             "unattributed; it is null exactly when unfilled_receipt_lines is 0")
         _paired_list([segment.customers_previous is None for segment in self.segments],
                      self.customers_previous_reason, "customers_previous")
         _paired_list([segment.revenue_share_pct is None for segment in self.segments],
@@ -267,8 +277,11 @@ class MetricsContract(ContractFile):
     # are sale lines, labels the name sale lines carry most, the gap never
     # ranked, and velocity null without stock-in lines. 8 since 2E-h: every
     # day and month on the wall clock as written (UTC before), and
-    # undated_lines with its reason.
-    supported_major: ClassVar[int] = 8
+    # undated_lines with its reason. 9 since 2E-e2: an order id checked by
+    # date only, and the customer fill, count only with the user's answer in
+    # Review (orders and every per-customer figure), and
+    # unfilled_receipt_lines with its reason.
+    supported_major: ClassVar[int] = 9
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

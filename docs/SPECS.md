@@ -117,6 +117,43 @@ UI guardrails: Confirm stays disabled until `product_name`, `transaction_date`
 and `quantity` are mapped; mapping two columns to the same canonical field is
 blocked inline; changing semantic type re-filters the legal action list.
 
+**Order notices (session 2E-e2, Thach),** above the column table, following
+the mapping as the user edits it (a dropped column is unmapped). None blocks
+Confirm. An answer applies only to the columns it was given for: after a
+remap the question is asked again.
+- **Blank order ids:** "Up to N lines have no order id" (N = blank cells of
+  the column mapped to `order_id` on the raw file): while any sale or return
+  line has no id the whole file counts lines. Actions: drop these lines
+  (`drop_rows_missing` on that column; the notice then says their revenue
+  leaves every figure), upload a fixed file, or keep them and count lines.
+  Ids are never filled in: one made-up id would merge every blank line into
+  one order. Stage 2's exact count is in `metrics.json`.
+- **Is the order id a receipt number?** Asked when `order_id` is mapped and
+  the file names fewer than two different customers (no column mapped to
+  `customer`, or one blank or "Walk-in" on every line): the id could then be
+  checked by date only, and a daily batch or Z-report code passes that check.
+  Yes / No, it is a batch code; an answer can be changed. Unanswered counts
+  as No: orders are counted as lines.
+- **Is the customer written on a receipt's first line only?** Asked when the
+  customer fill would happen (`receipt_fill_lines` above 0), or without a
+  count when that was not measured for the current columns (stage 1 could not
+  tell, a remap, the blank-id lines dropped, no schema); never when the plan
+  imputes the customer column (nothing is left to fill). Yes, or no answer: a
+  receipt's unnamed lines are its named customer's (2E-f). No: they stay
+  without a customer.
+- With a column mapped to `transaction_type`, the blank-id notice also says
+  that dropping the blank-id lines drops stock-in lines with no id, which
+  leave the stock figures.
+- An answered notice never promises what stage 2 will not do: a receipt
+  number whose ids stage 1 found spanning days, or blank ids kept, still
+  count lines, and a fill waits for every line to have an id. A plan that
+  fills the blank customers in is told that the column can then pass as a
+  receipt number unless the user answers No. A No to the receipt question
+  stays (and shows) while that column is the order id. No fill question is
+  asked when the plan imputes the customer column or drops the rows with no
+  customer.
+The answers travel in the plan's `confirmations` (docs/CONTRACTS.md section 4).
+
 **C. Preview pane:** before/after on a 20-row sample chosen to include affected
 rows (not `head()`), changed cells visually marked, plus per-column deltas
 (missing % and unique count, before vs after). Refreshed via the preview

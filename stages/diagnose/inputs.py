@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from contracts.cleaning import CleaningReportContract
+from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import MetricsContract
 from shared.run_registry import run_file
 from shared.transactions import ParsedTransactions, parse_transactions
@@ -56,14 +56,17 @@ def load_run(runs_root: Path, run_id: str) -> RunData:
         run_file(runs_root, run_id, METRICS_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    return build_run_data(frame, report.column_mapping, metrics)
+    return build_run_data(frame, report.column_mapping, metrics, report.confirmations)
 
 
 def build_run_data(
-    df: pd.DataFrame, column_mapping: dict[str, str], metrics: MetricsContract
+    df: pd.DataFrame, column_mapping: dict[str, str], metrics: MetricsContract,
+    confirmations: OrderConfirmations | None = None,
 ) -> RunData:
-    """The pure half of `load_run`, so tests need no run directory."""
-    parsed = parse_transactions(df, column_mapping)
+    """The pure half of `load_run`, so tests need no run directory.
+    `confirmations` are cleaning_report.json's answers from Review, read
+    exactly as stage 2 read them (2E-e2)."""
+    parsed = parse_transactions(df, column_mapping, confirmations)
     months = parsed.dates.dt.to_period("M").astype(str)
     covered = complete_months(metrics.period.data_start, metrics.period.data_end)
     return RunData(

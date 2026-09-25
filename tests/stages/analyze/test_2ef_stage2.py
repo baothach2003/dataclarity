@@ -24,6 +24,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
+from contracts.cleaning import OrderConfirmations
 from contracts.metrics import MetricsContract
 from stages.analyze.assemble import SCHEMA_VERSION, assemble_metrics
 from stages.analyze.rfm import rfm_snapshot
@@ -119,7 +120,10 @@ def _receipts(header_style: bool) -> list[dict]:
 
 
 def _customers(rows, mapping=WITH_ORDERS):
-    metrics = assemble_metrics(pd.DataFrame(rows), mapping, now=NOW)
+    # The user's Yes to Review's fill question (2E-e2), explicit although an
+    # unanswered question fills too, so these rule tests hold whatever the default.
+    metrics = assemble_metrics(pd.DataFrame(rows), mapping, now=NOW,
+                               confirmations=OrderConfirmations(customer_on_first_line_only=True))
     segments = {s.segment: (s.customers, s.avg_monetary, s.revenue_share_pct)
                 for s in metrics.customers.segments}
     return metrics, segments
@@ -153,6 +157,6 @@ def test_without_order_id_a_header_style_file_is_not_filled() -> None:
 
 
 def test_metrics_json_is_version_6_or_the_current_one() -> None:
-    # 6.0 in 2E-f; 7.0 in 2E-g; 8.0 since 2E-h.
-    assert SCHEMA_VERSION == "8.0"
-    assert MetricsContract.supported_major == 8
+    # 6.0 in 2E-f; 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2.
+    assert SCHEMA_VERSION == "9.0"
+    assert MetricsContract.supported_major == 9

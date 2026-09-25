@@ -13,6 +13,7 @@ F9: the reason rounded 10.4% down to "10%", reading as a refusal AT the limit.
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
 from shared.orders import count_orders
 from shared.transactions import parse_transactions
 
@@ -21,8 +22,10 @@ MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
 
 
 def _parsed(rows, mapping=MAPPING):
+    # One customer on every line: the check reads dates only, so the user's
+    # Yes to Review's receipt question is given (2E-e2 review cycle 2 F4).
     return parse_transactions(pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Inv"]),
-                              mapping)
+                              mapping, OrderConfirmations(order_id_is_receipt=True))
 
 
 def test_a_reused_receipt_number_is_two_orders_not_one() -> None:

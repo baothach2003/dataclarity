@@ -40,7 +40,7 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
     on_disk = SchemaInferenceContract.model_validate_json(
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
-    assert returned.schema_version == "2.0"  # 2E-e: order_id widened the enum (major)
+    assert returned.schema_version == "2.1"  # 2E-e: order_id (major); 2E-e2: receipt_fill_lines (minor)
     assert returned.generated_at == NOW
     assert returned.model_used == "claude-served"  # the model that answered
     assert returned.columns[1].canonical_field == "product_name"

@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
+
 from stages.analyze.assemble import assemble_metrics
 from stages.diagnose.inputs import RunData, build_run_data
 
@@ -73,11 +75,13 @@ def month_span(first_month: str, months: int) -> tuple[date, date]:
     return start, date(end_year, end_month, 1) - timedelta(days=1)
 
 
-def run_data(rows: list[dict], mapping: dict[str, str] | None = None) -> RunData:
+def run_data(rows: list[dict], mapping: dict[str, str] | None = None,
+             confirmations: OrderConfirmations | None = None) -> RunData:
+    """`confirmations`: the Review answers, read by both stages (2E-e2)."""
     mapping = mapping or MAPPING
     df = pd.DataFrame(rows)
-    metrics = assemble_metrics(df, mapping, now=NOW)
-    return build_run_data(df, mapping, metrics)
+    metrics = assemble_metrics(df, mapping, now=NOW, confirmations=confirmations)
+    return build_run_data(df, mapping, metrics, confirmations)
 
 
 def daily_months(revenue_by_month: dict[str, float]) -> list[dict]:

@@ -46,19 +46,21 @@ Design decisions (Thach, Phase 2D):
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
 from contracts.metrics import CoreMetrics, DimensionBreakdown, DimensionChange, Period
 from shared.numbers import is_negligible
 from shared.transactions import ParsedTransactions, is_blank, parse_transactions
 
 
 def compute_dimension_metrics(
-    df: pd.DataFrame, column_mapping: dict[str, str], period: Period, core: CoreMetrics
+    df: pd.DataFrame, column_mapping: dict[str, str], period: Period, core: CoreMetrics,
+    confirmations: OrderConfirmations | None = None,
 ) -> DimensionBreakdown:
     """Pure computation. `period` and `core` are metrics_core's own outputs
     for this same run (docs/CONTRACTS.md section 6 has one `period` shared
     by every block; `contribution_pct` is defined against core's own total
     revenue change, so this block cannot be computed independently of it)."""
-    parsed = parse_transactions(df, column_mapping)
+    parsed = parse_transactions(df, column_mapping, confirmations)
     total_change = core.revenue_current - core.revenue_previous
 
     months = parsed.dates.dt.to_period("M").astype(str)

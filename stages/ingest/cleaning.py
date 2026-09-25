@@ -36,7 +36,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "2.0"  # 2E-e: order_id in the canonical enum
+SCHEMA_VERSION = "2.1"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 
@@ -220,6 +220,9 @@ def execute_run(
             for a in plan.column_actions
             if a.canonical_field != "ignore" and a.source_name not in dropped
         },
+        # The user's answers from Review, exactly as submitted: stages 2 and 3
+        # read them here (2E-e2), and unanswered stays unconfirmed.
+        confirmations=plan.confirmations,
     )
     write_files_atomically([
         (run_file(runs_root, run_id, CLEANED_FILENAME), cleaned_csv_text(cleaned).encode("utf-8")),

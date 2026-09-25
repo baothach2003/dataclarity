@@ -1562,7 +1562,68 @@ dataclarity/
       cells) survived once `_ANY_OFFSET` kept the cycle-3 test's cells off
       the one-by-one path; killed by a test added for it with the reviewer's
       own cells. All others killed. pytest 2661.
-- [ ] 2E-e2 **The order basis, visible and decided in Review** (Thach, after
+- [x] 2E-e2 **Closed 2026-09-26** (Thach's overnight run; section 12). The
+      order basis, visible and decided in Review, as Thach answered on
+      2026-09-25 (method `C:\Users\Happy\2Ee2-method.txt`). Review (the
+      Notice component): blank order ids - "up to N lines" (N = the raw
+      file's blank cells in the column mapped to order_id) with drop (their
+      revenue leaves every figure; with a transaction type, stock-in lines
+      with no id go too and leave the stock figures), upload a fixed file, or
+      keep and count lines; the receipt question when the file names fewer
+      than two different customers (no customer column, or one blank or
+      "Walk-in" on every line) - unanswered or No: lines; the fill question
+      when stage 1 measures a fill (`schema_inference.receipt_fill_lines`,
+      stage 1's own count on the raw file) or cannot measure it - No
+      withholds 2E-f's fill, Yes or no answer fills. The answers travel in
+      the plan's and cleaning_report's `confirmations` (2.1), are tied to the
+      columns they were given for, and a No to the receipt question always
+      counts. Stage 2 counts the lines a No left unattributed
+      (`customers.unfilled_receipt_lines` with its reason) and writes the
+      exact blank-id count whatever the answers. metrics.json 9.0,
+      diagnosis.json 8.0; stage 1 contracts 2.1. Stage 1's order checks moved
+      to `shared/order_checks.py` (one parse of the raw file).
+      **Measured:** both demo files unchanged (the Kaggle demo maps no order
+      id; Online Retail II names its customers, 0 lines to fill). Online
+      Retail II without its customer column: 83,369 lines at 17.53
+      unanswered, 2,769 orders at 527.90 with the Yes.
+      **Doubt-review, three cycles (the bound).** Cycle 1 (14 findings): A -
+      Claude's decision X1 ("no answer withholds the fill") made first-time
+      buyers "returning" on header-style exports with named credit notes, a
+      FABRICATE: reversed - no answer fills, as 2E-f (L1, which Thach
+      accepted as rare), only the user's No withholds; B answers carried to
+      another column, C a customer column naming nobody, D, E, G, K, L, M, N:
+      fixed; F, H, I recorded (known limits below). Cycle 2 (10): F3 a No
+      silenced by an imputed customer column, F4 "Walk-in" on every line,
+      F5/F6 "not measured" read as 0, F7 dropping restocks (now warned),
+      F8-F10: fixed; F11's root (customer imputation) recorded. Cycle 3 (6):
+      F2 a No lost on a remap, F4 notices promising what stage 2 does not
+      do, F5, F6: fixed; F3 recorded (K7). **F1 - imputing the customer
+      column bypasses an unanswered receipt question (FABRICATE, not local)
+      - split out under the stop rule as 2E-k, and the overnight run stopped
+      here.**
+      **Mutation check:** Python 44 mutants in batches of three, a backup
+      each: 2 equivalent (E18, E19 - the product and dimension blocks never
+      read orders or customers, the only things the answers change),
+      survivors E8, E20, E21 and D1 killed by tests added, the rest killed.
+      Frontend 30: survivors F3, F9, F10 killed by tests added. pytest 2716,
+      Vitest 107, tsc and ESLint clean.
+      **Known limits (recorded, for Thach):** K1 an id of spaces is not in
+      Review's "up to N" (profile.json counts NA tokens); K2 a customer
+      column MOSTLY blank or mostly one placeholder still passes the check
+      (needs a threshold); K3 "up to N" counts blank ids on stock-in lines
+      too; K4 a cleaning_report 2.0 reads as unanswered, so an old run
+      without a customer column counts lines when re-analysed; K5 Review
+      reads "fewer than two customers" from the raw profile, stage 2 from
+      the cleaned file (names only on stock-in lines, case variants of one
+      name, or the only named line dropped by the plan make them differ);
+      K6 with an explicit No, a header-style credit note's named line keeps
+      its customer while the purchase it refunds does not; K7 a one-customer
+      file answered Yes to the receipt question is filled without the fill
+      question (the measure ran unanswered). ReviewPage.tsx (339 lines
+      before, 362 now) and contracts/metrics.py (303 before) are over the
+      ~300-line rule.
+      Original item text below, kept as the record.
+      2E-e2 **The order basis, visible and decided in Review** (Thach, after
       2E-e: decisions 1 and 2 above; placed by Claude after 2E-g and before
       2E-d2, all before the demo). Not done inside 2E-e's wrap-up because
       it is not small: it adds Review content from stage 1's own count, a
@@ -1600,6 +1661,26 @@ dataclarity/
         customer fill actually happens (a trusted order id, and an unnamed
         line filled from its receipt), Review asks the user to confirm that
         the customer name is written on a receipt's first line only.
+- [ ] 2E-k **Is the customer column ever imputed?** (split out of 2E-e2
+      doubt-review cycle 3 F1 under the stop rule; **for Thach - the
+      overnight run stopped on it**). The cleaning prompt's default for a
+      text column 5% or more missing is `impute_constant` "Unknown", and
+      `customer` is imputable. The plan then invents a customer "Unknown"
+      who carries every walk-in's money (cycle 2 F11: ann 10, bob 10, cy 10,
+      unknown 850, the only Champion); the bridge's `unattributed` term,
+      which 3A kept Online Retail II's no-Customer-ID rows to exercise,
+      disappears; and 2E-e2's receipt gate is bypassed (cycle 3 F1: a daily
+      batch code with one named line in 200 and the rest imputed read 20
+      orders at AOV 50 against 100 lines at 10, and stage 3 recomputes the
+      same 20). **FABRICATE, HIGH.** Not fixed: cleaned.csv does not mark
+      imputed cells, so stage 2 cannot tell "Unknown" from a customer, and
+      the fix is a stage 1 legality decision. **Proposed, not decided:** add
+      `customer` to `NEVER_IMPUTED_FIELDS` like `order_id` (the recorded
+      reason for never-imputed fields: a filled-in value is counted in the
+      report as if measured), with the frontend mirror and the cleaning
+      prompt. Placement by the asymmetry rule: before the demo build (Online
+      Retail II's Customer ID is about 22% blank, so the AI's default plan
+      would impute it) and before 3E1b.
 - [ ] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
       reader** (Thach, at 2E-h). Australia, the UK and Vietnam write the day
       first. When the cleaning plan parses the date column (1E's
@@ -2047,7 +2128,17 @@ significance threshold, making a one-cent price rise a step change.
 
 **Phase in progress:** Phase 2/3, Thach's overnight run of 2026-09-26
 (2E-h, 2E-e2, 2E-d2, the Online Retail II demo, 2E-d, 2E-i; stop before
-3E1b; report in `C:\Users\Happy\overnight-report.txt`). Session **2E-h**
+3E1b; report in `C:\Users\Happy\overnight-report.txt`). **The run STOPPED
+after 2E-e2**: its doubt-review cycle 3 (the bound) found a FABRICATE whose
+fix is not local - imputing the customer column bypasses an unanswered
+receipt question - so the stop rule fired, and Thach's run rules stop the
+whole run on it. Split out as **2E-k** (for Thach). Session **2E-e2** closed
+2026-09-26 (see its checklist item): blank order ids, the receipt question
+and the fill question in Review, the answers carried by the plan and
+cleaning_report.json to stages 2 and 3, a withheld fill counted.
+metrics.json 9.0, diagnosis.json 8.0, stage 1 contracts 2.1. pytest 2716,
+Vitest 107.
+Previously, session **2E-h**
 closed 2026-09-26 (see its checklist item): one wall-clock date rule for
 every stage (shared/dates.py) - stages 2 and 3 read a +10:00 shop's days as
 it trades; "now", a bare time and a year outside 1900-2100 are no dates, and
@@ -2503,8 +2594,9 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-e2** (the order basis, visible and decided in Review),
-in Thach's overnight run. Order (Thach, at
+**Next step:** Thach's decision on **2E-k** (never impute the customer
+column?), then his approval to resume the run: 2E-d2, the Online Retail II
+demo, 2E-d, 2E-i, then 2E-j before 3E1b. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
 -> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
 product tables -> 2E-h wall-clock dates -> 2E-e2 order basis in Review ->
@@ -2527,8 +2619,12 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Overnight run: read `C:\Users\Happy\overnight-report.txt`. 2E-h is
-   committed and pushed by the CLAUDE.md "Pushing" rule. Two 2E-h findings
+1. Overnight run: read `C:\Users\Happy\overnight-report.txt`. 2E-h and 2E-e2
+   are committed and pushed by the CLAUDE.md "Pushing" rule. **The run
+   stopped after 2E-e2 (the stop rule): decide 2E-k** - add `customer` to
+   the never-imputed fields? - and whether to resume the run. 2E-e2's known
+   limits K1-K7 and decision D2 (no answer to the fill question fills) are
+   in its checklist item and the report. Two 2E-h findings
    await a decision: a date with no day ("Mar 2024", "2024") reads as the
    1st, and "1900-01-01" passes the lower bound (2E-h checklist item).
    2E-j (day-first dates) moved after 2E-i, before 3E1b, because the run

@@ -616,8 +616,10 @@ class DiagnosisContract(ContractFile):
     # filled from the receipt. 6 since 2E-g: product members are keyed and
     # named as stage 2 does (a SKU-only line is its product), and the data gap
     # is never a stockout (R3) or a price-check product (D2). 7 since 2E-h:
-    # every day and month on the wall clock as written (UTC before).
-    supported_major: ClassVar[int] = 7
+    # every day and month on the wall clock as written (UTC before). 8 since
+    # 2E-e2: the lever's orders and the bridge's customers follow the user's
+    # answers in Review (an order id checked by date only; the customer fill).
+    supported_major: ClassVar[int] = 8
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "

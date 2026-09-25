@@ -47,12 +47,14 @@ export function buildManualPlan(profile: ProfileContract, schema: SchemaInferenc
   })
   return {
     // The plan contract's major (2.0 since 2E-e: order_id widened the canonical
-    // enum). A '1.0' manual plan was refused, so the no-AI path could not clean.
-    schema_version: '2.0',
+    // enum; 2.1 since 2E-e2: confirmations). A '1.0' manual plan was refused,
+    // so the no-AI path could not clean.
+    schema_version: '2.1',
     generated_at: new Date().toISOString(),
     source: 'manual',
     dataset_actions: [],
     column_actions: columnActions,
+    confirmations: { order_id_is_receipt: null, customer_on_first_line_only: null },
   }
 }
 

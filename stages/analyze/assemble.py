@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from contracts.cleaning import CleaningReportContract
+from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import MetricsContract
 from shared.contract_files import write_atomically
 from shared.run_registry import run_file
@@ -26,23 +26,26 @@ from stages.analyze.metrics_products import compute_product_metrics
 # 6.0 in 2E-f (per-product first-day netting, one order is F = 1, customers
 # filled from the receipt), 7.0 in 2E-g (product units, labels, the gap never
 # ranked, velocity null without stock-in lines), 8.0 in 2E-h (every date on
-# the wall clock as written; undated lines counted with a reason).
-SCHEMA_VERSION = "8.0"
+# the wall clock as written; undated lines counted with a reason), 9.0 in
+# 2E-e2 (an order id checked by date only and the customer fill count only
+# with the user's answers in Review; unfilled receipt lines counted).
+SCHEMA_VERSION = "9.0"
 METRICS_FILENAME = "metrics.json"
 
 
 def assemble_metrics(
-    df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None
+    df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None,
+    confirmations: OrderConfirmations | None = None,
 ) -> MetricsContract:
     """Pure computation: calls all four blocks' builders and validates the
     combined result against contracts/metrics.py. Writes nothing. `now` is
     resolved once here (not left to each block to resolve separately) so
     `generated_at` and every block's own fallback timestamp agree."""
     now = now or datetime.now(UTC)
-    period, core = compute_core_metrics(df, column_mapping, now)
-    customers = compute_customer_metrics(df, column_mapping, period)
-    products = compute_product_metrics(df, column_mapping, period)
-    by_dimension = compute_dimension_metrics(df, column_mapping, period, core)
+    period, core = compute_core_metrics(df, column_mapping, now, confirmations)
+    customers = compute_customer_metrics(df, column_mapping, period, confirmations)
+    products = compute_product_metrics(df, column_mapping, period, confirmations)
+    by_dimension = compute_dimension_metrics(df, column_mapping, period, core, confirmations)
 
     return MetricsContract(
         schema_version=SCHEMA_VERSION,
@@ -64,7 +67,7 @@ def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None) -> Me
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    metrics = assemble_metrics(frame, report.column_mapping, now)
+    metrics = assemble_metrics(frame, report.column_mapping, now, report.confirmations)
     write_atomically(
         run_file(runs_root, run_id, METRICS_FILENAME), metrics.model_dump_json(indent=2).encode("utf-8")
     )

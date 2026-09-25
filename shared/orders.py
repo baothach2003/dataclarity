@@ -21,6 +21,8 @@ from typing import Literal, NamedTuple
 
 import pandas as pd
 
+from contracts.cleaning import OrderConfirmations
+
 # Measured on both real files (scratchpad 2ee/order_id_guard.out): the real
 # order ids - Online Retail II's Invoice, the Kaggle demo's Transaction ID -
 # have 0.0% of ids spanning more than one day or customer; every other column
@@ -43,9 +45,15 @@ class OrderBasis(NamedTuple):
     reason: str | None
     key: pd.Series  # per row: the order it belongs to
     # Per row: the customer, filled from the receipt only on a trusted basis
-    # "order_id" and from an id that is one receipt (2E-f) - with no trusted
-    # receipt there is nothing to inherit.
+    # "order_id", from an id that is one receipt (2E-f), and not when the
+    # user answered in Review that the customer is not written on a
+    # receipt's first line only (2E-e2) - with no trusted receipt there is
+    # nothing to inherit.
     customers: pd.Series
+    # Per row: a counted line with no customer that the fill gives, or would
+    # give, its receipt's one named customer - whatever the answer, so a
+    # withheld fill is counted rather than lost (2E-e2).
+    fillable: pd.Series
 
 
 class IdCheck(NamedTuple):
@@ -88,18 +96,50 @@ def refusal_reason(check: IdCheck) -> str:
             "the figures count lines")
 
 
+# Why a mapped order_id is not trusted when the check could read no customer
+# and the user did not confirm it (Thach, 2E-e2): by date only, a daily batch
+# or Z-report code passes the check (2E-e known limit). A customer column that
+# never names two different customers - blank, or "Walk-in" on every line -
+# gives the check nothing to read either (2E-e2 review C, cycle 2 F4).
+UNCONFIRMED_RECEIPT = ("the order id column could be checked by date only ({why}), and it was "
+                       "not confirmed in Review as a receipt number")
+NOT_A_RECEIPT = "the order id column was marked in Review as not a receipt number (a batch or day code)"
+
+
+def receipt_refusal(reverse: dict[str, str], answers: OrderConfirmations, named: bool) -> str | None:
+    """Why the user's answers leave a mapped order_id untrusted, as a clause.
+    The user's No always counts - a plan that imputes the customer column
+    must not silence it (cycle 2 F3). Unanswered, only when the lines that
+    are not stock-in name fewer than two customers (`named` False), where the
+    check could read the date alone. A header or coupon line naming the
+    receipt counts (2E-h cycle 2 F3), a restock "Warehouse" does not."""
+    if "order_id" not in reverse or answers.order_id_is_receipt is True:
+        return None
+    if answers.order_id_is_receipt is False:
+        return NOT_A_RECEIPT
+    if named:
+        return None
+    why = ("the customer column never names two different customers" if "customer" in reverse
+           else "there is no customer column")
+    return UNCONFIRMED_RECEIPT.format(why=why)
+
+
 def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
                 sale: pd.Series, returned: pd.Series, counted: pd.Series,
-                stock_in: pd.Series) -> OrderBasis:
+                stock_in: pd.Series, *, refused: str | None, fill: bool) -> OrderBasis:
     """`ids` is the mapped order_id column, stripped, blank as NaN - or None
     when order_id is not mapped. `days`, `customers`, `sale` and `returned`
-    are aligned with it; the check runs over the sale rows."""
+    are aligned with it; the check runs over the sale rows. `refused` is why
+    the user's answers do not let the ids be trusted, as a clause (2E-e2),
+    None when they do; `fill` is False when the user answered that the
+    customer is not written on a receipt's first line only."""
     # Every line its own order, under a key no real id takes. Not a leading
     # NUL: pandas' object-dtype `nunique` counts "\x00line 2" and "\x00line 3"
     # as ONE value (measured in 2E-e), so two blank-id lines became one order.
     by_line = pd.Series(LINE_KEY_PREFIX + days.index.astype(str), index=days.index)
+    unfilled = pd.Series(False, index=days.index)
     if ids is None:
-        return OrderBasis("lines", None, by_line, customers)
+        return OrderBasis("lines", None, by_line, customers, unfilled)
     # A blank id on a sale or return line leaves the file half on orders, half
     # on lines: ids blank until a POS upgrade made orders fall 279 -> 93 on an
     # unchanged business (2E-e doubt-review cycle 2, F1), and refunds rung up
@@ -110,22 +150,32 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     moved = sale | returned
     blank = int((moved & ids.isna()).sum())
     if blank:
+        # The exact count is written whatever the answers (2E-e2 review G).
+        also = f". Also, {refused}" if refused is not None else ""
         return OrderBasis("lines", f"{blank:,} of {int(moved.sum()):,} sale and return lines "
                                    "have no order id, so orders cannot be counted by id; the "
-                                   "figures count lines", by_line, customers)
+                                   f"figures count lines{also}", by_line, customers, unfilled)
+    if refused is not None:
+        return OrderBasis("lines", f"{refused}, so the figures count lines", by_line, customers,
+                          unfilled)
     # A customer written on a receipt's first line only (ERP "invoice detail"
     # exports) is that receipt's customer on its other lines too: keyed as a
     # customer "", every order split in two (cycle 2, F2).
     filled = _one_customer_per_order(ids, days, customers, moved, stock_in)
     check = spanning_ids(ids[sale], days[sale], filled[sale])
     if not looks_like_order_ids(check):
-        return OrderBasis("lines", refusal_reason(check), by_line, customers)
+        return OrderBasis("lines", refusal_reason(check), by_line, customers, unfilled)
     # Since 2E-f the revenue of those lines is that customer's too - but only
     # from an id that is itself one receipt. The key keeps the fill either
     # way, so orders count exactly as 2E-e defined them (2E-f doubt-review
     # cycle 2, F1: the exclusion had split receipts into two orders).
     receipt_day = ids.map(_receipt_days(ids, days, customers, sale, moved, counted))
-    owners = filled.where(days.eq(receipt_day), customers)
+    fillable = counted & customers.isna() & filled.notna() & days.eq(receipt_day)
+    # Not when the user answered No (Thach, 2E-e2; 2E-f known limit L1): a
+    # daily batch code with one named line and walk-ins looks exactly like a
+    # header-style receipt on its day, and filled, the walk-ins' money was
+    # that customer's.
+    owners = filled.where(days.eq(receipt_day), customers) if fill else customers
     # An order is one order - one day, one customer: an id is keyed WITH its
     # day and customer, so an id reused elsewhere (two tills sharing a receipt
     # numbering) splits instead of merging. Merged, 27 reused ids in 310 took
@@ -133,7 +183,7 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # blank id: the line is an order on its own.
     keyed = (ids + SEP + days.dt.strftime("%Y-%m-%d") + SEP
              + filled.fillna("").astype(str))
-    return OrderBasis("order_id", None, keyed.where(ids.notna(), by_line), owners)
+    return OrderBasis("order_id", None, keyed.where(ids.notna(), by_line), owners, fillable)
 
 
 def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,

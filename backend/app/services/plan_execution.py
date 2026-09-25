@@ -190,7 +190,10 @@ def _source_of(plan: CleaningPlanContract, runs_root: Path, run_id: str) -> Plan
 def _decisions(plan: CleaningPlanContract) -> dict[str, Any]:
     """What the plan decides, without the bookkeeping flag a client may set freely."""
     skip = {"edited_by_user"}
+    # The answers to Review's questions are always the user's (2E-e2 review
+    # cycle 2 F10): a plan changed only by them is not the AI's untouched.
     return {
         "dataset_actions": [a.model_dump(exclude=skip) for a in plan.dataset_actions],
         "column_actions": [a.model_dump(exclude=skip) for a in plan.column_actions],
+        "confirmations": plan.confirmations.model_dump(),
     }

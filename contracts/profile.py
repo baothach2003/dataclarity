@@ -138,6 +138,12 @@ class SchemaInferenceContract(ContractFile):
     domain_reasoning: str
     dataset_issues: list[DatasetIssue]
     columns: list[ColumnInference]
+    # 2.1 (2E-e2): stage 1's own measure, never the AI's - on the raw file and
+    # these columns' mapping, the lines with no customer that the fill would
+    # give their receipt's one named customer. None: not measured (no sale
+    # line parses on the raw file, blank ids make it count lines, or a 2.0
+    # file). Review asks about the fill when it is above 0 or None.
+    receipt_fill_lines: NonNegativeInt | None = None
 
     # "Every profiled column appears exactly once" also needs profile.json, so
     # only its in-file half (no duplicates) is checked here; stage 1 checks the
