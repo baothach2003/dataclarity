@@ -51,6 +51,14 @@ def rfm_snapshot(table: pd.DataFrame, reference_date: date) -> pd.DataFrame:
                                                         ascending=False)
         grouped.loc[buyers, "f_score"] = score_quintile(grouped.loc[buyers, "frequency"],
                                                         ascending=True)
+    # Exactly one order is F = 1 (Thach, 2E-f): "bought once" is a fact of the
+    # data, not a rank. Ranked, one-time buyers above 40% of buyers tied at
+    # F = 2 and could never be "New", and a file where everyone bought once
+    # called 12 of 20 "Loyal". The fact also overrides 2B's 5/5 for a single
+    # customer, a convention for "no one to compare against" - so one customer
+    # with one purchase is New. Every other score is unchanged: no customer of
+    # Online Retail II or the Kaggle demo changes segment.
+    grouped.loc[grouped["frequency"] == 1, "f_score"] = 1
     grouped["segment"] = [
         NO_PURCHASES if none else assign_segment(r, f)
         for none, r, f in zip(never_bought, grouped["r_score"], grouped["f_score"], strict=True)
@@ -75,7 +83,8 @@ def score_quintile(values: pd.Series, *, ascending: bool) -> pd.Series:
     throughout scores 3. Measured on Online Retail II: 32 of 5,942 customers
     change segment. Side effect (2E-c doubt-review F8): when more than 40% of
     buyers share the lowest frequency, they score F = 2, so "New" (F <= 1) is
-    out of their reach - a decision recorded for Thach."""
+    out of their reach - closed for one-time buyers by `rfm_snapshot`'s
+    "exactly one order is F = 1" (Thach, 2E-f)."""
     if len(values) == 1:
         return pd.Series([5], index=values.index)
     positions = values.rank(method="first", ascending=ascending)

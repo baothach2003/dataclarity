@@ -17,7 +17,7 @@ both stages - and who is new. Written before the change.
 
 import pandas as pd
 
-from shared.first_purchase import first_purchase_months
+from shared.first_purchase import first_purchase_months, product_keys
 from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
@@ -43,8 +43,12 @@ def test_a_sale_row_needs_a_positive_amount() -> None:
 
 
 def _months(rows):
+    """No product column here, so since 2E-f no return can be matched to a
+    purchase: every first-day return still opens with a refund, as these
+    tests were written. Per-product netting: test_2ef_first_day_and_customers."""
     df, parsed = _parsed(rows)
-    return first_purchase_months(df["Cust"], parsed.dates, parsed.sale, parsed.returned)
+    return first_purchase_months(df["Cust"], parsed.dates, parsed.sale, parsed.returned,
+                                 products=product_keys(df, parsed.reverse), units=parsed.units)
 
 
 def test_the_first_purchase_is_the_first_sale_row() -> None:
@@ -72,7 +76,9 @@ def test_a_same_day_buy_and_refund_opens_with_a_refund() -> None:
     """Bought 1 and returned 1 on the opening day. Was "2026-01" (net 0 - not
     an opening refund, 2E-c D3). REVERSED (Thach, 2E-c2): any return line on
     the first day opens the history with a refund - netting quantities
-    across products fabricated "new" (10 pens and a returned chair)."""
+    across products fabricated "new" (10 pens and a returned chair). Since
+    2E-f the same product nets on the opening day; with no product column,
+    as here, nothing can be shown to be the same product, so still None."""
     months = _months([("2026-01-05", "1", "10", "sameday"),
                       ("2026-01-05", "-1", "10", "sameday")])
 

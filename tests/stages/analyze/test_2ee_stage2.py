@@ -79,8 +79,9 @@ def test_rfm_frequency_counts_orders_not_lines() -> None:
     assert rfm_snapshot(table, date(2011, 12, 1)).loc["ann", "frequency"] == 2
 
 
-def test_metrics_json_is_major_version_5() -> None:
-    assert SCHEMA_VERSION == "5.0"
+def test_metrics_json_is_major_version_5_or_the_current_one() -> None:
+    # 5.0 in 2E-e; 6.0 since 2E-f (test_2ef_stage2.py). A 4.x file is refused.
+    assert SCHEMA_VERSION == "6.0"
     payload = assemble_metrics(pd.DataFrame(_invoiced()), WITH_ORDERS,
                                now=NOW).model_dump(mode="json")
     payload["schema_version"] = "4.0"

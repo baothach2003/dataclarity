@@ -90,8 +90,8 @@ def test_a_product_with_no_name_on_any_row_is_shown_by_its_sku() -> None:
 
 
 def test_metrics_json_is_major_version_4_or_the_current_one() -> None:
-    # 4.0 in 2E-c2; 5.0 since 2E-e (test_2ee_stage2.py). A 3.x file is refused.
-    assert SCHEMA_VERSION == "5.0"
+    # 4.0 in 2E-c2; 5.0 in 2E-e; 6.0 since 2E-f. A 3.x file is refused.
+    assert SCHEMA_VERSION == "6.0"
     payload = assemble_metrics(pd.DataFrame(_two_months([])), MAPPING,
                                now=NOW).model_dump(mode="json")
     payload["schema_version"] = "3.0"

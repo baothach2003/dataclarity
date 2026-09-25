@@ -26,6 +26,9 @@ Design decisions (Thach, Phase 2B):
   halves rounded down (stages/analyze/rfm.py `score_quintile`). A single
   customer has no one to rank against and scores 5 and 5 (best available):
   a sample of one cannot be meaningfully placed on a 1-5 scale otherwise.
+  Exactly one order scores F = 1 whatever the ranks say (Thach, 2E-f):
+  "bought once" is a fact, and it overrides both the tie rule and the
+  single-customer 5/5 (stages/analyze/rfm.py `rfm_snapshot`).
 - A customer who never bought (only refunds) is counted, with Monetary
   honestly negative, but SUPERSEDING 2B's "no special case" and "quintiles on
   the run's own data" for R and F (Thach, 2E-b): R and F are cut from BUYERS
@@ -69,9 +72,9 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
-from shared.first_purchase import first_purchase_months
+from shared.first_purchase import first_purchase_months, product_keys
 from shared.numbers import is_negligible
-from shared.transactions import customer_identity, is_blank, parse_transactions
+from shared.transactions import parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
@@ -126,8 +129,9 @@ def compute_customer_metrics(
 
     # A counted row with no customer value, or one holding only whitespace
     # (customer is not a required field, so stage 1 has no reason to have
-    # trimmed it), cannot be attributed to anyone.
-    identified = parsed.counted & ~is_blank(df[customer_col])
+    # trimmed it), cannot be attributed to anyone - unless its receipt names
+    # one (`parsed.customers`, 2E-f).
+    identified = parsed.counted & parsed.customers.notna()
     table = pd.DataFrame(
         {
             # The normalised identity (3C2), so RFM, the segment counts and
@@ -136,12 +140,15 @@ def compute_customer_metrics(
             # frequency and half the monetary value each, which moves them
             # down the RFM quintiles and can invent a "Needs Attention"
             # segment member out of a loyal one.
-            "customer": customer_identity(df.loc[identified, customer_col]),
+            "customer": parsed.customers[identified],
             "date": parsed.dates[identified],
             "revenue": parsed.revenue_amounts[identified],
             "sale": parsed.sale[identified],
             "order": parsed.order_key[identified],
             "returned": parsed.returned[identified],
+            # For the opening day's per-product netting (2E-f).
+            "product": product_keys(df, parsed.reverse)[identified],
+            "units": parsed.units[identified],
         }
     )
 
@@ -223,7 +230,8 @@ def _new_vs_returning(table: pd.DataFrame, period: Period) -> NewVsReturning:
         return _empty_new_vs_returning()
 
     first_purchase = first_purchase_months(table["customer"], table["date"],
-                                           table["sale"], table["returned"])
+                                           table["sale"], table["returned"],
+                                           products=table["product"], units=table["units"])
     current_customers = current_rows["customer"].unique()
     is_first_period = first_purchase.loc[current_customers] == period.current
     new_customers = set(is_first_period[is_first_period].index)

@@ -16,8 +16,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import BridgeTerms, CustomerLens
-from shared.first_purchase import first_purchase_months
-from shared.transactions import customer_identity, is_blank, merged_identity_count
+from shared.first_purchase import first_purchase_months, product_keys
+from shared.transactions import merged_identity_count
 from stages.diagnose.inputs import RunData, period_mask, shift_month
 from stages.diagnose.lever import customer_revenue
 from stages.diagnose.thresholds import LEFT_CENSOR_MONTHS
@@ -103,9 +103,9 @@ def customer_classes(data: RunData) -> dict[str, str]:
         return {}
     period = data.metrics.period
     return classify(
-        customer_revenue(data, period.previous, customer_col),
-        customer_revenue(data, period.current, customer_col),
-        _first_purchase(data, customer_col).to_dict(),
+        customer_revenue(data, period.previous),
+        customer_revenue(data, period.current),
+        _first_purchase(data).to_dict(),
         period.current,
     )
 
@@ -113,9 +113,9 @@ def customer_classes(data: RunData) -> dict[str, str]:
 def _bridge(
     data: RunData, customer_col: str, transition: Transition
 ) -> tuple[BridgeTerms, dict]:
-    previous = customer_revenue(data, transition.previous, customer_col)
-    current = customer_revenue(data, transition.current, customer_col)
-    first_month = _first_purchase(data, customer_col).to_dict()
+    previous = customer_revenue(data, transition.previous)
+    current = customer_revenue(data, transition.current)
+    first_month = _first_purchase(data).to_dict()
 
     # One statement of the rule, shared with step 6 (see `classify`).
     classes = classify(previous, current, first_month, transition.current)
@@ -136,24 +136,25 @@ def _bridge(
         # Signed, so the six terms simply add up to the revenue change.
         contraction=-float(losses),
         lapsed=-float(previous.reindex(lapsed).sum()),
-        unattributed=_unattributed(data, customer_col, transition),
+        unattributed=_unattributed(data, transition),
     )
     return terms, _evidence(data, customer_col, transition, new, resurrected, first_month,
                             previous, current)
 
 
-def _unattributed(data: RunData, customer_col: str, transition: Transition) -> float:
+def _unattributed(data: RunData, transition: Transition) -> float:
     """The change in revenue from rows with no customer on them. Without this
     term the identity would not close on any real file - blank customer cells
-    are the norm, not the exception."""
-    blank = is_blank(data.df[customer_col])
+    are the norm, not the exception. A blank cell its receipt names is not
+    one of them (2E-f): the same per-row customer the classes are built on."""
+    blank = data.parsed.customers.isna()
     amounts = data.parsed.revenue_amounts
     current = float(amounts[period_mask(data, transition.current) & blank].sum())
     previous = float(amounts[period_mask(data, transition.previous) & blank].sum())
     return current - previous
 
 
-def _first_purchase(data: RunData, customer_col: str) -> pd.Series:
+def _first_purchase(data: RunData) -> pd.Series:
     """Each customer's first purchase month in the file, or None when the file
     holds none (shared/first_purchase.py: only refunds, or a history that
     opens with one). Keyed on the normalised identity (3C2), so "first
@@ -163,10 +164,13 @@ def _first_purchase(data: RunData, customer_col: str) -> pd.Series:
     "Anywhere in the file" includes months too partial to be complete months,
     because the question is only whether we have ever seen this customer buy.
     """
-    mask = data.parsed.counted & ~is_blank(data.df[customer_col])
     parsed = data.parsed
-    return first_purchase_months(customer_identity(data.df.loc[mask, customer_col]),
-                                 parsed.dates[mask], parsed.sale[mask], parsed.returned[mask])
+    mask = parsed.counted & parsed.customers.notna()
+    # The opening day nets per product, as stage 2 does (2E-f).
+    return first_purchase_months(parsed.customers[mask], parsed.dates[mask], parsed.sale[mask],
+                                 parsed.returned[mask],
+                                 products=product_keys(data.df, parsed.reverse)[mask],
+                                 units=parsed.units[mask])
 
 
 def _evidence(

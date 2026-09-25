@@ -188,7 +188,9 @@ again. This is why the product can claim AI assistance without AI opacity.
   (`docs/adr/0005-pre-registered-hypothesis-catalog.md`). Causes the schema
   cannot reach are listed as not testable rather than omitted.
 - 7.3 RFM scoring uses quintiles on the run's own data; the reference date is
-  max(transaction_date) + 1 day unless configured otherwise.
+  max(transaction_date) + 1 day unless configured otherwise. A customer with
+  exactly one order scores F = 1 whatever the ranks say (Thach, 2E-f): one
+  purchase is a fact, not a rank.
 - 7.4 Forecasting is interpretable: weighted moving average plus a monthly
   seasonality index, with confidence bands. If history is shorter than 3 periods,
   return `insufficient_history: true` and skip the forecast rather than

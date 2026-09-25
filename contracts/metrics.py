@@ -238,8 +238,11 @@ class MetricsContract(ContractFile):
     # buyers, AOV, new customers and RFM scores changed MEANING, and a 2.x
     # and a 3.x file must not be compared silently (Thach). 4 since 2E-c2: a
     # return line needs a negative amount (return_rate) and any return on a
-    # customer's first day means they are not new (new_vs_returning).
-    supported_major: ClassVar[int] = 5
+    # customer's first day means they are not new (new_vs_returning). 6 since
+    # 2E-f: the first day nets per product (new_vs_returning), exactly one
+    # order is F = 1 (RFM), and a header-style receipt's lines are its named
+    # customer's (segment money, customer counts).
+    supported_major: ClassVar[int] = 6
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

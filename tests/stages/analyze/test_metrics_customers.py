@@ -254,15 +254,17 @@ def test_revenue_share_pct_stays_sign_consistent_when_whole_file_monetary_is_neg
 
     # BigReturner only refunded, so it never bought: "Returns only" (Thach,
     # 2E-b; it was Hibernating by row-order tie-break before). SmallBuyer is
-    # the only buyer, so the buyers-only quintiles put it at the top ->
-    # Champions. The shares are unchanged: the denominator is still |-899|.
+    # the only buyer: R = 5 by 2B's single-customer convention, and since 2E-f
+    # F = 1 because it bought exactly once (Thach, decision (a): the fact
+    # overrides the convention) -> New, where it was Champions. The shares are
+    # unchanged: the denominator is still |-899|.
     assert by_segment["No purchases in file"].avg_monetary == -900.0
-    assert by_segment["Champions"].avg_monetary == 1.0
+    assert by_segment["New"].avg_monetary == 1.0
 
     assert by_segment["No purchases in file"].revenue_share_pct == pytest.approx(-900 / 899 * 100)
-    assert by_segment["Champions"].revenue_share_pct == pytest.approx(1 / 899 * 100)
+    assert by_segment["New"].revenue_share_pct == pytest.approx(1 / 899 * 100)
     assert by_segment["No purchases in file"].revenue_share_pct < 0  # the loss-making segment reads negative...
-    assert by_segment["Champions"].revenue_share_pct > 0  # ...never inverted past +100%
+    assert by_segment["New"].revenue_share_pct > 0  # ...never inverted past +100%
 
 
 def test_missing_unit_price_mapping_propagates_the_same_error_as_2a() -> None:

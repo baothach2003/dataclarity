@@ -22,7 +22,6 @@ import pandas as pd
 
 from contracts.diagnosis import Signal
 from shared.orders import count_orders
-from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, shift_month
 from stages.diagnose.numbers import typical_magnitude, usable_base
 from stages.diagnose.thresholds import (
@@ -191,14 +190,13 @@ def monthly_series(data: RunData) -> pd.DataFrame:
             "return_rate": returns / orders if orders else 0.0,
         }
         if customer_col is not None:
-            identified = mask & ~is_blank(data.df[customer_col])
-            # Normalised identity (3C2), matching stage 2's active_customers:
-            # the consistency test compares these two figures directly.
-            customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
+            # The one per-row customer (normalised, 3C2; filled from the
+            # receipt, 2E-f), matching stage 2's active_customers: the
+            # consistency test compares these two figures directly.
+            customers = int(data.parsed.customers[mask].nunique())
             row["active_customers"] = float(customers)
             # Frequency per BUYER, as the lever computes it (2E doubt-review F1).
-            buying = identified & data.parsed.sale
-            buyers = int(customer_identity(data.df.loc[buying, customer_col]).nunique())
+            buyers = int(data.parsed.customers[mask & data.parsed.sale].nunique())
             row["frequency"] = orders / buyers if buyers else 0.0
         rows.append(row)
 

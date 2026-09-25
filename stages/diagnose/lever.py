@@ -16,7 +16,6 @@ import pandas as pd
 
 from contracts.diagnosis import Lever, LeverFactor, LeverLevel
 from shared.orders import count_orders
-from shared.transactions import customer_identity, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
 from stages.diagnose.numbers import is_negligible, typical_magnitude
@@ -45,8 +44,8 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
         # bought less often", -3,892 against a -310 change). Stage 2 reports
         # the same count as core.buyers_*; the identity customers x
         # (orders / customers) x AOV is net revenue whichever count is used.
-        identified = mask & data.parsed.sale & ~is_blank(data.df[customer_col])
-        customers = int(customer_identity(data.df.loc[identified, customer_col]).nunique())
+        # The one per-row customer (2E-f), as stage 2 reads it.
+        customers = int(data.parsed.customers[mask & data.parsed.sale].nunique())
     return PeriodTotals(
         revenue=float(data.parsed.revenue_amounts[mask].sum()),
         # Distinct orders among the sale rows (shared/orders.py, 2E-e): order
@@ -384,14 +383,15 @@ def month_revenue(data: RunData, month: str) -> float:
     return float(data.parsed.revenue_amounts[period_mask(data, month)].sum())
 
 
-def customer_revenue(data: RunData, month: str, customer_col: str) -> pd.Series:
+def customer_revenue(data: RunData, month: str) -> pd.Series:
     """Net revenue per identified customer in one month, returns included.
 
     Grouped on the normalised identity (3C2): keyed raw, one customer written
     two ways appears in the bridge as two people, and if the two spellings
     fall either side of the period boundary they read as one lapsing and one
-    arriving.
+    arriving. Filled from the receipt on header-style exports (2E-f): read
+    raw, only a receipt's first line was its customer's.
     """
-    mask = period_mask(data, month) & ~is_blank(data.df[customer_col])
-    identity = customer_identity(data.df.loc[mask, customer_col])
-    return data.parsed.revenue_amounts[mask].groupby(identity).sum()
+    customers = data.parsed.customers
+    mask = period_mask(data, month) & customers.notna()
+    return data.parsed.revenue_amounts[mask].groupby(customers[mask]).sum()

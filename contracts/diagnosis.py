@@ -610,8 +610,11 @@ class DiagnosisContract(ContractFile):
     # the sale rows only (Thach). 3 since 2E-c2: the bridge's `new` and
     # `resurrected` changed meaning (any return on a customer's first day),
     # and returns exclude zero-amount write-offs. 4 since 2E-e: the lever's
-    # orders and the B1/B2 statements follow the orders basis.
-    supported_major: ClassVar[int] = 4
+    # orders and the B1/B2 statements follow the orders basis. 5 since 2E-f:
+    # the bridge's `new` / `resurrected` net the first day per product, and
+    # its terms, `unattributed` and the customer counts read the customer
+    # filled from the receipt.
+    supported_major: ClassVar[int] = 5
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "

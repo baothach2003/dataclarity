@@ -124,9 +124,10 @@ def test_the_category_aov_split_is_refused_when_an_order_spans_categories() -> N
     assert spanning is None or spanning.metric != "aov"
 
 
-def test_diagnosis_json_is_major_version_4() -> None:
+def test_diagnosis_json_is_major_version_4_or_the_current_one() -> None:
+    # 4.0 in 2E-e; 5.0 since 2E-f (test_2ef_stage3.py). A 3.x file is refused.
     payload = diagnosis_payload()
-    assert DiagnosisContract.model_validate(payload).schema_version == "4.0"
+    assert DiagnosisContract.model_validate(payload).schema_version == "5.0"
 
     payload["schema_version"] = "3.0"
     with pytest.raises(ValidationError, match="re-analyse"):

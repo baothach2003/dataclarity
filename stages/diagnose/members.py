@@ -18,7 +18,6 @@ import pandas as pd
 
 from contracts.diagnosis import Dimension, Member
 from shared.transactions import (
-    customer_identity,
     is_blank,
     normalize_text,
     product_identity,
@@ -267,8 +266,9 @@ def customer_type_totals(data: RunData, classes: dict[str, str]) -> MemberTotals
     customer_col = data.parsed.reverse.get("customer")
     if customer_col is None:
         raise ValueError("customer_type_totals requires a mapped customer column")
-    identity = customer_identity(data.df[customer_col])
-    keys = identity.map(classes).fillna(UNCATEGORISED_KEY)
+    # The per-row customer the classes were built on (2E-f): a header-style
+    # receipt's unnamed lines are its customer's, not "(no customer)".
+    keys = data.parsed.customers.map(classes).fillna(UNCATEGORISED_KEY)
     labels = {name: name for name in CUSTOMER_TYPES}
     labels[UNCATEGORISED_KEY] = "(no customer)"
     return _totals(data, keys, labels, frozenset({UNCATEGORISED_KEY}))

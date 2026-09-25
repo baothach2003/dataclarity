@@ -1254,13 +1254,114 @@ dataclarity/
       4; return rate by basis; blank order ids): `C:\Users\Happy\order_id-
       assessment.txt`, scratchpad `2ec2/measure_order_id.out`. Kaggle demo:
       Transaction ID is one per line, so nothing changes there.
-- [ ] 2E-f **The RFM tie rule, judged on real order frequency** (Thach; item
+- [x] 2E-f **Closed 2026-09-25** (section 12's session log). Shipped as
+      decided by Thach (1-5, after the method `C:\Users\Happy\2Ef-method.txt`):
+      1. **N2, per-product first-day netting** (shared/first_purchase.py,
+         stage 2 and the bridge): the history opens with a refund when, for
+         any product, more units came back on the first day than were bought
+         that day; a return of unknown product never nets. Online Retail II:
+         96 customers get "new" back (5,559 -> 5,655 with a first purchase;
+         2011-11 188 -> 191, 2011-10 218 -> 220), none lose it; N1 would
+         have freed 10 more who returned more than they bought that day.
+      2. **T2, exactly one order is F = 1** (rfm.py). No customer of Online
+         Retail II (27.6% one-time buyers by invoice) or the Kaggle demo (25
+         customers, 422+ orders each - the recorded "Kaggle demo, where the
+         flaw bites" was wrong) changes segment; "everyone bought once" no
+         longer reads 12 Loyal of 20.
+      3. **(a) a single customer with one purchase is New** - the fact
+         supersedes 2B's 5/5 convention for that case.
+      4. **One per-row customer** (`ParsedTransactions.customers`), filled on
+         a trusted order_id from the receipt's one named customer (sale and
+         return lines first, F4); two names -> unattributed. Every reader in
+         stages 2 and 3 uses it. Online Retail II rewritten header-style:
+         new revenue 2011-11 read 8,783.75 against 79,845.90; now every
+         figure equals the original, and orders stay 2,040 -> 2,769.
+      5. metrics.json 6.0, diagnosis.json 5.0.
+      **From the doubt-review (review25-27):** F1 HIGH - a named line with an
+      order id and no parseable date crashed the fill (stages 1-3; stage 1
+      reads raw dates): fixed, dateless lines are no receipt-day. F2 HIGH -
+      the file-level 10% let a cash id "0" rung on many days, or a
+      returns-desk "RET", fill walk-ins' money to one named customer:
+      an id that is not one receipt (judged on its sale lines; an id with
+      none, on its return lines) is never filled from. Cycle 2 F1 HIGH -
+      judging on return lines too stopped the fill for a receipt refunded
+      days later under its own number, and the exclusion split the order:
+      now judged on sale lines, and the order key keeps the receipt's
+      customer so orders count exactly as 2E-e. Cycle 3 (the bound) F1 HIGH -
+      one exchange sale line under a returns-desk "RET" had RET judged on its
+      sale lines alone, and a walk-in's 500 refund on another day went to a
+      named customer again; F2 MEDIUM - a coupon id "DISC" over three days
+      was never judged. Fixed with the RECEIPT DAY: only the lines of an
+      id's receipt day are filled (an id with sale lines: all on one day, at
+      most one name; without: all its dated lines). This fix came after
+      the bound; Thach ordered a scoped cycle 4 on it (below). F3
+      (a later-day refund with a fee or an exchange line makes the receipt
+      span: SUPPRESS) recorded with L3.
+      **Recorded for Thach (known limits, all measured):** (L1) a per-day
+      batch id (Z-report, shift, daily returns desk) with one named line and
+      unnamed walk-ins looks exactly like a header-style receipt on its day,
+      so the walk-ins' money is filled to that customer (FABRICATE, cycle 2
+      F2) - 2E-e2 could extend its confirmation to "the customer is written
+      on a receipt's first line only" whenever the fill applies; (L2) a
+      receipt number reused by two tills the SAME day, one named, one not
+      (FABRICATE, cycle 1 F3) - the same shape; (L3) a receipt crossing
+      midnight or reused on another day is not filled from (SUPPRESS);
+      (L4) a sale line with a sku and its return with only the name net as
+      two products (SUPPRESS; with 2E-g's product identity).
+      **Decided by Thach after cycle 3 (2026-09-25):** (1) a scoped review
+      cycle 4 on the receipt-day rule, under 3E1's stop rule (a non-local
+      critical is recorded and split, not patched), and the remaining
+      mutants run in small batches so memory is not exhausted again; then
+      commit and push. Before that, the source was diffed against its
+      intended state after the killed mutation run: every mutant's original
+      text present exactly once, no mutant text left, every hunk of the three
+      mutated files an intended change. (2) L1 accepted as rare - a batch
+      code spanning several named customers fails 2E-e's 10% check -
+      mitigated in 2E-e2: the "customer name on the first line only"
+      confirmation appears only when the fill actually happens. L2 and L3
+      accepted (L3 errs on the safe side). L4 accepted for now and moved to
+      2E-g, which is about product identity: where a product name maps to
+      exactly one SKU elsewhere in the file, a name-only line can be
+      resolved to that SKU (method before code there).
+      **Review cycle 4 (review28, scoped to the receipt-day rule, 3E1's stop
+      rule):** F1 HIGH FABRICATE, small and local - fixed without a fifth
+      cycle: an exchange rung on the NAMED customer's own day made a
+      multi-day "RET" (or coupons rung as -1 returns under "DISC") a
+      receipt, and a walk-in's 500 refund that day hers (Ann -480 against
+      +20; stage 2's At-risk average -280). An id with sale lines is now also
+      no receipt when a sale or return line falls before its receipt day or
+      its sale and return lines name two customers on any days. Residual:
+      unnamed returns rung on later days under such an id cannot be told
+      from a receipt refunded later (they are not filled). **Split out, not
+      patched (not local):** F2 LOW-MEDIUM SUPPRESS - an id with no sale
+      line is judged on every dated line, uncounted ones too ("in" restocks,
+      unparseable quantities), so a header-style credit note with such a
+      line loses its fill; the fix passes `counted` into `order_basis`
+      through `parse_transactions`. F3 LOW - the receipt day is the UTC day
+      (`parse_transactions` converts offset timestamps to UTC), so at +07:00
+      a receipt rung across 07:00 local time splits into two orders and
+      loses its fill, and a late-evening RET line and an early-morning one
+      share a day; a stage-wide question of which day a timestamp belongs
+      to. Both go to Thach for placement. Side note (pre-existing): a date
+      of 1200-01-01 parses as a real date.
+      **Mutation check (30 mutants, final code):** equivalent - F1 (">" to
+      ">=" on the over-return: equality is zero residue), R2 ("== 1" to
+      "<= 1": frequency 0 already scores F = 1), RD7 (the day in the name
+      source's dropna: a dateless line is never a sale or return line, so it
+      never names a receipt); survivors killed by tests added for them - F6
+      (a SKU with no name is a known product), F7 (sku-only mapping), C3 (no
+      fill from a refused order_id column), RD4 (a no-sale id naming two
+      customers), RD5 (a cash id named on its first day), RD9 (a second
+      name on a later day); every other mutant killed.
+      Original item text below, kept as the record.
+      2E-f **The RFM tie rule, judged on real order frequency** (Thach; item
       4 of 2E-c2, moved after 2E-e). One-time buyers tie on F, so "New" is
       unreachable when more than 40% share the lowest frequency, and a full
       tie makes everyone "Loyal". Method before code: alternatives measured
       on Online Retail II by INVOICE frequency (27.6% of buyers bought once,
       median 3 invoices - by lines only 2.0%) and on a one-line-per-order
-      shape (the Kaggle demo), where the flaw bites. **Also here (Thach,
+      shape (the Kaggle demo), where the flaw bites (it does not: 2E-f
+      measured 25 customers with 422+ orders each). **Also here (Thach,
       after 2E-c2): per-product same-day netting for the first-day rule** -
       a return of a product the customer bought the same day nets against
       that purchase and keeps them new; a return of a product they never
@@ -1286,6 +1387,11 @@ dataclarity/
       stock note (method: e.g. the name its sale rows carry most, measured
       on the 17 Online Retail II cases); labels never render empty and never
       collide. Failing tests first; stage 3 members/pvm change with stage 2.
+      **Also here (Thach, after 2E-f, its limit L4):** a sale line with a SKU
+      and its return with only the name net as two products in the
+      first-day rule. Where a product name maps to exactly one SKU elsewhere
+      in the file, a name-only line can be resolved to that SKU. Method
+      before code.
 - [ ] 2E-d **Implausible lines, then the residue scale** (Thach, after 2E-b;
       split from 2E-c because it needs a new threshold and a sweep of
       legitimate large lines; **before 3E1b, after 2E-c, 2E-c2, 2E-e, 2E-f
@@ -1355,13 +1461,23 @@ dataclarity/
       2. No customer column: when order_id is mapped and no customer column
          is, Review says the id was checked by date only and asks the user
          to confirm it is a receipt number, not a daily batch code.
-      Method questions for the session: stage 1 sees the RAW file, where
-      amounts or dates may not parse until cleaning (the reason
-      `_flag_order_id` stays silent without a judgeable sale line), so where
-      the counts come from; what an unanswered or "it is a batch"
-      confirmation does (order_id dropped from the mapping -> lines); and
-      the same prompt when the USER maps order_id in Review (2E-e F5: stage
-      1 checks only the AI's mapping).
+      Method questions, **answered by Thach (2026-09-25), so the session
+      starts decided:**
+      - The count: Review counts blank cells in the mapped column on the
+        RAW file (no parsed amounts or dates needed) and shows it as "up
+        to N lines". The exact count of sale and return lines with no id is
+        computed by stage 2 after cleaning and written to metrics.json.
+      - No answer, or "it is a batch code": order_id is dropped and the
+        figures use lines. Unconfirmed means untrusted.
+      - The user mapping order_id themselves: the same confirmation. It
+        depends on the data (no customer column), not on who mapped it.
+      - The cleaning plan cannot fill ids (accepted): Review offers delete
+        with a clear revenue warning, fix at source and re-upload, or keep
+        and use lines.
+      - **Also here (Thach, after 2E-f, mitigating its limit L1):** when the
+        customer fill actually happens (a trusted order id, and an unnamed
+        line filled from its receipt), Review asks the user to confirm that
+        the customer name is written on a receipt's first line only.
 - [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
       decisions; the same stage 1 work as 2E-d - a Review flag and a
       cleaning-plan proposal). **Placed BEFORE the demo** by Thach's rule
@@ -1760,7 +1876,25 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E-e** closed 2026-09-25: the
+**Phase in progress:** Phase 2/3, session **2E-f** closed 2026-09-25 (see
+its checklist item): the first day nets per product (96 Online Retail II
+customers get "new" back), exactly one order is F = 1 (no real customer
+changes segment; a single one-order customer is New), and one per-row
+customer filled from a trusted receipt feeds every customer figure in both
+stages (header-style Online Retail II now equals the original on every
+figure). metrics.json 6.0, diagnosis.json 5.0. Three doubt-review cycles
+(the bound): a crash on dateless lines and two FABRICATEs in the fill,
+fixed; a scoped fourth cycle on the receipt-day rule (Thach, 3E1's stop
+rule) found one small local FABRICATE, fixed, and split two non-local
+findings (uncounted lines judged for a no-sale id; the UTC day). Known
+limits L1-L4 decided by Thach. Mutation check: 30 mutants in all - the
+first run was stopped by the system for low memory (its C3 mutant was left
+in shared/orders.py and restored; every file was then diffed against its
+intended state), the rest ran in batches of three with a file backup per
+mutant. 3 equivalent (explained in the 2E-f item), 6 survivors (F6, F7,
+C3, RD4, RD5, RD9) killed by tests added for them, all others killed.
+pytest 2591.
+Previously, session **2E-e** closed 2026-09-25: the
 optional canonical field `order_id` (see its checklist item). Orders are
 order keys - an order id on one day for one customer - when it is mapped and
 passes stage 1's check, else sale lines, and `metrics.json` names the basis
@@ -2176,9 +2310,8 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-f** (the RFM tie rule on invoice frequency, and
-per-product same-day netting, and revenue by customer on header-style
-exports), after Thach's approval. Order (Thach, at
+**Next step:** **2E-g** (product tables, both stages), after Thach's
+approval. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
 -> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
 product tables -> 2E-e2 order basis in Review -> 2E-d2 non-product lines ->
@@ -2199,10 +2332,8 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Session 2E-e is committed and pushed by the CLAUDE.md "Pushing" rule
-   (commit script `C:\Users\Happy\commit-2ee.ps1`, four checks). F4, the
-   blank-id rule and the header-style revenue are decided (the 2E-e item);
-   approve 2E-f.
+1. Session 2E-f: decide the known limits L1-L4 (the 2E-f item), and
+   approve 2E-g.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

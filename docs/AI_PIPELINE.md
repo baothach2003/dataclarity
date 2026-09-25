@@ -756,7 +756,11 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   it: that fabrication comes from ordinary data entry, while a wrong merge
   needs two real ids differing only by case or whitespace. No further
   normalisation (no leading-zero or punctuation rules), which would start
-  merging ids a POS really does distinguish.
+  merging ids a POS really does distinguish. Each line's customer is the
+  shared per-row customer (`ParsedTransactions.customers`, 2E-f): with a
+  trusted order id, a line with no customer takes its receipt's one named
+  customer that day (header-style exports), so its revenue is that
+  customer's, not `unattributed`.
   A customer is **active if they have at least one revenue-counted row**,
   whatever the sign of their net revenue (Thach, 3C). A returns-only customer
   is classified like any other and their term carries the sign the arithmetic
@@ -764,8 +768,10 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   invented number and breaks the identity. This also keeps "active" identical
   to stage 2's `active_customers`, so the two stages cannot disagree about who
   was active. **New** is the customer's first purchase - first sale row - and
-  a customer whose history opens with a refund - any return line on their
-  first day, no same-day netting since 2E-c2 - is never new: they are
+  a customer whose history opens with a refund - on their first day, more
+  units of some product came back than were bought that day (each product
+  nets on its own since 2E-f; a return of unknown product never nets) - is
+  never new: they are
   returning something bought before the file, so they are resurrected (Thach,
   2E-c, rule C, `shared/first_purchase.py`, the same rule as stage 2's
   `new_vs_returning`; it supersedes 3C's evidence-only note). `evidence`

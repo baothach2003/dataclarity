@@ -46,8 +46,6 @@ from shared.transactions import (
     # can raise, and both the backend and this stage's tests catch it here.
     ParsedTransactions,
     RequiredColumnMissingError,
-    customer_identity,
-    is_blank,
     parse_transactions,
 )
 
@@ -95,10 +93,10 @@ def compute_core_metrics(
     previous_mask = parsed.counted & (months == period.previous)
 
     revenue_current, orders_current, customers_current, returns_current = _bucket(
-        df, parsed, current_mask
+        parsed, current_mask
     )
     revenue_previous, orders_previous, customers_previous, returns_previous = _bucket(
-        df, parsed, previous_mask
+        parsed, previous_mask
     )
 
     if period.previous_complete:
@@ -118,8 +116,8 @@ def compute_core_metrics(
         orders_previous=orders_previous,
         active_customers_current=customers_current,
         active_customers_previous=customers_previous,
-        buyers_current=_active_customers(df, parsed.reverse, current_mask & parsed.sale),
-        buyers_previous=_active_customers(df, parsed.reverse, previous_mask & parsed.sale),
+        buyers_current=_active_customers(parsed, current_mask & parsed.sale),
+        buyers_previous=_active_customers(parsed, previous_mask & parsed.sale),
         **_per_order("aov_current", revenue_current, orders_current, period.current),
         **_per_order("aov_previous", revenue_previous, orders_previous, period.previous),
         **_per_order("return_rate_current", returns_current, orders_current, period.current),
@@ -179,9 +177,7 @@ def _format_year_month(year_month: tuple[int, int]) -> str:
     return f"{year:04d}-{month:02d}"
 
 
-def _bucket(
-    df: pd.DataFrame, parsed: ParsedTransactions, mask: pd.Series
-) -> tuple[float, int, int, int]:
+def _bucket(parsed: ParsedTransactions, mask: pd.Series) -> tuple[float, int, int, int]:
     """Net revenue and active customers over every counted row (3C: a
     returns-only customer is active); orders and returns over sale and return
     rows (2E)."""
@@ -189,20 +185,17 @@ def _bucket(
     # Distinct orders (shared/orders.py, 2E-e): order ids when order_id is
     # mapped and trusted, else each line - so on lines these are line counts.
     orders = count_orders(parsed.order_key, mask & parsed.sale)
-    customers = _active_customers(df, parsed.reverse, mask)
+    customers = _active_customers(parsed, mask)
     returns = count_orders(parsed.order_key, mask & parsed.returned)
     return revenue, orders, customers, returns
 
 
-def _active_customers(df: pd.DataFrame, reverse: dict[str, str], mask: pd.Series) -> int:
-    customer_col = reverse.get("customer")
-    if customer_col is None:
-        return 0
-    # Keyed on the normalised identity, so one customer written several ways
-    # is one active customer (3C2). Stage 3 keys the same way, which is what
-    # keeps the two stages' active_customers figures equal.
-    values = customer_identity(df.loc[mask, customer_col])
-    return int(values[~is_blank(values)].nunique())
+def _active_customers(parsed: ParsedTransactions, mask: pd.Series) -> int:
+    # The normalised identity, so one customer written several ways is one
+    # active customer (3C2), filled from the receipt on header-style exports
+    # (2E-f). Stage 3 reads the same series, which keeps the two stages'
+    # active_customers figures equal. No customer column: all NaN, so 0.
+    return int(parsed.customers[mask].nunique())
 
 
 def _per_order(name: str, numerator: float, orders: int, month: str) -> dict:

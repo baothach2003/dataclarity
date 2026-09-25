@@ -283,6 +283,37 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   measures and it is not "per order"; a value-based rate (refunded money /
   gross sales) measures money, which P3 and the gross/net figures already
   carry, not how often goods come back.
+- **Which customer a line belongs to** (2E-f): the normalised identity
+  (3C2); with a trusted `order_id` (`orders_basis` "order_id"), a line with no
+  customer takes its receipt's one named customer that day, read from the
+  receipt's sale and return lines (its other lines only when none of those is
+  named); two different names leave the line unattributed. Only the lines
+  of an id's **receipt day** are filled: an id with sale lines is one
+  receipt when they all fall on one day with at most one named customer,
+  no sale or return line of it falls before that day, and its sale and
+  return lines name at most one customer on any day - that day is its
+  receipt day; an id with no sale line, when all its dated lines fall on
+  one day with at most one named customer. Unnamed return lines rung under
+  such an id on later days cannot be told apart from a receipt refunded
+  later, and are not filled. The file-level 10% check tolerates ids that span, so
+  without this a cash id "0" rung on many days made 30 walk-ins' revenue one
+  named customer's, and a returns-desk "RET" or a coupon "DISC" id did the
+  same with a walk-in's refund or coupon (2E-f doubt-review). A refund rung
+  days later under the receipt it refunds leaves the receipt one - it is
+  just not filled on its own day. This decides whose REVENUE a line is,
+  never how orders count: the order key keeps the receipt's customer, as in
+  2E-e. A line with no parseable date belongs to no receipt day.
+  **Known limit (for Thach, 2E-f doubt-review cycle 2 F2):** a per-day batch
+  id (a Z-report, a shift, a daily returns desk) with one named line and
+  unnamed walk-in lines looks exactly like a header-style receipt on its
+  day, so the walk-ins' money is filled to that customer. Every customer
+  figure - active customers, buyers, RFM, `new_vs_returning`, and stage 3's
+  bridge, lever and members - reads this one per-row customer. Measured on
+  Online Retail II rewritten header-style (the customer on each invoice's
+  first line only): new revenue in 2011-11 read 8,783.75 against 79,845.90
+  and every segment's money about a tenth; with the fill every figure equals
+  the original. Without a trusted order id there is no receipt to inherit
+  from, and a blank customer stays unattributed.
 - An active customer has any revenue-counted row (3C, unchanged). A
   returns-only customer is active and has no orders. **`buyers_*`** counts the
   customers with at least one order (a sale row) - the count stage 3's lever
@@ -308,7 +339,14 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   groups over the ranks - and a tied group takes the mean of its positions'
   scores, exact halves rounded down, so a tie never lifts a group. A file
   with no ties scores exactly as before; a population that ties throughout
-  scores 3 on that dimension. A customer who never bought now also includes
+  scores 3 on that dimension. **Exactly one order scores F = 1** (Thach, 2E-f):
+  "bought once" is a fact of the data, not a rank. Ranked, one-time buyers
+  above 40% of buyers tied at F = 2 and could never be "New", and a file
+  where everyone bought once called 12 of 20 "Loyal". The fact also
+  overrides 2B's 5/5 for a single customer (a convention for "no one to
+  compare against"), so one customer with one purchase is New. No customer
+  of Online Retail II (27.6% one-time buyers by invoice) or the Kaggle demo
+  (25 customers, 422+ orders each) changes segment. A customer who never bought now also includes
   one who only got free items or coupons: "No purchases in file" is true of
   them too.
   Old metrics.json files keep the old segments until re-analysed.
@@ -316,14 +354,21 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   sale row) falls in the current month AND their history does not open with a
   refund (`shared/first_purchase.py`, Thach, 2E-c, rule C). A refund proves a
   purchase before the file, so a refund-only customer is returning and their
-  negative money is `returning_revenue`. **Any return line on the customer's
-  first day** (their first day with a sale or return line) means the history
-  opens with a refund - no same-day netting (Thach, 2E-c2, reversing 2E-c's
-  netting clause: 10 pens bought and a 500 chair from before the file
-  returned the same day netted +9, and the customer was "new" with -490).
-  Measured on Online Retail II: 167 customers lose the label - 69 returned
-  something not bought that day (pre-file), 98 only what they bought that day
-  (genuinely new, the price of no netting). The same
+  negative money is `returning_revenue`. **On the customer's first day**
+  (their first day with a sale or return line) **each product nets on its
+  own** (Thach, 2E-f): the history opens with a refund when, for any product,
+  more units came back that day than were bought that day - a product not
+  bought that day, or returned beyond what was; a return whose product is
+  unknown (no sku, no name) cannot be matched and opens with a refund. The
+  product is the shared `product_identity` (the sku, else the name). History:
+  2E-c netted the whole day across products (10 pens bought and a 500 chair
+  from before the file returned the same day netted +9: "new" with -490);
+  2E-c2 took any return line on the first day as a refund, which also took
+  "new" from customers returning part of what they had just bought. Measured
+  on Online Retail II: 96 customers get "new" back, none lose it; netting by
+  "was it bought that day at all" would free 10 more who returned MORE than
+  they bought that day (pre-file evidence). The day is the unit, not the
+  time of day. The same
   rule decides `new` in stage 3's customer bridge. Measured on Online Retail
   II: the first row of any kind called 172 refund-only customers new with
   -91,486.72 of "new revenue".
@@ -888,6 +933,14 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-25: **`metrics.json` went to `6.0` and `diagnosis.json` to `5.0`**
+  (session 2E-f, Thach; a change of meaning is a major bump): the first day
+  nets per product (`new_vs_returning`, the bridge's `new` and
+  `resurrected`), exactly one order scores F = 1 (RFM segments), and a
+  header-style receipt's unnamed lines are its named customer's (segment
+  money, active customers, buyers, the bridge's terms and `unattributed`,
+  the lever's customers). Readers refuse `5.x` metrics and `4.x` diagnosis
+  files with "re-analyse this run". Stage 1 contracts are unchanged.
 - 2026-09-24: **session 2E-e, the optional canonical field `order_id`.**
   `schema_inference.json`, `plan_proposed.json` / `plan_final.json` and
   `cleaning_report.json` went to `2.0` (the canonical enum gained `order_id`,

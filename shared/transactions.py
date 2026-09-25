@@ -110,6 +110,12 @@ class ParsedTransactions:
     order_key: pd.Series
     orders_basis: OrdersBasis
     orders_basis_reason: str | None
+    # The customer of each row - the normalised identity, NaN where there is
+    # none - for every reader in stages 2 and 3 (2E-f). With a trusted order
+    # id a blank cell takes its receipt's one named customer: read raw, a
+    # header-style export gave each customer only a receipt's first line
+    # (Online Retail II rewritten so: new revenue 8,783.75 against 79,845.90).
+    customers: pd.Series
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> ParsedTransactions:
@@ -173,6 +179,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         order_key=orders.key,
         orders_basis=orders.basis,
         orders_basis_reason=orders.reason,
+        customers=orders.customers,
     )
 
 
