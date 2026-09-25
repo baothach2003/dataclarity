@@ -200,7 +200,8 @@ Rules for the values (no field changed):
     "aov_previous": 661.5, "aov_previous_reason": null,
     "return_rate_current": 0.042, "return_rate_current_reason": null,
     "return_rate_previous": 0.038, "return_rate_previous_reason": null,
-    "revenue_by_month": [{"period": "2011-01", "revenue": 690000.0}]
+    "revenue_by_month": [{"period": "2011-01", "revenue": 690000.0}],
+    "undated_lines": 0, "undated_lines_reason": null
   },
   "customers": {
     "rfm_reference_date": "2011-12-10",
@@ -237,6 +238,17 @@ Rules for the values (no field changed):
 
 **Definitions (schema 2.0, session 2E).** They live in `shared/transactions.py`
 and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
+
+- **Every date is read on the wall clock as written** (Thach, 2E-h; 1F's
+  rule, `shared/dates.py`, the reader stage 1 uses): a UTC offset is dropped
+  and each cell keeps its own date and time, mixed offsets included; "now",
+  "today", a bare time and a year outside 1900-2100 are no dates. It holds
+  whatever the cleaning plan did - read as UTC before, a +10:00 shop's
+  current month, the sign of its change and its closed weekday all moved.
+  Every day and month of stages 2 and 3, and stage 1's order_id check, derive
+  from this one reading. **`undated_lines`** counts the lines with no
+  readable date (blank, or no date) - in no month and so in no figure - and
+  `undated_lines_reason` says so; it is null exactly when the count is 0.
 
 - **`orders_basis`** (2E-e): "order_id" when the optional field `order_id` is
   mapped and passes stage 1's check - then orders are the distinct order keys
@@ -963,6 +975,12 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-26: **`metrics.json` went to `8.0` and `diagnosis.json` to `7.0`**
+  (session 2E-h, Thach): every day and month is read on the wall clock as
+  written (UTC before) with 1F's cell rule, `core.undated_lines` and its
+  reason were added, and an order id with no sale line is judged on its
+  counted lines. Readers refuse `7.x` metrics and `6.x` diagnosis files with
+  "re-analyse this run".
 - 2026-09-25: **`metrics.json` went to `7.0` and `diagnosis.json` to `6.0`**
   (session 2E-g, Thach): product keys and labels shared by both stages
   (`shared/products.py`), units sold on sale lines, the `(no product name)`

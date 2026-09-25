@@ -102,9 +102,18 @@ class CoreMetrics(ContractModel):
     return_rate_previous: NonNegativeFloat | None
     return_rate_previous_reason: str | None
     revenue_by_month: list[MonthlyRevenue]
+    # Lines whose date is blank or no date - "now", a bare time, a year outside
+    # 1900-2100, text that does not parse - belong to no month and are in no
+    # figure; counted here with the reason, never dropped silently (Thach,
+    # 2E-h). The reason is null exactly when the count is 0.
+    undated_lines: NonNegativeInt
+    undated_lines_reason: str | None
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
+        if (self.undated_lines == 0) != (self.undated_lines_reason is None):
+            raise ValueError("undated_lines_reason says why lines were left out; it is null "
+                             "exactly when undated_lines is 0")
         if self.orders_basis == "order_id" and self.orders_basis_reason is not None:
             raise ValueError("orders_basis_reason explains a fallback to lines; "
                              "it is null when the basis is order_id")
@@ -256,8 +265,10 @@ class MetricsContract(ContractFile):
     # order is F = 1 (RFM), and a header-style receipt's lines are its named
     # customer's (segment money, customer counts). 7 since 2E-g: product units
     # are sale lines, labels the name sale lines carry most, the gap never
-    # ranked, and velocity null without stock-in lines.
-    supported_major: ClassVar[int] = 7
+    # ranked, and velocity null without stock-in lines. 8 since 2E-h: every
+    # day and month on the wall clock as written (UTC before), and
+    # undated_lines with its reason.
+    supported_major: ClassVar[int] = 8
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

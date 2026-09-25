@@ -1419,7 +1419,8 @@ cells before and after and which columns changed; a dropped row shows no after.
 Per column, the missing share and the number of distinct values before and after.
 A cell is cut at 200 characters for display; a change beyond the cut is still seen.
 
-**Mixed UTC offsets.** A date column written with offsets ("2024-01-06T01:00+10:00")
+**Mixed UTC offsets.** (Since 2E-h this reader is `shared/dates.py`, and stages 2
+and 3 read every date with it too, whatever the plan did.) A date column written with offsets ("2024-01-06T01:00+10:00")
 keeps the date and time as written and drops the offset (decided by Thach in 1F):
 read as UTC that cell would become 2024-01-05, and a report by day needs the
 store's own date. The detectors (is this a date?) still read offsets as UTC, since

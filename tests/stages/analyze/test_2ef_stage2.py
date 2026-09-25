@@ -153,6 +153,6 @@ def test_without_order_id_a_header_style_file_is_not_filled() -> None:
 
 
 def test_metrics_json_is_version_6_or_the_current_one() -> None:
-    # 6.0 in 2E-f; 7.0 since 2E-g (test_2eg_stage2.py).
-    assert SCHEMA_VERSION == "7.0"
-    assert MetricsContract.supported_major == 7
+    # 6.0 in 2E-f; 7.0 in 2E-g; 8.0 since 2E-h.
+    assert SCHEMA_VERSION == "8.0"
+    assert MetricsContract.supported_major == 8

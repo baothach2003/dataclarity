@@ -240,6 +240,7 @@ def test_a_missing_velocity_or_days_to_stockout_must_say_why() -> None:
             MetricsContract.model_validate(payload)
 
 
-def test_metrics_json_is_version_7() -> None:
-    assert SCHEMA_VERSION == "7.0"
-    assert MetricsContract.supported_major == 7
+def test_metrics_json_is_version_7_or_the_current_one() -> None:
+    # 7.0 in 2E-g; 8.0 since 2E-h (test_2eh_dates.py).
+    assert SCHEMA_VERSION == "8.0"
+    assert MetricsContract.supported_major == 8

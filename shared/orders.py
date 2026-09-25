@@ -89,7 +89,8 @@ def refusal_reason(check: IdCheck) -> str:
 
 
 def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
-                sale: pd.Series, returned: pd.Series) -> OrderBasis:
+                sale: pd.Series, returned: pd.Series, counted: pd.Series,
+                stock_in: pd.Series) -> OrderBasis:
     """`ids` is the mapped order_id column, stripped, blank as NaN - or None
     when order_id is not mapped. `days`, `customers`, `sale` and `returned`
     are aligned with it; the check runs over the sale rows."""
@@ -115,7 +116,7 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # A customer written on a receipt's first line only (ERP "invoice detail"
     # exports) is that receipt's customer on its other lines too: keyed as a
     # customer "", every order split in two (cycle 2, F2).
-    filled = _one_customer_per_order(ids, days, customers, moved)
+    filled = _one_customer_per_order(ids, days, customers, moved, stock_in)
     check = spanning_ids(ids[sale], days[sale], filled[sale])
     if not looks_like_order_ids(check):
         return OrderBasis("lines", refusal_reason(check), by_line, customers)
@@ -123,7 +124,7 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # from an id that is itself one receipt. The key keeps the fill either
     # way, so orders count exactly as 2E-e defined them (2E-f doubt-review
     # cycle 2, F1: the exclusion had split receipts into two orders).
-    receipt_day = ids.map(_receipt_days(ids, days, customers, sale, moved))
+    receipt_day = ids.map(_receipt_days(ids, days, customers, sale, moved, counted))
     owners = filled.where(days.eq(receipt_day), customers)
     # An order is one order - one day, one customer: an id is keyed WITH its
     # day and customer, so an id reused elsewhere (two tills sharing a receipt
@@ -136,7 +137,7 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
 
 
 def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,
-                  sale: pd.Series, moved: pd.Series) -> pd.Series:
+                  sale: pd.Series, moved: pd.Series, counted: pd.Series) -> pd.Series:
     """Per id that is one receipt, the day of that receipt - the only day on
     which its unnamed lines are filled. The file-level check tolerates 10%
     of ids spanning days or customers, so a cash id "0" rung on many days
@@ -147,17 +148,20 @@ def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,
     either - its day is not the receipt's, so an exchange line under a
     returns-desk "RET" cannot carry a walk-in's refund on another day to a
     named customer (cycle 3, F1). An id with no sale line is judged on all
-    its dated lines, so coupons under a "DISC" rung on three days are no
-    receipt (cycle 3, F2). An id with sale lines is not one receipt either
+    its counted dated lines, so coupons under a "DISC" rung on three days are
+    no receipt (cycle 3, F2). Counted only: an "in" restock or a
+    line whose quantity does not parse is no part of a credit note, and judged
+    with it a header-style credit note lost its fill (cycle 4 F2, fixed in
+    2E-h). An id with sale lines is not one receipt either
     when a sale or return line of it falls BEFORE its receipt day, or when
     its sale and return lines name two customers on any days: an exchange
     rung on the named customer's own day made a returns-desk "RET" a
     receipt, and a walk-in's 500 refund that day hers (cycle 4, F1). A line
     with no date is no evidence either way."""
     frame = pd.DataFrame({"id": ids, "day": days, "customer": customers, "sale": sale,
-                          "moved": moved}).dropna(subset=["id", "day"])
+                          "moved": moved, "counted": counted}).dropna(subset=["id", "day"])
     has_sale = frame["id"].isin(frame.loc[frame["sale"], "id"])
-    per_id = frame[frame["sale"] | ~has_sale].groupby("id")
+    per_id = frame[frame["sale"] | (~has_sale & frame["counted"])].groupby("id")
     one_receipt = (per_id["day"].nunique() == 1) & (per_id["customer"].nunique() <= 1)
     receipt_day = per_id["day"].first()[one_receipt]
     moved_lines = frame[frame["moved"] & has_sale]
@@ -168,7 +172,7 @@ def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,
 
 
 def _one_customer_per_order(ids: pd.Series, days: pd.Series, customers: pd.Series,
-                            moved: pd.Series) -> pd.Series:
+                            moved: pd.Series, stock_in: pd.Series) -> pd.Series:
     """A blank customer takes the one named customer of its id on its day,
     when there is exactly one; two different names leave it blank (Thach,
     2E-f). The names are read from the receipt's sale and return lines -
@@ -177,10 +181,14 @@ def _one_customer_per_order(ids: pd.Series, days: pd.Series, customers: pd.Serie
     name left the blank sale lines unfilled and split the order in two
     (2E-e doubt-review cycle 3, F4). A line with no date belongs to no
     receipt-day (2E-f doubt-review F1: it crashed the fill)."""
-    frame = pd.DataFrame({"id": ids, "day": days, "customer": customers, "moved": moved})
+    frame = pd.DataFrame({"id": ids, "day": days, "customer": customers, "moved": moved,
+                          "stock_in": stock_in})
     named = frame.dropna(subset=["id", "day", "customer"])
     named_moved = named.groupby(["id", "day"])["moved"].transform("any").astype(bool)
-    source = named[named["moved"] | ~named_moved]
+    # Any other line may name the receipt - a header line with no quantity
+    # does (2E-h doubt-review cycle 2 F3) - except a stock-in line: one under
+    # a credit note named "Warehouse" its refund's customer (F4).
+    source = named[named["moved"] | (~named_moved & ~named["stock_in"])]
     single = source.groupby(["id", "day"])["customer"].agg(
         lambda values: values.iloc[0] if values.nunique() == 1 else None)
     fill = pd.Series(list(zip(frame["id"], frame["day"])), index=frame.index).map(single)

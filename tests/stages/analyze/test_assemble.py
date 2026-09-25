@@ -47,7 +47,7 @@ def test_assemble_metrics_validates_against_the_full_contract() -> None:
     reparsed = MetricsContract.model_validate_json(metrics.model_dump_json())
     assert reparsed == metrics
 
-    assert metrics.schema_version == "7.0"  # 2E, 2E-c, 2E-c2, 2E-e, 2E-f, 2E-g: meanings changed
+    assert metrics.schema_version == "8.0"  # 2E, 2E-c, 2E-c2, 2E-e, 2E-f, 2E-g, 2E-h: meanings changed
     assert metrics.generated_at == NOW
     assert (metrics.period.current, metrics.period.previous) == ("2020-01", "2019-12")
 

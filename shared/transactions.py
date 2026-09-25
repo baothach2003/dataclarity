@@ -58,6 +58,7 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
+from shared.dates import as_dates
 from shared.orders import IdCheck, OrdersBasis, order_basis, spanning_ids
 
 
@@ -128,10 +129,12 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     quantity_col = require_column(reverse, "quantity")
     price_col = require_column(reverse, "unit_price")
 
-    # utc=True avoids a crash on a file mixing offset and offset-less
-    # datetimes (pandas otherwise refuses to build one Series from both); the
-    # result is dropped back to naive for period/month grouping.
-    dates = pd.to_datetime(df[date_col], format="mixed", errors="coerce", utc=True).dt.tz_localize(None)
+    # 1F's rule, always (Thach, 2E-h): the date and time as written, the
+    # offset dropped, and "now", a bare time or a year outside 1900-2100 no
+    # date. Read as UTC, a +10:00 shop's current month, the sign of its change
+    # and its closed weekday all moved, and "now" dated a sale the day of the
+    # run (2E-f doubt-review cycle 4 F3). shared/dates.py is stage 1's reader.
+    dates = as_dates(df[date_col], offsets="wall_clock")
     quantities = pd.to_numeric(df[quantity_col], errors="coerce")
     prices = pd.to_numeric(df[price_col], errors="coerce")
 
@@ -163,7 +166,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
     sale = counted & (quantities > 0) & (amounts > 0)
     returned = counted & (quantities < 0) & (amounts < 0)
     orders = order_basis(_filled(df, reverse.get("order_id")), dates.dt.normalize(),
-                         _customers(df, reverse.get("customer")), sale, returned)
+                         _customers(df, reverse.get("customer")), sale, returned, counted,
+                         ~counts_as_sale)
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,

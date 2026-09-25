@@ -187,5 +187,6 @@ def test_metrics_json_is_the_current_major_version() -> None:
     # "4.0" (return rate and new customers changed meaning again); 2E-e to
     # "5.0" (orders are order ids when order_id is mapped); 2E-f to "6.0"
     # (first-day netting per product, one order is F = 1, customer fill);
-    # 2E-g to "7.0" (product units, labels, the gap, velocity).
-    assert SCHEMA_VERSION == "7.0"
+    # 2E-g to "7.0" (product units, labels, the gap, velocity); 2E-h to "8.0"
+    # (wall-clock dates, undated lines counted).
+    assert SCHEMA_VERSION == "8.0"

@@ -253,7 +253,9 @@ dataclarity/
 > 2E-c's start: moved from "before 3E2" to BETWEEN 2E-c and 2E-d, because
 > 2E-d's sweep needs real legitimate large lines and a real typo pair),
 > then **2E-d** (implausible lines, then the residue scale), then **2E-i**
-> (one text reading for every stage; before 3E1b by the asymmetry rule) - 2E-c and 2E-d
+> (one text reading for every stage; before 3E1b by the asymmetry rule), then
+> **2E-j** (day-first dates decided at stage 1; moved after 2E-i because the
+> overnight run of 2026-09-26 does not hold it) - 2E-c and 2E-d
 > both before 3E1b by the asymmetry rule, each with its reproduction in its
 > checklist item - then **3E1b**, then **3E2**, then **3E3**
 > (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
@@ -1508,34 +1510,58 @@ dataclarity/
       exactly those verdicts, so its calibration would sit on fabricated
       inputs. **Why after 2E-c:** the implausible-line sweep measures line
       amounts, and 2E-c decides which lines are sales.
-- [ ] 2E-h **One date rule for every stage: wall-clock days** (Thach, after
-      2E-f: its review cycle 4 F3, scoped before scheduling). 1F decided that
-      a date keeps its wall-clock date and time with the offset dropped, and
-      stage 1 applies it when the plan runs `parse_datetime`
-      (`column_kinds.as_dates(offsets="wall_clock")`). But
-      `shared/transactions.parse_transactions` reads EVERY date with
-      `utc=True` and then drops the zone - converting to UTC first. A plan
-      need not parse `transaction_date` (1F known limit), so offset strings
-      reach cleaned.csv, and every date-based figure of stages 2 and 3 runs
-      on UTC days: period selection and completeness, `revenue_by_month`,
-      the monthly series, D1's zero days and trading calendar, first
-      purchase and recency, the order key's day, the receipt day, and stage
-      1's own order_id check on the raw upload. **Reproduced**
-      (scratchpad `2eg/utc_scope.py`): a Sydney shop (+10:00), one 100 sale
-      at 09:00 every day June-August 2026, closed Sundays. Wall clock:
-      current month 2026-08, -3.7% against July. UTC: current month 2026-07,
-      +3.8% against June (the 31 August sale falls on 30 August UTC, so
-      August is incomplete), a phantom May with 100, August 2,500 instead
-      of 2,600, and the closed day reads SATURDAY. **FABRICATE, HIGH** - the
-      headline month and the sign of its change, and D1's weekday pattern.
-      By the asymmetry rule it goes before any verdict session (3E1b) and
-      is independent of the demo files (neither holds an offset): placed
-      right after 2E-g. Method: one shared wall-clock parser (1F's rule,
-      today in stages/ingest/column_kinds.py, which a shared module may not
-      import) used by `parse_transactions` and stage 1 alike. **Also here:
-      2E-f review cycle 4 F2 (SUPPRESS)** - an id with no sale line is
-      judged on uncounted lines too; its fix passes `counted` into
-      `order_basis` through `parse_transactions`, the same function.
+- [x] 2E-h **Closed 2026-09-26** (section 12's session log). One date rule
+      for every stage: wall-clock days (Thach, after 2E-f: its review cycle 4
+      F3). `parse_transactions` read every date as UTC and dropped the zone,
+      so a +10:00 shop's current month, the sign of its change and its closed
+      weekday moved (a Sydney shop: 2026-07 +3.8% and a phantom May, against
+      2026-08 -3.7% on its own clock - FABRICATE, HIGH). Shipped as decided by
+      Thach ((a)-(c) at 2E-h's method): 1F's reading moved unchanged to
+      `shared/dates.py` (stage 1's `column_kinds` imports it) and
+      `parse_transactions` reads every date with it in the wall-clock mode -
+      the offset dropped, the date and time kept as written. (a) 1F's full
+      cell rule: "now", "today", a cell that starts with a time and carries
+      no year, and a year outside 1900-2100 are no dates; lines with no
+      readable date are counted in `core.undated_lines` with
+      `undated_lines_reason` (null exactly when the count is 0), never
+      dropped silently. (b) metrics.json 8.0, diagnosis.json 7.0. (c) 2E-f's
+      F2: an order id with no sale line is judged on its counted lines only.
+      Mixed offsets (a daylight-saving change): every offset is cut before
+      the column is parsed, including .NET's "9:15:02 AM -05:00"; a zone the
+      pattern still misses sends only the cells that may carry one through a
+      one-by-one read, each keeping its own clock (0.06 s per 20,000 cells).
+      **Measured:** both demo files read identically (1,067,371 and 12,575
+      cells, 0 changed; neither holds an offset). The day-first item was
+      classified and placed as 2E-j (Thach, at 2E-h).
+      **Doubt-review, three cycles (the bound):** cycle 1 (5 findings) -
+      mixed offsets the pattern missed crashed stages 1-3, a bare time with
+      an offset or "a.m." was dated on the run day, a credit note took its
+      customer from a restock line, the undated reason's wording: fixed.
+      Cycle 2 (5) - a one-letter am/pm time dated on the run day, a receipt
+      header line with no quantity no longer naming its receipt, one stray
+      zone sending the whole column through a 300-times slower read: fixed.
+      Cycle 3 (4, the bound, each small and local): any cell that starts
+      with a time needs a year; a zone pandas sees inside the cell crashed
+      the merge; a year outside 1677-2262 read alone overflowed the column;
+      a .NET column across a daylight-saving change was read one cell at a
+      time (~280 s per read at 650,000 rows): fixed. **Recorded, not fixed
+      (for Thach):** a date with no day ("Mar 2024", "2024") reads as the
+      1st - monthly exports may legitimately use month grain - and
+      "1900-01-01" (a null placeholder in some systems) passes the lower
+      bound; cycle 1 measured +30% to +36% on identical trading when one
+      such line makes a short previous month complete. **Moved to 2E-j:** an
+      explicit format with offsets the pattern misses (basic ISO
+      "20240330T101500+1100", the "ISO8601" keyword on it) still parses
+      nothing or fails at execute (SUPPRESS, predates 2E-h), and the change
+      log's "UTC offsets dropped" note misses those forms.
+      **Mutation check (15 mutants, batches of three with a backup each):**
+      H12 and H13 equivalent one at a time - two guards against the same
+      overflow (the year bound on each cell read alone, and the microsecond
+      column), either sufficient under pandas 3; removing both is killed by
+      the year-out-of-range test. H11 (dropping the zone of the plainly read
+      cells) survived once `_ANY_OFFSET` kept the cycle-3 test's cells off
+      the one-by-one path; killed by a test added for it with the reviewer's
+      own cells. All others killed. pytest 2661.
 - [ ] 2E-e2 **The order basis, visible and decided in Review** (Thach, after
       2E-e: decisions 1 and 2 above; placed by Claude after 2E-g and before
       2E-d2, all before the demo). Not done inside 2E-e's wrap-up because
@@ -1574,6 +1600,35 @@ dataclarity/
         customer fill actually happens (a trusted order id, and an unnamed
         line filled from its receipt), Review asks the user to confirm that
         the customer name is written on a receipt's first line only.
+- [ ] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
+      reader** (Thach, at 2E-h). Australia, the UK and Vietnam write the day
+      first. When the cleaning plan parses the date column (1E's
+      `parse_datetime`, with its `dayfirst`), cleaned.csv holds ISO dates and
+      nothing is ambiguous; but when it does not - one action per column, so
+      a date column whose action is drop_rows_missing is never parsed - the
+      shared reader reads 05/01/2026 month first, and no dayfirst decision
+      exists anywhere to consume. **Reproduced** (scratchpad
+      `2eh/dayfirst_repro.py`): an Australian shop selling 100 a day, 1 July
+      to 31 August 2026, dates written DD/MM/YYYY: days 1-12 of each month
+      land in January-December (01/08/2026 is 8 January), days 13-31 stay in
+      July and August, so revenue spreads over twelve months, the current
+      month reads 2026-11 (in the future) and the change 0%. **FABRICATE,
+      HIGH**, on exactly the users this project targets; both demo files are
+      ISO, so the demos do not show it. **Not done in 2E-h:** there is no
+      decision to consume - it has to be made at stage 1 (inferred from the
+      cells: a first number above 12 proves day first, a second above 12
+      month first; confirmed by the user in Review when the column is
+      ambiguous) and recorded in a stage 1 contract (cleaning_report), which
+      the shared reader then applies. **Placed** with the other stage 1
+      Review work, after 2E-e2 and before 2E-d2, so the three share one
+      stage 1 version bump - before the demo build and far before 3E1b, by
+      the asymmetry rule for a FABRICATE of this size. **Moved (overnight
+      run, 2026-09-26):** Thach's run list (2E-h, 2E-e2, 2E-d2, the demo,
+      2E-d, 2E-i) does not hold it and a session runs only with his
+      approval, so it now runs after 2E-i and before 3E1b, with its own
+      stage 1 version bump. The asymmetry rule still holds (before any
+      verdict session), and building the demo first exposes nothing: both
+      demo files write ISO dates.
 - [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
       decisions; the same stage 1 work as 2E-d - a Review flag and a
       cleaning-plan proposal). **Placed BEFORE the demo** by Thach's rule
@@ -1990,7 +2045,22 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E-g** closed 2026-09-26 (see
+**Phase in progress:** Phase 2/3, Thach's overnight run of 2026-09-26
+(2E-h, 2E-e2, 2E-d2, the Online Retail II demo, 2E-d, 2E-i; stop before
+3E1b; report in `C:\Users\Happy\overnight-report.txt`). Session **2E-h**
+closed 2026-09-26 (see its checklist item): one wall-clock date rule for
+every stage (shared/dates.py) - stages 2 and 3 read a +10:00 shop's days as
+it trades; "now", a bare time and a year outside 1900-2100 are no dates, and
+lines with no readable date are counted in metrics.json with a reason; an
+order id with no sale line is judged on its counted lines (2E-f's F2).
+metrics.json 8.0, diagnosis.json 7.0. Three doubt-review cycles (the bound):
+14 findings, every one local and fixed, except one recorded for Thach
+(partial dates read as the 1st, and "1900-01-01") and two moved to 2E-j
+(explicit formats with offsets the pattern misses; the change-log offset
+note). Mutation check 15 mutants: 2 equivalent one at a time (their pair is
+killed), 1 survivor killed by a test added for it, the rest killed.
+pytest 2661.
+Previously, session **2E-g** closed 2026-09-26 (see
 its checklist item): one product identity and label for both stages
 (shared/products.py), units sold on sale lines, the "(no product name)" gap
 never ranked (tables, R3, D2, breadth, R1), velocity null without stock-in
@@ -2433,13 +2503,14 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-h** (one wall-clock date rule for every stage, with
-2E-f's F2), after Thach's approval. Order (Thach, at
+**Next step:** **2E-e2** (the order basis, visible and decided in Review),
+in Thach's overnight run. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
 -> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
 product tables -> 2E-h wall-clock dates -> 2E-e2 order basis in Review ->
 2E-d2 non-product lines ->
-Online Retail II demo -> 2E-d -> 2E-i one text reading -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
+Online Retail II demo -> 2E-d -> 2E-i one text reading -> 2E-j day-first
+dates -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
 real legitimate large lines and the real 80,995-unit typo pair. 3E1b is how D1 learns from history, and rule 6's size test
 (it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
@@ -2456,9 +2527,12 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Session 2E-g is committed and pushed by the CLAUDE.md "Pushing" rule;
-   approve 2E-h. 2E-i (one text reading for every stage) is scheduled
-   after 2E-d, before 3E1b.
+1. Overnight run: read `C:\Users\Happy\overnight-report.txt`. 2E-h is
+   committed and pushed by the CLAUDE.md "Pushing" rule. Two 2E-h findings
+   await a decision: a date with no day ("Mar 2024", "2024") reads as the
+   1st, and "1900-01-01" passes the lower bound (2E-h checklist item).
+   2E-j (day-first dates) moved after 2E-i, before 3E1b, because the run
+   list does not hold it.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

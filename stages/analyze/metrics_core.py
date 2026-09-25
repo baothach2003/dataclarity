@@ -124,6 +124,7 @@ def compute_core_metrics(
         **_per_order("return_rate_previous", returns_previous, orders_previous,
                      period.previous),
         revenue_by_month=_revenue_by_month(months[parsed.counted], parsed.revenue_amounts[parsed.counted]),
+        **_undated(parsed),
     )
     return period, core
 
@@ -205,6 +206,25 @@ def _per_order(name: str, numerator: float, orders: int, month: str) -> dict:
         return {name: None, f"{name}_reason": f"no orders in {month}, so there is no "
                                               "per-order figure"}
     return {name: numerator / orders, f"{name}_reason": None}
+
+
+def _undated(parsed: ParsedTransactions) -> dict:
+    """How many lines have no readable date, and why (Thach, 2E-h): they are
+    in no month and so in no figure, and a reader must see that rather than
+    lose them silently. Blank cells and cells that are no date ("now", a bare
+    time, a year outside 1900-2100, text that does not parse) are one count:
+    a plan that parsed the date column has already turned every no-date
+    blank, so a split between the two was wrong there (2E-h review F5)."""
+    count = int(parsed.dates.isna().sum())
+    if count == 0:
+        return {"undated_lines": 0, "undated_lines_reason": None}
+    lines, rest = (("1 line has", "it belongs to no month and is") if count == 1 else
+                   (f"{count:,} lines have", "they belong to no month and are"))
+    return {"undated_lines": count,
+            "undated_lines_reason": (
+                f"{lines} no readable date - blank, or no date (such as \"now\", a time with "
+                f"no date, a year outside 1900-2100, or text that does not parse) - so {rest} "
+                "left out of every figure")}
 
 
 def _revenue_by_month(months: pd.Series, amounts: pd.Series) -> list[MonthlyRevenue]:
