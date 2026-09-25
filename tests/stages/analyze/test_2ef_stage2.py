@@ -152,6 +152,7 @@ def test_without_order_id_a_header_style_file_is_not_filled() -> None:
     assert split.returning_revenue == pytest.approx(10.0)
 
 
-def test_metrics_json_is_version_6() -> None:
-    assert SCHEMA_VERSION == "6.0"
-    assert MetricsContract.supported_major == 6
+def test_metrics_json_is_version_6_or_the_current_one() -> None:
+    # 6.0 in 2E-f; 7.0 since 2E-g (test_2eg_stage2.py).
+    assert SCHEMA_VERSION == "7.0"
+    assert MetricsContract.supported_major == 7

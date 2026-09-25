@@ -140,8 +140,11 @@ def test_sku_identity_groups_rows_and_falls_back_to_product_name_when_blank() ->
     products = compute_product_metrics(df, mapping, period)
 
     by_product = {p.product: p for p in products.top_products}
-    assert by_product["Widget"].units == 5  # 2 + 3, grouped by the shared SKU despite differing spellings
-    assert by_product["Widget"].revenue == 50.0
+    # One sale line under each spelling: the tie goes to the most recent sale,
+    # "widget (typo)" on 2020-01-20 (Thach, 2E-g: the label is the name sale
+    # lines carry most, whole file). Was the first name written, "Widget".
+    assert by_product["widget (typo)"].units == 5  # 2 + 3, grouped by the shared SKU despite differing spellings
+    assert by_product["widget (typo)"].revenue == 50.0
     assert by_product["Other"].units == 1  # blank SKU (whitespace-only) falls back to product_name
 
 
@@ -210,7 +213,9 @@ def test_empty_dataframe_returns_empty_lists_and_zero_pareto() -> None:
     # Was []. An empty file has no previous month to compare with (2E).
     assert products.biggest_decliners is None
     assert products.biggest_decliners_reason is not None
-    assert products.velocity == []
+    # Was []. No stock-in line, so no velocity block at all (Thach, 2E-g).
+    assert products.velocity is None
+    assert products.velocity_reason is not None
 
 
 # --- product_metrics_for_run: reads cleaned.csv + cleaning_report.json -----

@@ -163,9 +163,10 @@ def test_b2_names_deductions_in_its_refusal() -> None:
 
 def test_diagnosis_json_requires_the_deductions_term() -> None:
     # 2.0 in 2E-c; 3.0 in 2E-c2 (the bridge's `new`); 4.0 in 2E-e (orders by
-    # basis); 5.0 since 2E-f (first-day netting per product, customer fill).
+    # basis); 5.0 in 2E-f (first-day netting per product, customer fill);
+    # 6.0 since 2E-g (product keys and labels, the gap never R3 or D2).
     payload = diagnosis_payload()
-    assert DiagnosisContract.model_validate(payload).schema_version == "5.0"
+    assert DiagnosisContract.model_validate(payload).schema_version == "6.0"
 
     del payload["tree"]["returns"]["deductions_cur"]
     with pytest.raises(ValidationError, match="deductions_cur"):

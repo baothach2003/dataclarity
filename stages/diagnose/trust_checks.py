@@ -7,7 +7,8 @@ real business decision.
 import pandas as pd
 
 from contracts.diagnosis import TrustCheck
-from shared.transactions import is_blank, product_identity, require_column
+from shared.products import product_keys
+from shared.transactions import is_blank, require_column
 from stages.diagnose.inputs import RunData
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.thresholds import (
@@ -79,9 +80,11 @@ def d2_price_level(data: RunData) -> TrustCheck:
 def _price_ratios(data: RunData) -> pd.Series:
     """Median unit price this period over median unit price last period, per
     product sold in both with at least D2_MIN_ROWS counted rows in each."""
-    reverse = data.parsed.reverse
-    name_col = require_column(reverse, "product_name")
-    identity = product_identity(data.df, name_col, reverse.get("sku"))
+    require_column(data.parsed.reverse, "product_name")
+    # Stage 2's keys (shared/products.py, 2E-g): the data gap's key is NaN and
+    # drops out of the grouping - pooled unrelated lines are no product whose
+    # price could shift.
+    identity = product_keys(data.df, data.parsed)
     period = data.metrics.period
 
     frame = pd.DataFrame({

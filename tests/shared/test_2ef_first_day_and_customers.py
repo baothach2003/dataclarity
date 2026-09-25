@@ -20,7 +20,8 @@ change.
 
 import pandas as pd
 
-from shared.first_purchase import first_purchase_months, product_keys
+from shared.first_purchase import first_purchase_months
+from shared.products import product_keys
 from shared.orders import IdCheck
 from shared.transactions import order_id_spanning, parse_transactions
 
@@ -32,7 +33,7 @@ def _months(rows, mapping=MAPPING):
     df = pd.DataFrame(rows, columns=["Date", "Qty", "Price", "Cust", "Product", "Sku"])
     parsed = parse_transactions(df, mapping)
     return first_purchase_months(df["Cust"], parsed.dates, parsed.sale, parsed.returned,
-                                 products=product_keys(df, parsed.reverse), units=parsed.units)
+                                 products=product_keys(df, parsed), units=parsed.units)
 
 
 def test_a_product_bought_and_returned_on_the_opening_day_keeps_the_customer_new() -> None:

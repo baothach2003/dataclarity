@@ -192,7 +192,16 @@ class ProductDecline(ContractModel):
 class ProductVelocity(ContractModel):
     product: str
     units_per_day: NonNegativeFloat
-    days_to_stockout: NonNegativeFloat
+    # Null when the file records no stock received for this product (2E-g):
+    # stock on hand is unknown, and flooring it at 0 read "out of stock today".
+    days_to_stockout: NonNegativeFloat | None
+    days_to_stockout_reason: str | None
+
+    @model_validator(mode="after")
+    def _reason_when_null(self) -> Self:
+        _paired(self.days_to_stockout is None, self.days_to_stockout_reason,
+                f"{self.product}'s days_to_stockout")
+        return self
 
 
 class ProductMetrics(ContractModel):
@@ -200,12 +209,16 @@ class ProductMetrics(ContractModel):
     top_products: list[TopProduct]
     biggest_decliners: list[ProductDecline] | None
     biggest_decliners_reason: str | None
-    velocity: list[ProductVelocity]
+    # Null when the file has no stock-in line at all (2E-g) - most POS
+    # exports: stock on hand cannot be derived for any product.
+    velocity: list[ProductVelocity] | None
+    velocity_reason: str | None
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
         _paired(self.biggest_decliners is None, self.biggest_decliners_reason,
                 "biggest_decliners")
+        _paired(self.velocity is None, self.velocity_reason, "velocity")
         return self
 
 
@@ -241,8 +254,10 @@ class MetricsContract(ContractFile):
     # customer's first day means they are not new (new_vs_returning). 6 since
     # 2E-f: the first day nets per product (new_vs_returning), exactly one
     # order is F = 1 (RFM), and a header-style receipt's lines are its named
-    # customer's (segment money, customer counts).
-    supported_major: ClassVar[int] = 6
+    # customer's (segment money, customer counts). 7 since 2E-g: product units
+    # are sale lines, labels the name sale lines carry most, the gap never
+    # ranked, and velocity null without stock-in lines.
+    supported_major: ClassVar[int] = 7
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

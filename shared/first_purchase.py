@@ -32,23 +32,6 @@ refund on the 4th (2E-c doubt-review F4).
 import pandas as pd
 
 from shared.numbers import is_negligible
-from shared.transactions import is_blank, normalize_text, product_identity
-
-
-def product_keys(df: pd.DataFrame, reverse: dict[str, str]) -> pd.Series:
-    """Each row's product for the opening-day netting: the shared
-    `product_identity` (the sku, else the name), NaN where the row has
-    neither - two nameless lines cannot be shown to be one product."""
-    name_col, sku_col = reverse.get("product_name"), reverse.get("sku")
-    unknown = pd.Series(float("nan"), index=df.index, dtype=object)
-    if name_col is None:
-        if sku_col is None:
-            return unknown
-        return ("sku:" + normalize_text(df[sku_col])).where(~is_blank(df[sku_col]))
-    known = ~is_blank(df[name_col])
-    if sku_col is not None:
-        known |= ~is_blank(df[sku_col])
-    return product_identity(df, name_col, sku_col).where(known)
 
 
 def first_purchase_months(
@@ -58,7 +41,9 @@ def first_purchase_months(
     """Per customer key: the "YYYY-MM" of their first purchase, or None when
     the file holds none (only refunds, only deductions, or a history that
     opens with a refund). The caller passes the rows it identifies customers
-    on, keyed as it groups them; `products` from `product_keys`, `units` the
+    on, keyed as it groups them; `products` from shared/products.py
+    `product_keys` (NaN: no product - two nameless lines cannot be shown to
+    be one), `units` the
     parsed units (positive on a sale line, negative on a return line)."""
     frame = pd.DataFrame({"customer": customers, "day": dates.dt.normalize(),
                           "sale": sale, "returned": returned, "product": products,

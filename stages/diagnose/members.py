@@ -17,12 +17,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import Dimension, Member
-from shared.transactions import (
-    is_blank,
-    normalize_text,
-    product_identity,
-    require_column,
-)
+from shared.products import GAP_LABEL, product_keys, product_labels
+from shared.transactions import is_blank, normalize_text, require_column
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.thresholds import (
@@ -39,7 +35,7 @@ from stages.diagnose.thresholds import (
 # cannot collide during grouping either.
 UNCATEGORISED_LABEL = "(uncategorised)"
 UNCATEGORISED_KEY = "\x00UNCATEGORISED"
-UNNAMED_PRODUCT_LABEL = "(no product name)"
+UNNAMED_PRODUCT_LABEL = GAP_LABEL  # stage 2 shows the gap in the same words
 UNNAMED_PRODUCT_KEY = "\x00UNNAMED_PRODUCT"
 
 CUSTOMER_TYPES = ("new", "resurrected", "retained", "lapsed")
@@ -241,18 +237,17 @@ def category_totals(data: RunData) -> MemberTotals | None:
 
 
 def product_totals(data: RunData) -> MemberTotals:
-    column = require_column(data.parsed.reverse, "product_name")
-    keys = product_identity(data.df, column, data.parsed.reverse.get("sku"))
-    # `isna()` alone caught only the missing half: `product_identity` maps a
-    # whitespace-only name to the perfectly non-null key "name:", so such a
-    # row became a second, unflagged bucket displayed as "   " - a member step
-    # 7 would write recommendations about as though it were a real product
-    # line, which is what `is_data_gap` exists to prevent (3D doubt-review
-    # R1). `category_totals` had it right; this did not.
-    blank = keys.isna() | is_blank(data.df[column])
-    keys = keys.where(~blank, UNNAMED_PRODUCT_KEY)
-    labels = _labels(data.df[column], keys, {UNNAMED_PRODUCT_KEY: UNNAMED_PRODUCT_LABEL})
-    return _totals(data, keys, labels, frozenset({UNNAMED_PRODUCT_KEY}))
+    require_column(data.parsed.reverse, "product_name")
+    # Stage 2's keys and labels (shared/products.py, 2E-g): a line with a SKU
+    # and no name is its product - it was in the gap while stage 2 named it
+    # by SKU (4,275 Online Retail II lines). Only a line with neither is the
+    # gap member, which `is_data_gap` keeps out of step 7's recommendations
+    # (3D doubt-review R1: a whitespace name once became a product "   ").
+    keys = product_keys(data.df, data.parsed)
+    labels = product_labels(data.df, data.parsed, keys).to_dict()
+    labels[UNNAMED_PRODUCT_KEY] = UNNAMED_PRODUCT_LABEL
+    return _totals(data, keys.fillna(UNNAMED_PRODUCT_KEY), labels,
+                   frozenset({UNNAMED_PRODUCT_KEY}))
 
 
 def customer_type_totals(data: RunData, classes: dict[str, str]) -> MemberTotals:

@@ -222,7 +222,8 @@ Rules for the values (no field changed):
                            "revenue_change_pct_reason": null}],
     "biggest_decliners_reason": null,
     "velocity": [{"product": "...", "units_per_day": 12.4,
-                  "days_to_stockout": 8.6}]
+                  "days_to_stockout": 8.6, "days_to_stockout_reason": null}],
+    "velocity_reason": null
   },
   "by_dimension": {
     "country": [{"name": "United Kingdom", "revenue_current": 940000.0,
@@ -381,7 +382,32 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   (Thach, 2E): `aov_*` and `return_rate_*` with no orders, `contribution_pct`
   when the total change is negligible, each segment's `revenue_share_pct` when
   whole-file monetary is negligible, and pareto `concentration_pct` with no
-  products. **This supersedes 2A's decision that a zero denominator reports
+  products. **Products (2E-g, Thach):** keys and labels come from
+  `shared/products.py`, shared with stage 3. A product name or SKU is read
+  as a reader sees it - Unicode composed, invisible characters removed
+  (the zero-width joiners kept), spaces as one, case fully folded - for
+  products ONLY: customers, categories, order ids and stage 1 read text as
+  before 2E-g (Thach, option A), until one reading is decided for every
+  stage. A line's product is its SKU,
+  else its name (a name-only line takes the SKU when its name, on sale lines
+  that have one, maps to exactly one SKU); a line with neither is the
+  `(no product name)` data gap - in every total, in no table (top products,
+  decliners, velocity, the Pareto count). A product's label is the name its
+  sale lines carry most over the whole file, a tie going to the most recent
+  sale, so it reads the same in both months; with no named sale line, the
+  commonest name on any line, else the SKU; a name several products share
+  shows each one's SKU ("BATHROOM METAL SIGN (21171)"). `top_products.units`
+  and velocity's `units_per_day` count sale lines. **Velocity needs stock on
+  hand**, derived from stock-in lines (transaction type "in", 2C) - which
+  most POS exports do not have: floored at 0, both demo files read "0 days
+  to stockout" for every product. A file with no stock-in line has
+  `velocity` null with `velocity_reason`; in a file that has some, a product
+  with none has `days_to_stockout` null with `days_to_stockout_reason`, and
+  so does a product whose running balance (stock-in minus every counted
+  line, day by day from the file's start) ever falls below zero: stock left
+  before the file started is unknown. A stock-in line needs a date and a
+  quantity, not a price.
+  **This supersedes 2A's decision that a zero denominator reports
   0.0**, which Thach approved in 2A because the 1.0 contract required a
   number there; 2.0 allows null, and 0.0 was a false statement ("AOV 0",
   "nothing moved") rather than the absence of one. A flat month's float
@@ -704,7 +730,9 @@ before ranking and grouping: five named out of seven is a different story from
 five out of five hundred.
 
 `localization.breadth` is measured over the **product** dimension, the finest
-and the only one always present, and over *every* member rather than the named
+and the only one always present, and over *every* product - never the
+`(no product name)` data gap, which is no product whose share of the change
+could be concentrated (2E-g; R1's top product likewise) - rather than the named
 few - measured over the top five, every change would look concentrated, since
 the top five are chosen for being the largest movers.
 
@@ -794,7 +822,9 @@ validator, `docs/AI_PIPELINE.md` section 7.9, not by this schema).
   `inconclusive`, and `headline.rule` is `1`.
 - Stage 2 also reports stockout risk (`metrics.json` `products.velocity`,
   section 6), by a different method: an inventory balance projected forward
-  from net in-minus-out. Hypothesis R3 here is a *sales-gap* signal - a product
+  from net in-minus-out, and only when the file has stock-in lines (2E-g).
+  Hypothesis R3 here is a *sales-gap* signal - it reads the sales pattern,
+  never stock, so a sales-only file does not touch it - a product
   that sold on most days and then stopped while the store kept trading. The two
   can legitimately disagree about the same product, and stage 5 must label
   which is which rather than merge them.
@@ -933,6 +963,14 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-25: **`metrics.json` went to `7.0` and `diagnosis.json` to `6.0`**
+  (session 2E-g, Thach): product keys and labels shared by both stages
+  (`shared/products.py`), units sold on sale lines, the `(no product name)`
+  gap never ranked (and never an R3 stockout or a D2 price-check product),
+  a SKU-only line its product in stage 3 too, and `products.velocity` /
+  `days_to_stockout` nullable with a reason when the file (or the product)
+  has no stock-in line. Readers refuse `6.x` metrics and `5.x` diagnosis
+  files with "re-analyse this run".
 - 2026-09-25: **`metrics.json` went to `6.0` and `diagnosis.json` to `5.0`**
   (session 2E-f, Thach; a change of meaning is a major bump): the first day
   nets per product (`new_vs_returning`, the bridge's `new` and

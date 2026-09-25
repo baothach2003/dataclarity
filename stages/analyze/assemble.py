@@ -24,8 +24,9 @@ from stages.analyze.metrics_products import compute_product_metrics
 # new customers, RFM ties), 4.0 in 2E-c2 (what a return is, first-day rule),
 # 5.0 in 2E-e (orders are order ids when order_id is mapped; the basis),
 # 6.0 in 2E-f (per-product first-day netting, one order is F = 1, customers
-# filled from the receipt).
-SCHEMA_VERSION = "6.0"
+# filled from the receipt), 7.0 in 2E-g (product units, labels, the gap never
+# ranked, velocity null without stock-in lines).
+SCHEMA_VERSION = "7.0"
 METRICS_FILENAME = "metrics.json"
 
 

@@ -156,7 +156,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str]) -> Pars
         # float64, and .str only works on an object/string dtype. NaN (a
         # per-row missing type) compares False to "in", so it also defaults
         # to "out", matching the column-level default.
-        counts_as_sale = ~df[type_col].astype(object).str.strip().str.lower().eq("in")
+        counts_as_sale = ~is_stock_in(df[type_col])
 
     counted = valid & counts_as_sale
     amounts = quantities * prices
@@ -219,6 +219,8 @@ def require_column(reverse: dict[str, str], canonical_field: str) -> str:
     return column
 
 
+
+
 def is_blank(values: pd.Series) -> pd.Series:
     """True where a cell is missing or holds only whitespace - the same
     definition of "missing" docs/AI_PIPELINE.md section 6 uses for
@@ -234,11 +236,18 @@ def normalize_text(values: pd.Series) -> pd.Series:
     return values.astype(object).str.strip().str.lower()
 
 
+def is_stock_in(values: pd.Series) -> pd.Series:
+    """Where a transaction_type cell says "in", read as revenue scope has
+    always read it (2A) - one reading for revenue scope and stage 2's
+    stock-in lines (2E-g). NaN is not "in"."""
+    return values.astype(object).str.strip().str.lower().eq("in")
+
+
 def customer_identity(values: pd.Series) -> pd.Series:
     """The key that decides whether two rows are the same customer.
 
     Stripped and case-folded, so "CUST_01", " cust_01" and "Cust_01 " are one
-    person - the same treatment `product_identity` has given product keys
+    person - the same treatment product keys have had (shared/products.py)
     since 2C, applied to the other identity column for the same reason
     (Thach, session 3C2). Blank values stay blank, so `is_blank` still selects
     the unattributed rows afterwards.
@@ -270,24 +279,3 @@ def merged_identity_count(values: pd.Series) -> int:
     identity = customer_identity(values)
     usable = ~is_blank(identity)
     return int(values[usable].nunique() - identity[usable].nunique())
-
-
-def product_identity(
-    df: pd.DataFrame, product_name_col: str, sku_col: str | None
-) -> pd.Series:
-    """The key that decides whether two rows are the same product: this row's
-    `sku` when it has one, else its `product_name` (docs/AI_PIPELINE.md
-    section 11's business-key precedent, extended to a per-row fallback since a
-    mapped sku column can still have blank cells row by row).
-
-    Values are stripped and case-folded, so "SKU1", " SKU1" and "sku1" are one
-    product; the sku-sourced and name-sourced halves live in separate
-    namespaces (`sku:`/`name:`) so a SKU that happens to read the same as an
-    unrelated product's name can never merge them. Both fixes came out of 2C's
-    doubt-review. The key is never displayed - callers resolve a human-readable
-    name separately."""
-    normalized_name = "name:" + normalize_text(df[product_name_col])
-    if sku_col is None:
-        return normalized_name
-    sku = df[sku_col]
-    return ("sku:" + normalize_text(sku)).where(~is_blank(sku), normalized_name)

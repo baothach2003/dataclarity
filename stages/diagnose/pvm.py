@@ -18,15 +18,15 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import ProductLens
-from shared.transactions import product_identity, require_column
+from shared.products import product_keys
+from shared.transactions import require_column
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import Coalition, shapley
 
 
-# Rows with no product name at all. `product_identity` namespaces its keys
-# `sku:`/`name:`, and a blank name already yields the bare key "name:", so
-# reusing it puts a missing cell and an empty one in the same bucket - which is
-# the same situation described two different ways.
+# Lines with neither SKU nor name (the gap). Product keys are namespaced
+# `sku:`/`name:` and never empty after the prefix, so the bare "name:" can
+# never be a real product's key.
 UNIDENTIFIED_PRODUCT = "name:"
 
 
@@ -62,17 +62,18 @@ def compute_products(data: RunData) -> ProductLens:
 def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
     """Only products with positive gross units count as present in a period:
     a product whose month nets to zero units has no meaningful price."""
-    product_name_col = require_column(data.parsed.reverse, "product_name")
-    identity = product_identity(data.df, product_name_col, data.parsed.reverse.get("sku"))
-    # A row whose product_name cell is empty gets a NaN identity, and
+    require_column(data.parsed.reverse, "product_name")
+    # Stage 2's keys (shared/products.py, 2E-g). A line with neither SKU nor
+    # name gets a NaN key - the data gap - and
     # `groupby` drops NaN keys silently - so those rows left the lens while
     # staying in the gross totals it reconciles against, and the lens reported
     # a rise where gross sales had fallen (3C doubt-review C1). Stage 1 can
     # legitimately produce such a file: `flag_only` leaves missing values in
     # place and the user is the final authority over the plan (CLAUDE.md 3.3).
     # They are one visible bucket rather than a silent omission; unnamed rows
-    # are not a product, but they are revenue and the identity must close.
-    identity = identity.fillna(UNIDENTIFIED_PRODUCT)
+    # are not a product, but they are revenue and the identity must close
+    # (kept so by Thach, 2E-g).
+    identity = product_keys(data.df, data.parsed).fillna(UNIDENTIFIED_PRODUCT)
 
     # Sale rows (shared/transactions.py, 2E-c), the same rows as the returns
     # lens's gross: a refund booked as quantity 1 at a negative price was a

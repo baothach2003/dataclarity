@@ -209,7 +209,9 @@ def p3(inputs: Step7Inputs, moved: Changes) -> Outcome:
 def r1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     breadth = inputs.localization.breadth
     totals = product_totals(inputs.data)
-    keys = set(totals.rev_prev.index) | set(totals.rev_cur.index)
+    # Products only, as breadth measures them: the gap is never the top
+    # product (Thach, after 2E-g review cycle 3).
+    keys = (set(totals.rev_prev.index) | set(totals.rev_cur.index)) - totals.gap_keys
     deltas = {key: float(totals.rev_cur.get(key, 0.0)) - float(totals.rev_prev.get(key, 0.0))
               for key in keys}
     top = max(sorted(deltas), key=lambda key: abs(deltas[key]), default=None)

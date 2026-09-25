@@ -11,7 +11,8 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from shared.transactions import product_identity, require_column
+from shared.products import product_keys
+from shared.transactions import require_column
 from stages.diagnose.inputs import RunData
 from stages.diagnose.members import product_totals
 from stages.diagnose.thresholds import (
@@ -46,8 +47,12 @@ def detect_stockouts(data: RunData) -> list[Stockout]:
     # Sale rows (2E-c): a free item booked on the days a product was out
     # sold nothing, and it hid the run.
     sales = data.parsed.sale
-    column = require_column(data.parsed.reverse, "product_name")
-    keys = product_identity(data.df, column, data.parsed.reverse.get("sku"))
+    require_column(data.parsed.reverse, "product_name")
+    # Stage 2's keys (shared/products.py, 2E-g): the data gap's key is NaN, so
+    # it never becomes a candidate - unnamed lines that stopped read as a
+    # stockout of a product "   ". R3 reads the sales pattern, never stock,
+    # so the stock-in question of stage 2's velocity does not touch it.
+    keys = product_keys(data.df, data.parsed)
     days = data.parsed.dates.dt.normalize()
     labels = product_totals(data).labels
 
@@ -71,7 +76,11 @@ def detect_stockouts(data: RunData) -> list[Stockout]:
     # of previous sales, localization's own size bar. A rate test alone flagged
     # tail products at random - supported in 3 of 8 unchanged random shops
     # (Thach, 3E1).
-    total = float(revenue[revenue > 0].sum())
+    # The gap's money counts in the total the bar is measured against, as
+    # localization's does: its NaN key dropped out of `revenue`, and a 1%
+    # product passed a 2% bar (2E-g doubt-review F4).
+    gap = float(data.parsed.revenue_amounts[prev_mask & keys.isna()].sum())
+    total = float(revenue[revenue > 0].sum()) + max(gap, 0.0)
     top = (revenue >= MEMBER_MIN_REVENUE_SHARE * total if total > 0
            else pd.Series(False, index=revenue.index))
     candidates = sorted(rates[(rates >= R3_MIN_ACTIVE_DAY_RATE) & top].index)

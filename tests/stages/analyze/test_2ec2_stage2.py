@@ -71,7 +71,10 @@ def test_a_product_with_no_name_on_any_row_is_shown_by_its_sku() -> None:
     """Raw Online Retail II crashed stage 2: every row of a product had a
     missing Description, its display name was NaN, and sorting it against
     real names raised TypeError. X9's name is missing on every row, Y7's is
-    blank on every row (it would show as ""). Both are shown by their SKU."""
+    blank on every row (it would show as ""). Both are shown by their SKU.
+    Since 2E-g the file, which has no stock-in line, has no velocity block
+    (Thach: stock on hand cannot be derived), so the names are read from the
+    top products alone."""
     mapping = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
                "Product": "product_name", "Sku": "sku"}
     df = pd.DataFrame([
@@ -85,13 +88,13 @@ def test_a_product_with_no_name_on_any_row_is_shown_by_its_sku() -> None:
 
     products = compute_product_metrics(df, mapping, period_for(df, mapping))
 
-    assert {v.product for v in products.velocity} == {"Mug", "X9", "Y7"}
+    assert products.velocity is None
     assert {p.product for p in products.top_products} == {"Mug", "X9", "Y7"}
 
 
 def test_metrics_json_is_major_version_4_or_the_current_one() -> None:
-    # 4.0 in 2E-c2; 5.0 in 2E-e; 6.0 since 2E-f. A 3.x file is refused.
-    assert SCHEMA_VERSION == "6.0"
+    # 4.0 in 2E-c2; 5.0 in 2E-e; 6.0 in 2E-f; 7.0 since 2E-g. A 3.x file is refused.
+    assert SCHEMA_VERSION == "7.0"
     payload = assemble_metrics(pd.DataFrame(_two_months([])), MAPPING,
                                now=NOW).model_dump(mode="json")
     payload["schema_version"] = "3.0"
@@ -104,7 +107,11 @@ def test_every_nameless_row_is_one_visible_product() -> None:
     """2E-c2 doubt-review F2: with no SKU mapped, a MISSING name keyed to NaN
     and left the product tables, while a whitespace name became "(no
     product name)" - so the file's largest line (1,000) vanished and the
-    bucket showed 500. Stage 3 puts both in one bucket (members.py): 1,500."""
+    bucket showed 500. Stage 3 puts both in one bucket (members.py): 1,500.
+    SUPERSEDED in part (Thach, 2E-g): the bucket is a data gap, never ranked
+    as a product - it was this file's top product. Both lines stay in the
+    money: January's revenue is 100 + 1,000 + 500 + 0.5 + 1 = 1,601.5, and
+    stage 3's gap member still holds 1,500 (test_2eg_stage3)."""
     mapping = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
                "Product": "product_name"}
     df = pd.DataFrame([
@@ -117,4 +124,6 @@ def test_every_nameless_row_is_one_visible_product() -> None:
     products = compute_product_metrics(df, mapping, period_for(df, mapping))
 
     revenue = {p.product: p.revenue for p in products.top_products}
-    assert revenue["(no product name)"] == pytest.approx(1500.0)
+    assert revenue == {"Widget": pytest.approx(101.5)}
+    core = assemble_metrics(df, mapping, now=NOW).core
+    assert core.revenue_current == pytest.approx(1601.5)

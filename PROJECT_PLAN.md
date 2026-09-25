@@ -246,12 +246,14 @@ dataclarity/
 > follow-ups, before the demo build), then **2E-e** (optional `order_id`:
 > "orders" are lines until it exists), then **2E-f** (the RFM tie rule, on
 > invoice frequency, and per-product netting), then **2E-g** (product
-> tables, both stages), then **2E-e2** (the order basis visible and
+> tables, both stages), then **2E-h** (one wall-clock date rule for every
+> stage), then **2E-e2** (the order basis visible and
 > decided in Review), then **2E-d2** (non-product lines at stage 1: DOTCOM
 > POSTAGE is the demo's #1 "product"), then **the Online Retail II demo** (Thach, at
 > 2E-c's start: moved from "before 3E2" to BETWEEN 2E-c and 2E-d, because
 > 2E-d's sweep needs real legitimate large lines and a real typo pair),
-> then **2E-d** (implausible lines, then the residue scale) - 2E-c and 2E-d
+> then **2E-d** (implausible lines, then the residue scale), then **2E-i**
+> (one text reading for every stage; before 3E1b by the asymmetry rule) - 2E-c and 2E-d
 > both before 3E1b by the asymmetry rule, each with its reproduction in its
 > checklist item - then **3E1b**, then **3E2**, then **3E3**
 > (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
@@ -1376,7 +1378,51 @@ dataclarity/
       only the first line counts as that customer's revenue (fixture: new
       revenue 310 against 1,860, C1 supported -> partial). Same fill in
       both stages; the LOW fill/check mismatch (F4) is judged with it.
-- [ ] 2E-g **Product tables, both stages** (Thach, after 2E-c2; before the
+- [x] 2E-g **Closed 2026-09-26** (section 12's session log). Shipped as
+      decided by Thach (1-7, method `C:\Users\Happy\2Eg-method.txt`):
+      `shared/products.py` keys and names products for stage 2's tables,
+      stage 3's members / PVM / R3 / D2 and the first-day rule alike - the
+      SKU else the name, L4's name-to-SKU through sale lines, NaN for the
+      `(no product name)` gap; labels are the name sale lines carry most
+      (whole file, tie to the latest sale), unique (SKU appended when a name
+      is shared, numbered if still clashing); units sold on sale lines; the
+      gap never ranked (stage 2 tables, R3, D2, and - Thach, after cycle 3 -
+      localization breadth and R1's top product); a SKU-only line its
+      product in stage 3; velocity null for a file with no stock-in line,
+      and per product when it has none or its running stock balance ever
+      falls below zero. metrics.json 7.0, diagnosis.json 6.0.
+      **Measured:** Online Retail II - every label unique (84 with a SKU
+      suffix), 367 labels change (renamings, stock notes gone), 739 products'
+      units change in 2011-11, velocity null with one reason (it read 0 days
+      for 2,832 of 2,858 products); the Kaggle demo - velocity null (150 of
+      150 read 0 days), 1,213 nameless lines now the gap. 2E-f's figures are
+      unchanged (orders 2,040 -> 2,769; new customers 191).
+      **Doubt-review, four cycles:** cycle 1 (8 findings) - a priceless
+      stock-in line, a product named like the gap, more invisible
+      characters, R3's bar without the gap's money, case folding, inner
+      spaces: fixed. Cycle 2 (8) - categories split differently by the two
+      stages, partial stock history read as 0 days, Unicode composition, one
+      reading of "in", clashing suffixed labels, braille blanks: fixed.
+      Cycle 3 (8, the bound) showed the shared text widening reaching
+      stage 1, categories, order ids and customers (one merge of two
+      visibly different customer ids): **Thach chose option A** - the shared
+      `is_blank` / `normalize_text` are HEAD's again, the product reading
+      lives in shared/products.py only, and one reading for every stage is
+      session 2E-i. Cycle 4 (scoped, 3E1's stop rule): the running stock
+      balance, invisible characters inside a product name, the label
+      counting (quadratic, 20 s at 50,000 products), and breadth / R1
+      without the gap - each small and local, fixed.
+      **Mutation check (31 mutants, batches of three with a backup each):**
+      2 equivalent - S3 and S6, the gap's rows kept out of the current and
+      previous tables by an explicit mask while its NaN key would drop out of
+      every grouping anyway (kept deliberately: a later `dropna=False` must
+      not rank the gap); 2 survivors killed by tests added for them (S2,
+      velocity units on sale lines with a write-off; P17, whose redundant
+      re-cleaning in `_fold` was removed from the code); all others killed.
+      **Recorded:** stock received under a SKU and sold by name only reads
+      as two products (L4 through sale lines, as decided).
+      Original item text below, kept as the record.
+      2E-g **Product tables, both stages** (Thach, after 2E-c2; before the
       Online Retail II demo, because it changes what the demo's product
       tables show). Items a-e of 2E-c2's review, as decided: a product with
       a SKU and no name is that SKU in stage 2 AND stage 3 (the shared
@@ -1392,6 +1438,28 @@ dataclarity/
       first-day rule. Where a product name maps to exactly one SKU elsewhere
       in the file, a name-only line can be resolved to that SKU. Method
       before code.
+- [ ] 2E-i **One text reading for every stage** (Thach, after 2E-g: option A
+      confined 2E-g's text rules to products, because widening the shared
+      `is_blank` / `normalize_text` reached every other reader and merged two
+      visibly different customer ids). Customers, categories, order ids,
+      transaction types and stage 1's checks read text with `str.strip`
+      and `lower` only. What it fixes, measured in 2E-g's review cycles
+      (scratchpad `review29`-`review31`): an invisible character or a
+      decomposed accent splits ONE customer into a lapsed and a new one
+      (FABRICATE: new customers, the bridge, C1-C3); a trailing zero-width
+      space splits one category into one that collapsed and one that
+      appeared (FABRICATE, both stages alike); "INV1" and "INV1<ZWSP>" are
+      two orders (FABRICATE: orders, AOV); stage 1's drop_rows_missing keeps
+      a name that stage 2 reads as blank (SUPPRESS - the rows land in the
+      gap). Decide per reader what may merge: full case folding merged the
+      surnames "Weiss" and "Wei\u00df", and deleting joiners merges Persian
+      words that render differently. **Placement by the asymmetry rule:** a
+      scan of both demo files (`2eg/text_scan.out`) found none of these in
+      the customer, category, order id or type columns - only Online Retail
+      II's Description has doubled spaces (48,398 lines), which 2E-g's
+      product reading handles. So it does not change the demo: after the
+      demo and 2E-d, before 3E1b (the verdict session), since each case is a
+      FABRICATE on a user's file.
 - [ ] 2E-d **Implausible lines, then the residue scale** (Thach, after 2E-b;
       split from 2E-c because it needs a new threshold and a sweep of
       legitimate large lines; **before 3E1b, after 2E-c, 2E-c2, 2E-e, 2E-f
@@ -1440,6 +1508,34 @@ dataclarity/
       exactly those verdicts, so its calibration would sit on fabricated
       inputs. **Why after 2E-c:** the implausible-line sweep measures line
       amounts, and 2E-c decides which lines are sales.
+- [ ] 2E-h **One date rule for every stage: wall-clock days** (Thach, after
+      2E-f: its review cycle 4 F3, scoped before scheduling). 1F decided that
+      a date keeps its wall-clock date and time with the offset dropped, and
+      stage 1 applies it when the plan runs `parse_datetime`
+      (`column_kinds.as_dates(offsets="wall_clock")`). But
+      `shared/transactions.parse_transactions` reads EVERY date with
+      `utc=True` and then drops the zone - converting to UTC first. A plan
+      need not parse `transaction_date` (1F known limit), so offset strings
+      reach cleaned.csv, and every date-based figure of stages 2 and 3 runs
+      on UTC days: period selection and completeness, `revenue_by_month`,
+      the monthly series, D1's zero days and trading calendar, first
+      purchase and recency, the order key's day, the receipt day, and stage
+      1's own order_id check on the raw upload. **Reproduced**
+      (scratchpad `2eg/utc_scope.py`): a Sydney shop (+10:00), one 100 sale
+      at 09:00 every day June-August 2026, closed Sundays. Wall clock:
+      current month 2026-08, -3.7% against July. UTC: current month 2026-07,
+      +3.8% against June (the 31 August sale falls on 30 August UTC, so
+      August is incomplete), a phantom May with 100, August 2,500 instead
+      of 2,600, and the closed day reads SATURDAY. **FABRICATE, HIGH** - the
+      headline month and the sign of its change, and D1's weekday pattern.
+      By the asymmetry rule it goes before any verdict session (3E1b) and
+      is independent of the demo files (neither holds an offset): placed
+      right after 2E-g. Method: one shared wall-clock parser (1F's rule,
+      today in stages/ingest/column_kinds.py, which a shared module may not
+      import) used by `parse_transactions` and stage 1 alike. **Also here:
+      2E-f review cycle 4 F2 (SUPPRESS)** - an id with no sale line is
+      judged on uncounted lines too; its fix passes `counted` into
+      `order_basis` through `parse_transactions`, the same function.
 - [ ] 2E-e2 **The order basis, visible and decided in Review** (Thach, after
       2E-e: decisions 1 and 2 above; placed by Claude after 2E-g and before
       2E-d2, all before the demo). Not done inside 2E-e's wrap-up because
@@ -1715,6 +1811,21 @@ dataclarity/
 - [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
       text rendered escaped, SPECS SEC-3)
 - [ ] 6F Dashboard page: charts + low-stock table + report download
+      **Stock assumption (Thach, 2E-g):** 2C derived stock on hand from the
+      file's own stock-in lines ("net in minus out, floored at 0"), which
+      assumed files with inbound movements - most POS exports are sales
+      only. Floored at 0, both demo files read "0 days to stockout" for every
+      product (2,832 of 2,858 on Online Retail II, 150 of 150 on the Kaggle
+      demo). Since 2E-g stage 2's velocity is null with one reason when the
+      file has no stock-in line, and a product with none has a null
+      days_to_stockout. **This low-stock table rests on the same
+      assumption**: it must show "stock unknown" rather than zero when no
+      inbound movement exists. **And the same formula's sign (Thach, 2E-g):**
+      a customer return and a damaged write-off both carry a negative
+      quantity with opposite meanings - goods back into stock versus goods
+      leaving it - and 2C's "every counted line subtracts" adds both back.
+      Moot on both demo files (no stock-in line, so no velocity); it must be
+      settled before any stock figure is shown on a file with inbound lines.
 - **DoD:** a non-technical user completes upload -> report without instructions
 
 ### Phase 7 - Import and Persistence
@@ -1723,6 +1834,9 @@ dataclarity/
 - [ ] 7B Import service: approved clean data -> canonical tables, upsert by
       SKU/name, import summary with skipped rows and reasons. Tests
 - [ ] 7C Dashboard endpoints read from DB (not from run files). Tests
+      **Same stock assumption as 6F's note (Thach, 2E-g):** SPECS section 9's
+      "net in minus out, floored at 0" for the Dashboard's low-stock table
+      needs inbound movements; with none imported, stock is unknown, not 0.
 - **DoD:** dashboard numbers match the source file, hand-checked
 
 ### Phase 8 - Hardening
@@ -1876,7 +1990,16 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, session **2E-f** closed 2026-09-25 (see
+**Phase in progress:** Phase 2/3, session **2E-g** closed 2026-09-26 (see
+its checklist item): one product identity and label for both stages
+(shared/products.py), units sold on sale lines, the "(no product name)" gap
+never ranked (tables, R3, D2, breadth, R1), velocity null without stock-in
+lines or with an incomplete stock history. metrics.json 7.0, diagnosis.json
+6.0. Four doubt-review cycles; after the third, Thach's option A confined
+the new text reading to products (session 2E-i does it for every stage).
+Mutation check 31 mutants, 2 equivalent (explained), the rest killed.
+pytest 2640.
+Previously, session **2E-f** closed 2026-09-25 (see
 its checklist item): the first day nets per product (96 Online Retail II
 customers get "new" back), exactly one order is F = 1 (no real customer
 changes segment; a single one-order customer is New), and one per-row
@@ -2310,12 +2433,13 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** **2E-g** (product tables, both stages), after Thach's
-approval. Order (Thach, at
+**Next step:** **2E-h** (one wall-clock date rule for every stage, with
+2E-f's F2), after Thach's approval. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
 -> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
-product tables -> 2E-e2 order basis in Review -> 2E-d2 non-product lines ->
-Online Retail II demo -> 2E-d -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
+product tables -> 2E-h wall-clock dates -> 2E-e2 order basis in Review ->
+2E-d2 non-product lines ->
+Online Retail II demo -> 2E-d -> 2E-i one text reading -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
 real legitimate large lines and the real 80,995-unit typo pair. 3E1b is how D1 learns from history, and rule 6's size test
 (it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
@@ -2332,8 +2456,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Session 2E-f: decide the known limits L1-L4 (the 2E-f item), and
-   approve 2E-g.
+1. Session 2E-g is committed and pushed by the CLAUDE.md "Pushing" rule;
+   approve 2E-h. 2E-i (one text reading for every stage) is scheduled
+   after 2E-d, before 3E1b.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

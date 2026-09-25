@@ -16,7 +16,8 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import BridgeTerms, CustomerLens
-from shared.first_purchase import first_purchase_months, product_keys
+from shared.first_purchase import first_purchase_months
+from shared.products import product_keys
 from shared.transactions import merged_identity_count
 from stages.diagnose.inputs import RunData, period_mask, shift_month
 from stages.diagnose.lever import customer_revenue
@@ -169,7 +170,7 @@ def _first_purchase(data: RunData) -> pd.Series:
     # The opening day nets per product, as stage 2 does (2E-f).
     return first_purchase_months(parsed.customers[mask], parsed.dates[mask], parsed.sale[mask],
                                  parsed.returned[mask],
-                                 products=product_keys(data.df, parsed.reverse)[mask],
+                                 products=product_keys(data.df, parsed)[mask],
                                  units=parsed.units[mask])
 
 

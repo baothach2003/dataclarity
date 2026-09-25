@@ -112,5 +112,6 @@ def test_customer_type_members_carry_every_line_of_a_receipt() -> None:
     assert totals.rev_cur.drop(["new", "retained"], errors="ignore").sum() == pytest.approx(0.0)
 
 
-def test_diagnosis_json_is_version_5() -> None:
-    assert DiagnosisContract.supported_major == 5
+def test_diagnosis_json_is_version_5_or_the_current_one() -> None:
+    # 5.0 in 2E-f; 6.0 since 2E-g (test_2eg_stage3.py).
+    assert DiagnosisContract.supported_major == 6

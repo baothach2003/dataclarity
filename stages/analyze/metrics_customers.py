@@ -72,7 +72,8 @@ import pandas as pd
 from contracts.cleaning import CleaningReportContract
 from contracts.metrics import CustomerMetrics, NewVsReturning, Period, SegmentSummary
 from shared.run_registry import run_file
-from shared.first_purchase import first_purchase_months, product_keys
+from shared.first_purchase import first_purchase_months
+from shared.products import product_keys
 from shared.numbers import is_negligible
 from shared.transactions import parse_transactions
 from stages.analyze.metrics_core import (
@@ -147,7 +148,7 @@ def compute_customer_metrics(
             "order": parsed.order_key[identified],
             "returned": parsed.returned[identified],
             # For the opening day's per-product netting (2E-f).
-            "product": product_keys(df, parsed.reverse)[identified],
+            "product": product_keys(df, parsed)[identified],
             "units": parsed.units[identified],
         }
     )

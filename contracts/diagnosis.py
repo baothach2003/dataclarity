@@ -613,8 +613,10 @@ class DiagnosisContract(ContractFile):
     # orders and the B1/B2 statements follow the orders basis. 5 since 2E-f:
     # the bridge's `new` / `resurrected` net the first day per product, and
     # its terms, `unattributed` and the customer counts read the customer
-    # filled from the receipt.
-    supported_major: ClassVar[int] = 5
+    # filled from the receipt. 6 since 2E-g: product members are keyed and
+    # named as stage 2 does (a SKU-only line is its product), and the data gap
+    # is never a stockout (R3) or a price-check product (D2).
+    supported_major: ClassVar[int] = 6
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "

@@ -17,7 +17,8 @@ both stages - and who is new. Written before the change.
 
 import pandas as pd
 
-from shared.first_purchase import first_purchase_months, product_keys
+from shared.first_purchase import first_purchase_months
+from shared.products import product_keys
 from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
@@ -48,7 +49,7 @@ def _months(rows):
     tests were written. Per-product netting: test_2ef_first_day_and_customers."""
     df, parsed = _parsed(rows)
     return first_purchase_months(df["Cust"], parsed.dates, parsed.sale, parsed.returned,
-                                 products=product_keys(df, parsed.reverse), units=parsed.units)
+                                 products=product_keys(df, parsed), units=parsed.units)
 
 
 def test_the_first_purchase_is_the_first_sale_row() -> None:

@@ -59,7 +59,11 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
     every change is concentrated, since the top five are chosen for being the
     largest movers.
     """
-    keys = sorted(set(totals.rev_prev.index) | set(totals.rev_cur.index))
+    # Over the dimension's real members: a data gap ("(no product name)") is
+    # no member whose share of the change could be concentrated - unnamed
+    # lines falling made R1 name the gap its top product with a share of 1.0
+    # (Thach, after 2E-g review cycle 3).
+    keys = sorted((set(totals.rev_prev.index) | set(totals.rev_cur.index)) - totals.gap_keys)
     deltas = {key: float(totals.rev_cur.get(key, 0.0)) - float(totals.rev_prev.get(key, 0.0))
               for key in keys}
 
