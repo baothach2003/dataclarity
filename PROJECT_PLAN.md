@@ -246,7 +246,8 @@ dataclarity/
 > follow-ups, before the demo build), then **2E-e** (optional `order_id`:
 > "orders" are lines until it exists), then **2E-f** (the RFM tie rule, on
 > invoice frequency, and per-product netting), then **2E-g** (product
-> tables, both stages), then **2E-d2** (non-product lines at stage 1: DOTCOM
+> tables, both stages), then **2E-e2** (the order basis visible and
+> decided in Review), then **2E-d2** (non-product lines at stage 1: DOTCOM
 > POSTAGE is the demo's #1 "product"), then **the Online Retail II demo** (Thach, at
 > 2E-c's start: moved from "before 3E2" to BETWEEN 2E-c and 2E-d, because
 > 2E-d's sweep needs real legitimate large lines and a real typo pair),
@@ -1225,6 +1226,19 @@ dataclarity/
       with 2E-f's customer classification. F4 (LOW) - the fill counts named
       customers on every row, the check on sale rows only; an id with a
       named zero-price line can split into 2 orders.
+      **Decided by Thach after the commit (2026-09-25):**
+      1. Blank ids: the safe rule is confirmed with NO tolerance - a
+         tolerance would be a new threshold, and the POS-change case shows
+         that mixing bases within one file is what fabricates. It must be
+         visible and actionable in Review (-> 2E-e2).
+      2. No customer column: NOT required - many real POS exports have
+         receipt numbers and no customer id, and requiring one would push
+         exactly those shops back to a wrong AOV. A daily batch code and a
+         one-order-a-day shop cannot be told apart from the data, so the
+         user decides: Review says the id was checked by date only and asks
+         the user to confirm it is a receipt number, not a daily batch
+         (-> 2E-e2). **Known limit**, with that confirmation as mitigation.
+      3. Revenue by customer on header-style exports: accepted into 2E-f.
       Original item text below, kept as the record.
       Optional canonical field `order_id` (Thach, at 2E-c2's start;
       after 2E-c2, before 2E-f). The schema has no order or invoice field, so
@@ -1253,6 +1267,14 @@ dataclarity/
       bought in the file means the history predates it. Closes the chair
       case and keeps Online Retail II's 98 genuinely new customers
       (`2ec2/measure_first_day.out`); stage 2 and the bridge together.
+      **Also here (Thach, after 2E-e): revenue by customer on header-style
+      exports** (2E-e review cycle 3, F3) - the customer named on a
+      receipt's first line only. The order count already takes the
+      receipt's one named customer; revenue attribution (new vs returning,
+      RFM monetary, segment shares, C1-C3) still reads the raw column, so
+      only the first line counts as that customer's revenue (fixture: new
+      revenue 310 against 1,860, C1 supported -> partial). Same fill in
+      both stages; the LOW fill/check mismatch (F4) is judged with it.
 - [ ] 2E-g **Product tables, both stages** (Thach, after 2E-c2; before the
       Online Retail II demo, because it changes what the demo's product
       tables show). Items a-e of 2E-c2's review, as decided: a product with
@@ -1312,6 +1334,34 @@ dataclarity/
       exactly those verdicts, so its calibration would sit on fabricated
       inputs. **Why after 2E-c:** the implausible-line sweep measures line
       amounts, and 2E-c decides which lines are sales.
+- [ ] 2E-e2 **The order basis, visible and decided in Review** (Thach, after
+      2E-e: decisions 1 and 2 above; placed by Claude after 2E-g and before
+      2E-d2, all before the demo). Not done inside 2E-e's wrap-up because
+      it is not small: it adds Review content from stage 1's own count, a
+      user decision that must reach stage 2 (a confirmation stage 2 ignores
+      would be decoration), a stage 1 contract change (a new issue code or
+      field is a major bump by CONTRACTS section 10) and frontend work - a
+      full session with method, failing tests, mutation and doubt-review.
+      Placed next to 2E-d2 because both are stage 1 flags on the Review
+      screen, so they can be one commit group with one stage 1 version bump.
+      1. Blank ids: Review shows how many sale and return lines have no
+         order id, on which dates, and that the whole file will therefore
+         count lines. **Correction to the brief:** the cleaning plan cannot
+         FILL order ids - imputing order_id is illegal by 2E-e's design (one
+         filled id merges every blank line into one order). The actions are:
+         drop those lines (drop_rows_missing - Review must say their revenue
+         then leaves every figure), fix the ids in the source file and
+         re-upload, or keep them and accept the lines basis.
+      2. No customer column: when order_id is mapped and no customer column
+         is, Review says the id was checked by date only and asks the user
+         to confirm it is a receipt number, not a daily batch code.
+      Method questions for the session: stage 1 sees the RAW file, where
+      amounts or dates may not parse until cleaning (the reason
+      `_flag_order_id` stays silent without a judgeable sale line), so where
+      the counts come from; what an unanswered or "it is a batch"
+      confirmation does (order_id dropped from the mapping -> lines); and
+      the same prompt when the USER maps order_id in Review (2E-e F5: stage
+      1 checks only the AI's mapping).
 - [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
       decisions; the same stage 1 work as 2E-d - a Review flag and a
       cleaning-plan proposal). **Placed BEFORE the demo** by Thach's rule
@@ -1715,9 +1765,11 @@ optional canonical field `order_id` (see its checklist item). Orders are
 order keys - an order id on one day for one customer - when it is mapped and
 passes stage 1's check, else sale lines, and `metrics.json` names the basis
 so every label is honest. metrics.json 5.0, diagnosis.json 4.0, stage 1
-contracts 2.0; the enum rule is in CONTRACTS section 10. Open for
-Thach: F4 (a one-per-day batch id with no customer column) and the blank-id
-rule, which review cycle 2 moved to the safe side (any blank id -> lines).
+contracts 2.0; the enum rule is in CONTRACTS section 10. Decided by Thach
+after the commit: blank ids keep the safe rule with no tolerance; a customer
+column is not required (a daily batch id is a known limit, mitigated by a
+confirmation in Review); both Review changes are session 2E-e2 (before
+2E-d2); revenue by customer on header-style exports goes to 2E-f.
 Mutation check 35 mutants, all killed but one equivalent (explained); three
 doubt-review cycles (the bound). pytest 2541, Vitest 60.
 Previously, session **2E-c2** closed 2026-09-24 (the
@@ -2125,11 +2177,12 @@ exactly, and the backend wiring composes already-reviewed primitives
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
 **Next step:** **2E-f** (the RFM tie rule on invoice frequency, and
-per-product same-day netting), after Thach's approval and his call on 2E-e's
-F4. Order (Thach, at
-2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2): **2E-c -> 2E-c2 -> 2E-e
-order_id -> 2E-f tie rule and per-product netting -> 2E-g product tables ->
-2E-d2 non-product lines -> Online Retail II demo -> 2E-d -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
+per-product same-day netting, and revenue by customer on header-style
+exports), after Thach's approval. Order (Thach, at
+2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
+-> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
+product tables -> 2E-e2 order basis in Review -> 2E-d2 non-product lines ->
+Online Retail II demo -> 2E-d -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
 real legitimate large lines and the real 80,995-unit typo pair. 3E1b is how D1 learns from history, and rule 6's size test
 (it carries the FABRICATEs); 3E2 is the generator, S0-S11, the
 `MASKED_MIN_CONTRIBUTION_SHARE` re-sweep with the value allowed to change,
@@ -2147,8 +2200,9 @@ still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
 1. Session 2E-e is committed and pushed by the CLAUDE.md "Pushing" rule
-   (commit script `C:\Users\Happy\commit-2ee.ps1`, four checks). Decide F4
-   (the 2E-e item) and approve 2E-f.
+   (commit script `C:\Users\Happy\commit-2ee.ps1`, four checks). F4, the
+   blank-id rule and the header-style revenue are decided (the 2E-e item);
+   approve 2E-f.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

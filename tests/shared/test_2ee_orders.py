@@ -50,8 +50,8 @@ def test_sale_lines_with_blank_order_ids_make_the_file_count_lines() -> None:
     (decision 1: a blank id is an order on its own). SUPERSEDED on the safe
     side after review cycle 2 (F1): ids blank until a POS upgrade made orders
     fall 279 -> 93 on an unchanged business. Any sale line without an id makes
-    the file count lines - 4 here - and the reason says how many (Thach
-    decides a tolerance; both real files have no blank id)."""
+    the file count lines - 4 here - and the reason says how many (no
+    tolerance, Thach after 2E-e; both real files have no blank id)."""
     parsed = _parsed([("2026-08-03", "1", "10", "k", "A"), ("2026-08-03", "1", "10", "k", "A"),
                       ("2026-08-04", "1", "10", "m", ""), ("2026-08-04", "1", "10", "m", None)])
 

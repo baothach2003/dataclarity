@@ -100,7 +100,8 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # unchanged business (2E-e doubt-review cycle 2, F1), and refunds rung up
     # without a receipt took the return rate 0.097 -> 0.387 (cycle 3, F1). Any
     # such line makes the file count lines - the safe side, superseding
-    # decision 1's blank-id clause (Thach decides a tolerance).
+    # decision 1's blank-id clause. No tolerance (Thach, after 2E-e): a share
+    # would be a new threshold, and mixing bases in one file is what fabricates.
     moved = sale | returned
     blank = int((moved & ids.isna()).sum())
     if blank:
