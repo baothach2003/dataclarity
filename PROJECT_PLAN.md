@@ -1870,6 +1870,28 @@ dataclarity/
       rule, #2 #6 docs; cycle 3 (6) - F3-F6 small and local, fixed after
       the last cycle (unreviewed); **F1 and F2 split out as 2E-l: the stop
       rule fired and the run stopped.** The rest is in 8D.
+      **Thach's answers (2026-09-27, after the second overnight run):**
+      M "Manual" is NOT an adjustment - the data contradicts "manual
+      adjustments": its positive lines on invoices with products are
+      manually priced sales, its negative lines on credit notes are refunds;
+      it stays sale and return lines, but pools many unnamed items, so it is
+      never ranked as a product, like "(no product name)" (2E-l). S
+      "SAMPLES" is a fee or cost (samples given away are a marketing cost).
+      The fourth class, discount, is confirmed (2E-c). An invoice holding
+      only charges is NOT an order (orders feed frequency and RFM and must
+      be purchases); its money stays in revenue (2E-l, with the count it
+      moves on Online Retail II). D5 of 2E-k accepted as not blocking. C2
+      "CARRIAGE" and 23444 "Next Day Carriage" are candidates (the word rule
+      finds both, suggested charge) and are charges in the demo.
+- [ ] 2E-r **One scoped review pass on the unreviewed cycle-3 fixes** (Thach,
+      2026-09-27, Q2): 2E-k's (the 4-times test among the values not already
+      asked; the cycle 3 words; the fill unmeasured when date only; the share
+      rounding; the date-free reading moved to stage 1) and 2E-d2's (the
+      name-only vote read as if nothing were classed; the first-day netting
+      keyed as unanswered; sums that overflow; the tie-break for the
+      commonest name). One fresh-context adversarial pass, the triage rule,
+      the stop rule (small local fixes allowed; a non-local critical is split
+      out and stops the run).
 - [ ] 2E-l **Headlines when the change sits outside the products** (split
       out of 2E-d2 doubt-review cycle 3 under the stop rule; **for Thach -
       the second overnight run stopped on it**). FABRICATE, headline.
@@ -1894,6 +1916,22 @@ dataclarity/
         product-lens and concentration headlines when most of the change is
         outside those lenses (a rule, possibly a threshold). Before 3E1b by
         the asymmetry rule.
+      **Decided by Thach (2026-09-27, after the second overnight run): both.**
+      A. Add hypotheses for DEDUCTIONS (discounts) and for CUSTOMER-PAID
+         CHARGES (postage), recorded as an amendment to ADR-0005 (the catalog
+         is pre-registered): a promotion month is a real, nameable cause.
+      B. R1 and breadth may say "concentrated in one product" only when MORE
+         THAN HALF of the change sits in the product lens (the same "more
+         than half" as 2E-k D1), and they measure concentration against the
+         product lens's own change, not the whole change.
+      Also here (Thach's answers on 2E-d2, the run has no other slot before
+      the demo):
+      - an invoice holding only charges is not an order; its money stays in
+        revenue; measure how many invoices this moves on Online Retail II;
+      - a key the user says pools many unnamed items (Online Retail II's M
+        "Manual": manually priced sales and their refunds) stays sale and
+        return lines - revenue, orders, AOV, returns - but is never ranked as
+        a product, the same treatment as "(no product name)".
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2342,9 +2380,14 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3. **Second overnight run** approved by Thach
-(2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i ->
-2E-j, stop before 3E1b; report in `C:\Users\Happy\overnight-report.txt`.
+**Phase in progress:** Phase 2/3. **Third overnight run** approved by Thach
+(2026-09-27): 2E-r (the scoped review of the unreviewed cycle-3 fixes) ->
+2E-l -> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j, stop before 3E1b; same
+rules, the triage rule; report in `C:\Users\Happy\overnight-report.txt`
+(the first two kept as `overnight-report-run1.txt` and `-run2.txt`). Thach's
+decisions on the second run are recorded in the 2E-d2, 2E-r and 2E-l items.
+The second overnight run (2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo
+-> 2E-d -> 2E-i -> 2E-j, stop before 3E1b.
 **The second overnight run STOPPED after 2E-d2** (session 2 of 6): its
 doubt-review cycle 3 (the bound) found headline FABRICATEs on a common shape
 whose fix is not local - split out as **2E-l** (for Thach); the stop rule
@@ -2828,9 +2871,8 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Thach decides 2E-l (see its item and the report); then the
-rest of the second overnight run: **Online Retail II demo -> 2E-d -> 2E-i ->
-2E-j**, stop before 3E1b. The run as approved (Thach, 2026-09-26): **2E-k ->
+**Next step:** the third overnight run (Thach, 2026-09-27): **2E-r -> 2E-l
+-> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j**, stop before 3E1b. The run as approved (Thach, 2026-09-26): **2E-k ->
 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j**, stop before 3E1b,
 same rules, the triage rule of section 6 applied to every finding. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
@@ -2855,10 +2897,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Second overnight run: read `C:\Users\Happy\overnight-report.txt`. It
-   stopped after 2E-d2 on 2E-l (headlines when the change sits outside the
-   products); decide 2E-l and the flagged codes (M, S, D's class) before
-   the demo build.
+1. Third overnight run: read `C:\Users\Happy\overnight-report.txt`.
+   The second run's questions (2E-l, M, S, D's class, charge-only invoices,
+   D5, the unreviewed fixes) are answered and recorded.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -2875,7 +2916,10 @@ still not started; its Insights frame now waits on 3E (see
    2E-d2 and 2E-d** (Thach; was "before 3E2", then after 2E-c, then after
    2E-c2; order_id (2E-e), the tie rule (2E-f), the product tables (2E-g)
    and non-product lines (2E-d2) come first so the demo shows honest KPIs
-   and product tables): it has real
+   and product tables; its line classes as Thach decided on 2026-09-27:
+   POST, DOT, C2, 23444 charges; D a discount; AMAZONFEE, CRUK, BANK
+   CHARGES, S fees or costs; B, ADJUST, ADJUST2 adjustments; M pooled
+   items, sold but never ranked - 2E-l): it has real
    cancellations, and neither current demo file holds a return line, so
    refund behaviour - including the cost of B2's refusal - must be measured
    on real data; and 2E-d's implausible-line sweep needs its real
