@@ -124,6 +124,18 @@ class ColumnInference(ContractModel):
     issues: list[ColumnIssue]
 
 
+class CustomerPlaceholder(ContractModel):
+    """A customer value that may stand for walk-ins (2E-k), found by stage 1
+    on the raw file: a known placeholder word, or a value carrying 10% or more
+    of the counted lines or of the sale revenue. Review asks about each."""
+
+    value: str  # as written in the file (its commonest spelling)
+    lines: NonNegativeInt
+    lines_pct: Percent
+    revenue_pct: Percent | None  # None when the file has no sale revenue
+    why: Literal["word", "share"]
+
+
 class SchemaInferenceContract(ContractFile):
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
@@ -144,6 +156,15 @@ class SchemaInferenceContract(ContractFile):
     # line parses on the raw file, blank ids make it count lines, or a 2.0
     # file). Review asks about the fill when it is above 0 or None.
     receipt_fill_lines: NonNegativeInt | None = None
+    # 2.2 (2E-k): stage 1's own measures on the raw file and these columns'
+    # mapping - the customer values that may be walk-in placeholders, and
+    # whether the order-id check could read dates only (most receipts name no
+    # customer, one customer is on most, or fewer than two are named; None:
+    # not measured).
+    # None: not measured (the raw file did not parse into lines, or a file
+    # older than 2.2) - Review then reads profile.json's top values.
+    customer_placeholders: list[CustomerPlaceholder] | None = None
+    order_id_date_only: bool | None = None
 
     # "Every profiled column appears exactly once" also needs profile.json, so
     # only its in-file half (no duplicates) is checked here; stage 1 checks the

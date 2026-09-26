@@ -21,7 +21,9 @@ from tests.stages.diagnose.diagnose_fixtures import MAPPING, daily_rows, row, ru
 
 # The user's Yes to Review's fill question (2E-e2), explicit although an
 # unanswered question fills too (test_2ee2_review.py).
-FIRST_LINE = OrderConfirmations(customer_on_first_line_only=True)
+# And the receipt Yes: one customer is on most of these receipts, which since
+# 2E-k leaves the order-id check on dates only.
+FIRST_LINE = OrderConfirmations(order_id_is_receipt=True, customer_on_first_line_only=True)
 
 WITH_ORDERS = {**MAPPING, "Inv": "order_id"}
 
@@ -119,4 +121,4 @@ def test_customer_type_members_carry_every_line_of_a_receipt() -> None:
 
 def test_diagnosis_json_is_version_5_or_the_current_one() -> None:
     # 5.0 in 2E-f; 6.0 in 2E-g; 7.0 in 2E-h; 8.0 since 2E-e2.
-    assert DiagnosisContract.supported_major == 8
+    assert DiagnosisContract.supported_major == 9  # 8.0 in 2E-e2; 9.0 since 2E-k

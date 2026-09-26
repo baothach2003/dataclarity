@@ -161,12 +161,20 @@ class CustomerMetrics(ContractModel):
     # reason is null exactly when the count is 0.
     unfilled_receipt_lines: NonNegativeInt
     unfilled_receipt_lines_reason: str | None
+    # Counted lines whose customer value the user confirmed in Review as a
+    # placeholder for walk-ins (2E-k): no customer, so in no customer's
+    # figures. The reason is null exactly when the count is 0.
+    placeholder_lines: NonNegativeInt
+    placeholder_lines_reason: str | None
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
         if (self.unfilled_receipt_lines == 0) != (self.unfilled_receipt_lines_reason is None):
             raise ValueError("unfilled_receipt_lines_reason says why lines were left "
                              "unattributed; it is null exactly when unfilled_receipt_lines is 0")
+        if (self.placeholder_lines == 0) != (self.placeholder_lines_reason is None):
+            raise ValueError("placeholder_lines_reason says why lines have no customer; it is "
+                             "null exactly when placeholder_lines is 0")
         _paired_list([segment.customers_previous is None for segment in self.segments],
                      self.customers_previous_reason, "customers_previous")
         _paired_list([segment.revenue_share_pct is None for segment in self.segments],
@@ -280,8 +288,11 @@ class MetricsContract(ContractFile):
     # undated_lines with its reason. 9 since 2E-e2: an order id checked by
     # date only, and the customer fill, count only with the user's answer in
     # Review (orders and every per-customer figure), and
-    # unfilled_receipt_lines with its reason.
-    supported_major: ClassVar[int] = 9
+    # unfilled_receipt_lines with its reason. 10 since 2E-k: a confirmed
+    # walk-in placeholder has no customer (placeholder_lines), and the
+    # order-id check is judged per receipt (most receipts unnamed, or one
+    # customer on most, falls back to the receipt question).
+    supported_major: ClassVar[int] = 10
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

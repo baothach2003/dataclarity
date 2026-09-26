@@ -7,7 +7,8 @@ from tests.backend.api_support import MakeApi, make_api_with_plan
 
 def test_the_answers_in_the_plan_reach_the_cleaning_report(make_api: MakeApi) -> None:
     api, run_id, plan = make_api_with_plan(make_api)
-    answers = {"order_id_is_receipt": True, "customer_on_first_line_only": False}
+    answers = {"order_id_is_receipt": True, "customer_on_first_line_only": False,
+               "customer_placeholders": []}  # 2E-k
 
     response = api.post(run_id, "execute", {**plan, "confirmations": answers})
 
@@ -24,7 +25,8 @@ def test_a_plan_without_answers_records_none(make_api: MakeApi) -> None:
 
     assert response.status_code == 200, response.text
     assert api.read_json(run_id, "cleaning_report.json")["confirmations"] == {
-        "order_id_is_receipt": None, "customer_on_first_line_only": None}
+        "order_id_is_receipt": None, "customer_on_first_line_only": None,
+        "customer_placeholders": []}  # 2E-k
 
 
 def test_a_plan_changed_only_by_the_users_answers_is_the_users(make_api: MakeApi) -> None:

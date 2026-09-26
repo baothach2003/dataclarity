@@ -11,6 +11,7 @@ import type {
   ProfileContract,
   SchemaInferenceContract,
 } from '../types/contracts.ts'
+import { customerIdentity } from './customerChecks.ts'
 import { IMPUTATION_ACTIONS } from './transformCatalog.ts'
 
 // The fields stage 1's fill measure reads (shared/transactions.py
@@ -32,7 +33,9 @@ export interface StoredAnswer {
   value: boolean
   key: string
 }
-export type StoredAnswers = Record<keyof OrderConfirmations, StoredAnswer | null>
+/** Review's two yes/no questions about orders. */
+export type Question = 'order_id_is_receipt' | 'customer_on_first_line_only'
+export type StoredAnswers = Record<Question, StoredAnswer | null>
 
 export const NO_ANSWERS: StoredAnswers = { order_id_is_receipt: null, customer_on_first_line_only: null }
 
@@ -84,11 +87,48 @@ export function blankOrderIds(plan: CleaningPlan, profile: ProfileContract): { c
   return column === null || count === 0 ? null : { column, count }
 }
 
-/** The order id column, when no customer is named: the id could be checked
- * by date only, and a daily batch code passes that check. */
-export function needsReceiptConfirmation(plan: CleaningPlan, profile: ProfileContract): string | null {
+/** The order id column, when the order-id check could read dates only - a
+ * daily batch code passes it. Stage 2 judges it per receipt (2E-k: most
+ * receipts name no customer, one customer is on most, or fewer than two are
+ * named); stage 1 measured that verdict on the raw file
+ * (`order_id_date_only`), used while the columns are the ones it measured and
+ * no placeholder is confirmed. Otherwise it is approximated per line from
+ * profile.json, a confirmed placeholder counted as blank. */
+export function needsReceiptConfirmation(
+  plan: CleaningPlan,
+  profile: ProfileContract,
+  schema: SchemaInferenceContract | null = null,
+  placeholders: readonly string[] = [],
+): string | null {
   const column = mappedColumn(plan, 'order_id')
-  return column !== null && namedCustomerColumn(plan, profile) === null ? column : null
+  if (column === null) {
+    return null
+  }
+  const verdict = schema?.order_id_date_only ?? null
+  const measured =
+    schema !== null &&
+    verdict !== null &&
+    placeholders.length === 0 &&
+    FILL_FIELDS.every((field) => mappedColumn(plan, field) === schemaColumn(schema, field))
+  const dateOnly = measured ? verdict : approximatelyDateOnly(plan, profile, placeholders)
+  return dateOnly ? column : null
+}
+
+/** Stage 2's rule read per line from profile.json ("mostly" = more than
+ * half): mostly blank, one value on most lines, or fewer than two values. */
+function approximatelyDateOnly(plan: CleaningPlan, profile: ProfileContract, placeholders: readonly string[]): boolean {
+  const column = mappedColumn(plan, 'customer')
+  const stats = profile.columns.find((c) => c.name === column)
+  if (column === null || stats === undefined) {
+    return true
+  }
+  const confirmed = new Set(placeholders.map(customerIdentity))
+  const isPlaceholder = (value: string) => confirmed.has(customerIdentity(value))
+  const placeholderValues = stats.top_values.filter((t) => isPlaceholder(t.value))
+  const blank = stats.null_count + placeholderValues.reduce((sum, t) => sum + t.count, 0)
+  const topReal = Math.max(0, ...stats.top_values.filter((t) => !isPlaceholder(t.value)).map((t) => t.count))
+  const rows = profile.dataset.rows
+  return blank * 2 > rows || topReal * 2 > rows || stats.unique_count - placeholderValues.length < 2
 }
 
 /** Whether to ask that the customer is written on a receipt's first line
@@ -135,7 +175,7 @@ export function fillQuestion(
 
 /** What an answer is about: the order id column for the receipt question,
  * the columns the fill reads for the fill question. */
-export function answerKey(plan: CleaningPlan, question: keyof OrderConfirmations): string {
+export function answerKey(plan: CleaningPlan, question: Question): string {
   return question === 'order_id_is_receipt'
     ? (mappedColumn(plan, 'order_id') ?? '')
     : JSON.stringify(FILL_FIELDS.map((field) => mappedColumn(plan, field)))
@@ -150,19 +190,27 @@ export function applicableAnswers(
   schema: SchemaInferenceContract | null,
   profile: ProfileContract,
   stored: StoredAnswers,
+  placeholders: readonly string[] = [],
 ): OrderConfirmations {
-  function current(question: keyof OrderConfirmations, asked: boolean): boolean | null {
+  function current(question: Question, asked: boolean): boolean | null {
     const answer = stored[question]
     if (answer === null || answer.key !== answerKey(plan, question)) {
       return null
     }
-    if (question === 'order_id_is_receipt' && !answer.value) {
-      return false
+    // An answer about the order id column holds while that column is the
+    // order id, asked or not: a No always counts (2E-e2 cycle 3 F2), and a
+    // Yes must not vanish when a remap or a placeholder hides the question
+    // (2E-k doubt-review F3).
+    if (question === 'order_id_is_receipt') {
+      return answer.value
     }
     return asked ? answer.value : null
   }
   return {
-    order_id_is_receipt: current('order_id_is_receipt', needsReceiptConfirmation(plan, profile) !== null),
+    order_id_is_receipt: current(
+      'order_id_is_receipt',
+      needsReceiptConfirmation(plan, profile, schema, placeholders) !== null,
+    ),
     customer_on_first_line_only: current('customer_on_first_line_only', fillQuestion(plan, schema, profile) !== null),
   }
 }
@@ -174,6 +222,12 @@ export function withApplicableConfirmations(
   schema: SchemaInferenceContract | null,
   profile: ProfileContract,
   stored: StoredAnswers,
+  placeholders: readonly string[] = [],
 ): CleaningPlan {
-  return { ...plan, confirmations: applicableAnswers(plan, schema, profile, stored) }
+  const answers = applicableAnswers(plan, schema, profile, stored, placeholders)
+  // The confirmed walk-in placeholders (2E-k) go only when there are some.
+  return {
+    ...plan,
+    confirmations: placeholders.length > 0 ? { ...answers, customer_placeholders: [...placeholders] } : answers,
+  }
 }

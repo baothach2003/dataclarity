@@ -10,8 +10,8 @@ describe('buildManualPlan', () => {
     // Only `columns[].name` is read here; the rest of the profile is irrelevant.
     const profile = { columns: [{ name: 'Invoice' }] } as unknown as ProfileContract
 
-    // 2.1 since 2E-e2 (confirmations, a minor bump): the major the backend reads is still 2.
-    expect(buildManualPlan(profile, null).schema_version).toBe('2.1')
+    // 2.1 in 2E-e2, 2.2 since 2E-k (review cycle 1 F8; minor bumps): the major is still 2.
+    expect(buildManualPlan(profile, null).schema_version).toBe('2.2')
   })
 
   it('starts with no answer to either Review question (2E-e2)', () => {

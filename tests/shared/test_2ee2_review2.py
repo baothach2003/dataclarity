@@ -53,9 +53,9 @@ def test_one_placeholder_customer_on_every_line_is_no_customer_to_check_by() -> 
 
     assert unanswered.orders_basis == "lines"
     assert unanswered.orders_basis_reason == (
-        "the order id column could be checked by date only (the customer column never names "
-        "two different customers), and it was not confirmed in Review as a receipt number, so "
-        "the figures count lines")
+        "the order id column could be checked by date only (one customer is on most "
+        "receipts), and it was not confirmed in Review as a receipt number, so the figures "
+        "count lines")  # per receipt since 2E-k
     assert confirmed.orders_basis == "order_id"
 
 

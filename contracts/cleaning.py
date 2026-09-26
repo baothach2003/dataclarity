@@ -51,6 +51,10 @@ class OrderConfirmations(ContractModel):
 
     order_id_is_receipt: StrictBool | None = None
     customer_on_first_line_only: StrictBool | None = None
+    # 2.2 (2E-k): the customer values the user confirmed as a placeholder for
+    # walk-ins ("Guest", "Walk-in", "0"), as written; stages 2 and 3 compare
+    # them by customer identity, and their lines have no customer.
+    customer_placeholders: list[str] = Field(default_factory=list)
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------

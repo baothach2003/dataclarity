@@ -9,16 +9,16 @@ import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
 import { Notice } from '../components/Notice.tsx'
 import { OrderNotices } from '../components/OrderNotices.tsx'
+import { PlaceholderNotices } from '../components/PlaceholderNotices.tsx'
 import { PreviewPane } from '../components/PreviewPane.tsx'
 import { Stepper } from '../components/Stepper.tsx'
 import { SummaryStrip } from '../components/SummaryStrip.tsx'
 import { buildColumnViewModels } from '../domain/columnView.ts'
 import { describeError } from '../domain/errorCopy.ts'
 import { mappingConflict, missingRequiredFields } from '../domain/planRules.ts'
-import { NO_ANSWERS, answerKey, applicableAnswers, withApplicableConfirmations } from '../domain/orderChecks.ts'
-import type { StoredAnswers } from '../domain/orderChecks.ts'
 import { buildManualPlan, reconcileAction, withMappingDisabled } from '../domain/reviewPlan.ts'
 import { defaultParams } from '../domain/transformParams.ts'
+import { useOrderAnswers } from './useOrderAnswers.ts'
 import type {
   CanonicalField,
   CleaningPlan,
@@ -64,10 +64,7 @@ export function ReviewPage({
 }: ReviewPageProps) {
   const [aiProposal, setAiProposal] = useState(initialPlan)
   const [plan, setPlan] = useState<CleaningPlan>(() => initialPlan ?? buildManualPlan(profile, schema))
-  // Kept apart from the plan so an answer neither re-runs the preview nor is
-  // lost when the plan is reset to the AI's; each remembers the columns it
-  // was given for (2E-e2).
-  const [answers, setAnswers] = useState<StoredAnswers>(NO_ANSWERS)
+  const orderAnswers = useOrderAnswers(plan, schema, profile)
   const [activeNotices, setActiveNotices] = useState(notices)
   const [mappingConflicts, setMappingConflicts] = useState<Map<string, string>>(new Map())
   const [notInventoryAcknowledged, setNotInventoryAcknowledged] = useState(false)
@@ -178,8 +175,7 @@ export function ReviewPage({
     setExecuting(true)
     setExecuteError(null)
     try {
-      const result = await executePlan(
-        baseUrl, runId, withApplicableConfirmations(planToSubmit, schema, profile, answers))
+      const result = await executePlan(baseUrl, runId, orderAnswers.confirmed(planToSubmit))
       onCleaned({ report: result.report, notices: result.notices })
     } catch (error) {
       setExecuteError(error)
@@ -285,17 +281,23 @@ export function ReviewPage({
         )}
 
         {!isNotInventory && (
-          <OrderNotices
-            plan={plan}
-            answers={applicableAnswers(plan, schema, profile, answers)}
-            profile={profile}
-            schema={schema}
-            onAnswer={(key, value) => {
-              setAnswers((current) => ({ ...current, [key]: value === null ? null : { value, key: answerKey(plan, key) } }))
-            }}
-            onDropBlankIds={(name) => { handleActionChange(name, 'drop_rows_missing', defaultParams('drop_rows_missing')) }}
-            onUploadFixed={onCancel}
-          />
+          <>
+            <PlaceholderNotices
+              candidates={orderAnswers.candidates}
+              answers={orderAnswers.placeholderAnswers}
+              onAnswer={orderAnswers.answerPlaceholder}
+            />
+            <OrderNotices
+              plan={plan}
+              answers={orderAnswers.answers}
+              placeholders={orderAnswers.placeholders}
+              profile={profile}
+              schema={schema}
+              onAnswer={orderAnswers.answer}
+              onDropBlankIds={(name) => { handleActionChange(name, 'drop_rows_missing', defaultParams('drop_rows_missing')) }}
+              onUploadFixed={onCancel}
+            />
+          </>
         )}
 
         <ColumnsTable

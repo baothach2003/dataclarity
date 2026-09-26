@@ -1667,7 +1667,7 @@ dataclarity/
         customer fill actually happens (a trusted order id, and an unnamed
         line filled from its receipt), Review asks the user to confirm that
         the customer name is written on a receipt's first line only.
-- [ ] 2E-k **Is the customer column ever imputed?** (split out of 2E-e2
+- [x] 2E-k **Is the customer column ever imputed?** (split out of 2E-e2
       doubt-review cycle 3 F1 under the stop rule; **for Thach - the
       overnight run stopped on it**). The cleaning prompt's default for a
       text column 5% or more missing is `impute_constant` "Unknown", and
@@ -1696,6 +1696,58 @@ dataclarity/
          back to the receipt question (2E-e2's D3) rather than passing.
       Runs first in the second overnight run (2E-k -> 2E-d2 -> demo -> 2E-d
       -> 2E-i -> 2E-j).
+      **Done 2026-09-26 (second overnight run, session 1).** Method in
+      `C:\Users\Happy\2Ek-method.txt`, amended before code and after each
+      review cycle.
+      1. `customer` joins NEVER_IMPUTED_FIELDS whatever its semantic type
+         (transform catalog, frontend mirror, cleaning prompt: "leave the
+         blanks, they are walk-ins").
+      2. Walk-in placeholders. Stage 1 measures candidates on the raw file,
+         reading no date (`stages/ingest/customer_placeholders.py`;
+         schema_inference 2.2 `customer_placeholders`, null = not measured):
+         a placeholder word at any share (letter-bounded, so plurals, codes
+         and underscores match: "Guest", "Walk-ins", "GUEST01", "Khach le",
+         "Khach vang lai", "Consumidor Final", "Laufkunde", the Chinese
+         default...), "customer" alone, "n.a.", no letter or digit, a number
+         at or below zero; or 10% or more of the counted lines or of the sale
+         revenue (PLACEHOLDER_SHARE); or the largest of the values not
+         already asked about at 4 times the next, by lines or by revenue
+         (PLACEHOLDER_RATIO - a new constant, allowed by the wide measured
+         gap: the demos' largest customer is 1.01-1.15 times the next,
+         Online Retail II's walk-ins 18.5 times its largest customer).
+         Review asks "Is "X" a placeholder for walk-ins?" (after a remap
+         from the profile's top values, lines only); Yes travels as
+         `confirmations.customer_placeholders` (plan 2.2) and stages 2-3
+         mask those values before the receipt fill; metrics.json
+         `customers.placeholder_lines` + reason counts their lines.
+      3. Q4 per receipt ("mostly" = more than half): the order-id check
+         reads dates only - so the id is trusted only with the receipt
+         answer Yes - when most receipts name no customer after the fill
+         (a confirmed placeholder names none), one customer is on most,
+         fewer than two are named, or there is no customer column.
+         schema_inference 2.2 `order_id_date_only`; Review approximates it
+         from the profile after a remap or once a placeholder is confirmed.
+         A receipt answer, Yes or No, holds while that column is the order
+         id. `receipt_fill_lines` is null (not measured) when the verdict is
+         date only.
+      metrics.json 10.0, diagnosis.json 9.0, stage 1 contracts 2.2. Both
+      demo files unchanged: no candidate on either; Online Retail II keeps
+      its order_id basis (2,769 orders, AOV 527.90), Kaggle counts lines.
+      Mutation: 73 Python and 39 frontend mutants in batches with a backup
+      each; every survivor killed by a test added for it (L5 equivalent:
+      a line share cannot pass 100%; the redundant cap was removed).
+      Doubt-review, 3 cycles (the bound), triaged by section 6's rule:
+      cycle 1 (8) - F6 blocking (placeholder spellings under 10%), F2 crash
+      at 100.00000000000003%, F3a Yes lost with its question, F4, F5
+      wording, F8 fixed; F1, F3b, F5b, F7 to 8D. Cycle 2 (9) - F1 blocking
+      (off-list placeholder under 10%: the 4-times rule, more languages),
+      F4 quadratic search, F5 date parse at the schema step, F7 double
+      count fixed; F2, F3, F6, F8, F9 and the numbered-label flood to 8D.
+      Cycle 3 (8) - F1 (a first placeholder shielding a second), F3 (+F4)
+      more words, F5, F6 docs, F7 rounding, F8 file size fixed AFTER the
+      last cycle, so unreviewed; F2 to 8D, judged not blocking (it needs
+      an off-list code AND a key account on a quarter or more of the
+      walk-in receipts) - the stop rule did not fire. For Thach to overrule.
 - [ ] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
       reader** (Thach, at 2E-h). Australia, the UK and Vietnam write the day
       first. When the cleaning plan parses the date column (1E's
@@ -2042,6 +2094,29 @@ dataclarity/
       (frontend `ReviewPage.tsx`, `contracts/metrics.py`); stage 2 takes
       ~25 s at 650,000 rows (SPECS section 11 wants seconds). Every finding
       the triage rule does not block lands here too, with its session.
+      From 2E-k (walk-in placeholders; none fabricates on the demo files):
+      - cycle 1 F1: the customer column's own transforms (cast,
+        standardize) can change a confirmed spelling, so the answer misses.
+      - cycle 1 F3b: stage 1 measures the per-receipt verdict without the
+        user's placeholder answers; Review approximates it from the profile
+        once one is confirmed ("may count lines").
+      - cycle 1 F5b: the fill question's count does not leave out lines a
+        placeholder answer will unattribute.
+      - cycle 1 F7: clip / fix_negative on a numeric customer column rewrite
+        dummy ids such as "-1" before stage 2 compares them.
+      - cycle 2: a daily batch code can pass the check again after "Guest"
+        is confirmed on an unusual shape; order_id_not_one_order still
+        reads a placeholder as a customer; numbered walk-in labels
+        ("Walk-in 1".."Walk-in 40") ask one question each; stage 2 is
+        slower on a file with a blank order id; runs analysed before 2.2
+        re-read without placeholders; front/back parity on exotic zero
+        spellings.
+      - cycle 3 F2: on a header-style export, shares are measured on raw
+        lines before the receipt fill; the fix is a per-receipt measure.
+      - `shared/transactions.py` is 306 lines and `ReviewPage.tsx` 364.
+      - Stage 1's order-check parse of Online Retail II took 6.4 s and
+        12.4 s on two runs of unchanged code (machine load); part of the
+        speed item above.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2177,6 +2252,12 @@ significance threshold, making a one-cent price rise a step change.
 **Phase in progress:** Phase 2/3. **Second overnight run** approved by Thach
 (2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i ->
 2E-j, stop before 3E1b; report in `C:\Users\Happy\overnight-report.txt`.
+Session **2E-k** closed 2026-09-26 (see its checklist item): the customer
+column is never imputed; walk-in placeholders are measured by stage 1 and
+confirmed in Review; the receipt question is judged per receipt.
+metrics.json 10.0, diagnosis.json 9.0, stage 1 contracts 2.2. pytest 2826,
+Vitest 133. Its cycle 3 fixes landed after the last review cycle
+(unreviewed). Next: 2E-d2.
 Thach's decisions on the first run are recorded in the 2E-e2, 2E-k, 2E-j
 and 2E-d2 items, section 6 (the triage rule) and 8D.
 The first overnight run of 2026-09-26 (2E-h, 2E-e2, 2E-d2, the Online

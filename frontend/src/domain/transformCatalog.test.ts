@@ -10,7 +10,7 @@ describe('order_id in the Review screen', () => {
     // (an identifier column refuses it by type already).
     expect(illegalityReason('impute_constant', 'text', 'order_id')).toMatch(/single order/)
     expect(illegalityReason('impute_mode', 'categorical_nominal', 'order_id')).toMatch(/single order/)
-    expect(illegalityReason('impute_constant', 'text', 'customer')).toBeNull()
+    // (A customer column may not be filled either since 2E-k; see below.)
     expect(legalColumnActions('identifier', 'order_id')).toContain('drop_rows_missing')
     expect(legalColumnActions('identifier', 'order_id')).not.toContain('impute_constant')
   })
@@ -37,5 +37,19 @@ describe('order_id in the Review screen', () => {
   it('shows any missing order id as high: one blank id turns every order figure into lines', () => {
     expect(columnIssueSeverity('missing_values', 'order_id', 0.1)).toBe('high')
     expect(illegalityReason('impute_constant', 'text', 'order_id')).not.toMatch(/order of its own/)
+  })
+})
+
+// Session 2E-k (Thach): the customer column is never imputed, whatever its
+// semantic type - a filled-in value becomes a customer the file never named.
+describe('customer in the Review screen', () => {
+  it('is never imputed, whatever its type', () => {
+    for (const semantic of ['text', 'categorical_nominal', 'identifier', 'numeric_discrete'] as const) {
+      for (const action of ['impute_constant', 'impute_mode', 'impute_median', 'impute_mean'] as const) {
+        expect(legalColumnActions(semantic, 'customer')).not.toContain(action)
+      }
+    }
+    expect(illegalityReason('impute_constant', 'text', 'customer')).toMatch(/never named/)
+    expect(legalColumnActions('text', 'customer')).toContain('drop_rows_missing')
   })
 })

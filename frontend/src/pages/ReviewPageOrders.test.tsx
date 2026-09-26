@@ -291,6 +291,16 @@ describe('ReviewPage: the receipt question', () => {
     expect(sent.confirmations?.order_id_is_receipt).toBe(false)
   })
 
+  it('keeps and shows a Yes after a customer column is mapped (2E-k review cycle 1 F3, mutation check N6)', () => {
+    renderReview([...WITHOUT_CUSTOMER, ['Buyer', 'ignore']])
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, a receipt number' }))
+
+    const ignored = screen.getAllByDisplayValue('ignore')
+    fireEvent.change(ignored[ignored.length - 1], { target: { value: 'customer' } })
+
+    expect(screen.getByText('"Inv" is a receipt number')).toBeDefined()
+  })
+
   it('does not promise orders by id when stage 1 found its ids spanning days (cycle 3 F4)', () => {
     renderReview(WITHOUT_CUSTOMER, { flagOrderId: true })
     fireEvent.click(screen.getByRole('button', { name: 'Yes, a receipt number' }))
@@ -303,6 +313,107 @@ describe('ReviewPage: the receipt question', () => {
     renderReview(MAPPED)
 
     expect(screen.queryByText(/a receipt number\?/)).toBeNull()
+  })
+})
+
+describe('ReviewPage: walk-in placeholders (2E-k)', () => {
+  function renderWithGuest() {
+    vi.mocked(runsApi.previewPlan).mockResolvedValue(PREVIEW)
+    const executePlan = vi.mocked(runsApi.executePlan).mockResolvedValue(EXECUTED)
+    const guest = { value: 'Guest', lines: 70, lines_pct: 70, revenue_pct: 60, why: 'word' as const }
+    render(
+      <ReviewPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="sales.csv"
+        profile={makeProfile(MAPPED)}
+        schema={{ ...makeSchema(MAPPED), customer_placeholders: [guest], order_id_date_only: false }}
+        initialPlan={makePlan(MAPPED)}
+        notices={[]}
+        onCancel={vi.fn()}
+        onCleaned={vi.fn()}
+      />,
+    )
+    return executePlan
+  }
+
+  it('asks about a candidate and sends a Yes', async () => {
+    const executePlan = renderWithGuest()
+
+    expect(screen.getByText('Is "Guest" a placeholder for walk-ins?')).toBeDefined()
+    expect(screen.getByText(/on 70% of the lines and 60% of the sale revenue/)).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, a placeholder' }))
+
+    const sent = await confirmedPlan(executePlan)
+    expect(sent.confirmations?.customer_placeholders).toEqual(['Guest'])
+  })
+
+  it('asks again about the same value in another customer column (mutation check M11)', () => {
+    vi.mocked(runsApi.previewPlan).mockResolvedValue(PREVIEW)
+    const mapping: [string, CanonicalField][] = [...MAPPED, ['Buyer', 'ignore']]
+    const profile = makeProfile(mapping)
+    profile.columns = profile.columns.map((c) =>
+      c.name === 'Buyer' ? { ...c, top_values: [{ value: 'Guest', count: 30 }] } : c,
+    )
+    const guest = { value: 'Guest', lines: 70, lines_pct: 70, revenue_pct: 60, why: 'word' as const }
+    render(
+      <ReviewPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="sales.csv"
+        profile={profile}
+        schema={{ ...makeSchema(mapping), customer_placeholders: [guest], order_id_date_only: false }}
+        initialPlan={makePlan(mapping)}
+        notices={[]}
+        onCancel={vi.fn()}
+        onCleaned={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, a placeholder' }))
+
+    fireEvent.change(screen.getByDisplayValue('customer'), { target: { value: 'ignore' } })
+    const ignored = screen.getAllByDisplayValue('ignore')
+    fireEvent.change(ignored[ignored.length - 1], { target: { value: 'customer' } })
+
+    expect(screen.getByText('Is "Guest" a placeholder for walk-ins?')).toBeDefined()
+  })
+
+  it('asks the receipt question once a placeholder leaves most receipts unnamed (mutation check M12)', () => {
+    vi.mocked(runsApi.previewPlan).mockResolvedValue(PREVIEW)
+    const profile = makeProfile(MAPPED)
+    profile.columns = profile.columns.map((c) =>
+      c.name === 'Cust' ? { ...c, top_values: [{ value: 'Guest', count: 70 }] } : c,
+    )
+    const guest = { value: 'Guest', lines: 70, lines_pct: 70, revenue_pct: 60, why: 'word' as const }
+    render(
+      <ReviewPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="sales.csv"
+        profile={profile}
+        schema={{ ...makeSchema(MAPPED), customer_placeholders: [guest], order_id_date_only: false }}
+        initialPlan={makePlan(MAPPED)}
+        notices={[]}
+        onCancel={vi.fn()}
+        onCleaned={vi.fn()}
+      />,
+    )
+    expect(screen.queryByText('Is "Inv" a receipt number?')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, a placeholder' }))
+
+    expect(screen.getByText('Is "Inv" a receipt number?')).toBeDefined()
+  })
+
+  it('sends nothing for a No, and the answer can be changed', async () => {
+    const executePlan = renderWithGuest()
+    fireEvent.click(screen.getByRole('button', { name: 'No, a real customer' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+    fireEvent.click(screen.getByRole('button', { name: 'No, a real customer' }))
+
+    const sent = await confirmedPlan(executePlan)
+    // The key goes only when a value is confirmed; absent reads as none.
+    expect(sent.confirmations?.customer_placeholders).toBeUndefined()
   })
 })
 

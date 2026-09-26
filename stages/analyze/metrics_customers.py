@@ -129,6 +129,8 @@ def compute_customer_metrics(
             revenue_share_reason=None,
             unfilled_receipt_lines=0,
             unfilled_receipt_lines_reason=None,
+            placeholder_lines=0,
+            placeholder_lines_reason=None,
         )
 
     # A counted row with no customer value, or one holding only whitespace
@@ -186,14 +188,35 @@ def compute_customer_metrics(
         customers_previous_reason=previous_reason,
         revenue_share_reason=share_reason,
         **_unfilled(parsed),
+        **_placeholders(parsed, confirmations),
     )
+
+
+def _placeholders(parsed: ParsedTransactions, confirmations: OrderConfirmations | None) -> dict:
+    """Counted lines whose customer value the user confirmed in Review as a
+    placeholder for walk-ins (Thach, 2E-k): no customer, counted, never lost
+    silently."""
+    # Only the lines left with no customer: the POS may write "Guest" until a
+    # loyalty card is scanned, and the receipt fill then names the line
+    # (2E-k doubt-review F5).
+    count = int((parsed.placeholder & parsed.counted & parsed.customers.isna()).sum())
+    if count == 0:
+        return {"placeholder_lines": 0, "placeholder_lines_reason": None}
+    values = ", ".join((confirmations or OrderConfirmations()).customer_placeholders)
+    subject, have, their = (("1 line carries", "it has", "its") if count == 1
+                            else (f"{count:,} lines carry", "they have", "their"))
+    return {"placeholder_lines": count,
+            "placeholder_lines_reason": (
+                f"{subject} a value confirmed in Review as a placeholder for walk-ins ({values}), "
+                f"so {have} no customer and {their} revenue is in no customer's figures")}
 
 
 def _unfilled(parsed: ParsedTransactions) -> dict:
     """Lines the fill would have given their receipt's customer, left
     unattributed because the user answered No in Review (Thach, 2E-e2):
     counted, never lost silently."""
-    count = int((parsed.receipt_fillable & parsed.customers.isna()).sum())
+    # A placeholder line is counted once, as a placeholder (2E-k review F7).
+    count = int((parsed.receipt_fillable & parsed.customers.isna() & ~parsed.placeholder).sum())
     if count == 0:
         return {"unfilled_receipt_lines": 0, "unfilled_receipt_lines_reason": None}
     subject, were, their = (("1 line has no customer but shares", "it was", "its") if count == 1

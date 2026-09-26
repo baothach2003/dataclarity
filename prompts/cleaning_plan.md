@@ -21,6 +21,9 @@ STRICT RULES
   or boolean; parse_datetime only for datetime columns.
 - Required canonical fields (product_name, transaction_date, quantity): imputation
   is forbidden. Missing values there -> drop_rows_missing or flag_only.
+- order_id and customer are never imputed either: a filled-in customer is a
+  customer the file never named (a blank customer is a walk-in). Missing values
+  there -> flag_only, or drop_rows_missing only if the user must lose those lines.
 - Every rationale must cite a concrete figure from the input ("4.2% missing",
   "3 case variants"). No figure, no recommendation. Quote counts and percentages
   exactly as given and never compute or estimate a new one (no "about 5%"): a

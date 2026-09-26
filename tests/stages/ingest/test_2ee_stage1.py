@@ -67,12 +67,14 @@ def test_a_column_whose_ids_span_days_is_flagged_as_not_an_order_id() -> None:
 
 
 def test_an_order_id_is_never_imputed() -> None:
-    """Text and categorical columns allow imputation by type (a customer
-    column may be filled), so only the order_id rule refuses it here."""
+    """Text and categorical columns allow imputation by type, so only the
+    order_id rule refuses it here. (A customer column may no longer be
+    filled either - Thach, 2E-k, test_2ek_stage1.py; this line asserted the
+    opposite until then.)"""
     for action in ("impute_mode", "impute_constant"):
         assert not is_legal(action, "text", "order_id")
         assert not is_legal(action, "categorical_nominal", "order_id")
-        assert is_legal(action, "text", "customer")
+        assert is_legal(action, "text", "category")
     assert is_legal("drop_rows_missing", "identifier", "order_id")
 
 

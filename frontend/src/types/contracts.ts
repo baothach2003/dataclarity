@@ -129,6 +129,15 @@ export interface ColumnInference {
   issues: ColumnIssue[]
 }
 
+// A customer value that may stand for walk-ins (2E-k), found by stage 1.
+export interface CustomerPlaceholder {
+  value: string
+  lines: number
+  lines_pct: number
+  revenue_pct: number | null
+  why: 'word' | 'share'
+}
+
 export interface SchemaInferenceContract {
   schema_version: string
   generated_at: string
@@ -141,6 +150,10 @@ export interface SchemaInferenceContract {
   // mapping - the lines the customer fill would give their receipt's
   // customer. null (or absent, a 2.0 file): not measured.
   receipt_fill_lines?: number | null
+  // 2.2 (2E-k): walk-in placeholder candidates, and whether the order-id
+  // check could read dates only (null or absent: not measured).
+  customer_placeholders?: CustomerPlaceholder[] | null
+  order_id_date_only?: boolean | null
 }
 
 // --- plan_proposed.json / plan_final.json --------------------------------------
@@ -175,6 +188,8 @@ export interface ColumnAction {
 export interface OrderConfirmations {
   order_id_is_receipt: boolean | null
   customer_on_first_line_only: boolean | null
+  // 2.2 (2E-k): the customer values confirmed as walk-in placeholders.
+  customer_placeholders?: string[]
 }
 
 export interface CleaningPlan {

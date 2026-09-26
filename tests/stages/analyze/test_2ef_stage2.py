@@ -123,7 +123,10 @@ def _customers(rows, mapping=WITH_ORDERS):
     # The user's Yes to Review's fill question (2E-e2), explicit although an
     # unanswered question fills too, so these rule tests hold whatever the default.
     metrics = assemble_metrics(pd.DataFrame(rows), mapping, now=NOW,
-                               confirmations=OrderConfirmations(customer_on_first_line_only=True))
+                               confirmations=OrderConfirmations(order_id_is_receipt=True,
+                                                                customer_on_first_line_only=True))
+    # And the receipt Yes: A is on most of these receipts, which since 2E-k
+    # leaves the order-id check on dates only.
     segments = {s.segment: (s.customers, s.avg_monetary, s.revenue_share_pct)
                 for s in metrics.customers.segments}
     return metrics, segments
@@ -158,5 +161,5 @@ def test_without_order_id_a_header_style_file_is_not_filled() -> None:
 
 def test_metrics_json_is_version_6_or_the_current_one() -> None:
     # 6.0 in 2E-f; 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2.
-    assert SCHEMA_VERSION == "9.0"
-    assert MetricsContract.supported_major == 9
+    assert SCHEMA_VERSION == "10.0"  # 9.0 in 2E-e2; 10.0 since 2E-k
+    assert MetricsContract.supported_major == 10

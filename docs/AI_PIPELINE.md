@@ -169,7 +169,10 @@ read two ways before (1D):
   columns are handled by drop_rows_missing or flag_only instead. The rule is
   about imputation only: every other action the column's semantic type allows
   stays legal, so transaction_date is still parsed and product_name is still
-  trimmed
+  trimmed. `order_id` (2E-e) and `customer` (Thach, 2E-k) are never imputed
+  either, whatever their semantic type: a filled-in customer is a customer the
+  file never named ("Unknown" became the top customer carrying every walk-in's
+  money), and a blank customer is a walk-in
 
 - flag_duplicate_keys: in the AI's proposal `keys` must be the business key, defined
   in section 11 (the count reported for `duplicate_business_key` and the rows this

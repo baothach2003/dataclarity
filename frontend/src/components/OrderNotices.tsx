@@ -15,14 +15,17 @@ import {
   needsReceiptConfirmation,
   orderIdColumn,
 } from '../domain/orderChecks.ts'
+import type { Question } from '../domain/orderChecks.ts'
 import type { CleaningPlan, OrderConfirmations, ProfileContract, SchemaInferenceContract } from '../types/contracts.ts'
 
 interface OrderNoticesProps {
   plan: CleaningPlan
   answers: OrderConfirmations
+  // Customer values confirmed as walk-in placeholders (2E-k): no customer.
+  placeholders: string[]
   profile: ProfileContract
   schema: SchemaInferenceContract | null
-  onAnswer: (key: keyof OrderConfirmations, value: boolean | null) => void
+  onAnswer: (key: Question, value: boolean | null) => void
   onDropBlankIds: (column: string) => void
   onUploadFixed: () => void
 }
@@ -31,7 +34,16 @@ function lines(count: number, singular: string, plural: string): string {
   return `${count.toLocaleString('en-US')} ${count === 1 ? singular : plural}`
 }
 
-export function OrderNotices({ plan, answers, profile, schema, onAnswer, onDropBlankIds, onUploadFixed }: OrderNoticesProps) {
+export function OrderNotices({
+  plan,
+  answers,
+  placeholders,
+  profile,
+  schema,
+  onAnswer,
+  onDropBlankIds,
+  onUploadFixed,
+}: OrderNoticesProps) {
   // The column whose blank ids the user chose to keep: a remap asks again (cycle 2 F8).
   const [keptBlankIdsOf, setKeptBlankIdsOf] = useState<string | null>(null)
   const blank = blankOrderIds(plan, profile)
@@ -43,7 +55,7 @@ export function OrderNotices({ plan, answers, profile, schema, onAnswer, onDropB
   const dropping =
     blank !== null && plan.column_actions.some((c) => c.source_name === blank.column && c.action === 'drop_rows_missing')
   const orderColumn = orderIdColumn(plan)
-  const receiptColumn = needsReceiptConfirmation(plan, profile)
+  const receiptColumn = needsReceiptConfirmation(plan, profile, schema, placeholders)
   const fill = fillQuestion(plan, schema, profile)
   // Stage 1's own check found this column's ids spanning days or customers:
   // a Yes does not make stage 2 count orders (cycle 3 F4).
@@ -53,7 +65,7 @@ export function OrderNotices({ plan, answers, profile, schema, onAnswer, onDropB
       ?.issues.some((issue) => issue.code === 'order_id_not_one_order') ?? false
   const keptBlankIds = blank !== null && !dropping
 
-  function change(key: keyof OrderConfirmations) {
+  function change(key: Question) {
     return (
       <button type="button" className="link-button" onClick={() => { onAnswer(key, null) }}>
         Change
@@ -109,15 +121,15 @@ export function OrderNotices({ plan, answers, profile, schema, onAnswer, onDropB
             </>
           }
         >
-          Without customer names, this column could be checked by date only, and a daily batch or
-          Z-report code passes that check.{' '}
+          Without enough customer names on the receipts, this column could be checked by date only,
+          and a daily batch or Z-report code passes that check.{' '}
           {customerImputed(plan)
             ? 'Your plan fills the blank customers in, so the cleaned file seems to name customers and this column can pass as a receipt number: answer No if it is a batch code.'
-            : 'Unless you confirm it is a receipt or invoice number, orders are counted as lines.'}
+            : 'Unless you confirm it is a receipt or invoice number, orders may be counted as lines.'}
         </Notice>
       )}
-      {receiptColumn !== null && answers.order_id_is_receipt === true && (
-        <Notice tone="info" title={`"${receiptColumn}" is a receipt number`} actions={change('order_id_is_receipt')}>
+      {orderColumn !== null && answers.order_id_is_receipt === true && (
+        <Notice tone="info" title={`"${orderColumn}" is a receipt number`} actions={change('order_id_is_receipt')}>
           {flagged
             ? "Stage 1 found this column's ids spanning several days or customers, so the file counts lines."
             : keptBlankIds

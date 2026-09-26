@@ -60,7 +60,7 @@ import pandas as pd
 
 from contracts.cleaning import OrderConfirmations
 from shared.dates import as_dates
-from shared.orders import OrdersBasis, order_basis, receipt_refusal
+from shared.orders import OrdersBasis, order_basis
 
 
 class RequiredColumnMissingError(ValueError):
@@ -123,6 +123,11 @@ class ParsedTransactions:
     # The counted lines with no customer that the fill gives, or would give,
     # their receipt's customer - confirmed or not (2E-e2).
     receipt_fillable: pd.Series
+    # Lines whose customer value the user confirmed in Review as a walk-in
+    # placeholder: they have no customer (2E-k).
+    placeholder: pd.Series
+    # Whether the order-id check could read dates only (2E-k; for stage 1).
+    order_id_date_only: bool
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
@@ -144,8 +149,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # and its closed weekday all moved, and "now" dated a sale the day of the
     # run (2E-f doubt-review cycle 4 F3). shared/dates.py is stage 1's reader.
     dates = as_dates(df[date_col], offsets="wall_clock")
-    quantities = pd.to_numeric(df[quantity_col], errors="coerce")
-    prices = pd.to_numeric(df[price_col], errors="coerce")
+    quantities, prices, counts_as_sale = line_numbers(df, reverse, quantity_col, price_col)
 
     # A row with no parseable date, quantity or price cannot be measured or
     # placed in a period; it is left out rather than guessed at.
@@ -159,22 +163,16 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # back (3C doubt-review C2). An unrepresentable number is not a measurement,
     # so it is excluded here exactly like an unparseable one.
     valid = dates.notna() & np.isfinite(quantities) & np.isfinite(prices)
-
-    type_col = reverse.get("transaction_type")
-    if type_col is None:
-        counts_as_sale = pd.Series(True, index=df.index)
-    else:
-        # astype(object): an empty or all-missing column can read back as
-        # float64, and .str only works on an object/string dtype. NaN (a
-        # per-row missing type) compares False to "in", so it also defaults
-        # to "out", matching the column-level default.
-        counts_as_sale = ~is_stock_in(df[type_col])
-
     counted = valid & counts_as_sale
     amounts = quantities * prices
     sale = counted & (quantities > 0) & (amounts > 0)
     returned = counted & (quantities < 0) & (amounts < 0)
     customers = customers_of(df, reverse.get("customer"))
+    # A value the user confirmed as a placeholder for walk-ins ("Guest",
+    # "Walk-in", "0") names no one (Thach, 2E-k): compared by identity.
+    placeholders = set(customer_identity(pd.Series(answers.customer_placeholders, dtype=object)))
+    placeholder = customers.isin(placeholders)
+    customers = customers.mask(placeholder)
     # The fill happens unless the user answered No (2E-e2 review A): withheld
     # by default, a header-style receipt's unnamed purchase lines lost their
     # customer while its credit note's named line kept it, and a first-time
@@ -182,8 +180,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # rule and its known limit L1, which Thach accepted as rare.
     orders = order_basis(order_ids(df, reverse.get("order_id")), dates.dt.normalize(),
                          customers, sale, returned, counted, ~counts_as_sale,
-                         refused=receipt_refusal(reverse, answers,
-                                          customers[counts_as_sale].nunique() >= 2),
+                         receipt_answer=answers.order_id_is_receipt,
+                         customer_column="customer" in reverse,
                          fill=answers.customer_on_first_line_only is not False)
     return ParsedTransactions(
         reverse=reverse,
@@ -202,7 +200,28 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
         orders_basis_reason=orders.reason,
         customers=orders.customers,
         receipt_fillable=orders.fillable,
+        placeholder=placeholder,
+        order_id_date_only=orders.date_only,
     )
+
+
+def line_numbers(df: pd.DataFrame, reverse: dict[str, str], quantity_col: str,
+             price_col: str) -> tuple[pd.Series, pd.Series, pd.Series]:
+    """Quantities, prices, and whether each row counts towards revenue by its
+    transaction type (not an explicit "in") - read by `parse_transactions`
+    and, without dates, by stage 1's walk-in placeholder search (2E-k)."""
+    quantities = pd.to_numeric(df[quantity_col], errors="coerce")
+    prices = pd.to_numeric(df[price_col], errors="coerce")
+    type_col = reverse.get("transaction_type")
+    if type_col is None:
+        counts_as_sale = pd.Series(True, index=df.index)
+    else:
+        # astype(object): an empty or all-missing column can read back as
+        # float64, and .str only works on an object/string dtype. NaN (a
+        # per-row missing type) compares False to "in", so it also defaults
+        # to "out", matching the column-level default.
+        counts_as_sale = ~is_stock_in(df[type_col])
+    return quantities, prices, counts_as_sale
 
 
 def order_ids(df: pd.DataFrame, column: str | None) -> pd.Series | None:

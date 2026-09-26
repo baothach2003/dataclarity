@@ -21,9 +21,10 @@ from contracts.profile import (
 )
 from shared.ai_client import AIClient, AIUnavailable, RetryBudget
 from shared.run_registry import run_file
-from shared.order_checks import order_checks
+from shared.order_checks import order_checks, parse_for_checks
 from stages.ingest.ai_input import MAX_AI_COLUMNS, build_prompt_variables
 from stages.ingest.contract_files import StaleInputError, write_contract
+from stages.ingest.customer_placeholders import placeholder_candidates
 from stages.ingest.issue_recount import recount_issues
 from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
@@ -32,7 +33,7 @@ PCT_TOLERANCE = 0.1
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "schema_inference"  # prompts/schema_inference.md
 OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "2.1"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines
+SCHEMA_VERSION = "2.2"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders
 
 
 class SchemaInferenceAnswer(BaseModel):
@@ -183,12 +184,14 @@ def infer_schema_run(
     }
     # The AI's counts are estimates for every code the profile holds no figure
     # for; pandas replaces them (CLAUDE.md 3.2, issue_recount.py).
-    # Stage 1's own order checks on the raw file and this mapping - never the
-    # AI's: the order_id check (2E-e) and the measure for Review's fill
-    # question (2E-e2), from one parse.
+    # Stage 1's own checks on the raw file and this mapping - never the AI's:
+    # the order_id check (2E-e), the measures for Review's fill and receipt
+    # questions (2E-e2, 2E-k) and the walk-in placeholders (2E-k), from one
+    # parse.
     answered = [by_name[name] for name in sent]
-    checks = order_checks(frame, {c.source_name: c.canonical_field for c in answered
-                                  if c.canonical_field != "ignore"})
+    mapping = {c.source_name: c.canonical_field for c in answered if c.canonical_field != "ignore"}
+    checks = order_checks(frame, mapping, parse_for_checks(frame, mapping))
+    placeholders = placeholder_candidates(frame, mapping)
     columns, dataset_issues, _ = recount_issues(
         answered, answer.dataset_issues, frame, order_check=checks.spanning)
     contract = SchemaInferenceContract(
@@ -201,6 +204,8 @@ def infer_schema_run(
         # File order, whatever order the AI used; then the columns it never saw.
         columns=columns + [_not_inferred(c.name) for c in profile.columns[MAX_AI_COLUMNS:]],
         receipt_fill_lines=checks.fill_lines,
+        customer_placeholders=placeholders,
+        order_id_date_only=checks.date_only,
     )
     write_contract(output_path, contract)
     return contract

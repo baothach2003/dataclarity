@@ -93,7 +93,12 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
       ]
     }
   ],
-  "receipt_fill_lines": null
+  "receipt_fill_lines": null,
+  "customer_placeholders": [
+    {"value": "Guest", "lines": 5210, "lines_pct": 22.8, "revenue_pct": 18.4,
+     "why": "word"}
+  ],
+  "order_id_date_only": false
 }
 ```
 Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
@@ -115,6 +120,29 @@ blank ids make it count lines while the cleaning may still let the fill
 happen (2E-e2 doubt-review cycle 2). The Review screen asks the user about
 the fill when it is above 0 or `null` (and when the user remapped a field it
 reads, so it was not measured). A `2.0` file reads as `null`.
+`customer_placeholders` and `order_id_date_only` (`2.2`, session 2E-k, Thach)
+are stage 1's own measures too, on the raw file and these columns' mapping.
+A placeholder candidate is a customer value that may stand for walk-ins, at
+any share when it reads as a placeholder - a whole placeholder word inside it
+(stripped and case-folded: "Guest Customer", "Cash Sale", "Walk-In Client",
+"Khach le", "Consumidor Final", "Publico en General", "Laufkunde", "none",
+"(blank)"), "customer" alone, "n.a.", no letter or digit ("-"), or a number
+at or below zero ("0", "0.0", "-1") - and otherwise when it carries 10% or
+more of the counted lines or of the sale revenue, or is the largest value by
+lines or by sale revenue at 4 times the next one among the values not
+already asked about (Thach's "unusual share"; a first placeholder must not
+shield a second, 2E-k doubt-review cycle 3 F1). A word is part of another only
+when a LETTER touches it, so plurals, codes and underscores match ("Walk-ins",
+"GUEST01", "Walk_In"); the list also reads "Khach hang le", "Khach vang lai",
+"Misc", "Non-member", "Unregistered", "Cliente final", "Barverkauf",
+"Pelanggan Umum" and the Chinese default (cycle 3 F3).
+Measured: the largest real customer is 4.4% of either demo file and 1.01-1.15
+times the next one; Online Retail II's walk-ins are 22.8% of its lines, 18.5
+times its largest customer. No date is read for this search. Review asks about each
+(section 4). `order_id_date_only` says whether the order-id check could read
+dates only (section 6). Both are `null` when not measured (the raw file did
+not parse into lines, or a file older than `2.2`); Review then reads
+profile.json.
 
 ## 4. `plan_proposed.json` and `plan_final.json` (stage 1 steps C and D)
 
@@ -159,10 +187,12 @@ the 25 the AI sees get `flag_only` with a note that they were not analyzed.
 `confirmations` (`2.1`, session 2E-e2, Thach) holds the user's answers to the
 Review screen's two questions (booleans or `null`, never coerced; a `null`
 object reads as no answers); `null` is "not asked or not answered":
-- `order_id_is_receipt`: asked when `order_id` is mapped and the file names
-  fewer than two different customers (no column mapped to `customer`, or one
-  that is blank, or "Walk-in", on every line), because the id could then be
-  checked by date only and a daily batch or Z-report code passes that check.
+- `order_id_is_receipt`: asked when `order_id` is mapped and the order-id
+  check could read dates only, judged per receipt (2E-k; section 6): most
+  receipts name no customer (after the fill; a confirmed walk-in placeholder
+  names none), one customer is on most of them, fewer than two different
+  customers are named, or there is no customer column - a daily batch or
+  Z-report code passes that check.
   Unless `true`, the figures count lines (section 6) - unconfirmed means
   untrusted. `false` counts lines whatever the customer column holds after
   cleaning (a plan that imputes it cannot silence the answer).
@@ -172,16 +202,22 @@ object reads as no answers); `null` is "not asked or not answered":
   happens, as in 2E-f: withheld by default, a header-style credit note's named
   line kept its customer while the purchase it refunds lost it, and a
   first-time buyer read as returning (2E-e2 doubt-review A).
+- `customer_placeholders` (`2.2`, 2E-k): the customer values the user
+  confirmed as a placeholder for walk-ins, as written (stages compare them by
+  customer identity). Their lines have no customer (section 6). Sent only when
+  there are some; an answer applies only to the customer column it was given
+  for.
 The AI's proposal never carries an answer (stage 1 builds it field by field),
 and the Review screen sends only answers to questions that still apply, about
-the columns they were given for - except a No to the receipt question, sent
-while that column is the order id, asked or not. `confirmations: null` reads as
+the columns they were given for - except the receipt answer: an answer
+about the order id column, Yes or No, holds while that column is the order
+id, asked or not (a No always counts, 2E-e2 cycle 3 F2; a Yes must not vanish
+when a remap or a placeholder hides the question, 2E-k doubt-review F3). `confirmations: null` reads as
 no answers in the plan and in the report alike.
-**Known limit (2E-e2 doubt-review cycle 3 F1, for Thach):** a plan that
-imputes the customer column (the cleaning prompt's default, "Unknown", for a
-text column 5% or more missing) gives stage 2 a second "customer", so an
-unanswered receipt question is read as trusted on a file Review judged by
-date only; the user's No still counts, and Review says so. A plan whose only change from the proposal is
+The customer column is never imputed (2E-k, Thach; the transform catalog
+refuses it whatever its semantic type): a filled-in value made a customer the
+file never named, and read an unanswered receipt question as trusted on a
+file Review judged by date only (2E-e2 doubt-review cycle 3 F1, resolved). A plan whose only change from the proposal is
 its answers has `source` "user_edited". A `2.0` plan reads as nothing
 confirmed.
 
@@ -232,7 +268,7 @@ Rules for the values (no field changed):
 
 ```json
 {
-  "schema_version": "9.0", "generated_at": "...",
+  "schema_version": "10.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
              "previous_complete": true, "previous_incomplete_reason": null},
@@ -258,7 +294,8 @@ Rules for the values (no field changed):
     "new_vs_returning": {"new_customers": 74, "returning_customers": 738,
                          "new_revenue": 92000.0, "returning_revenue": 1058000.0},
     "customers_previous_reason": null, "revenue_share_reason": null,
-    "unfilled_receipt_lines": 0, "unfilled_receipt_lines_reason": null
+    "unfilled_receipt_lines": 0, "unfilled_receipt_lines_reason": null,
+    "placeholder_lines": 0, "placeholder_lines_reason": null
   },
   "products": {
     "pareto": {"products_for_80pct_revenue": 63, "total_products": 412,
@@ -309,14 +346,18 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   -> 93 on an unchanged business); Online Retail II and the Kaggle demo have
   none; else "lines", every sale line an order, with
   `orders_basis_reason` saying why a mapped order_id was refused (more than
-  10% of its ids span several days or customers). **When the lines that are
-  not stock-in name fewer than two different customers** (no customer
-  column, or one that is blank or "Walk-in" on every line) the id could be
-  checked by date only, and a daily batch or Z-report code passes that
-  check: it is trusted only when the user confirmed in Review that it is a
-  receipt number (`confirmations.order_id_is_receipt`, sections 4-5; Thach,
-  2E-e2 - unconfirmed means untrusted), else lines, with the reason. The
-  user's No always counts. The blank-id count in the reason is stage 2's own, on
+  10% of its ids span several days or customers). **When the check could
+  read dates only** - judged PER RECEIPT, as the check itself is (Thach,
+  2E-k; "mostly" = more than half): among the order ids with a sale line,
+  most name no customer (after the receipt fill; a confirmed walk-in
+  placeholder counts as none), or one customer is on most of them, or fewer
+  than two different customers are named, or there is no customer column -
+  a daily batch or Z-report code passes the check: the id is trusted only
+  when the user confirmed in Review that it is a receipt number
+  (`confirmations.order_id_is_receipt`, sections 4-5; Thach, 2E-e2 -
+  unconfirmed means untrusted), else lines, with the reason. The user's No
+  always counts. A header-style export names every receipt, so it passes
+  although most of its lines are blank. The blank-id count in the reason is stage 2's own, on
   cleaned.csv: the exact number of sale and return lines with no id, written
   whatever the answers. Stage 5 and the frontend
   LABEL by it: basis order_id - orders, AOV, orders per customer, units per
@@ -379,7 +420,11 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   unattributed and **`customers.unfilled_receipt_lines`** counts the
   revenue-counted ones the fill would have given a customer, with
   `unfilled_receipt_lines_reason` (null exactly when the count is 0), so their
-  money is never lost silently.
+  money is never lost silently. **A customer value the user confirmed as a
+  walk-in placeholder** (2E-k; "Guest", "Walk-in", "0") names no one: its
+  lines have no customer in every figure of both stages, and
+  **`customers.placeholder_lines`** counts the revenue-counted ones, with
+  `placeholder_lines_reason` (null exactly when the count is 0).
   **Known limit (for Thach, 2E-f doubt-review cycle 2 F2):** a per-day batch
   id (a Z-report, a shift, a daily returns desk) with one named line and
   unnamed walk-in lines looks exactly like a header-style receipt on its
@@ -1039,6 +1084,14 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-26: **session 2E-k, walk-in placeholders.** `schema_inference.json`
+  (`customer_placeholders`, `order_id_date_only`), `plan_*.json` and
+  `cleaning_report.json` (`confirmations.customer_placeholders`) went to `2.2`
+  - optional fields, minor; `metrics.json` to `10.0` and `diagnosis.json` to
+  `9.0`: a confirmed placeholder has no customer (`customers.placeholder_lines`
+  with its reason, required), and the order-id check is judged per receipt.
+  The customer column is never imputed (AI_PIPELINE section 6). Readers
+  refuse `9.x` metrics and `8.x` diagnosis files with "re-analyse this run".
 - 2026-09-26: **session 2E-e2, the order basis decided in Review.**
   `plan_proposed.json` / `plan_final.json` and `cleaning_report.json` went to
   `2.1` (optional `confirmations`), `schema_inference.json` to `2.1`

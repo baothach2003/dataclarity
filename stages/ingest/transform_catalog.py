@@ -47,9 +47,14 @@ REQUIRED_CANONICAL_FIELDS: frozenset[CanonicalField] = frozenset(
     {"product_name", "transaction_date", "quantity"}
 )
 # Never imputed: the required fields (an invented value would be counted as
-# measured), and order_id (2E-e) - one filled-in id would merge every blank
-# line into a single giant order, and AOV would read it as one basket.
-NEVER_IMPUTED_FIELDS: frozenset[CanonicalField] = REQUIRED_CANONICAL_FIELDS | {"order_id"}
+# measured), order_id (2E-e) - one filled-in id would merge every blank line
+# into a single giant order, and AOV would read it as one basket - and
+# customer (Thach, 2E-k), keyed on the field whatever its semantic type: an
+# imputed "Unknown" became the top customer carrying every walk-in's money,
+# the bridge's unattributed term vanished, and a batch code passed as a
+# receipt number (2E-e2 doubt-review cycle 2 F11, cycle 3 F1).
+NEVER_IMPUTED_FIELDS: frozenset[CanonicalField] = REQUIRED_CANONICAL_FIELDS | {
+    "order_id", "customer"}
 # The only actions an order_id column takes: none of them rewrites an id. A
 # cast to a number blanked every "C..." cancellation id (return rate 0.25 ->
 # 1.25), clip_outliers_iqr wrote "1334.5" into 28 walk-in receipt ids (same-day
@@ -162,6 +167,9 @@ def illegality_reason(
             return (f"{action} is not legal for order_id: one filled-in id would merge "
                     f"every blank line into a single order - drop those rows, or leave "
                     f"them and the figures count lines")
+        if canonical_field == "customer":
+            return (f"{action} is not legal for customer: a filled-in value becomes a customer "
+                    f"the file never named - leave the blanks, they are walk-ins")
         return (
             f"{action} is not legal for {canonical_field}, a required field: "
             f"use drop_rows_missing or flag_only"

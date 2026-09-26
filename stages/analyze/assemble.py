@@ -28,8 +28,10 @@ from stages.analyze.metrics_products import compute_product_metrics
 # ranked, velocity null without stock-in lines), 8.0 in 2E-h (every date on
 # the wall clock as written; undated lines counted with a reason), 9.0 in
 # 2E-e2 (an order id checked by date only and the customer fill count only
-# with the user's answers in Review; unfilled receipt lines counted).
-SCHEMA_VERSION = "9.0"
+# with the user's answers in Review; unfilled receipt lines counted), 10.0
+# in 2E-k (confirmed walk-in placeholders unattributed; the order-id check
+# judged per receipt).
+SCHEMA_VERSION = "10.0"
 METRICS_FILENAME = "metrics.json"
 
 

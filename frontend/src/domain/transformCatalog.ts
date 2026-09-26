@@ -115,6 +115,12 @@ export function illegalityReason(
   if (canonicalField === 'order_id' && IMPUTATION_ACTIONS.has(action)) {
     return `${action} is not legal for order_id: one filled-in id would merge every blank line into a single order - drop those rows, or leave them and the figures count lines`
   }
+  // customer is never imputed either (Thach, 2E-k), whatever its type: a
+  // filled-in value becomes a customer the file never named. Same words as
+  // stage 1's transform_catalog.
+  if (canonicalField === 'customer' && IMPUTATION_ACTIONS.has(action)) {
+    return `${action} is not legal for customer: a filled-in value becomes a customer the file never named - leave the blanks, they are walk-ins`
+  }
   if (REQUIRED_CANONICAL_FIELDS.has(canonicalField) && IMPUTATION_ACTIONS.has(action)) {
     return `${action} is not legal for ${canonicalField}, a required field: use drop_rows_missing or flag_only`
   }

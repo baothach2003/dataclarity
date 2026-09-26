@@ -31,7 +31,11 @@ from tests.stages.ingest.schema_answers import answer, column, profiled_run, run
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
            "Inv": "order_id", "Cust": "customer", "Prod": "product_name"}
-NO = OrderConfirmations(customer_on_first_line_only=False)
+# Bob is on two of the three receipts - one customer on most receipts, which
+# since 2E-k leaves the check on dates only - so the receipt question is
+# answered Yes: these tests are about the fill.
+NO = OrderConfirmations(order_id_is_receipt=True, customer_on_first_line_only=False)
+RECEIPT = OrderConfirmations(order_id_is_receipt=True)
 
 
 def _first_time_buyer_with_a_credit_note() -> pd.DataFrame:
@@ -47,7 +51,7 @@ def _first_time_buyer_with_a_credit_note() -> pd.DataFrame:
 
 
 def test_an_unanswered_fill_question_fills_so_a_first_time_buyer_is_new() -> None:
-    split = assemble_metrics(_first_time_buyer_with_a_credit_note(), MAPPING, NOW).customers
+    split = assemble_metrics(_first_time_buyer_with_a_credit_note(), MAPPING, NOW, RECEIPT).customers
 
     assert (split.new_vs_returning.new_customers, split.new_vs_returning.new_revenue) == (
         1, pytest.approx(10.0))
@@ -80,9 +84,8 @@ def test_a_customer_column_that_names_nobody_is_no_customer_column() -> None:
 
     assert unanswered.orders_basis == "lines"
     assert unanswered.orders_basis_reason == (
-        "the order id column could be checked by date only (the customer column never names "
-        "two different customers), and it was not confirmed in Review as a receipt number, so "
-        "the figures count lines")
+        "the order id column could be checked by date only (most receipts name no customer), "
+        "and it was not confirmed in Review as a receipt number, so the figures count lines")
     assert confirmed.orders_basis == "order_id"
 
 
@@ -150,4 +153,4 @@ def test_a_header_line_names_a_customer_but_a_restock_line_does_not() -> None:
     parsed = parse_transactions(pd.concat([df, restock], ignore_index=True), mapping)
 
     assert parsed.orders_basis == "lines"
-    assert "never names two different customers" in parsed.orders_basis_reason
+    assert "most receipts name no customer" in parsed.orders_basis_reason  # per receipt since 2E-k

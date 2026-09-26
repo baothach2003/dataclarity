@@ -129,11 +129,20 @@ remap the question is asked again.
   Ids are never filled in: one made-up id would merge every blank line into
   one order. Stage 2's exact count is in `metrics.json`.
 - **Is the order id a receipt number?** Asked when `order_id` is mapped and
-  the file names fewer than two different customers (no column mapped to
-  `customer`, or one blank or "Walk-in" on every line): the id could then be
-  checked by date only, and a daily batch or Z-report code passes that check.
-  Yes / No, it is a batch code; an answer can be changed. Unanswered counts
-  as No: orders are counted as lines.
+  the order-id check could read dates only - most receipts name no customer,
+  one customer is on most, or fewer than two are named (stage 1's
+  per-receipt measure, `order_id_date_only`; approximated from the profile
+  after a remap or once a placeholder is confirmed): a daily batch or
+  Z-report code passes that check. Yes / No, it is a batch code; an answer
+  can be changed. Unanswered counts as No: orders are counted as lines.
+- **Is "Guest" a placeholder for walk-ins?** (2E-k) Asked for each candidate
+  stage 1 found (a placeholder word - "Guest", "Walk-ins", "GUEST01",
+  "Khach le", "Misc", "Consumidor Final" and the like, any share - or 10% or
+  more of the lines or of the sale revenue, or the largest of the remaining
+  values at 4 times the next one; read from the profile's top values after a
+  remap, lines only). Shares are floored to one decimal. Yes:
+  those lines have no customer. No: a real customer. An answer can be
+  changed and applies to the customer column it was given for.
 - **Is the customer written on a receipt's first line only?** Asked when the
   customer fill would happen (`receipt_fill_lines` above 0), or without a
   count when that was not measured for the current columns (stage 1 could not

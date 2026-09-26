@@ -21,7 +21,6 @@ from typing import Literal, NamedTuple
 
 import pandas as pd
 
-from contracts.cleaning import OrderConfirmations
 
 # Measured on both real files (scratchpad 2ee/order_id_guard.out): the real
 # order ids - Online Retail II's Invoice, the Kaggle demo's Transaction ID -
@@ -54,6 +53,9 @@ class OrderBasis(NamedTuple):
     # give, its receipt's one named customer - whatever the answer, so a
     # withheld fill is counted rather than lost (2E-e2).
     fillable: pd.Series
+    # Whether the order-id check could read dates only (2E-k): stage 1
+    # measures it for Review's receipt question.
+    date_only: bool = False
 
 
 class IdCheck(NamedTuple):
@@ -96,43 +98,65 @@ def refusal_reason(check: IdCheck) -> str:
             "the figures count lines")
 
 
-# Why a mapped order_id is not trusted when the check could read no customer
-# and the user did not confirm it (Thach, 2E-e2): by date only, a daily batch
-# or Z-report code passes the check (2E-e known limit). A customer column that
-# never names two different customers - blank, or "Walk-in" on every line -
-# gives the check nothing to read either (2E-e2 review C, cycle 2 F4).
+# Why a mapped order_id is not trusted when the check could read dates only
+# and the user did not confirm it (Thach, 2E-e2): a daily batch or Z-report
+# code passes that check (2E-e known limit).
 UNCONFIRMED_RECEIPT = ("the order id column could be checked by date only ({why}), and it was "
                        "not confirmed in Review as a receipt number")
 NOT_A_RECEIPT = "the order id column was marked in Review as not a receipt number (a batch or day code)"
 
 
-def receipt_refusal(reverse: dict[str, str], answers: OrderConfirmations, named: bool) -> str | None:
-    """Why the user's answers leave a mapped order_id untrusted, as a clause.
-    The user's No always counts - a plan that imputes the customer column
-    must not silence it (cycle 2 F3). Unanswered, only when the lines that
-    are not stock-in name fewer than two customers (`named` False), where the
-    check could read the date alone. A header or coupon line naming the
-    receipt counts (2E-h cycle 2 F3), a restock "Warehouse" does not."""
-    if "order_id" not in reverse or answers.order_id_is_receipt is True:
+def by_date_only(ids: pd.Series, customers: pd.Series, customer_column: bool) -> str | None:
+    """Why the order-id check could read dates only, or None. Judged per
+    receipt, as the check itself is (Thach, 2E-k; "mostly" = more than
+    half): `ids` and `customers` are the sale lines' ids and customers after
+    the receipt fill. A header-style export - the customer on each
+    receipt's first line - names every receipt, so it passes; judged per
+    line it would have fallen back for being mostly blank. A confirmed
+    walk-in placeholder is already no customer here."""
+    if not customer_column:
+        return "there is no customer column"
+    frame = pd.DataFrame({"id": ids, "customer": customers}).dropna(subset=["id"])
+    receipts = frame["id"].nunique()
+    if receipts == 0:
         return None
-    if answers.order_id_is_receipt is False:
+    # Each receipt's commonest customer (a receipt reused by two customers
+    # still counts once).
+    named = (frame.dropna(subset=["customer"]).groupby(["id", "customer"]).size()
+             .reset_index(name="n").sort_values(["id", "n"], ascending=[True, False])
+             .drop_duplicates("id"))
+    if (receipts - len(named)) * 2 > receipts:
+        return "most receipts name no customer"
+    top = named["customer"].value_counts()
+    if not top.empty and top.iloc[0] * 2 > receipts:
+        return "one customer is on most receipts"
+    if named["customer"].nunique() < 2:
+        return "the receipts never name two different customers"
+    return None
+
+
+def _receipt_refusal(answer: bool | None, why: str | None) -> str | None:
+    """Why the user's answer leaves the ids untrusted, as a clause. The user's
+    No always counts - a plan that imputes the customer column must not
+    silence it (2E-e2 cycle 2 F3); unanswered, only when the check could read
+    dates only."""
+    if answer is True:
+        return None
+    if answer is False:
         return NOT_A_RECEIPT
-    if named:
-        return None
-    why = ("the customer column never names two different customers" if "customer" in reverse
-           else "there is no customer column")
-    return UNCONFIRMED_RECEIPT.format(why=why)
+    return UNCONFIRMED_RECEIPT.format(why=why) if why is not None else None
 
 
 def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
                 sale: pd.Series, returned: pd.Series, counted: pd.Series,
-                stock_in: pd.Series, *, refused: str | None, fill: bool) -> OrderBasis:
+                stock_in: pd.Series, *, receipt_answer: bool | None, customer_column: bool,
+                fill: bool) -> OrderBasis:
     """`ids` is the mapped order_id column, stripped, blank as NaN - or None
     when order_id is not mapped. `days`, `customers`, `sale` and `returned`
-    are aligned with it; the check runs over the sale rows. `refused` is why
-    the user's answers do not let the ids be trusted, as a clause (2E-e2),
-    None when they do; `fill` is False when the user answered that the
-    customer is not written on a receipt's first line only."""
+    are aligned with it; the check runs over the sale rows. `receipt_answer`
+    is the user's answer to Review's receipt question (2E-e2); `fill` is False
+    when the user answered that the customer is not written on a receipt's
+    first line only."""
     # Every line its own order, under a key no real id takes. Not a leading
     # NUL: pandas' object-dtype `nunique` counts "\x00line 2" and "\x00line 3"
     # as ONE value (measured in 2E-e), so two blank-id lines became one order.
@@ -148,23 +172,27 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # decision 1's blank-id clause. No tolerance (Thach, after 2E-e): a share
     # would be a new threshold, and mixing bases in one file is what fabricates.
     moved = sale | returned
+    # A customer written on a receipt's first line only (ERP "invoice detail"
+    # exports) is that receipt's customer on its other lines too: keyed as a
+    # customer "", every order split in two (cycle 2, F2).
+    filled = _one_customer_per_order(ids, days, customers, moved, stock_in)
+    why = by_date_only(ids[sale], filled[sale], customer_column)
+    refused = _receipt_refusal(receipt_answer, why)
     blank = int((moved & ids.isna()).sum())
     if blank:
         # The exact count is written whatever the answers (2E-e2 review G).
         also = f". Also, {refused}" if refused is not None else ""
         return OrderBasis("lines", f"{blank:,} of {int(moved.sum()):,} sale and return lines "
                                    "have no order id, so orders cannot be counted by id; the "
-                                   f"figures count lines{also}", by_line, customers, unfilled)
+                                   f"figures count lines{also}", by_line, customers, unfilled,
+                           why is not None)
     if refused is not None:
         return OrderBasis("lines", f"{refused}, so the figures count lines", by_line, customers,
-                          unfilled)
-    # A customer written on a receipt's first line only (ERP "invoice detail"
-    # exports) is that receipt's customer on its other lines too: keyed as a
-    # customer "", every order split in two (cycle 2, F2).
-    filled = _one_customer_per_order(ids, days, customers, moved, stock_in)
+                          unfilled, why is not None)
     check = spanning_ids(ids[sale], days[sale], filled[sale])
     if not looks_like_order_ids(check):
-        return OrderBasis("lines", refusal_reason(check), by_line, customers, unfilled)
+        return OrderBasis("lines", refusal_reason(check), by_line, customers, unfilled,
+                          why is not None)
     # Since 2E-f the revenue of those lines is that customer's too - but only
     # from an id that is itself one receipt. The key keeps the fill either
     # way, so orders count exactly as 2E-e defined them (2E-f doubt-review
@@ -183,7 +211,8 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # blank id: the line is an order on its own.
     keyed = (ids + SEP + days.dt.strftime("%Y-%m-%d") + SEP
              + filled.fillna("").astype(str))
-    return OrderBasis("order_id", None, keyed.where(ids.notna(), by_line), owners, fillable)
+    return OrderBasis("order_id", None, keyed.where(ids.notna(), by_line), owners, fillable,
+                      why is not None)
 
 
 def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,

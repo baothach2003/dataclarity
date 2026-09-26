@@ -153,6 +153,49 @@ describe('needsReceiptConfirmation', () => {
     expect(needsReceiptConfirmation(plan(), profile(0, 0, 1))).toBe('Inv')
   })
 
+  it("follows stage 1's per-receipt verdict on the columns it measured (2E-k)", () => {
+    const dateOnly = { ...schema(0), order_id_date_only: true }
+    const readsCustomers = { ...schema(0), order_id_date_only: false }
+
+    expect(needsReceiptConfirmation(plan(), profile(), dateOnly)).toBe('Inv')
+    // A header-style export is mostly blank lines but names every receipt.
+    expect(needsReceiptConfirmation(plan(), profile(0, 60), readsCustomers)).toBeNull()
+  })
+
+  it('approximates from the profile when the verdict is not for these columns (2E-k)', () => {
+    const readsCustomers = { ...schema(0), order_id_date_only: false }
+    const remapped = MAPPED.map(([name, field]): [string, CanonicalField] => [
+      name,
+      name === 'Cust' ? 'ignore' : field,
+    ])
+    remapped.push(['Buyer', 'customer'])
+
+    // Buyer: blank on 60 of 100 rows - mostly blank.
+    const buyerBlank = profile()
+    buyerBlank.columns = buyerBlank.columns.map((c) => (c.name === 'Buyer' ? { ...c, null_count: 60 } : c))
+    expect(needsReceiptConfirmation(plan(remapped), buyerBlank, readsCustomers)).toBe('Inv')
+  })
+
+  it('approximates one value on most lines as date only (mutation check M10)', () => {
+    const walkIns = profile()
+    walkIns.columns = walkIns.columns.map((c) =>
+      c.name === 'Cust' ? { ...c, top_values: [{ value: 'Walk-in', count: 60 }] } : c,
+    )
+
+    expect(needsReceiptConfirmation(plan(), walkIns)).toBe('Inv')
+  })
+
+  it('counts a confirmed placeholder as blank (2E-k)', () => {
+    const readsCustomers = { ...schema(0), order_id_date_only: false }
+    const guests = profile()
+    guests.columns = guests.columns.map((c) =>
+      c.name === 'Cust' ? { ...c, top_values: [{ value: 'Guest', count: 70 }] } : c,
+    )
+
+    expect(needsReceiptConfirmation(plan(), guests, readsCustomers)).toBeNull()
+    expect(needsReceiptConfirmation(plan(), guests, readsCustomers, ['Guest'])).toBe('Inv')
+  })
+
   it('does not ask about a dropped order id column (review K)', () => {
     expect(needsReceiptConfirmation(plan(withoutCustomer, { Inv: 'drop_column' }), profile())).toBeNull()
   })
@@ -219,8 +262,10 @@ describe('answers', () => {
   }
 
   it('sends only the answers to questions that apply, and none unanswered', () => {
+    // The receipt answer is about the order id column, still Inv: it holds
+    // though the question is gone (2E-k review cycle 1 F3; null before).
     expect(applicableAnswers(plan(), schema(3), profile(), yesToBoth)).toEqual({
-      order_id_is_receipt: null,
+      order_id_is_receipt: true,
       customer_on_first_line_only: false,
     })
     expect(withApplicableConfirmations(plan(), schema(3), profile(), NO_ANSWERS).confirmations).toEqual({
@@ -249,6 +294,15 @@ describe('answers', () => {
     }
 
     expect(applicableAnswers(plan(), schema(0), profile(), no).order_id_is_receipt).toBe(false)
+  })
+
+  it('keeps a Yes about the same column when the question goes (review cycle 1 F3)', () => {
+    const yes: StoredAnswers = {
+      order_id_is_receipt: { value: true, key: answerKey(plan(withoutCustomer), 'order_id_is_receipt') },
+      customer_on_first_line_only: null,
+    }
+
+    expect(applicableAnswers(plan(), schema(0), profile(), yes).order_id_is_receipt).toBe(true)
   })
 
   it('keeps the receipt answer where there is no customer column', () => {

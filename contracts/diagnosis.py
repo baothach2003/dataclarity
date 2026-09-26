@@ -619,7 +619,9 @@ class DiagnosisContract(ContractFile):
     # every day and month on the wall clock as written (UTC before). 8 since
     # 2E-e2: the lever's orders and the bridge's customers follow the user's
     # answers in Review (an order id checked by date only; the customer fill).
-    supported_major: ClassVar[int] = 8
+    # 9 since 2E-k: confirmed walk-in placeholders are unattributed (the
+    # bridge, the lever's customers), and the order-id check is per receipt.
+    supported_major: ClassVar[int] = 9
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "
