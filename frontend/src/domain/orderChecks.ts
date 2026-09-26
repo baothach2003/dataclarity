@@ -141,6 +141,7 @@ export function fillQuestion(
   plan: CleaningPlan,
   schema: SchemaInferenceContract | null,
   profile: ProfileContract,
+  placeholders: readonly string[] = [],
 ): { lines: number | null } | null {
   const orderColumn = mappedColumn(plan, 'order_id')
   const customerColumn = namedCustomerColumn(plan, profile)
@@ -162,10 +163,14 @@ export function fillQuestion(
     plan.column_actions.some((c) => c.source_name === orderColumn && c.action === 'drop_rows_missing')
   // Stage 1 says null when the raw file could not tell (cycle 2 F5, F6).
   const lines = schema?.receipt_fill_lines ?? null
+  // A confirmed placeholder changes which lines are named, and stage 1
+  // measured without it: its 0 hid a fill that happens (2E-r F3), as its
+  // date-only verdict would (needsReceiptConfirmation).
   const measured =
     schema !== null &&
     lines !== null &&
     !droppingBlankIds &&
+    placeholders.length === 0 &&
     FILL_FIELDS.every((field) => mappedColumn(plan, field) === schemaColumn(schema, field))
   if (!measured) {
     return { lines: null }
@@ -211,7 +216,10 @@ export function applicableAnswers(
       'order_id_is_receipt',
       needsReceiptConfirmation(plan, profile, schema, placeholders) !== null,
     ),
-    customer_on_first_line_only: current('customer_on_first_line_only', fillQuestion(plan, schema, profile) !== null),
+    customer_on_first_line_only: current(
+      'customer_on_first_line_only',
+      fillQuestion(plan, schema, profile, placeholders) !== null,
+    ),
   }
 }
 

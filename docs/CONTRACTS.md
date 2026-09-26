@@ -140,7 +140,12 @@ shield a second, 2E-k doubt-review cycle 3 F1). A word is part of another only
 when a LETTER touches it, so plurals, codes and underscores match ("Walk-ins",
 "GUEST01", "Walk_In"); the list also reads "Khach hang le", "Khach vang lai",
 "Misc", "Non-member", "Unregistered", "Cliente final", "Barverkauf",
-"Pelanggan Umum" and the Chinese default (cycle 3 F3).
+"Pelanggan Umum" and the Chinese default (cycle 3 F3). Since 2E-r: words
+written apart may be joined by any run of spaces, underscores or hyphens
+("Retail_Customer", "No-Customer", "Walk - In"), the Chinese default counts
+inside a longer name ("门店散客"), "n/a" forms count ("#n/a", "n / a"), the
+value is read composed (NFC), and the 4-times test is taken again after each
+value it finds, so one code never shields the next.
 Measured: the largest real customer is 4.4% of either demo file and 1.01-1.15
 times the next one; Online Retail II's walk-ins are 22.8% of its lines, 18.5
 times its largest customer. No date is read for this search. Review asks about each

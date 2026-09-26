@@ -168,6 +168,26 @@ describe('placeholderCandidates', () => {
     expect(placeholderCandidates(plan(remapped), large, schema()).map((c) => c.value)).toEqual(['Guest', 'Front Desk'])
   })
 
+  it('takes the ratio again after each value it finds (2E-r F1)', () => {
+    const top = { Buyer: [{ value: '99999', count: 560 }, { value: '88888', count: 125 }, { value: 'R1', count: 5 }, { value: 'R2', count: 5 }] }
+    const large = { ...profile(top), dataset: { ...profile().dataset, rows: 5685 } }
+
+    expect(placeholderCandidates(plan(remapped), large, schema()).map((c) => c.value)).toEqual(['99999', '88888'])
+  })
+
+  it('mirrors the 2E-r words: any separator, the Chinese default inside a name, n/a forms, NFD', () => {
+    const chinese = String.fromCodePoint(0x6563, 0x5ba2)
+    const asked = [
+      'Retail_Customer', 'No-Customer', 'CONSUMIDOR_FINAL', 'Khach_Le', 'Retail  Customer',
+      `${String.fromCodePoint(0x95e8, 0x5e97)}${chinese}`, `${chinese}${String.fromCodePoint(0x6237)}`,
+      'N/A', '#n/a', 'n / a', 'Khách lẻ'.normalize('NFD'), 'Diverse', 'Laufkunden', 'Walk - In',
+    ]
+    const notAsked = ['Walker', 'Retailer Co', 'Nana']
+    const top = { Buyer: [...asked, ...notAsked].map((value) => ({ value, count: 2 })) }
+
+    expect(placeholderCandidates(plan(remapped), profile(top), schema()).map((c) => c.value)).toEqual(asked)
+  })
+
   it('reads the profile when there is no schema', () => {
     const top = { Cust: [{ value: 'Guest', count: 5 }] }
     expect(placeholderCandidates(plan(), profile(top), null)).toEqual([{ value: 'Guest', linesPct: 2.5, revenuePct: null }])
@@ -179,6 +199,10 @@ describe('formatShare', () => {
   // tiny share read "0.0%".
   it('floors to one decimal and never rounds up to a threshold', () => {
     expect([70, 9.96, 2.5, 0.25].map(formatShare)).toEqual(['70', '9.9', '2.5', '0.2'])
+  })
+
+  it('does not round a share just under a tenth up to it (2E-r F5)', () => {
+    expect([9.9999999999, 99.99999999995].map(formatShare)).toEqual(['9.9', '99.9'])
   })
 
   it('keeps a whole share whole when binary arithmetic lands just under it', () => {

@@ -9,8 +9,9 @@ A value is a candidate when
 - it reads as a placeholder word (`is_placeholder_word`), at any share; or
 - it carries PLACEHOLDER_SHARE or more of the counted lines or of the sale
   revenue; or
-- it is the largest value by lines or by sale revenue and carries
-  PLACEHOLDER_RATIO times the next one - Thach's "unusual share": a
+- it is the largest value by lines or by sale revenue, among the values not
+  already asked, and carries PLACEHOLDER_RATIO times the next one - taken
+  again after each value it finds (2E-r F1) - Thach's "unusual share": a
   placeholder at 7% of the lines, off the word list, read as the top
   customer at 15 times the next one (doubt-review cycle 2 F1).
 Measured before choosing (scratchpad 2ek/measure_shares.out): the largest
@@ -21,19 +22,14 @@ sit in those gaps, on the asking side.
 """
 
 import re
-from typing import NamedTuple
+import unicodedata
 
 import numpy as np
 import pandas as pd
 
 from contracts.profile import CustomerPlaceholder
-from shared.transactions import (
-    RequiredColumnMissingError,
-    customer_identity,
-    is_blank,
-    line_numbers,
-    require_column,
-)
+from shared.transactions import RequiredColumnMissingError, customer_identity, is_blank
+from stages.ingest.line_reading import undated_lines
 
 PLACEHOLDER_SHARE = 0.10
 PLACEHOLDER_RATIO = 4
@@ -47,20 +43,32 @@ PLACEHOLDER_RATIO = 4
 # "Walker", "Cashmere Ltd", "Miscellaneous Ltd" (cycle 2 F4) - so plurals,
 # digits and underscores still match: "Walk-ins", "GUEST01", "Walk_In".
 _LETTER = r"[^\W\d_]"
-PLACEHOLDER_WORDS = re.compile(
-    rf"(?<!{_LETTER})(?:guest|walk[\s_-]?in|cash|anonymous|unknown|none|null|blank|default|"
-    r"one[\s_-]?time|retail customer|counter|no customer|misc|non[\s_-]?member|unregistered|"
-    r"laufkunde|barverkauf|divers|consumidor final|cliente (?:final|contado)|"
-    r"p[u\u00fa]blico en general|pelanggan umum|\u6563\u5ba2|"
-    rf"kh[a\u00e1]ch (?:h[a\u00e0]ng )?l[e\u1ebb]|kh[a\u00e1]ch v[a\u00e3]ng lai)s?(?!{_LETTER})")
-_NOT_APPLICABLE = re.compile(r"n\.?\s?a\.?")
+# Words written apart may be joined by a space, an underscore, a hyphen or
+# several ("Retail_Customer", "No-Customer", "Walk - In"), and a compound may
+# be written as one word ("walkin"): 2E-r F2.
+_JOIN = r"[\s_-]+"
+_JOINED = r"[\s_-]*"
+_WORDS = (
+    "guest", f"walk{_JOINED}in", "cash", "anonymous", "unknown", "none", "null", "blank", "default",
+    f"one{_JOINED}time", f"retail{_JOIN}customer", "counter", f"no{_JOIN}customer", "misc",
+    f"non{_JOINED}member", "unregistered", "laufkunden?", "barverkauf", "diverse?",
+    f"consumidor{_JOIN}final", f"cliente{_JOIN}(?:final|contado)", f"p[uú]blico{_JOIN}en{_JOIN}general",
+    f"pelanggan{_JOIN}umum", f"kh[aá]ch{_JOIN}(?:h[aà]ng{_JOIN})?l[eẻ]", f"kh[aá]ch{_JOIN}v[aã]ng{_JOIN}lai",
+)
+PLACEHOLDER_WORDS = re.compile(rf"(?<!{_LETTER})(?:{'|'.join(_WORDS)})s?(?!{_LETTER})")
+# Chinese writes no space between words, so the default reads inside a longer
+# name too ("门店散客", "散客户"; 2E-r F2).
+_UNSPACED = re.compile("散客")
+_NOT_APPLICABLE = re.compile(r"#?n\s*[./]?\s*a\.?")
 
 
 def is_placeholder_word(identity: str) -> bool:
     """A customer identity that reads as a placeholder: a word above, the
     word "customer" alone, "n.a.", no letter or digit at all ("-", "?"), or
     a number at or below zero ("0", "0.0", "0000", "-1": float-style id
-    exports and dummy ids)."""
+    exports and dummy ids). Read composed (NFC): a decomposed "Khach le" was
+    missed (2E-r F2)."""
+    identity = unicodedata.normalize("NFC", identity)
     if not any(character.isalnum() for character in identity):
         return True
     try:
@@ -69,7 +77,7 @@ def is_placeholder_word(identity: str) -> bool:
     except ValueError:
         pass
     return (identity == "customer" or _NOT_APPLICABLE.fullmatch(identity) is not None
-            or PLACEHOLDER_WORDS.search(identity) is not None)
+            or PLACEHOLDER_WORDS.search(identity) is not None or _UNSPACED.search(identity) is not None)
 
 
 def placeholder_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
@@ -94,23 +102,35 @@ def placeholder_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
     identity = customer_identity(raw).where(~is_blank(raw))[counted]
     lines = identity.value_counts()
     sale_revenue = lines_read.amounts.where(lines_read.sale, 0.0)[counted]
-    total_revenue = float(sale_revenue.sum())
+    # Finite amounts can still sum past a float: no share can be read from
+    # that total (two customers each showed 100%, 2E-r F6) - an overflow this
+    # code expects and handles, so numpy need not warn about it.
+    with np.errstate(over="ignore"):
+        total_revenue = float(sale_revenue.sum())
+    measurable = 0 < total_revenue < float("inf")
     revenue = sale_revenue.groupby(identity).sum().sort_values(ascending=False)
     measured = []
     for value, count in lines.items():
         # Capped: the two revenue sums add the same numbers in another order,
         # and one customer on every line read 100.00000000000003% (cycle 1 F2).
         revenue_pct = (min(100.0, 100 * float(revenue.get(value, 0.0)) / total_revenue)
-                       if total_revenue > 0 else None)
+                       if measurable else None)
         lines_pct = 100 * int(count) / total_lines
         word = is_placeholder_word(str(value))
         share = (lines_pct >= 100 * PLACEHOLDER_SHARE
                  or (revenue_pct is not None and revenue_pct >= 100 * PLACEHOLDER_SHARE))
         measured.append((value, int(count), lines_pct, revenue_pct, word, share))
     # The largest of the values NOT already asked about: a first placeholder
-    # shielded a second one from the ratio (cycle 3 F1).
-    asked = [value for value, _, _, _, word, share in measured if word or share]
-    unusual = {_dominant(lines.drop(asked)), _dominant(revenue.drop(asked))} - {None}
+    # shielded a second one from the ratio (2E-k cycle 3 F1) - and taken again
+    # after each value the ratio finds, or that value shielded the next: an
+    # off-list "99999" hid "88888" at 25 times any real customer (2E-r F1).
+    asked = {value for value, _, _, _, word, share in measured if word or share}
+    unusual: set = set()
+    for totals in (lines, revenue) if measurable else (lines,):
+        rest = totals.drop(list(asked | unusual), errors="ignore")
+        while (top := _dominant(rest)) is not None:
+            unusual.add(top)
+            rest = rest.drop(top)
     found = [CustomerPlaceholder(value=value, lines=count, lines_pct=lines_pct, revenue_pct=revenue_pct,
                                  why="word" if word else "share")
              for value, count, lines_pct, revenue_pct, word, share in measured
@@ -130,27 +150,3 @@ def _dominant(totals: pd.Series) -> object | None:
     if len(totals) < 2 or totals.iloc[1] <= 0:
         return None
     return totals.index[0] if totals.iloc[0] >= PLACEHOLDER_RATIO * totals.iloc[1] else None
-
-
-class UndatedLines(NamedTuple):
-    """`parse_transactions`' counted and sale lines without reading a date -
-    for stage 1's searches, which read no period: walk-in placeholders (2E-k
-    doubt-review cycle 2 F5: day-first dates cost ~20 s at 650,000 rows) and
-    lines that may not be products (2E-d2). Nothing is classed yet at stage
-    1, so every line of a counted type counts."""
-
-    counted: pd.Series
-    sale: pd.Series
-    amounts: pd.Series
-
-
-def undated_lines(df: pd.DataFrame, column_mapping: dict[str, str]) -> UndatedLines:
-    """Raises RequiredColumnMissingError if quantity or unit_price has no
-    mapped column."""
-    reverse = {field: source for source, field in column_mapping.items()}
-    quantity_col = require_column(reverse, "quantity")
-    price_col = require_column(reverse, "unit_price")
-    quantities, prices, counts_as_sale = line_numbers(df, reverse, quantity_col, price_col)
-    counted = np.isfinite(quantities) & np.isfinite(prices) & counts_as_sale
-    amounts = quantities * prices
-    return UndatedLines(counted, counted & (quantities > 0) & (amounts > 0), amounts)

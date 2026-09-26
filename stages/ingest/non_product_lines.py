@@ -25,7 +25,7 @@ import pandas as pd
 from contracts.profile import LineClass, NonProductCandidate
 from shared.line_classes import keyed, text_identity
 from shared.transactions import RequiredColumnMissingError
-from stages.ingest.customer_placeholders import undated_lines
+from stages.ingest.line_reading import undated_lines
 
 _LETTER = r"[^\W\d_]"
 # First match wins, in this order: "Adjust bad debt" is an adjustment, and

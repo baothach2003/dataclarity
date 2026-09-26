@@ -56,7 +56,7 @@ export function OrderNotices({
     blank !== null && plan.column_actions.some((c) => c.source_name === blank.column && c.action === 'drop_rows_missing')
   const orderColumn = orderIdColumn(plan)
   const receiptColumn = needsReceiptConfirmation(plan, profile, schema, placeholders)
-  const fill = fillQuestion(plan, schema, profile)
+  const fill = fillQuestion(plan, schema, profile, placeholders)
   // Stage 1's own check found this column's ids spanning days or customers:
   // a Yes does not make stage 2 count orders (cycle 3 F4).
   const flagged =

@@ -137,10 +137,10 @@ remap the question is asked again.
   can be changed. Unanswered counts as No: orders are counted as lines.
 - **Is "Guest" a placeholder for walk-ins?** (2E-k) Asked for each candidate
   stage 1 found (a placeholder word - "Guest", "Walk-ins", "GUEST01",
-  "Khach le", "Misc", "Consumidor Final" and the like, any share - or 10% or
-  more of the lines or of the sale revenue, or the largest of the remaining
-  values at 4 times the next one; read from the profile's top values after a
-  remap, lines only). Shares are floored to one decimal. Yes:
+  "Khach le", "Retail_Customer", "Misc", "Consumidor Final", "n/a" and the
+  like, any share - or 10% or more of the lines or of the sale revenue, or the
+  largest of the remaining values at 4 times the next one, taken again after
+  each; read from the profile's top values after a remap, lines only). Shares are floored to one decimal. Yes:
   those lines have no customer. No: a real customer. An answer can be
   changed and applies to the customer column it was given for.
 - **Lines that may not be products** (2E-d2, Thach). One notice lists each

@@ -126,8 +126,11 @@ class ColumnInference(ContractModel):
 
 class CustomerPlaceholder(ContractModel):
     """A customer value that may stand for walk-ins (2E-k), found by stage 1
-    on the raw file: a known placeholder word, or a value carrying 10% or more
-    of the counted lines or of the sale revenue. Review asks about each."""
+    on the raw file: a known placeholder word (`why` "word"), or an unusual
+    share (`why` "share") - 10% or more of the counted lines or of the sale
+    revenue, or the largest of the values not already asked at 4 times the
+    next one, which on a small file can be a real customer (2E-r F4). Review
+    asks about each; a false question costs one answer."""
 
     value: str  # as written in the file (its commonest spelling)
     lines: NonNegativeInt

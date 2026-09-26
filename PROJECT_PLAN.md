@@ -1883,7 +1883,7 @@ dataclarity/
       moves on Online Retail II). D5 of 2E-k accepted as not blocking. C2
       "CARRIAGE" and 23444 "Next Day Carriage" are candidates (the word rule
       finds both, suggested charge) and are charges in the demo.
-- [ ] 2E-r **One scoped review pass on the unreviewed cycle-3 fixes** (Thach,
+- [x] 2E-r **One scoped review pass on the unreviewed cycle-3 fixes** (Thach,
       2026-09-27, Q2): 2E-k's (the 4-times test among the values not already
       asked; the cycle 3 words; the fill unmeasured when date only; the share
       rounding; the date-free reading moved to stage 1) and 2E-d2's (the
@@ -1892,6 +1892,24 @@ dataclarity/
       commonest name). One fresh-context adversarial pass, the triage rule,
       the stop rule (small local fixes allowed; a non-local critical is split
       out and stops the run).
+      **Done 2026-09-27 (third overnight run, session 1).** Method
+      `C:\Users\Happy\2Er-method.txt`. The reviewer found nothing in 2E-d2's
+      four fixes (400 fuzzed seeds; Online Retail II's unanswered keys equal
+      the pre-2E-d2 keys on all 1,067,371 lines; candidates identical after
+      shuffles) and six findings in 2E-k's, all fixed but one part:
+      F1 (FABRICATE) the 4-times test is taken again after each value it
+      finds - an off-list "99999" shielded "88888" at 25 times any real
+      customer; F2 (FABRICATE on the walk-in shape) words joined by any run
+      of spaces, underscores or hyphens, the Chinese default inside a longer
+      name, "n/a" forms, NFC, "Diverse", "Laufkunden"; F3 a confirmed
+      placeholder makes Review ask the fill question without stage 1's count
+      (its 0 hid a fill); F4 the `why` "share" docstring covers the ratio;
+      F5 `formatShare`'s epsilon 1e-12 (9.9999999999 read "10"); F6 the
+      date-free reading in its own stage 1 module
+      (`stages/ingest/line_reading.py`), an overflowing sale revenue not
+      measured. Stop rule did not fire. Both demo files unchanged (no
+      placeholder candidate). Mutation: 8 Python and 7 frontend mutants, all
+      killed (R1 by a test added for it). pytest 2924, Vitest 152.
 - [ ] 2E-l **Headlines when the change sits outside the products** (split
       out of 2E-d2 doubt-review cycle 3 under the stop rule; **for Thach -
       the second overnight run stopped on it**). FABRICATE, headline.
@@ -2226,6 +2244,12 @@ dataclarity/
       - cycle 3 F2: on a header-style export, shares are measured on raw
         lines before the receipt fill; the fix is a per-receipt measure.
       - `shared/transactions.py` is 306 lines and `ReviewPage.tsx` 364.
+      From 2E-r: two EQUAL off-list codes (two stores' numeric default
+      accounts at 6.6% each) still shield each other - the 4-times test
+      compares a value with the next; catching them needs a new rule (judged
+      not common by Thach's ruling on 2E-k D5); on a small file the ratio can
+      ask about a real customer (a false question; Online Retail II's EIRE
+      and Denmark slices).
       From 2E-d2 (lines that are not products; none fabricates on the demo):
       - a plan transform that rewrites the SKU, name, quantity, price or
         customer column acts on candidate lines too (Review's money is the
@@ -2386,6 +2410,9 @@ significance threshold, making a one-cent price rise a step change.
 rules, the triage rule; report in `C:\Users\Happy\overnight-report.txt`
 (the first two kept as `overnight-report-run1.txt` and `-run2.txt`). Thach's
 decisions on the second run are recorded in the 2E-d2, 2E-r and 2E-l items.
+Session **2E-r** closed 2026-09-27 (see its item): the scoped review of the
+unreviewed cycle-3 fixes - 2E-d2's clean, 2E-k's five findings fixed, one
+part recorded (8D). pytest 2924, Vitest 152. Next: 2E-l.
 The second overnight run (2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo
 -> 2E-d -> 2E-i -> 2E-j, stop before 3E1b.
 **The second overnight run STOPPED after 2E-d2** (session 2 of 6): its

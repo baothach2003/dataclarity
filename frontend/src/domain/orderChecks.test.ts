@@ -210,6 +210,10 @@ describe('fillQuestion', () => {
     expect(fillQuestion(plan(), schema(0), profile())).toBeNull()
   })
 
+  it("asks without a count once a placeholder is confirmed: stage 1's 0 was measured without it (2E-r F3)", () => {
+    expect(fillQuestion(plan(), schema(0), profile(), ['Guest'])).toEqual({ lines: null })
+  })
+
   it('does not ask without an order id and a customer who is named', () => {
     expect(fillQuestion(plan(withoutCustomer), schema(12), profile())).toBeNull()
     expect(fillQuestion(plan(), schema(12), profile(0, 100))).toBeNull()
