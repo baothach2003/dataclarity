@@ -794,28 +794,42 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   empty month produced an all-zero bridge that was then offered to C1-C3 as a
   real comparison of flows (3B finding 2, again).
 - **Returns lens.** `delta_net = delta_gross - delta_returns -
-  delta_deductions`. Gross is the sale rows (quantity > 0, positive amount),
-  returns the return lines, deductions every other counted row - a coupon, a
+  delta_deductions + delta_charges`. Gross is the sale rows (quantity > 0,
+  positive amount), returns the return lines, charges the lines the user
+  classed as charges the customer paid (postage: revenue, but no order and no
+  return - Thach, 2E-l), deductions every other counted row - a coupon, a
   discount, a bad-debt write-off (Thach, 2E-c). A refund booked at a negative
   price used to sit inside gross sales, and P1 read it as a price cut.
-  Deductions have no hypothesis in v1: a change they carry stays unexplained.
+  Since 2E-l the deductions have P4 and the charges P5 (ADR-0005's
+  amendment): before, a change the deductions carried stayed unexplained and
+  a discount month headlined a gross-lens sliver. P5 is `not_testable` when
+  no line is classed a charge - its requirement: "charges did not move" is
+  no finding when the postage was never classed (Online Retail II's moved
+  +21,624 unclassed; 2E-l review cycle 1).
 - **Product lens (PVM, exact).** Partition products into L (in both periods), N
   (new) and X (discontinued). `delta_gross = delta_gross_L + gross_N(cur) -
-  gross_X(prev) + delta_gross_non_product` (the last term since 2E-d2); for
-  L, three-player Shapley over volume, mix and price.
-  Rows whose `product_name` cell is empty form **one visible bucket**, not a
-  silent omission: `groupby` drops null keys by default, so those rows left the
-  lens while remaining in the gross total it reconciles against, and on the
+  gross_X(prev) + unidentified` (below); for L, three-player Shapley over
+  volume, mix and price.
+  (2E-d2 added a term for the charges; since 2E-l a charge is no gross sale
+  at all - the returns lens's `charges` - so that term is gone.)
+  Lines with no product identity - neither SKU nor name, and pooled items
+  (many items under one code, 2E-l) - are **one visible term**,
+  `unidentified` (their gross, current minus previous), not a silent
+  omission: `groupby` drops null keys by default, so those rows left the lens
+  while remaining in the gross total it reconciles against, and on the
   reproduction gross sales had fallen 49 while the lens reported a rise of 1 -
-  a direction flip in the figures the headline is chosen from (3C doubt-review).
-  Lines the user classed as a charge the customer paid (postage, 2E-d2) are
-  gross sales but no product: their change is the lens's sixth term,
-  `non_product`, and they are in none of L, N or X - a rising postage per
-  shipment read as a price rise before. Online Retail II 2011-11: price
-  72,066.89 unclassed, 55,703.40 with only the four charge codes classed
-  (postage 21,982.29 as its own term), 96,350.48 with all twelve classes
-  (M "Manual"'s positive lines were a "product" whose price moved the other
-  way; review cycle 2 #6).
+  a direction flip in the figures the headline is chosen from (3C
+  doubt-review). Nor are they a product: until 2E-l review cycle 1 they were
+  one bucket in L, N and X, so the bucket's average price over unrelated items
+  was a like-for-like price (M "Manual": 40,647 of P1 on Online Retail II
+  2011-11) and a bucket first seen this month a product launched (R2 headlined
+  it) - Thach, 2E-g: the gap is in the totals, never ranked as a product.
+  Lines the user classed as a charge the customer paid (postage) are no
+  product - a rising postage per shipment read as a price rise before.
+  Online Retail II 2011-11: price 72,066.89 unclassed; 55,703.40 with only
+  the four charge codes classed (2E-d2); 96,350.48 with Thach's 2E-l classes
+  (M pooled, in `unidentified` at -18,236.25) as with 2E-d2's twelve (M left
+  out) - M's positive lines were a "product" whose price moved the other way.
 - **Reconciliation is checked at runtime, not only in tests.** Every lens is
   asserted against its own total at `RECONCILE_REL_TOLERANCE` of the lens's
   own scale, plus `RECONCILE_FLOAT_TOLERANCE` of the money moved in the two
@@ -845,8 +859,17 @@ mix effect and a rate effect. This is the Simpson's-paradox guard: every
 category's price can rise while the overall average falls, and only this split
 says so.
 
-**Breadth.** `declining_base_share` (share of `prev` revenue held by members
-moving the same way as the total) and `top_member_share`. `broad` at
+**Breadth.** Measured over the products' OWN change (Thach, 2E-l): the
+sum of the product members' deltas, the gap buckets left out. When more than
+half of the change does not sit in the products (the products' change has
+not the total's sign, or is at most `PRODUCTS_MAJORITY_SHARE` of it - judged
+as money above residue, so exactly half is never "more" by 1e-16, 2E-l review
+cycle 1) the classification is
+`outside_products` and R1 is ruled out - postage 5 -> 30 a day with one
+product +10 had headlined "concentrated in one product" for +785.
+`products_share_of_change` says how much sat there. Otherwise:
+`declining_base_share` (share of `prev` revenue held by members moving the
+same way as the products' change) and `top_member_share`. `broad` at
 `BREADTH_BROAD`, `concentrated` at `BREADTH_CONCENTRATED`, else `mixed`; broad
 is tested first, because when both hold, "this is happening across the
 business" redirects attention better than "one member leads it". Broad points
@@ -868,10 +891,9 @@ flag, not the label, identifies the bucket: a real category spelled
 `(uncategorised)` stays separate. The product dimension's `(not a product)`
 bucket (2E-d2: lines the user classed as charges or discounts) is kept out the
 same way but flagged `is_not_a_product`, not `is_data_gap`: it is revenue, no
-missing data. Breadth and R1 read products only, leaving both buckets out -
-**known limit, split out for Thach (2E-d2 doubt-review cycle 3 F1):** they
-still read the whole change as the total, so a month moved by the classed
-lines can make R1 name one product that barely moved as "concentrated". D3's evidence carries the uncategorised
+missing data. Breadth and R1 read products only, leaving both buckets out,
+and since 2E-l against the products' own change (above). Pooled items (many
+items under one code, 2E-l) join `(no product name)`: sold, never ranked. D3's evidence carries the uncategorised
 share of each period's revenue, since how much of the shop is uncategorised is
 a data-completeness fact rather than a business one.
 
@@ -929,6 +951,8 @@ grew 2.7x.
 | P1 | product_returns | product | term | Like-for-like prices changed | - | PVM price effect | products in L |
 | P2 | product_returns | product | term | Sales mix shifted | fall: Sales mix shifted towards cheaper products; rise: Sales mix shifted towards pricier products | PVM mix effect | products in L |
 | P3 | product_returns | returns | term | Returns changed | - | `-delta_returns` | none |
+| P4 | product_returns | returns | term | Discounts and other deductions changed | fall: Discounts and other deductions took more revenue away; rise: Discounts and other deductions took less revenue away | `-delta_deductions` | none |
+| P5 | product_returns | returns | term | Charges paid by customers changed | fall: Customers paid less in charges (postage, delivery); rise: Customers paid more in charges (postage, delivery) | `delta_charges` | lines classed as charges |
 | R1 | localization_lifecycle | localization | directional | The change is concentrated in one product or category | - | directional: breadth `concentrated` and top member moving with the total | none |
 | R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
 | R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
@@ -1095,7 +1119,13 @@ while the month fell 450 short of its season. Written as a band, not
    negligible (a zero change has no best explanation either way; cycle 4) (a directional one carries no
    number and tests its own direction). A price rise lifting gross sales
    while refunds sank revenue was named "the best explanation" of the fall
-   (3E1 cycle 3).
+   (3E1 cycle 3). A **product-lens** hypothesis (P1, P2, R2, R3) is named
+   only when more than half of the net change sits in the product lens - the
+   change in gross sales holds more than `PRODUCTS_MAJORITY_SHARE` of it, above
+   floating-point residue (Thach's "more than half", 2E-l): its share is of the
+   GROSS change, which a promotion or postage month barely moves, and one
+   unit's mix shift (-5 of -5 gross) beat P4 at -775 of -780 (2E-l review
+   cycle 1). Its verdict is not touched.
 7. Nothing supported - no single tested cause explains most of the change,
    followed by the `partial` ones.
 
@@ -1119,7 +1149,7 @@ what could not be tested is part of the answer, not an omission.
 
 | Id | Statement | Reason |
 |---|---|---|
-| X1 | Marketing and promotions | no campaign data; discount columns are not canonical |
+| X1 | Marketing and promotions | no campaign data; discounts booked as lines are P4, a discount column is not canonical |
 | X2 | Competitor actions | no competitor data |
 | X3 | Weather and macro events | no external data |
 | X4 | Traffic and conversion | no footfall or session data; sales rows record only purchases |

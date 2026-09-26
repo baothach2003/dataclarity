@@ -1910,7 +1910,7 @@ dataclarity/
       measured. Stop rule did not fire. Both demo files unchanged (no
       placeholder candidate). Mutation: 8 Python and 7 frontend mutants, all
       killed (R1 by a test added for it). pytest 2924, Vitest 152.
-- [ ] 2E-l **Headlines when the change sits outside the products** (split
+- [x] 2E-l **Headlines when the change sits outside the products** (split
       out of 2E-d2 doubt-review cycle 3 under the stop rule; **for Thach -
       the second overnight run stopped on it**). FABRICATE, headline.
       - F2: a change carried by DEDUCTIONS has no hypothesis (Thach, 2E-c),
@@ -1950,6 +1950,73 @@ dataclarity/
         "Manual": manually priced sales and their refunds) stays sale and
         return lines - revenue, orders, AOV, returns - but is never ranked as
         a product, the same treatment as "(no product name)".
+      **Done 2026-09-27 (third overnight run, session 2).** Method
+      `C:\Users\Happy\2El-method.txt` (amended before each review cycle's
+      fixes). Q7: a charge is its own parser category - counted, in revenue,
+      no sale, no return, no order; the returns lens gains `charges`
+      (`delta_net = delta_gross - delta_returns - delta_deductions +
+      delta_charges`). A: P4 (`-delta_deductions`) and P5 (`delta_charges`),
+      the ADR-0005 amendment (20 catalog ids); P5 `not_testable` with no
+      charge classed. B: breadth measured over the products' own change,
+      `outside_products` (and `products_share_of_change`) when they hold at
+      most half of it - `PRODUCTS_MAJORITY_SHARE`, strict, above float
+      residue. Headline rule 6 names a product-lens cause only when more than
+      half of the change sits in the product lens (decision D8). Q4: the
+      class `pooled` - sales, never ranked; with the lines that have neither
+      SKU nor name they are the product lens's own term `unidentified`, out
+      of L, N and X (D9). Stage 1 suggests pooled for "manual", cost for
+      "sample". A name-only line takes the class of the one SKU its name is
+      sold under unless the name is answered, "a product" included (a new
+      answer value, sent for names only). Member bucket keys without a NUL
+      (pandas grouped the two product buckets as one). Versions: stage 1
+      contracts 3.0, metrics.json 12.0, diagnosis.json 11.0, the frontend's
+      manual plan '3.0'.
+      **Measured:** Online Retail II charge-only invoices 157 of 40,078
+      (0.39%, 22,515.50); 2011-11 8 of 2,769 orders. With Thach's classes,
+      2011-11: revenue 1,087,768.59 -> 1,479,884.13, orders 2,020 -> 2,759,
+      AOV 536.38, return rate 0.1475, new customers 191; top products RABBIT
+      NIGHT LIGHT, PAPER CHAIN KIT, WHITE HANGING HEART; returns lens charges
+      +21,623.82; product lens price 96,350.48 (P1 supported), mix 9,948.16
+      (P2 ruled out), `unidentified` -18,236.25; P5 partial (0.055); breadth
+      mixed (products 0.943); headline rule 5, seasonality 86%. Unanswered,
+      both demo files are unchanged except P5 `not_testable`.
+      **Mutation:** 23 on the build (22 killed, 1 equivalent - a dead branch,
+      removed), 19 on cycle 1's fixes (all killed), 3 on cycle 2's (2
+      killed, 1 equivalent by design).
+      **Doubt-review:** three cycles (cross-model skipped: non-interactive).
+      Cycle 1, 12 findings: a promotion month still headlining a gross-lens
+      sliver, and pooled/blank-key lines priced like-for-like and counted as
+      launches (both blocking, fixed); P5 with no charge, the float "half",
+      the "product" answer, doc drift (fixed); 4 recorded. Cycle 2, 6: the
+      NUL bucket keys (blocking, fixed), docs (fixed), 4 recorded. Cycle 3,
+      5: #1 split out under the stop rule as **2E-m**; docs and suppressions
+      fixed; 2 recorded. pytest 2966, Vitest 156.
+      **The stop rule fired: the third overnight run stops here.**
+- [ ] 2E-m **Headline ranking across lenses measured against different
+      totals** (split out of 2E-l doubt-review cycle 3 under the stop rule;
+      **for Thach - the third overnight run stopped on it**). FABRICATE,
+      headline (a smaller cause called "the best-supported explanation").
+      Rule 6 ranks by `min(|share|, 1)` (Thach, 3E1), and a product-lens
+      share is of the GROSS change while a returns-lens share is of the NET
+      change. Once 2E-l's gate lets a product-lens cause through (gross holds
+      more than half of net) it can outrank a larger returns-lens cause: net
+      -100, discounts -93 (P4, 93%), a price cut -62 (P1, 100% of gross -62)
+      -> "the best-supported explanation: like-for-like prices changed".
+      Sweeps: 4-5 of 200 random promotion-month shops with refunds or
+      postage moving too name P1/P2 over a larger P3/P4; an exact tie at fit
+      1.0 goes to P1 by catalog order. Not on the demo (18 Online Retail II
+      months checked); the same mixed-denominator ranking exists since 3E1
+      between P1/P2 and P3. The same case shows two readings of "the change
+      sits in the products": breadth (the products' own net change, 2E-l D3)
+      read 7% there, the headline gate (gross over net, D8) 62%.
+      - Needs Thach's decision: rank every supported cause by its share of
+        the NET change the headline states (D8's veto option; it changes
+        3E1's ranking and some non-demo months' headlines, e.g. 2010-03's T1
+        against R2), or keep 3E1's ranking and gate harder, or accept it; and
+        which one reading of "the change in the products" B and the gate
+        share. Before 3E1b by the asymmetry rule.
+      Repros: scratchpad `2el/review3/s3b_gate_rank_clear.py`,
+      `s6_sweep_rank.py`, `s6b_sweep_rank_postage.py`, `s4_orii_months.py`.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2262,7 +2329,8 @@ dataclarity/
         MANUAL", "CARRIAGE CLOCK") and missed words (service charge,
         surcharge, S&H, P+P, bad-debt);
       - a name-only line named like a classed SKU is asked separately and,
-        unanswered, stays a product; a product named "(not a product)";
+        unanswered, stays a product (since 2E-l it takes the SKU's class
+        unless its name is answered); a product named "(not a product)";
       - left-out lines' dates still bound the file's period, as "in" rows'
         do; a zero-money key ("FREE DELIVERY" 1 @ 0) is not asked yet can
         be listed as a new product member; stage 1's commonest name counts
@@ -2272,6 +2340,27 @@ dataclarity/
       - Stage 1's order-check parse of Online Retail II took 6.4 s and
         12.4 s on two runs of unchanged code (machine load); part of the
         speed item above.
+      From 2E-l (none fabricates on the demo):
+      - pooled lines are labelled "(no product name)" with `is_data_gap` in
+        the member tables (a label that says "no name");
+      - classing charges can leave a category with revenue and no orders,
+        so the category mix/rate split refuses;
+      - new customers change in 3 of 25 Online Retail II months when charges
+        are classed (Q7's consequence; 2011-11 unchanged at 191); a customer
+        present only through a charge counts as returning, as a refund-only
+        customer does (2E-c);
+      - name-only inheritance misses a name sold under two charge SKUs and a
+        name-only "Discount" (each is asked about under its own name);
+      - the "(not a product)" bucket falls under the member size bar (2% of
+        revenue or 30 orders) now that charges have no orders (11 of 24
+        months, not 2011-11);
+      - a classed postage refund still refuses B2 (not a regression);
+      - stage 1 suggests pooled for "manual postage", cost for "sample pack"
+        products (suggestions only);
+      - CONTRACTS example blocks carry stale `schema_version` literals;
+      - a whole share with a float remainder (1.0000000000000018) prints as
+        two figures, not "100%" (headline `_size`);
+      - `stages/diagnose/members.py` is 319 lines.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2410,6 +2499,16 @@ significance threshold, making a one-cent price rise a step change.
 rules, the triage rule; report in `C:\Users\Happy\overnight-report.txt`
 (the first two kept as `overnight-report-run1.txt` and `-run2.txt`). Thach's
 decisions on the second run are recorded in the 2E-d2, 2E-r and 2E-l items.
+**The third overnight run STOPPED after 2E-l** (session 2 of 6): its
+doubt-review cycle 3 (the bound) found a headline FABRICATE on a common shape
+whose fix changes 3E1's ranking rule - split out as **2E-m** (for Thach); the
+stop rule fired and Thach's run rules stop the whole run on it. Not started:
+the Online Retail II demo (method drafted: `C:\Users\Happy\2Edemo-method.txt`),
+2E-d, 2E-i, 2E-j. Session **2E-l** closed 2026-09-27 (see its item): a charge
+is no order, P4/P5, the products' "more than half", pooled items, the
+`unidentified` term. metrics.json 12.0, diagnosis.json 11.0, stage 1
+contracts 3.0. pytest 2966, Vitest 156. Decisions made alone (D2-D9) are in
+the overnight report.
 Session **2E-r** closed 2026-09-27 (see its item): the scoped review of the
 unreviewed cycle-3 fixes - 2E-d2's clean, 2E-k's five findings fixed, one
 part recorded (8D). pytest 2924, Vitest 152. Next: 2E-l.
@@ -2925,8 +3024,8 @@ still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
 1. Third overnight run: read `C:\Users\Happy\overnight-report.txt`.
-   The second run's questions (2E-l, M, S, D's class, charge-only invoices,
-   D5, the unreviewed fixes) are answered and recorded.
+   Decide 2E-m (the headline ranking across lenses), and keep or veto the
+   decisions made alone (D2-D9, D8 and D9 especially).
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

@@ -285,7 +285,7 @@ def test_customer_metrics_for_run_reads_cleaned_csv_and_the_mapping(tmp_path: Pa
         encoding="utf-8",
     )
     report = CleaningReportContract(
-        schema_version="2.0",  # 2E-e: order_id widened the enum (major)
+        schema_version="3.0",  # 2E-e: order_id widened the enum (major); 2E-l: "pooled" (major)
         generated_at=NOW,
         rows_in=2,
         rows_out=2,

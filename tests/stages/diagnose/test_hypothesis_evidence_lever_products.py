@@ -127,7 +127,8 @@ def test_r1_needs_concentration_and_the_top_product_moving_with_the_total() -> N
 
     def r1(classification: str, moved: Changes):
         inputs = NS(data=data, localization=NS(breadth=NS(classification=classification,
-                                                           top_member_share=0.9)))
+                                                           top_member_share=0.9,
+                                                           products_share_of_change=1.0)))  # 2E-l
         return evaluate("R1", inputs, moved).verdict
 
     fell = Changes(1100.0, 200.0, -900.0, -900.0, False)

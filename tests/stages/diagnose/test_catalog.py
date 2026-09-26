@@ -56,12 +56,13 @@ def test_the_not_testable_table_matches_the_catalog_row_by_row() -> None:
 def test_ids_are_unique_and_in_catalog_order() -> None:
     """Catalog order is contract order (CONTRACTS 7: "in catalog order")."""
     ids = [spec.id for spec in CATALOG]
-    # 3 data + 3 time + 4 customer + 2 lever + 3 product/returns + 3
-    # localization/lifecycle (ADR-0005). ADR-0006 once said "nineteen"; that
-    # miscount was corrected in 3E1.
-    assert len(ids) == len(set(ids)) == len(BY_ID) == 18
+    # 3 data + 3 time + 4 customer + 2 lever + 5 product/returns + 3
+    # localization/lifecycle (ADR-0005, amended in 2E-l: P4 deductions and P5
+    # charges, Thach). ADR-0006 once said "nineteen"; that miscount was
+    # corrected in 3E1.
+    assert len(ids) == len(set(ids)) == len(BY_ID) == 20
     assert ids == ["D1", "D2", "D3", "T1", "T2", "T3", "C1", "C2", "C3", "C4",
-                   "B1", "B2", "P1", "P2", "P3", "R1", "R2", "R3"]
+                   "B1", "B2", "P1", "P2", "P3", "P4", "P5", "R1", "R2", "R3"]
 
 
 def test_the_directional_set_is_the_one_the_contract_names() -> None:

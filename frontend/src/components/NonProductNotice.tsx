@@ -2,7 +2,9 @@
 // 2E-d2, Thach): postage, fees, discounts, accounting adjustments. Built on
 // the Notice component (docs/FIGMA_DESIGN_NOTES.md section 5, node `1:271`)
 // with one choice per candidate below it. Nothing is chosen for the user: a
-// suggestion is only shown, and unanswered lines stay products.
+// suggestion is only shown, and unanswered lines stay products - except a line
+// with no SKU, which follows the answer for the one SKU its name is sold under
+// (2E-l).
 
 import { Notice } from './Notice.tsx'
 import type { LineCandidate } from '../domain/lineClasses.ts'
@@ -13,8 +15,10 @@ type Choice = LineClass | 'product'
 // Each choice, and what it does to the lines.
 const CHOICES: { value: Choice; label: string }[] = [
   { value: 'product', label: 'A product' },
-  { value: 'charge', label: 'A charge paid by the customer (stays in revenue)' },
+  { value: 'charge', label: 'A charge paid by the customer (stays in revenue, not an order)' },
   { value: 'discount', label: 'A discount (stays in revenue)' },
+  // Thach, 2E-l: Online Retail II's M "Manual" - manually priced sales.
+  { value: 'pooled', label: 'Many items under one code (sold, not ranked as a product)' },
   { value: 'cost', label: 'A fee or cost (leaves revenue)' },
   { value: 'adjustment', label: 'An accounting adjustment (leaves revenue)' },
 ]
@@ -22,6 +26,7 @@ const CHOICES: { value: Choice; label: string }[] = [
 const SUGGESTIONS: Record<LineClass, string> = {
   charge: 'a charge paid by the customer',
   discount: 'a discount',
+  pooled: 'many items under one code',
   cost: 'a fee or cost',
   adjustment: 'an accounting adjustment',
 }
@@ -60,7 +65,8 @@ export function NonProductNotice({ candidates, answers, onAnswer }: NonProductNo
     <div className="line-classes">
       <Notice tone="warning" title="Lines that may not be products">
         Postage, fees, discounts and accounting adjustments are often booked as products. Say what each of these is;
-        unanswered, its lines stay products.
+        unanswered, its lines stay products - except lines with no code, which follow the answer for the one code
+        their name is sold under.
       </Notice>
       <ul className="line-classes__list">
         {candidates.map((candidate) => (

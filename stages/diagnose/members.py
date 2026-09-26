@@ -31,15 +31,18 @@ from stages.diagnose.thresholds import (
 # Rows whose key column is blank. The label is what a reader sees; the bucket
 # is identified by `is_data_gap`, not by its name, so a real category that
 # happens to be spelled this way stays a separate member rather than merging
-# into the gap (Thach, 3D). The internal key carries characters
-# `normalize_text` can never produce - it lowercases and strips - so the two
-# cannot collide during grouping either.
+# into the gap (Thach, 3D). The internal key carries characters no real key
+# can hold - upper case: `normalize_text` lowercases and product keys are
+# casefolded - so they cannot collide during grouping either. Not a leading
+# NUL: pandas reads an object key only up to one, so "\x00UNNAMED_PRODUCT"
+# and "\x00NOT_A_PRODUCT" grouped as ONE member once pooled items filled the
+# first (2E-l doubt-review cycle 2; shared/orders.py records the same trap).
 UNCATEGORISED_LABEL = "(uncategorised)"
-UNCATEGORISED_KEY = "\x00UNCATEGORISED"
+UNCATEGORISED_KEY = "#UNCATEGORISED"
 UNNAMED_PRODUCT_LABEL = GAP_LABEL  # stage 2 shows the gap in the same words
-UNNAMED_PRODUCT_KEY = "\x00UNNAMED_PRODUCT"
+UNNAMED_PRODUCT_KEY = "#UNNAMED_PRODUCT"
 NOT_A_PRODUCT_LABEL = "(not a product)"
-NOT_A_PRODUCT_KEY = "\x00NOT_A_PRODUCT"
+NOT_A_PRODUCT_KEY = "#NOT_A_PRODUCT"
 
 CUSTOMER_TYPES = ("new", "resurrected", "retained", "lapsed")
 
@@ -256,7 +259,10 @@ def product_totals(data: RunData) -> MemberTotals:
     # Lines the user classed as not products (2E-d2): postage and discounts
     # are revenue, so the dimension must still add up with them, but they are
     # no product - one bucket, kept out of recommendations like the gap.
-    keys = keys.fillna(UNNAMED_PRODUCT_KEY).mask(data.parsed.line_class.notna(), NOT_A_PRODUCT_KEY)
+    # Pooled items (2E-l) stay with the gap: many unnamed items, the same
+    # treatment as "(no product name)" (Thach).
+    keys = keys.fillna(UNNAMED_PRODUCT_KEY).mask(data.parsed.line_class.isin(("charge", "discount")),
+                                                 NOT_A_PRODUCT_KEY)
     return _totals(data, keys, labels, frozenset({UNNAMED_PRODUCT_KEY, NOT_A_PRODUCT_KEY}))
 
 

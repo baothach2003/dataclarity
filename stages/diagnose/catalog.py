@@ -180,6 +180,23 @@ CATALOG: tuple[HypothesisSpec, ...] = (
         "Returns changed",
         "`-delta_returns`",
         "none"),
+    # Thach, 2E-l (an amendment to ADR-0005): a promotion month is a real,
+    # nameable cause. Without P4 a month moved by deductions headlined a
+    # gross-lens sliver (P2 at -5 of -560) or "returns".
+    HypothesisSpec(
+        "P4", "product_returns", "returns", "term",
+        "Discounts and other deductions changed",
+        "`-delta_deductions`",
+        "none",
+        rendered=("Discounts and other deductions took more revenue away",
+                  "Discounts and other deductions took less revenue away")),
+    HypothesisSpec(
+        "P5", "product_returns", "returns", "term",
+        "Charges paid by customers changed",
+        "`delta_charges`",
+        "lines classed as charges",
+        rendered=("Customers paid less in charges (postage, delivery)",
+                  "Customers paid more in charges (postage, delivery)")),
     HypothesisSpec(
         "R1", "localization_lifecycle", "localization", "directional",
         "The change is concentrated in one product or category",
@@ -203,7 +220,7 @@ CATALOG: tuple[HypothesisSpec, ...] = (
 
 NOT_TESTABLE: tuple[NotTestableSpec, ...] = (
     NotTestableSpec("X1", "Marketing and promotions",
-                    "no campaign data; discount columns are not canonical"),
+                    "no campaign data; discounts booked as lines are P4, a discount column is not canonical"),
     NotTestableSpec("X2", "Competitor actions", "no competitor data"),
     NotTestableSpec("X3", "Weather and macro events", "no external data"),
     NotTestableSpec("X4", "Traffic and conversion",

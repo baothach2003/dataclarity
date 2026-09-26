@@ -4,7 +4,9 @@
 // (stages/ingest/non_product_lines.py); after a remap they are read here from
 // profile.json's top values - the same words and the same first-or-last-word
 // rule, money not measured - so the question is not lost. The user classes
-// each; unanswered, or "a product", its lines stay products.
+// each; unanswered, or "a product", its lines stay products - except that a
+// line with no SKU follows the answer for the one SKU its name is sold under
+// while its name is unanswered (2E-l).
 
 import type {
   CleaningPlan,
@@ -17,14 +19,17 @@ import type {
 type ProductField = 'sku' | 'product_name'
 
 // Mirrors stage 1's CLASS_WORDS, in its order: the first class whose word
-// begins or ends the text wins. null: asked with no suggestion ("SAMPLES").
+// begins or ends the text wins. The type keeps null for a word that would fit no
+// class; none does since 2E-l.
 const CLASS_WORDS: [LineClass | null, string[]][] = [
-  ['adjustment', ['adjust', 'adjustment', 'bad debt', 'manual', String.raw`write[\s-]?off`, 'written off', 'điều chỉnh', 'dieu chinh']],
+  ['adjustment', ['adjust', 'adjustment', 'bad debt', String.raw`write[\s-]?off`, 'written off', 'điều chỉnh', 'dieu chinh']],
+  // Thach, 2E-l: M "Manual" pools manually priced sales - not an adjustment.
+  ['pooled', ['manual']],
   ['discount', ['discount', 'coupon', 'giảm giá', 'giam gia', 'chiết khấu', 'chiet khau']],
   ['charge', ['postage', 'shipping', 'delivery', 'carriage', 'freight', String.raw`p\s?&\s?p`, 'phí vận chuyển', 'phi van chuyen', 'phí ship', 'phi ship']],
   // Not "hoa hồng": commission, but also roses (2E-d2 doubt-review F7).
-  ['cost', ['fee', 'bank charge', 'commission']],
-  [null, ['sample']],
+  // "sample": Thach, 2E-l - samples given away are a marketing cost.
+  ['cost', ['fee', 'bank charge', 'commission', 'sample']],
 ]
 // Only a letter makes a word part of another ("COFFEE", "ADJUSTABLE").
 const AT_AN_END = CLASS_WORDS.map(([lineClass, words]) => ({
@@ -154,7 +159,10 @@ export function nonProductCandidates(
 }
 
 /** The classes answered for the current product columns, as the plan's
- * `confirmations.line_classes` carries them: "a product" is no answer. */
+ * `confirmations.line_classes` carries them. "A product" is no answer for a
+ * SKU, but it is one for a name: unanswered, a line with no SKU takes the
+ * class of the one SKU its name is sold under, and the user's "a product"
+ * must hold (2E-l review cycle 1, CLAUDE.md 3.3). */
 export function answeredLineClasses(
   plan: CleaningPlan,
   profile: ProfileContract,
@@ -163,7 +171,9 @@ export function answeredLineClasses(
 ): LineClassAnswer[] {
   return nonProductCandidates(plan, profile, schema).flatMap((c) => {
     const answer = stored[c.key]
-    return answer === undefined || answer.value === 'product' || answer.column !== mappedColumn(plan, c.field)
+    return answer === undefined ||
+      (answer.value === 'product' && c.field === 'sku') ||
+      answer.column !== mappedColumn(plan, c.field)
       ? []
       : [{ value: c.value, field: c.field, line_class: answer.value }]
   })

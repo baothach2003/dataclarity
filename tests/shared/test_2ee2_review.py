@@ -128,7 +128,7 @@ def test_the_schema_step_parses_the_raw_file_once(tmp_path: Path,
 
 def test_a_plan_with_null_confirmations_reads_as_unanswered() -> None:
     plan = CleaningPlanContract.model_validate({
-        "schema_version": "2.1", "generated_at": NOW.isoformat(), "source": "manual",
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "source": "manual",
         "dataset_actions": [], "column_actions": [], "confirmations": None})
 
     assert plan.confirmations == OrderConfirmations()

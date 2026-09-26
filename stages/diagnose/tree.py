@@ -61,6 +61,7 @@ def _check_reconciliation(data: RunData, tree: Tree) -> None:
     delta_gross = tree.returns.gross_cur - tree.returns.gross_prev
     delta_returns = tree.returns.returns_cur - tree.returns.returns_prev
     delta_deductions = tree.returns.deductions_cur - tree.returns.deductions_prev
+    delta_charges = tree.returns.charges_cur - tree.returns.charges_prev
     # The money that moved: a lens total that is itself residue (a month whose
     # refunds cancel its sales) crashed a real-shaped file when it was the only
     # scale (2E doubt-review cycle 2). It enters as FLOAT ERROR only (cycle 3):
@@ -85,9 +86,9 @@ def _check_reconciliation(data: RunData, tree: Tree) -> None:
     _assert_sums(
         [tree.products.volume, tree.products.mix, tree.products.price,
          tree.products.new_products, tree.products.discontinued_products,
-         tree.products.non_product],
+         tree.products.unidentified],
         delta_gross, "product lens", moved)
-    _assert_sums([delta_gross, -delta_returns, -delta_deductions], delta_net,
+    _assert_sums([delta_gross, -delta_returns, -delta_deductions, delta_charges], delta_net,
                  "returns lens", moved)
 
 

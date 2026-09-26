@@ -421,9 +421,11 @@ class CustomerLens(BridgeTerms):
 
 class ReturnsLens(ContractModel):
     """Levels, not changes: `delta_net = delta_gross - delta_returns -
-    delta_deductions`. Gross is the sale rows; returns the return lines;
-    deductions every other counted row - coupons, discounts, write-offs
-    (2E-c). `returns_*` and `deductions_*` are positive magnitudes."""
+    delta_deductions + delta_charges`. Gross is the sale rows; returns the
+    return lines; charges the lines the user classed as charges the customer
+    paid (postage: revenue, but no order - Thach, 2E-l); deductions every
+    other counted row - coupons, discounts, write-offs (2E-c). `returns_*` and
+    `deductions_*` are positive magnitudes, `charges_*` the charges' revenue."""
 
     gross_prev: float
     gross_cur: float
@@ -431,11 +433,13 @@ class ReturnsLens(ContractModel):
     returns_cur: float
     deductions_prev: float
     deductions_cur: float
+    charges_prev: float
+    charges_cur: float
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
         values = (self.gross_prev, self.gross_cur, self.returns_prev, self.returns_cur,
-                  self.deductions_prev, self.deductions_cur)
+                  self.deductions_prev, self.deductions_cur, self.charges_prev, self.charges_cur)
         if not all(isfinite(value) for value in values):
             raise ValueError("returns lens figures must be finite")
         return self
@@ -443,17 +447,24 @@ class ReturnsLens(ContractModel):
 
 class ProductLens(ContractModel):
     """Price-volume-mix on gross sales. The six terms sum to the change in
-    gross sales - not to net revenue, which is the returns lens's total.
-    `non_product` is the change in the gross of lines the user classed as a
-    charge the customer paid (postage, 2E-d2): gross sales, but no product
-    whose price, volume or mix could move; 0.0 when none is classed."""
+    gross sales - not to net revenue, which is the returns lens's total. A
+    charge the customer paid is no gross sale since 2E-l (the returns lens's
+    `charges`), so 2E-d2's `non_product` term is gone.
+
+    `unidentified`: the gross sales of lines with no product identity -
+    neither SKU nor name, or classed as many items under one code (pooled) -
+    current minus previous. In the total, so the lens reconciles; never
+    priced like-for-like and never launched or discontinued (Thach, 2E-g:
+    the gap is never ranked as a product; Q4, 2E-l): M "Manual"'s average
+    price over unrelated items was 40,647 of the price term on Online Retail
+    II 2011-11 (2E-l review cycle 1)."""
 
     volume: float
     mix: float
     price: float
     new_products: float
     discontinued_products: float
-    non_product: float
+    unidentified: float
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
@@ -464,7 +475,7 @@ class ProductLens(ContractModel):
         this is the second line of defence, kept consistent across lenses so
         the next one written inherits the habit."""
         values = (self.volume, self.mix, self.price,
-                  self.new_products, self.discontinued_products, self.non_product)
+                  self.new_products, self.discontinued_products, self.unidentified)
         if not all(isfinite(value) for value in values):
             raise ValueError("product lens figures must be finite")
         return self
@@ -552,9 +563,17 @@ class MixRate(ContractModel):
 
 
 class Breadth(ContractModel):
+    """Measured over the products' own change (2E-l, Thach): "concentrated"
+    only when more than half of the change sits in the products;
+    `outside_products` when it does not - the change sits in charges,
+    discounts, pooled or unnamed lines, and no product is its home."""
+
     declining_base_share: UnitInterval
     top_member_share: UnitInterval
-    classification: Literal["broad", "mixed", "concentrated"]
+    classification: Literal["broad", "mixed", "concentrated", "outside_products"]
+    # The products' change over the whole change; null when the total did not
+    # move. Unbounded: products can move more than the total, others offsetting.
+    products_share_of_change: float | None
 
 
 class Localization(ContractModel):
@@ -635,8 +654,13 @@ class DiagnosisContract(ContractFile):
     # 10 since 2E-d2: lines the user classed as not products leave the
     # product lens (its `non_product` term) and the product members (one
     # "(not a product)" bucket), fees and adjustments leave revenue, and a
-    # discount is a deduction, not a return.
-    supported_major: ClassVar[int] = 10
+    # discount is a deduction, not a return. 11 since 2E-l: a charge is no
+    # order and no gross sale (the returns lens's `charges` term; the product
+    # lens loses `non_product` and gains `unidentified`, the lines with no
+    # product identity), hypotheses P4 and P5, breadth measured over the
+    # products' own change (`outside_products`, `products_share_of_change`),
+    # pooled items held with the data gap.
+    supported_major: ClassVar[int] = 11
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "

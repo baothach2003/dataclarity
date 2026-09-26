@@ -106,7 +106,7 @@ def test_stage_3_refuses_a_1x_metrics_file_and_says_to_re_analyse(tmp_path) -> N
     df = pd.DataFrame(_steady())
     df.to_csv(run.path / "cleaned.csv", index=False)
     (run.path / "cleaning_report.json").write_text(json.dumps({
-        "schema_version": "2.0", "generated_at": "2026-09-24T00:00:00Z", "rows_in": 1,
+        "schema_version": "3.0", "generated_at": "2026-09-24T00:00:00Z", "rows_in": 1,
         "rows_out": 1, "columns_in": 1, "columns_out": 1, "changes": [], "warnings": [],
         "column_mapping": MAPPING}), encoding="utf-8")
     metrics = json.loads(assemble_metrics(df, MAPPING).model_dump_json())

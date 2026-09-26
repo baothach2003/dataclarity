@@ -52,10 +52,12 @@ unchanged in Phase 3 session 3B:
   units per order from 3.0 to 4.0 while every paid basket held 3 units, and
   B2 headlined "baskets got bigger" over a price rise (2E-c doubt-review F1).
 - NON-PRODUCT LINES are the lines the user classed in Review (Thach, 2E-d2;
-  shared/line_classes.py). A charge the customer paid (postage) stays a sale
-  or return line, in revenue, but is no product. A discount is a deduction,
-  whatever its signs. A fee or cost and an accounting adjustment are left out
-  as "in" rows are (`left_out`) and reported by stage 2.
+  shared/line_classes.py). A charge the customer paid (postage) stays in
+  revenue but is no order, no return and no product (`charge`; Thach, 2E-l:
+  an invoice holding only charges is no purchase). A discount is a
+  deduction, whatever its signs. Pooled items (many under one code) are sale
+  and return lines ranked as no product. A fee or cost and an accounting
+  adjustment are left out as "in" rows are (`left_out`), reported by stage 2.
 """
 
 from dataclasses import dataclass
@@ -103,17 +105,23 @@ class ParsedTransactions:
     # rows explicitly "in", and lines the user classed as a fee or cost or an
     # accounting adjustment (`left_out`, 2E-d2).
     counted: pd.Series
-    # `counted` AND quantity > 0 AND a positive amount, not a discount: an
-    # order (module docstring, 2E and 2E-c).
+    # `counted` AND quantity > 0 AND a positive amount, not a discount or a
+    # charge: an order (module docstring, 2E and 2E-c; 2E-l).
     sale: pd.Series
-    # `counted` AND quantity < 0 AND a negative amount, not a discount: a
-    # return line (2E-c2).
+    # `counted` AND quantity < 0 AND a negative amount, not a discount or a
+    # charge: a return line (2E-c2).
     returned: pd.Series
-    # `counted` and neither of the two: a coupon, a discount, a write-off, a
+    # `counted` and classed a charge the customer paid (postage): its money
+    # is revenue, but it is no order and no return - an invoice holding only
+    # charges is no purchase (Thach, 2E-l).
+    charge: pd.Series
+    # `counted` and none of the three: a coupon, a discount, a write-off, a
     # free item, a zero-amount stock write-off (module docstring, 2E-c, 2E-c2).
     deduction: pd.Series
     # The class the user gave each line in Review, NaN for a product (2E-d2,
-    # shared/line_classes.py): "charge", "discount", "cost" or "adjustment".
+    # shared/line_classes.py): "charge", "discount", "pooled", "cost" or
+    # "adjustment". A pooled line (many items under one code) is an ordinary
+    # sale or return line, ranked as no product (shared/products.py, 2E-l).
     line_class: pd.Series
     # `valid`, not "in", and classed a fee or cost or an adjustment: out of
     # revenue and of every figure, as an "in" row is, but reported (2E-d2).
@@ -181,13 +189,18 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # adjustment leave revenue as an "in" row does - excluded, never
     # subtracted - and are reported. A discount is 2E-c's deduction whatever
     # its signs: a -1 @ +price discount read as a return line (2E-c2 item f).
-    # A charge the customer paid stays a sale or return line: only the product
-    # tables leave it (shared/products.py).
-    line_class = line_classes(df, reverse, answers.line_classes)
+    # A charge the customer paid is revenue but no order and no return line
+    # (Thach, 2E-l, superseding 2E-d2's "stays a sale line"): an invoice of
+    # postage alone made an order, and a postage refund a return.
+    amounts = quantities * prices
+    # The lines that would be sales if nothing were classed: the name-only
+    # vote (shared/line_classes.name_only_sku) reads those.
+    would_sell = valid & counts_as_sale & (quantities > 0) & (amounts > 0)
+    line_class = line_classes(df, reverse, answers.line_classes, would_sell)
     left_out = valid & counts_as_sale & line_class.isin(("cost", "adjustment"))
     counted = valid & counts_as_sale & ~left_out
-    amounts = quantities * prices
-    priced = counted & line_class.ne("discount")
+    charge = counted & line_class.eq("charge")
+    priced = counted & ~line_class.isin(("discount", "charge"))
     sale = priced & (quantities > 0) & (amounts > 0)
     returned = priced & (quantities < 0) & (amounts < 0)
     customers = customers_of(df, reverse.get("customer"))
@@ -219,7 +232,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
         counted=counted,
         sale=sale,
         returned=returned,
-        deduction=counted & ~sale & ~returned,
+        charge=charge,
+        deduction=counted & ~sale & ~returned & ~charge,
         line_class=line_class,
         left_out=left_out,
         units=quantities.where(sale | returned, 0.0),

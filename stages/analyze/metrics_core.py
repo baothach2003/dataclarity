@@ -134,14 +134,20 @@ def compute_core_metrics(
 
 # Per class: the singular and plural of what happened to its lines (2E-d2).
 _NON_PRODUCT_REASONS = {
-    "charge": ("1 line classed in Review as a charge paid by the customer stays in revenue and is "
-               "in no product table",
-               "{n} lines classed in Review as charges paid by the customer stay in revenue and "
-               "are in no product table"),
+    # No order since 2E-l (Thach): an invoice holding only charges is no purchase.
+    "charge": ("1 line classed in Review as a charge paid by the customer stays in revenue, is "
+               "no order, and is in no product table",
+               "{n} lines classed in Review as charges paid by the customer stay in revenue, "
+               "are no order, and are in no product table"),
     "discount": ("1 line classed in Review as a discount stays in revenue as a deduction: it is no "
                  "sale, no return, and in no product table",
                  "{n} lines classed in Review as discounts stay in revenue as deductions: they are "
                  "no sale, no return, and in no product table"),
+    # Thach, 2E-l: Online Retail II's M "Manual", manually priced sales.
+    "pooled": ("1 line classed in Review as pooled items (many items under one code) is a sale or "
+               "return in every figure, but no product table ranks it",
+               "{n} lines classed in Review as pooled items (many items under one code) are "
+               "sales and returns in every figure, but no product table ranks them"),
     "cost": ("1 line classed in Review as a fee or cost is left out of revenue and of every figure",
              "{n} lines classed in Review as fees or costs are left out of revenue and of every "
              "figure"),

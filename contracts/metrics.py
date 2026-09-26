@@ -73,11 +73,12 @@ class MonthlyRevenue(ContractModel):
 
 
 class NonProductLines(ContractModel):
-    """The lines of one class the user gave in Review (Thach, 2E-d2), dated
-    and counted over the whole file: a charge the customer paid and a
-    discount stay in revenue; a fee or cost and an accounting adjustment are
-    left out of it - an adjustment's amount is the reconciling amount between
-    the file's total and the revenue shown. None of them is in a product
+    """The lines of one class the user gave in Review (Thach, 2E-d2, 2E-l),
+    dated and counted over the whole file: a charge the customer paid stays
+    in revenue but is no order; a discount stays in revenue as a deduction;
+    pooled items are sales and returns in every figure; a fee or cost and an
+    accounting adjustment are left out of revenue - an adjustment's amount is
+    reported as a reconciling amount. None of them is ranked in a product
     table. The reason says where the money went."""
 
     line_class: LineClass
@@ -125,8 +126,8 @@ class CoreMetrics(ContractModel):
     # 2E-h). The reason is null exactly when the count is 0.
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
-    # One row per class present, in the order charge, discount, cost,
-    # adjustment; empty when no line is classed (2E-d2).
+    # One row per class present, in the order charge, discount, pooled,
+    # cost, adjustment; empty when no line is classed (2E-d2, 2E-l).
     non_product: list[NonProductLines]
 
     @model_validator(mode="after")
@@ -317,8 +318,10 @@ class MetricsContract(ContractFile):
     # customer on most, falls back to the receipt question). 11 since 2E-d2:
     # lines the user classed as not products leave the product tables, fees
     # and adjustments leave revenue, a discount is no return line
-    # (core.non_product says what moved).
-    supported_major: ClassVar[int] = 11
+    # (core.non_product says what moved). 12 since 2E-l: a charge is no order
+    # and no return line (orders, AOV, return rate, units), and pooled items
+    # are sales ranked as no product.
+    supported_major: ClassVar[int] = 12
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

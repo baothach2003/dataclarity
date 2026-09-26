@@ -88,10 +88,10 @@ def _report(version: str) -> dict:
             "column_mapping": {"Inv": "order_id"}}
 
 
-def test_the_stage_1_contracts_are_major_version_2() -> None:
-    assert CleaningReportContract.model_validate(_report("2.0")).column_mapping == {"Inv": "order_id"}
+def test_the_stage_1_contracts_are_major_version_3() -> None:
+    assert CleaningReportContract.model_validate(_report("3.0")).column_mapping == {"Inv": "order_id"}
     with pytest.raises(ValidationError, match="re-"):
-        CleaningReportContract.model_validate(_report("1.0"))
+        CleaningReportContract.model_validate(_report("2.0"))  # 2E-l
 
 
 def test_the_ai_cannot_raise_the_order_id_flag_itself() -> None:

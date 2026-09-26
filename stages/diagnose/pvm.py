@@ -24,18 +24,14 @@ from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import Coalition, shapley
 
 
-# Lines with neither SKU nor name (the gap). Product keys are namespaced
-# `sku:`/`name:` and never empty after the prefix, so the bare "name:" can
-# never be a real product's key.
-UNIDENTIFIED_PRODUCT = "name:"
-
-
 @dataclass(frozen=True)
 class ProductPeriod:
-    """Gross units and gross revenue per product identity for one month."""
+    """Gross units and gross revenue per product identity for one month, and
+    the gross revenue of the lines with none (`unidentified`)."""
 
     units: pd.Series
     revenue: pd.Series
+    unidentified: float
 
 
 def compute_products(data: RunData) -> ProductLens:
@@ -56,18 +52,8 @@ def compute_products(data: RunData) -> ProductLens:
         price=price,
         new_products=float(current.revenue.reindex(new_only).sum()),
         discontinued_products=-float(previous.revenue.reindex(gone_only).sum()),
-        non_product=_non_product_gross(data, data.metrics.period.current)
-        - _non_product_gross(data, data.metrics.period.previous) + 0.0,
+        unidentified=current.unidentified - previous.unidentified,
     )
-
-
-def _non_product_gross(data: RunData, month: str) -> float:
-    """The gross of the sale rows the user classed as not products - a
-    charge the customer paid (postage) is gross sales but no product whose
-    price, volume or mix could move (Thach, 2E-d2). Without its own term the
-    lens stops summing to the change in gross sales."""
-    mask = period_mask(data, month) & data.parsed.sale & data.parsed.line_class.notna()
-    return float(data.parsed.revenue_amounts[mask].sum())
 
 
 def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
@@ -81,21 +67,29 @@ def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
     # a rise where gross sales had fallen (3C doubt-review C1). Stage 1 can
     # legitimately produce such a file: `flag_only` leaves missing values in
     # place and the user is the final authority over the plan (CLAUDE.md 3.3).
-    # They are one visible bucket rather than a silent omission; unnamed rows
+    # They are one visible term rather than a silent omission; unnamed rows
     # are not a product, but they are revenue and the identity must close
-    # (kept so by Thach, 2E-g).
-    identity = product_keys(data.df, data.parsed).fillna(UNIDENTIFIED_PRODUCT)
+    # (kept so by Thach, 2E-g). Pooled items (many items under one code,
+    # Thach, 2E-l Q4) have no product key either and join them. Since 2E-l
+    # review cycle 1 the term is `unidentified`, not a product in L, N or X:
+    # as one "product" the bucket's average price over unrelated items was
+    # 40,647 of P1 on Online Retail II 2011-11, and a bucket first seen this
+    # month was a product launched (R2 headlined it).
+    identity = product_keys(data.df, data.parsed)
 
     # Sale rows (shared/transactions.py, 2E-c), the same rows as the returns
     # lens's gross: a refund booked as quantity 1 at a negative price was a
     # "product sold at a lower price" here, and P1 headlined a price cut.
-    # A line the user classed as not a product is its own term (2E-d2).
-    mask = period_mask(data, month) & data.parsed.sale & data.parsed.line_class.isna()
+    # A charge the customer paid is no sale since 2E-l (the returns lens
+    # carries it); pooled items are sales, held in `unidentified`.
+    mask = period_mask(data, month) & data.parsed.sale
     keys = identity[mask]
     units = data.parsed.quantities[mask].groupby(keys).sum()
     revenue = data.parsed.revenue_amounts[mask].groupby(keys).sum()
     positive = units[units > 0].index
-    return ProductPeriod(units=units.reindex(positive), revenue=revenue.reindex(positive))
+    unidentified = float(data.parsed.revenue_amounts[mask & identity.isna()].sum()) + 0.0
+    return ProductPeriod(units=units.reindex(positive), revenue=revenue.reindex(positive),
+                         unidentified=unidentified)
 
 
 def _pvm(

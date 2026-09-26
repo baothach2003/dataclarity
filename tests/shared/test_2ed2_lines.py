@@ -83,12 +83,13 @@ def test_costs_and_adjustments_leave_revenue() -> None:
         ("2026-07", pytest.approx(55.0)), ("2026-08", pytest.approx(84.0))]
 
 
-def test_charges_stay_orders_and_the_discount_is_no_return() -> None:
+def test_charges_are_no_orders_and_the_discount_is_no_return() -> None:
     core = assemble_metrics(_shop(), MAPPING, NOW, CLASSES).core
 
-    # Still 5 sale lines (the two POST lines among them); one return line now.
-    assert (core.orders_current, core.return_rate_current) == (5, pytest.approx(0.2))
-    assert core.aov_current == pytest.approx(84.0 / 5)
+    # 2E-l (Thach, Q7): a charge is no order - 3 sale lines (MUG, CUP, CUP),
+    # not 5 with the POST lines; one return line (the CUP refund).
+    assert (core.orders_current, core.return_rate_current) == (3, pytest.approx(1 / 3))
+    assert core.aov_current == pytest.approx(84.0 / 3)
 
 
 def test_an_adjustment_line_names_no_active_customer() -> None:
@@ -118,8 +119,8 @@ def test_the_classed_lines_are_counted_with_their_reasons() -> None:
         ("adjustment", 1, pytest.approx(-15.0), 0.0, pytest.approx(-15.0)),
     ]
     assert [r.reason for r in rows] == [
-        "3 lines classed in Review as charges paid by the customer stay in revenue and are in no "
-        "product table",
+        "3 lines classed in Review as charges paid by the customer stay in revenue, are no order, "
+        "and are in no product table",  # "no order" since 2E-l
         "1 line classed in Review as a discount stays in revenue as a deduction: it is no sale, no "
         "return, and in no product table",
         "1 line classed in Review as a fee or cost is left out of revenue and of every figure",
@@ -178,28 +179,32 @@ def test_the_discount_is_a_deduction_in_the_returns_lens() -> None:
 
     levels = returns_levels(data)
 
-    # August: gross 10+8+60+8+30 = 116, returns the CUP refund 30, deductions
-    # the discount 2 (the fee is out) - 116 - 30 - 2 = 84.
-    assert (levels["gross_cur"], levels["returns_cur"], levels["deductions_cur"]) == (
-        pytest.approx(116.0), pytest.approx(30.0), pytest.approx(2.0))
+    # August: gross 10+60+30 = 100 (the charges are no sale since 2E-l),
+    # returns the CUP refund 30, deductions the discount 2 (the fee is out),
+    # charges 8+8 = 16 - 100 - 30 - 2 + 16 = 84.
+    assert (levels["gross_cur"], levels["returns_cur"], levels["deductions_cur"], levels["charges_cur"]) == (
+        pytest.approx(100.0), pytest.approx(30.0), pytest.approx(2.0), pytest.approx(16.0))
 
 
-def test_the_product_lens_carries_the_charges_as_their_own_term() -> None:
+def test_the_charges_are_the_returns_lens_term_not_the_product_lens() -> None:
     _, data = _run_data()
 
     lens = compute_products(data)
+    levels = returns_levels(data)
 
-    # Gross July 55 (MUG 20, POST 5, CUP 30), August 116 (MUG 10, POST 16,
-    # CUP 90): the charges moved 5 -> 16, the products 50 -> 100.
-    assert lens.non_product == pytest.approx(11.0)
+    # Products' gross July 50 (MUG 20, CUP 30), August 100 (MUG 10, CUP 90);
+    # the charges moved 5 -> 16 in the returns lens (2E-l, Q7).
     parts = lens.volume + lens.mix + lens.price + lens.new_products + lens.discontinued_products
     assert parts == pytest.approx(50.0)
+    assert (levels["charges_prev"], levels["charges_cur"]) == (pytest.approx(5.0), pytest.approx(16.0))
 
 
-def test_unanswered_the_product_lens_has_no_non_product_term() -> None:
+def test_unanswered_the_returns_lens_has_no_charges() -> None:
     _, data = _run_data(None)
 
-    assert compute_products(data).non_product == 0.0
+    levels = returns_levels(data)
+
+    assert (levels["charges_prev"], levels["charges_cur"]) == (0.0, 0.0)
 
 
 def test_the_members_hold_the_classed_lines_in_one_bucket_that_is_no_product() -> None:
@@ -215,41 +220,43 @@ def test_the_members_hold_the_classed_lines_in_one_bucket_that_is_no_product() -
 
 
 def test_a_name_only_line_does_not_take_a_classed_sku() -> None:
-    """Mutation check N6: a refund rung by name takes its name's one SKU
-    (2E-f L4) - but a classed SKU names no product, so a name-only POSTAGE
-    line stays its own product, not the charge's."""
+    """Mutation check N6: a classed SKU names no product, so a name-only
+    POSTAGE line never becomes the product "sku:post". Since 2E-l it takes
+    the charge's class instead - its name maps to POST alone - and is no
+    product either (a postage refund rung by name no longer made a new
+    customer returning)."""
     df = pd.DataFrame([{"Date": "2026-08-03", "Cust": "Ann", "Sku": sku, "Name": "POSTAGE", "Qty": "1", "Price": "8"}
                        for sku in ("POST", None)])
 
-    keys = product_keys(df, parse_transactions(df, MAPPING, CLASSES))
+    parsed = parse_transactions(df, MAPPING, CLASSES)
 
-    assert keys.fillna("none").tolist() == ["none", "name:postage"]
+    assert product_keys(df, parsed).fillna("none").tolist() == ["none", "none"]
+    assert parsed.line_class.tolist() == ["charge", "charge"]
 
 
 def test_the_whole_tree_reconciles_with_classed_lines() -> None:
-    """Mutation check N11: the tree asserts at run time that the product
-    lens sums to the change in gross; the charges' term must be in that sum."""
+    """Mutation check N11: the tree asserts at run time that the returns
+    lens sums to the net change; the charges' term must be in that sum
+    (the returns lens's since 2E-l)."""
     _, data = _run_data()
 
     tree = compute_tree(data, history_window(data))
 
-    assert tree.products.non_product == pytest.approx(11.0)
+    assert tree.returns.charges_cur - tree.returns.charges_prev == pytest.approx(11.0)
 
 
-def test_the_product_decomposition_counts_the_charges_term() -> None:
-    """Mutation check N12: step 7's scale for a product-lens share is every
-    term's size, the charges' too."""
+def test_the_returns_decomposition_counts_the_charges_term() -> None:
+    """Mutation check N12: step 7's scale for a returns-lens share is every
+    term's size, the charges' too (since 2E-l): |100 - 50| gross + |30 - 0|
+    returns + |2 - 0| deductions + |16 - 5| charges = 93."""
     _, data = _run_data()
-    tree = compute_tree(data, history_window(data))
-    p = tree.products
 
-    gross = decomposition_gross(tree, "product")
+    gross = decomposition_gross(compute_tree(data, history_window(data)), "returns")
 
-    assert gross == pytest.approx(abs(p.volume) + abs(p.mix) + abs(p.price) + abs(p.new_products)
-                                  + abs(p.discontinued_products) + 11.0)
+    assert gross == pytest.approx(93.0)
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "11.0"
-    assert MetricsContract.supported_major == 11
-    assert DiagnosisContract.supported_major == 10
+    assert SCHEMA_VERSION == "12.0"  # 11.0 in 2E-d2; 12.0 since 2E-l
+    assert MetricsContract.supported_major == 12
+    assert DiagnosisContract.supported_major == 11

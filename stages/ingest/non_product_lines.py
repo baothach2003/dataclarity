@@ -29,19 +29,23 @@ from stages.ingest.line_reading import undated_lines
 
 _LETTER = r"[^\W\d_]"
 # First match wins, in this order: "Adjust bad debt" is an adjustment, and
-# "Shipping fee" a charge the customer paid. None: asked with no suggestion -
-# SAMPLES fits no class of Thach's (the value of samples given away?).
+# "Shipping fee" a charge the customer paid. The type keeps None for a word
+# that would fit no class; none does since 2E-l.
 CLASS_WORDS: tuple[tuple[LineClass | None, tuple[str, ...]], ...] = (
-    ("adjustment", ("adjust", "adjustment", "bad debt", "manual", r"write[\s-]?off", "written off",
+    ("adjustment", ("adjust", "adjustment", "bad debt", r"write[\s-]?off", "written off",
                     "điều chỉnh", "dieu chinh")),
+    # Thach, 2E-l: M "Manual" is manually priced sales and their refunds, many
+    # unnamed items under one code - not an adjustment. "Manual adjustment"
+    # still reads as one (the class order).
+    ("pooled", ("manual",)),
     ("discount", ("discount", "coupon", "giảm giá", "giam gia", "chiết khấu",
                   "chiet khau")),
     ("charge", ("postage", "shipping", "delivery", "carriage", "freight", r"p\s?&\s?p",
                 "phí vận chuyển", "phi van chuyen", "phí ship", "phi ship")),
     # Not the Vietnamese "hoa hồng" (commission): it is also roses, and a
     # flower shop's "Hoa hồng đỏ" read as a fee to leave revenue (review F7).
-    ("cost", ("fee", "bank charge", "commission")),
-    (None, ("sample",)),
+    # "sample": Thach, 2E-l - samples given away are a marketing cost.
+    ("cost", ("fee", "bank charge", "commission", "sample")),
 )
 _AT_AN_END = [(line_class, re.compile(rf"^(?:{'|'.join(words)})s?(?!{_LETTER})"),
                re.compile(rf"(?<!{_LETTER})(?:{'|'.join(words)})s?$"))

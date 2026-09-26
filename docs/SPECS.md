@@ -149,9 +149,13 @@ remap the question is asked again.
   "SAMPLES"; read from the profile's top values after a remap), with its
   lines, its positive and negative money and a suggestion, and a choice per
   key: not answered, a product, a charge paid by the customer (stays in
-  revenue), a discount (stays in revenue), a fee or cost (leaves revenue), an
-  accounting adjustment (leaves revenue). Nothing is chosen for the user;
-  unanswered, the lines stay products. Every class leaves the product tables.
+  revenue, no order), a discount (stays in revenue), many items under one
+  code (sold, not ranked as a product; 2E-l), a fee or cost (leaves revenue),
+  an accounting adjustment (leaves revenue). Nothing is chosen for the user;
+  unanswered, the lines stay products - except a line with no SKU whose name
+  is sold under exactly one classed SKU: it takes that SKU's class unless its
+  name is answered, "a product" included (2E-l). Every class leaves the
+  product tables.
 - **Is the customer written on a receipt's first line only?** Asked when the
   customer fill would happen (`receipt_fill_lines` above 0), or without a
   count when that was not measured for the current columns (stage 1 could not

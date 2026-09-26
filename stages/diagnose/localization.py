@@ -19,7 +19,7 @@ from stages.diagnose.members import (
     product_totals,
 )
 from stages.diagnose.mix_rate import compute_mix_rate
-from stages.diagnose.numbers import is_negligible
+from stages.diagnose.numbers import is_negligible, products_hold_most
 from stages.diagnose.thresholds import BREADTH_BROAD, BREADTH_CONCENTRATED
 
 
@@ -80,10 +80,21 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
     # by the headline - on a month where one product rose 50 and another fell
     # 50 (3D doubt-review R8).
     # ...and against the money moved, as stage 2 judges it (2E cycle 3).
-    flat = is_negligible(delta_total, *base.values(), delta_total, scale)
-    same_direction = 0.0 if flat else sum(
+    flat_total = is_negligible(delta_total, *base.values(), delta_total, scale)
+    # Thach, 2E-l: concentration is measured against the products' OWN
+    # change, and only when more than half of the change sits in them (the
+    # "more than half" of 2E-k D1). Postage 5 -> 30 a day with one product +10
+    # headlined "the change is concentrated in one product" for +785.
+    products_change = sum(deltas.values())
+    share_in_products = None if flat_total else products_change / delta_total
+    in_products = not flat_total and products_hold_most(products_change, delta_total,
+                                                        *base.values(), scale)
+    # When more than half of a change that moved sits in the products, their
+    # own change moved too: no separate "flat" test is reachable (mutation
+    # check L19, an equivalent mutant - removed rather than kept dead).
+    same_direction = 0.0 if flat_total else sum(
         base[key] for key in keys
-        if base[key] > 0 and deltas[key] != 0 and (deltas[key] > 0) == (delta_total > 0)
+        if base[key] > 0 and deltas[key] != 0 and (deltas[key] > 0) == (products_change > 0)
     )
     declining_base_share = same_direction / positive_base if positive_base else 0.0
 
@@ -97,7 +108,10 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
     return Breadth(
         declining_base_share=min(max(declining_base_share, 0.0), 1.0),
         top_member_share=min(max(top_member_share, 0.0), 1.0),
-        classification="mixed" if flat else _classify(declining_base_share, top_member_share),
+        classification=("mixed" if flat_total
+                        else "outside_products" if not in_products
+                        else _classify(declining_base_share, top_member_share)),
+        products_share_of_change=share_in_products,
     )
 
 

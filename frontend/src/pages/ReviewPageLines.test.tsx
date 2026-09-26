@@ -208,6 +208,25 @@ describe('ReviewPage: lines that may not be products (2E-d2)', () => {
     expect((choice as HTMLSelectElement).value).toBe('')
   })
 
+  it('offers pooled items and sends them (2E-l)', async () => {
+    const executePlan = renderReview()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'What is "M"?' }), { target: { value: 'pooled' } })
+
+    expect(screen.getByRole('option', { name: 'Many items under one code (sold, not ranked as a product)' })).toBeDefined()
+    const sent = await sentPlan(executePlan)
+    expect(sent.confirmations?.line_classes).toEqual([{ value: 'M', field: 'sku', line_class: 'pooled' }])
+  })
+
+  // 2E-l review cycle 1: a charge is no order since 2E-l, and a line with no
+  // SKU follows the answer given for the one SKU its name is sold under.
+  it('says a charge is no order, and what an unanswered line without a code does', () => {
+    renderReview()
+
+    expect(screen.getAllByRole('option', { name: 'A charge paid by the customer (stays in revenue, not an order)' })).not.toHaveLength(0)
+    expect(screen.getByText(/unanswered, its lines stay products - except lines with no code/)).toBeDefined()
+  })
+
   it('sends no class for "a product", or with no answer', async () => {
     const executePlan = renderReview()
 

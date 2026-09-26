@@ -23,10 +23,14 @@ product's lines; a classed SKU itself is never taken.
 Online Retail II has no name-only line; 99 of its names map to several SKUs
 ("?" alone to 88) and stay names.
 
-A line the user classed in Review as not a product - postage, a fee, a
-discount, an adjustment (Thach, 2E-d2) - has no product key either. Unlike
-the gap it is no data problem: readers that must still add up to revenue
-(stage 3's product lens and members) carry it as a bucket of its own.
+A line the user classed in Review - postage, a fee, a discount, an
+adjustment (Thach, 2E-d2), pooled items (2E-l) - has no product key either.
+Readers that must still add up to revenue carry it outside the products:
+stage 3's members as a "(not a product)" bucket (charges, discounts) or with
+the gap (pooled items); its product lens has no charge or discount (no gross
+sale) and holds pooled items with the gap in `unidentified` (2E-l review
+cycle 1). A name-only line answered "a product" keeps its own name key: a
+classed SKU names no product.
 """
 
 from collections import Counter
@@ -34,7 +38,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from shared.line_classes import keyed, text_identity
+from shared.line_classes import keyed, name_only_sku, text_identity
 from shared.text import product_text
 from shared.transactions import ParsedTransactions
 
@@ -69,10 +73,7 @@ def _keys(df: pd.DataFrame, parsed: ParsedTransactions, *, classed_leave: bool) 
     # and a 900 line joined WHITE HEART (2E-d2 doubt-review cycle 3 F3).
     would_sell = ((parsed.counted | parsed.left_out) & (parsed.quantities > 0)
                   & (parsed.revenue_amounts > 0))
-    sold = would_sell & skus.notna() & names.notna()
-    one_sku = skus[sold].groupby(names[sold]).agg(
-        lambda values: values.iloc[0] if values.nunique() == 1 else np.nan)
-    resolved = names.map(one_sku.dropna()).astype(object)
+    resolved = name_only_sku(names, skus, would_sell)
     if classed_leave:
         # A classed SKU names no product, so a name-only line cannot take it.
         classed_skus = set(skus[parsed.line_class.notna()].dropna())

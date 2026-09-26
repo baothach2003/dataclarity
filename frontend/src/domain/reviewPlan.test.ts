@@ -10,8 +10,9 @@ describe('buildManualPlan', () => {
     // Only `columns[].name` is read here; the rest of the profile is irrelevant.
     const profile = { columns: [{ name: 'Invoice' }] } as unknown as ProfileContract
 
-    // 2.1 in 2E-e2, 2.2 since 2E-k (review cycle 1 F8; minor bumps): the major is still 2.
-    expect(buildManualPlan(profile, null).schema_version).toBe('2.2')
+    // 2.1 in 2E-e2, 2.2 in 2E-k (minor bumps); 3.0 since 2E-l: the line-class
+    // enum gained "pooled", a major bump - a '2.x' manual plan is refused.
+    expect(buildManualPlan(profile, null).schema_version).toBe('3.0')
   })
 
   it('starts with no answer to either Review question (2E-e2)', () => {

@@ -339,6 +339,11 @@ MEMBER_MIN_ORDERS = 30
 MEMBERS_PER_DIMENSION = 5
 BREADTH_BROAD = 0.70
 BREADTH_CONCENTRATED = 0.50
+# A claim about products - breadth, R1, a product-lens headline - needs MORE
+# than this share of the change in the products (Thach, 2E-l: the "more than
+# half" of 2E-k D1). Strict, and judged above floating-point residue
+# (products_hold_most), so exactly half is never "more" by 1e-16.
+PRODUCTS_MAJORITY_SHARE = 0.50
 
 # --- C4, segment migration (7.8) ----------------------------------------------
 

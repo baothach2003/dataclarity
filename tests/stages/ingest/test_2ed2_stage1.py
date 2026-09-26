@@ -47,9 +47,13 @@ def _found(df: pd.DataFrame, mapping: dict[str, str] = MAPPING) -> list[tuple]:
     ("POSTAGE", "charge"), ("DOTCOM POSTAGE", "charge"), ("Next Day Carriage", "charge"),
     ("Shipping", "charge"), ("Delivery charge", "charge"), ("Phí vận chuyển", "charge"),
     ("AMAZON FEE", "cost"), ("Bank Charges", "cost"), ("CRUK Commission", "cost"),
-    ("Adjust bad debt", "adjustment"), ("Manual", "adjustment"),
+    # "Manual": pooled items since 2E-l (Thach: M is manually priced sales).
+    ("Adjust bad debt", "adjustment"), ("Manual", "pooled"),
     ("Adjustment by john on 26/01/2010 16", "adjustment"), ("Write-off", "adjustment"),
-    ("Discount", "discount"), ("Giảm giá", "discount"), ("SAMPLES", None),
+    ("Discount", "discount"), ("Giảm giá", "discount"),
+    # 2E-l: samples given away are a marketing cost (Thach), no longer asked
+    # with no suggestion.
+    ("SAMPLES", "cost"),
     # Mutation checks N16 and N21: a charge before a fee in the class order,
     # and a plural at the start of a name.
     ("Shipping fee", "charge"), ("Bank charges Q3", "cost"),
@@ -102,7 +106,7 @@ def test_the_candidate_carries_its_lines_and_money_split() -> None:
     [found] = non_product_candidates(df, MAPPING)
 
     assert found == NonProductCandidate(value="M", field="sku", name="Manual", lines=4, positive=150.5,
-                                        negative=-210.0, suggested="adjustment", word="manual")
+                                        negative=-210.0, suggested="pooled", word="manual")  # 2E-l
 
 
 def test_stock_in_lines_are_not_counted() -> None:
@@ -154,18 +158,22 @@ def test_the_schema_step_writes_the_candidates(tmp_path: Path) -> None:
     assert [(c.value, c.suggested) for c in schema.non_product_candidates] == [("POST", "charge")]
 
 
-def test_contracts_carry_the_line_classes_and_are_2_3() -> None:
+def test_contracts_carry_the_line_classes_and_are_2_3_or_later() -> None:
     answered = OrderConfirmations(line_classes=[LineClassAnswer(value="POST", field="sku", line_class="charge")])
-    plan = CleaningPlanContract(schema_version="2.3", generated_at=NOW, source="manual",
+    plan = CleaningPlanContract(schema_version="3.0", generated_at=NOW, source="manual",
                                 dataset_actions=[], column_actions=[], confirmations=answered)
 
     assert CleaningPlanContract.model_validate_json(plan.model_dump_json()).confirmations == answered
     assert OrderConfirmations().line_classes == []
     assert SchemaInferenceContract.model_fields["non_product_candidates"].default is None
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("2.3", "2.3", "2.3")
+    # 3.0 since 2E-l: "pooled" widened the line-class enum (test_2el_stage1.py).
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("3.0", "3.0", "3.0")
 
 
-@pytest.mark.parametrize("line_class", ["product", "refund", ""])
-def test_only_the_four_classes_are_answers(line_class: str) -> None:
+# "product" is an answer since 2E-l review cycle 1 - for a name it stops the
+# name-only lines taking their SKU's class (tests/shared/
+# test_2el_review1_lines.py); a near miss of it is still refused.
+@pytest.mark.parametrize("line_class", ["Product", "refund", ""])
+def test_only_the_classes_are_answers(line_class: str) -> None:
     with pytest.raises(ValueError):
         LineClassAnswer(value="POST", field="sku", line_class=line_class)  # type: ignore[arg-type]

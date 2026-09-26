@@ -35,11 +35,16 @@ PlanSource = Literal["ai", "user_edited", "manual"]
 class LineClassAnswer(ContractModel):
     """One product key the user classed in Review (2E-d2): its SKU - or, for
     lines without one, its name - as written; stages 2 and 3 compare it as
-    they compare products (shared/line_classes.py)."""
+    they compare products (shared/line_classes.py).
+
+    "product" is an answer too, sent for a name (2E-l review cycle 1): a
+    line with no SKU takes the class of the one SKU its name is sold under
+    only while the name is unanswered, and "a product" said for the name
+    must hold (CLAUDE.md 3.3). For a SKU it is the same as no answer."""
 
     value: str
     field: Literal["sku", "product_name"]
-    line_class: LineClass
+    line_class: LineClass | Literal["product"]
 
 
 class OrderConfirmations(ContractModel):
@@ -66,8 +71,9 @@ class OrderConfirmations(ContractModel):
     # them by customer identity, and their lines have no customer.
     customer_placeholders: list[str] = Field(default_factory=list)
     # 2.3 (2E-d2): what the user said a product key's lines are when they are
-    # not products. Unanswered, or "a product", a key is not listed and its
-    # lines stay products.
+    # not products. Unanswered, a key is not listed and its lines stay
+    # products; "a product" is listed for a name only (3.0, 2E-l review
+    # cycle 1: it stops the name's lines taking their SKU's class).
     line_classes: list[LineClassAnswer] = Field(default_factory=list)
 
 
@@ -98,11 +104,12 @@ class CleaningPlanContract(ContractFile):
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
-    # (CONTRACTS section 10, Thach).
-    supported_major: ClassVar[int] = 2
+    # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
+    # "pooled" (many items under one code).
+    supported_major: ClassVar[int] = 3
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 without the order_id field; "
-        "re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes or "
+        "without the order_id field; re-upload the file")
 
     source: PlanSource
     dataset_actions: list[DatasetAction]
@@ -141,11 +148,12 @@ class CleaningReportContract(ContractFile):
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
-    # (CONTRACTS section 10, Thach).
-    supported_major: ClassVar[int] = 2
+    # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
+    # "pooled" (many items under one code).
+    supported_major: ClassVar[int] = 3
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 without the order_id field; "
-        "re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes or "
+        "without the order_id field; re-upload the file")
     rows_in: NonNegativeInt
     rows_out: NonNegativeInt
     columns_in: NonNegativeInt

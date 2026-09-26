@@ -45,9 +45,10 @@ the AI has no say in it.**
 
 - The catalog (`docs/AI_PIPELINE.md` section 7.8) lists every cause the engine
   will ever test: three data-quality hypotheses, three time hypotheses, four
-  customer hypotheses, two lever hypotheses, three product and returns
-  hypotheses, three localization and product-lifecycle hypotheses. It is
-  written down before any run, not derived from a run.
+  customer hypotheses, two lever hypotheses, five product and returns
+  hypotheses (three until the 2E-l amendment below), three localization and
+  product-lifecycle hypotheses. It is written down before any run, not
+  derived from a run.
 - **Every hypothesis is evaluated and reported on every run**, in catalog
   order, including the ones that come out `ruled_out`, `inconclusive` or
   `not_testable`. A cause is never absent from the output because it failed.
@@ -111,7 +112,8 @@ customers while still being honest about what this particular file supports.
 
 **Trade-offs accepted**
 - **The engine cannot find a cause that is not in the catalog.** A real cause
-  outside the eighteen tested hypotheses is reported as "no single tested
+  outside the tested hypotheses (eighteen at this decision, twenty since the
+  2E-l amendment below) is reported as "no single tested
   cause explains most of the change" (headline rule 7), not discovered.
   Extending the catalog is a deliberate act with a code change and tests, not
   something the model can do at runtime - the same trade-off ADR-0002 already
@@ -142,3 +144,23 @@ The alternative - two ids per cause, one per direction - doubles the table
 and makes one of each pair `ruled_out` on every run by construction. The
 first version tested one-way statements with a sign-blind rule and headlined
 "baskets got smaller" on a month whose baskets grew 2.7x.
+
+## Amendment (session 2E-l, Thach, 2026-09-27): P4 and P5
+
+Two hypotheses join the catalog, both terms of the returns lens:
+- **P4 "Discounts and other deductions changed"** (`-delta_deductions`). A
+  promotion month is a real, nameable cause. With no hypothesis for the
+  deductions (2E-c), a month moved by discounts headlined a gross-lens sliver
+  ("sales mix shifted" for 5 of a 560 fall) or "returns" (the discount read
+  as a return line); coupons at a negative price reached the same path.
+- **P5 "Charges paid by customers changed"** (`delta_charges`): postage and
+  delivery the user classed as charges are revenue but no order (2E-l), so
+  their change has a term of its own and a cause a reader can check.
+
+This is the deliberate act the trade-off above asks for - a code change,
+tests, the AI_PIPELINE 7.8 table and this record, decided by the owner
+before the next run, not by the engine or the model after seeing data. The
+catalog stays fixed per run: 20 hypotheses, every one reported every run.
+The same session restricts R1 and breadth: "concentrated in one product"
+only when more than half of the change sits in the products, measured
+against the products' own change (AI_PIPELINE 7.7).

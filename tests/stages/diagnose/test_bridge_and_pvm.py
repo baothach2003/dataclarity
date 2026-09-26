@@ -363,11 +363,20 @@ def test_rows_with_no_product_name_stay_in_the_lens_as_one_bucket() -> None:
 
     products = compute_products(data)
 
-    # gross 200 -> 210, so the five terms must total +10 and not +(-80).
+    # gross 200 -> 210, so the terms must total +10 and not +(-80). Since
+    # 2E-l review cycle 1 the unnamed rows are their own term (100 -> 90), no
+    # "product" priced like-for-like, and A alone (100 -> 120) is in the other
+    # five.
+    assert reconciles(
+        [products.volume, products.mix, products.price,
+         products.new_products, products.discontinued_products, products.unidentified],
+        10.0,
+    )
+    assert products.unidentified == pytest.approx(-10.0)
     assert reconciles(
         [products.volume, products.mix, products.price,
          products.new_products, products.discontinued_products],
-        10.0,
+        20.0,
     )
 
 

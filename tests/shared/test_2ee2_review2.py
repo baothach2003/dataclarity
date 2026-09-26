@@ -93,7 +93,7 @@ def test_the_fill_is_zero_not_unmeasured_without_a_customer_column() -> None:
 
 def test_a_2_0_schema_measured_nothing() -> None:
     schema = SchemaInferenceContract.model_validate({
-        "schema_version": "2.0", "generated_at": NOW.isoformat(), "model_used": "m",
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "model_used": "m",
         "domain_confidence": 0.9, "domain_reasoning": "r", "dataset_issues": [], "columns": []})
 
     assert schema.receipt_fill_lines is None
@@ -105,7 +105,7 @@ def test_a_report_with_null_confirmations_reads_as_unanswered() -> None:
     from contracts.cleaning import CleaningReportContract
 
     report = CleaningReportContract.model_validate({
-        "schema_version": "2.1", "generated_at": NOW.isoformat(), "rows_in": 1, "rows_out": 1,
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "rows_in": 1, "rows_out": 1,
         "columns_in": 1, "columns_out": 1, "changes": [], "warnings": [], "column_mapping": {},
         "confirmations": None})
 

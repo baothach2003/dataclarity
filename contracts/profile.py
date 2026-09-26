@@ -139,10 +139,12 @@ class CustomerPlaceholder(ContractModel):
     why: Literal["word", "share"]
 
 
-# The four classes of a line that is not a product (Thach, 2E-d2): a charge
-# the customer paid (postage) stays in revenue; a discount stays in revenue as
-# a deduction (2E-c); a fee or cost, and an accounting adjustment, leave it.
-LineClass = Literal["charge", "discount", "cost", "adjustment"]
+# The classes of a line the user says is not an ordinary product (Thach,
+# 2E-d2, 2E-l): a charge the customer paid (postage) stays in revenue but is
+# no order; a discount stays in revenue as a deduction (2E-c); pooled items
+# (many items under one code, Online Retail II's M "Manual") are sales ranked
+# as no product; a fee or cost, and an accounting adjustment, leave revenue.
+LineClass = Literal["charge", "discount", "pooled", "cost", "adjustment"]
 
 
 class NonProductCandidate(ContractModel):
@@ -160,7 +162,7 @@ class NonProductCandidate(ContractModel):
     # +341,104.90 and -423,886.17, which a net figure would hide.
     positive: Annotated[float, Field(ge=0, allow_inf_nan=False)]
     negative: Annotated[float, Field(le=0, allow_inf_nan=False)]
-    suggested: LineClass | None  # None: a word that fits no class ("SAMPLES")
+    suggested: LineClass | None  # None: a word that fits no class (none since 2E-l)
     word: str  # the word that made it a candidate
 
 
@@ -168,11 +170,12 @@ class SchemaInferenceContract(ContractFile):
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
-    # (CONTRACTS section 10, Thach).
-    supported_major: ClassVar[int] = 2
+    # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
+    # "pooled" (many items under one code).
+    supported_major: ClassVar[int] = 3
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 without the order_id field; "
-        "re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes or "
+        "without the order_id field; re-upload the file")
     model_used: str
     domain_confidence: UnitInterval
     domain_reasoning: str

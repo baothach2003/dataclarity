@@ -9,7 +9,7 @@ estimated here.
 from contracts.diagnosis import Headline, Hypothesis, Tree, Trust
 from stages.diagnose.catalog import BY_ID, CATALOG
 from stages.diagnose.step7_inputs import Changes
-from stages.diagnose.numbers import is_negligible
+from stages.diagnose.numbers import is_negligible, products_hold_most
 from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 
 ORDER = {spec.id: index for index, spec in enumerate(CATALOG)}
@@ -48,6 +48,20 @@ def _moves_with_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
     if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale):
         return False
     return (hypothesis.contribution > 0) == (moved.net > 0)
+
+
+def _lens_holds_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
+    """A product-lens share is a share of the GROSS change, which a
+    promotion or postage month barely moves: one unit's mix shift was 100%
+    of a -5 gross change and headlined a -780 month the discounts carried
+    (2E-l review cycle 1). So a product-lens cause is named only when MORE
+    than half of the change sits in the product lens - Thach's "more than
+    half" for claims about products (2E-l). Its verdict is not touched: it
+    does explain the gross change."""
+    if hypothesis.lens != "product":
+        return True
+    return moved.gross is not None and products_hold_most(
+        moved.gross, moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale)
 
 
 def _fit(hypothesis: Hypothesis) -> float:
@@ -127,7 +141,8 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
     # 6. The largest supported explanation. Directional hypotheses carry no
     # share and rank after every share hypothesis, in catalog order.
     supported = [h for h in hypotheses if h.verdict == "supported"
-                 and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)]
+                 and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)
+                 and _lens_holds_the_change(h, moved)]
     if supported:
         best = max(supported, key=lambda h: (_fit(h), -ORDER[h.id]))
         size = f", {_size(best, moved)}" if best.share is not None else ""

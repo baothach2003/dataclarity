@@ -160,11 +160,12 @@ the line's SKU when it has one, else its name (`shared/line_classes.py`,
 `field` says which), read as products are read. It is a candidate when its
 SKU text, or the name its lines carry most often, has a class word as its
 FIRST or LAST word - letter-bounded, plural "s"; in order, adjustment
-(adjust, adjustment, bad debt, manual, write-off, "dieu chinh"), discount
+(adjust, adjustment, bad debt, write-off, "dieu chinh"), pooled ("manual",
+since 2E-l: Online Retail II's M is manually priced sales), discount
 (discount, coupon, "giam gia", "chiet khau"), charge (postage, shipping,
 delivery, carriage, freight, p&p, "phi van chuyen", "phi ship"), cost (fee,
-bank charge, commission; not the Vietnamese "hoa hong", which is also roses),
-and "sample" with no suggestion - and
+bank charge, commission, and "sample" since 2E-l; not the Vietnamese "hoa
+hong", which is also roses) - and
 its counted lines move money. Measured on Online Retail II: "carriage"
 inside a name was four real products (FRENCH CARRIAGE LANTERN, BAROQUE
 CARRIAGE CLOCK), so first-or-last; 13 keys are asked, among them C2
@@ -239,10 +240,16 @@ object reads as no answers); `null` is "not asked or not answered":
   for.
 - `line_classes` (`2.3`, 2E-d2): the product keys the user classed in Review
   as not products - `{"value", "field": "sku" | "product_name",
-  "line_class": "charge" | "discount" | "cost" | "adjustment"}`, the value as
+  "line_class": "charge" | "discount" | "pooled" | "cost" | "adjustment" |
+  "product"}` (`pooled` and `product` since 3.0, 2E-l), the value as
   written (stages compare it as they compare products; a `sku` answer does
-  not class a line without a SKU). Unanswered, or "a product", a key is not
-  listed and its lines stay products. Sent only when there are some; an
+  not class a line without a SKU - except that such a line whose name is sold
+  under exactly one SKU takes that SKU's class while the name itself is
+  unanswered, section 6). Unanswered, a key is not listed and its lines stay
+  products. `product` is sent for a NAME the user called "a product": it is an
+  answer, so those lines keep no class and do not take their SKU's (2E-l
+  review cycle 1; the user is the final authority). For a SKU "a product" is
+  the same as no answer and is not sent. Sent only when there are some; an
   answer applies only to the product column it was given for. What each
   class does: section 6.
 The AI's proposal never carries an answer (stage 1 builds it field by field),
@@ -376,23 +383,36 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   from this one reading. **`undated_lines`** counts the lines with no
   readable date (blank, or no date) - in no month and so in no figure - and
   `undated_lines_reason` says so; it is null exactly when the count is 0.
-- **Lines the user classed as not products** (Thach, 2E-d2; plan
+- **Lines the user classed as not products** (Thach, 2E-d2, 2E-l; plan
   `confirmations.line_classes`): a **charge** the customer paid (postage)
-  stays in revenue and stays a sale or return line - orders, AOV, units and
-  gross are unchanged - but is in no product table; a **discount** is a
+  stays in revenue but is no order and no return line (Thach, 2E-l: an
+  invoice holding only charges is no purchase; Online Retail II 157 of 40,078
+  invoices, 8 of 2,769 orders in 2011-11) and is in no product table;
+  **pooled items** (many items under one code: Online Retail II's M "Manual",
+  manually priced sales and their refunds) are sale and return lines in every
+  figure, ranked as no product, held with the gap in stage 3 (the product
+  lens's `unidentified` term, never priced like-for-like); a **discount** is a
   deduction (2E-c) whatever its signs - in revenue, no sale, no return, no
   units (a -1 @ +price discount was a return line, 2E-c2 item f); a **fee or
   cost** and an **accounting adjustment** are left out of revenue and of
   every figure as an "in" row is - no revenue, order, customer or product.
   No classed line is in a product table (top products, decliners, Pareto,
-  velocity). **`core.non_product`** lists one row per class present (order
-  charge, discount, cost, adjustment): its dated counted lines, their amount
+  velocity). A name-only line whose name maps to one classed SKU takes that
+  SKU's class (2E-l) unless its name is answered - "a product" included
+  (review cycle 1). Classing charges can change new customers: a charge is
+  no purchase, so a customer whose first invoice held only postage is new at
+  their first purchase instead (Q7; 3 of 25 Online Retail II months, 2011-11
+  unchanged at 191). A customer present in a month only through a charge
+  still counts among that month's customers, as returning - as a
+  refund-only customer does (2E-c; review cycle 3, Phase 8). **`core.non_product`** lists one row per class present
+  (order charge, discount, pooled, cost, adjustment): its dated counted lines, their amount
   over the file and in the current and previous month, and a reason saying
   where the money went - an adjustment's amount is reported as a separate
   reconciling amount (Thach; not "the file's total minus the revenue shown",
   which fees, "in" rows and undated lines also make up - review F8). Empty
   when nothing is classed. The first-day netting keys every line as it
-  would be keyed unanswered (`shared/products.netting_keys`): keyed as no
+  would be keyed unanswered (`shared/products.netting_keys`), pooled items
+  included - so classing never moves who is new by netting: keyed as no
   product, a postage refund on a customer's first day unmade a new customer
   (review F1, cycle 3 F4). The name-only-to-SKU vote (2E-f L4) reads the lines
   as if nothing were classed, and never gives a line a classed SKU: classing
@@ -743,10 +763,11 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
                                "empty_period": []}},
     "returns": {"gross_prev": 1338000.0, "gross_cur": 1198000.0,
                 "returns_prev": 48000.0, "returns_cur": 48000.0,
-                "deductions_prev": 0.0, "deductions_cur": 0.0},
+                "deductions_prev": 0.0, "deductions_cur": 0.0,
+                "charges_prev": 0.0, "charges_cur": 0.0},
     "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
                  "new_products": 12000.0, "discontinued_products": -27000.0,
-                 "non_product": 0.0}
+                 "unidentified": 0.0}
   },
   "localization": {
     "dimensions": [{"name": "category",
@@ -760,6 +781,7 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
                     "size_filter_waived": false, "member_count": 14}],
     "mix_rate": {"metric": "aov", "mix": -24450.0, "rate": 3050.0},
     "breadth": {"declining_base_share": 0.74, "top_member_share": 0.41,
+                "products_share_of_change": 0.93,
                 "classification": "broad"}
   },
   "hypotheses": [{"id": "P2", "family": "product_returns", "lens": "product",
@@ -912,7 +934,10 @@ and the field ignored.
 `localization.dimensions[].name` is `category | product | customer_type`;
 `category` is absent when no column is mapped to it. Each member carries
 `is_data_gap`, true for the bucket holding rows whose key column was blank -
-`(uncategorised)`, `(no product name)`, `(no customer)`. The product
+`(uncategorised)`, `(no product name)`, `(no customer)`. Since 2E-l the
+product dimension's `(no product name)` also holds the pooled items (many
+items under one code): sold, never ranked - a label that says "no name" for
+lines that have one is a known limit (2E-l review cycle 1, Phase 8). The product
 dimension's `(not a product)` bucket (2E-d2: the lines the user classed as
 charges or discounts - revenue, no missing data, but no product) carries
 `is_not_a_product` instead, never both; it too stays out of `new_members`,
@@ -937,7 +962,11 @@ and the only one always present, and over *every* product - never the
 `(no product name)` data gap, which is no product whose share of the change
 could be concentrated (2E-g; R1's top product likewise) - rather than the named
 few - measured over the top five, every change would look concentrated, since
-the top five are chosen for being the largest movers.
+the top five are chosen for being the largest movers. Since 2E-l (Thach) it is
+measured against the products' OWN change, and only when more than half of
+the change sits in them (above floating-point residue); otherwise the
+classification is `outside_products`. `products_share_of_change` is the
+products' change over the total change - null for a flat month.
 
 **Blank categories are handled differently here from `metrics.json`'s
 `by_dimension` (section 6), on purpose. Do not "fix" either one to match the
@@ -1012,9 +1041,10 @@ validator, `docs/AI_PIPELINE.md` section 7.9, not by this schema).
   reach at all. It is constant per run, not data-dependent.
 - Lenses never sum together. The lever and customer lenses each reconcile to
   `delta_net`, the product lens to `delta_gross`, the returns lens to
-  `delta_net` (`delta_gross - delta_returns - delta_deductions`; gross is the
-  sale rows, returns the return lines, deductions every other counted row -
-  2E-c, `diagnosis.json` 2.0). A reader must not add shares across lenses, and stage 5 must not
+  `delta_net` (`delta_gross - delta_returns - delta_deductions +
+  delta_charges`; gross is the sale rows, returns the return lines, charges
+  the lines classed as paid by the customer - 2E-l, `diagnosis.json` 11.0 -
+  and deductions every other counted row - 2E-c, `diagnosis.json` 2.0). A reader must not add shares across lenses, and stage 5 must not
   present them as one total.
 - `tree.customers` is `null` when no column is mapped to `customer`, and
   `tree.lever.level1.formula` is then `"orders*aov"`. `tree.lever.level2` is
@@ -1166,6 +1196,22 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-27: **session 2E-l, lines outside the products.**
+  `schema_inference.json`, `plan_*.json` and `cleaning_report.json` went to
+  `3.0`: the line-class enum gained `pooled`, and a line-class answer may be
+  `product` (review cycle 1) - a closed enum widened, major.
+  `metrics.json` to `12.0`: a charge is no order and no return line (orders,
+  AOV, return rate, units), pooled items are sales never ranked.
+  `diagnosis.json` to `11.0`: the returns lens gains `charges_prev` /
+  `charges_cur` and the product lens loses 2E-d2's `non_product` term and
+  gains `unidentified` (the lines with no product identity - neither SKU nor
+  name, or pooled - out of L, N and X; review cycle 1), hypotheses P4 and P5
+  join the catalog (ADR-0005 amendment; P5 `not_testable` with no charge
+  classed), breadth gains `outside_products` and `products_share_of_change`,
+  and headline rule 6 names a product-lens cause only when more than half of
+  the change sits in the product lens. Readers refuse `2.x`
+  stage 1 files ("re-upload"), `11.x` metrics and `10.x` diagnosis files
+  ("re-analyse this run").
 - 2026-09-26: **session 2E-d2, lines that are not products.**
   `schema_inference.json` (`non_product_candidates`), `plan_*.json` and
   `cleaning_report.json` (`confirmations.line_classes`) went to `2.3` -

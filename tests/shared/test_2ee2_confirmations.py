@@ -52,9 +52,9 @@ def _header_style() -> pd.DataFrame:
 # --- contracts ------------------------------------------------------------------
 
 
-def test_a_plan_without_answers_has_none_and_a_2_0_plan_still_reads() -> None:
+def test_a_plan_without_answers_has_none_and_a_3_0_plan_still_reads() -> None:
     plan = CleaningPlanContract.model_validate({
-        "schema_version": "2.0", "generated_at": NOW.isoformat(), "source": "manual",
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "source": "manual",
         "dataset_actions": [], "column_actions": []})
 
     assert plan.confirmations == OrderConfirmations()
@@ -64,9 +64,9 @@ def test_a_plan_without_answers_has_none_and_a_2_0_plan_still_reads() -> None:
 
 def test_answers_round_trip_through_the_plan_and_the_report() -> None:
     answers = OrderConfirmations(order_id_is_receipt=True, customer_on_first_line_only=False)
-    plan = CleaningPlanContract(schema_version="2.1", generated_at=NOW, source="manual",
+    plan = CleaningPlanContract(schema_version="3.0", generated_at=NOW, source="manual",
                                 dataset_actions=[], column_actions=[], confirmations=answers)
-    report = CleaningReportContract(schema_version="2.1", generated_at=NOW, rows_in=1, rows_out=1,
+    report = CleaningReportContract(schema_version="3.0", generated_at=NOW, rows_in=1, rows_out=1,
                                     columns_in=1, columns_out=1, changes=[], warnings=[],
                                     column_mapping={}, confirmations=answers)
 
@@ -74,18 +74,18 @@ def test_answers_round_trip_through_the_plan_and_the_report() -> None:
     assert CleaningReportContract.model_validate_json(report.model_dump_json()).confirmations == answers
 
 
-def test_a_2_0_report_reads_as_nothing_confirmed() -> None:
+def test_a_3_0_report_without_answers_reads_as_nothing_confirmed() -> None:
     report = CleaningReportContract.model_validate({
-        "schema_version": "2.0", "generated_at": NOW.isoformat(), "rows_in": 1, "rows_out": 1,
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "rows_in": 1, "rows_out": 1,
         "columns_in": 1, "columns_out": 1, "changes": [], "warnings": [], "column_mapping": {}})
 
     assert report.confirmations == OrderConfirmations()
 
 
-def test_a_2_0_schema_carries_no_fill_measure() -> None:
+def test_a_schema_without_the_measure_carries_none() -> None:
     # 0 in the first RED set; None ("not measured") since review cycle 2 F5.
     schema = SchemaInferenceContract.model_validate({
-        "schema_version": "2.0", "generated_at": NOW.isoformat(), "model_used": "m",
+        "schema_version": "3.0", "generated_at": NOW.isoformat(), "model_used": "m",
         "domain_confidence": 0.9, "domain_reasoning": "r", "dataset_issues": [], "columns": []})
 
     assert schema.receipt_fill_lines is None

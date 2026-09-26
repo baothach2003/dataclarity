@@ -353,16 +353,19 @@ def _masked_shift(
 
 
 def returns_levels(data: RunData) -> dict[str, float]:
-    """Gross sales, returns and deductions per period, the additive returns
-    lens: `delta_net = delta_gross - delta_returns - delta_deductions`.
+    """Gross sales, returns, deductions and charges per period, the additive
+    returns lens: `delta_net = delta_gross - delta_returns - delta_deductions
+    + delta_charges`.
 
-    The three are `shared/transactions.py`'s sale, return and deduction rows.
+    The four are `shared/transactions.py`'s sale, return, deduction and
+    charge rows (charges: lines the user classed as paid by the customer,
+    revenue but no sale - Thach, 2E-l).
     Gross used to be every quantity > 0 row, so a refund booked at a negative
     price sat inside gross sales and the product lens read it as a price cut -
     P1 headlined "like-for-like prices changed" when none had (2E-b review).
     A deduction (a coupon, a discount, a write-off) is neither a sale nor a
-    return, so it has a term of its own and no hypothesis in v1: a change it
-    carries stays unexplained (Thach, 2E-c).
+    return, so it has a term of its own (Thach, 2E-c); since 2E-l it and the
+    charges have hypotheses, P4 and P5 (ADR-0005's amendment).
     """
     levels = {}
     parsed = data.parsed
@@ -376,6 +379,8 @@ def returns_levels(data: RunData) -> dict[str, float]:
         levels[f"gross_{label}"] = float(amounts[mask & parsed.sale].sum()) + 0.0
         levels[f"returns_{label}"] = -float(amounts[mask & parsed.returned].sum()) + 0.0
         levels[f"deductions_{label}"] = -float(amounts[mask & parsed.deduction].sum()) + 0.0
+        # Revenue, no order (Thach, 2E-l): the charges' own term.
+        levels[f"charges_{label}"] = float(amounts[mask & parsed.charge].sum()) + 0.0
     return levels
 
 

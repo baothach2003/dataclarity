@@ -137,7 +137,7 @@ describe('nonProductCandidates', () => {
     expect(nonProductCandidates(plan(remapped), profile(top), schema())).toEqual([
       { key: 'sku:bank charges', value: 'BANK CHARGES', field: 'sku', name: null, lines: 90, positive: null, negative: null, suggested: 'cost' },
       { key: 'sku:next day carriage', value: 'Next Day Carriage', field: 'sku', name: null, lines: 40, positive: null, negative: null, suggested: 'charge' },
-      { key: 'sku:samples', value: 'SAMPLES', field: 'sku', name: null, lines: 20, positive: null, negative: null, suggested: null },
+      { key: 'sku:samples', value: 'SAMPLES', field: 'sku', name: null, lines: 20, positive: null, negative: null, suggested: 'cost' }, // Thach, 2E-l: a marketing cost
     ])
   })
 
@@ -160,6 +160,15 @@ describe('nonProductCandidates', () => {
     expect(nonProductCandidates(plan(nameRemapped), profile(), schema()).map((c) => c.key)).toEqual(['sku:post'])
     expect(answeredLineClasses(plan(nameRemapped), profile(), schema(), stored)).toEqual([
       { value: 'POST', field: 'sku', line_class: 'charge' },
+    ])
+  })
+
+  it('suggests pooled items for "Manual" (2E-l, Thach: M pools manually priced sales)', () => {
+    const top = { Other: [{ value: 'Manual', count: 30 }, { value: 'Manual adjustment', count: 3 }] }
+
+    expect(nonProductCandidates(plan(remapped), profile(top), schema()).map((c) => [c.value, c.suggested])).toEqual([
+      ['Manual', 'pooled'],
+      ['Manual adjustment', 'adjustment'],
     ])
   })
 
@@ -219,5 +228,21 @@ describe('answeredLineClasses', () => {
     expect(answeredLineClasses(plan(), profile(), schema(), product)).toEqual([])
     expect(answeredLineClasses(plan(), profile(), schema(), {})).toEqual([])
     expect(answeredLineClasses(plan(), profile(), schema(), other)).toEqual([])
+  })
+
+  // 2E-l review cycle 1: a name-only line takes the class of the one SKU its
+  // name is sold under unless the NAME is answered - "a product" said for a
+  // name is an answer, and the user is the final authority (CLAUDE.md 3.3).
+  it('sends "a product" answered for a name', () => {
+    const byName: NonProductCandidate = { ...POST, value: 'POSTAGE', field: 'product_name', name: null, lines: 3 }
+    const stored: StoredLineClasses = {
+      'sku:post': { value: 'charge', column: 'Code' },
+      'product_name:postage': { value: 'product', column: 'Item' },
+    }
+
+    expect(answeredLineClasses(plan(), profile(), schema([POST, byName]), stored)).toEqual([
+      { value: 'POST', field: 'sku', line_class: 'charge' },
+      { value: 'POSTAGE', field: 'product_name', line_class: 'product' },
+    ])
   })
 })

@@ -7,7 +7,7 @@ as a judgement - since ADR-0007 no row is one.
 """
 
 from contracts.diagnosis import is_verdict
-from stages.diagnose.members import NOT_A_PRODUCT_KEY, product_totals
+from stages.diagnose.members import product_totals
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.numbers import is_negligible, typical_magnitude, usable_base
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
@@ -189,8 +189,10 @@ def _pvm(term: str):
         # mutation check).
         # Lines the user classed as not products are no product L holds
         # (pvm.py, 2E-d2 doubt-review F2): postage sold every month made a
-        # catalogue with nothing in common look comparable.
-        both = (set(totals.orders_prev.index) & set(totals.orders_cur.index)) - {NOT_A_PRODUCT_KEY}
+        # catalogue with nothing in common look comparable. Nor is the gap -
+        # no identity, or pooled items - since 2E-l review cycle 1: its own
+        # term, `unidentified`.
+        both = (set(totals.orders_prev.index) & set(totals.orders_cur.index)) - totals.gap_keys
         if not both:
             return Outcome(verdict="inconclusive", evidence={"products_in_both_periods": 0},
                            rule="requires products sold in both periods (L)")
@@ -205,6 +207,30 @@ def p3(inputs: Step7Inputs, moved: Changes) -> Outcome:
     delta = returns.returns_cur - returns.returns_prev
     return Outcome(contribution=-delta, evidence={"returns_prev": returns.returns_prev,
                                                   "returns_cur": returns.returns_cur})
+
+
+def p4(inputs: Step7Inputs, moved: Changes) -> Outcome:
+    """Deductions (discounts, coupons, write-offs; 2E-c) are positive
+    magnitudes: more of them took revenue away (Thach, 2E-l)."""
+    returns = inputs.tree.returns
+    delta = returns.deductions_cur - returns.deductions_prev
+    return Outcome(contribution=-delta, evidence={"deductions_prev": returns.deductions_prev,
+                                                  "deductions_cur": returns.deductions_cur})
+
+
+def p5(inputs: Step7Inputs, moved: Changes) -> Outcome:
+    """The charges the customer paid (lines classed so in Review) are revenue
+    but no order (Thach, 2E-l). With none classed its requirement is unmet:
+    "charges did not move" was a finding the engine could not make - Online
+    Retail II's unclassed postage moved +21,624 (review cycle 1)."""
+    if not inputs.data.parsed.charge.any():
+        return Outcome(verdict="not_testable",
+                       evidence={"reason": "no line is classed as a charge in Review"},
+                       rule="requires lines classed as charges")
+    returns = inputs.tree.returns
+    return Outcome(contribution=returns.charges_cur - returns.charges_prev,
+                   evidence={"charges_prev": returns.charges_prev,
+                             "charges_cur": returns.charges_cur})
 
 
 # --- localization and lifecycle -------------------------------------------------
@@ -224,11 +250,15 @@ def r1(inputs: Step7Inputs, moved: Changes) -> Outcome:
               and (deltas[top] > 0) == (moved.net > 0))
     evidence = {"classification": breadth.classification,
                 "top_member_share": breadth.top_member_share,
+                "products_share_of_change": breadth.products_share_of_change,
                 "top_member": totals.labels.get(top) if top is not None else None,
                 "top_member_delta": deltas.get(top) if top is not None else None}
+    # `concentrated` holds only when more than half of the change sits in the
+    # products (Thach, 2E-l; localization.compute_breadth).
     verdict = "supported" if breadth.classification == "concentrated" and moving else "ruled_out"
     return Outcome(verdict=verdict, evidence=evidence,
-                   rule="breadth concentrated and the top product moving with the total")
+                   rule="breadth concentrated - more than half of the change in the products, measured "
+                        "against their own change - and the top product moving with the total")
 
 
 def r2(inputs: Step7Inputs, moved: Changes) -> Outcome:
@@ -254,6 +284,6 @@ EVIDENCE = {
     "C3": bridge_difference("resurrected", True),
     "C4": c4,
     "B1": b1, "B2": b2,
-    "P1": _pvm("price"), "P2": _pvm("mix"), "P3": p3,
+    "P1": _pvm("price"), "P2": _pvm("mix"), "P3": p3, "P4": p4, "P5": p5,
     "R1": r1, "R2": r2, "R3": r3,
 }

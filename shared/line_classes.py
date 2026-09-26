@@ -7,7 +7,8 @@ A line is keyed by its product text: its SKU when it has one, else its name -
 line's class never depends on which lines are sales. The two halves live in
 separate namespaces (`sku:`/`name:`), as there: an answer about the SKU
 "POST" does not class a line with no SKU named "POST" - stage 1 asks about
-such lines under their name. Values are read as products are read
+such lines under their name - unless that name maps to the SKU as its one
+SKU (`line_classes`, 2E-l). Values are read as products are read
 (`product_text`) and case is fully folded.
 
 What each class does is `shared/transactions.py`'s business; this module only
@@ -19,6 +20,9 @@ import pandas as pd
 
 from contracts.cleaning import LineClassAnswer
 from shared.text import product_text
+
+# The answer "a product" (2E-l review cycle 1): no class, but an answer.
+PRODUCT = "product"
 
 
 def line_keys(df: pd.DataFrame, reverse: dict[str, str]) -> pd.Series:
@@ -55,12 +59,35 @@ def answer_key(answer: LineClassAnswer) -> str | None:
     return f"{'sku' if answer.field == 'sku' else 'name'}:{text}"
 
 
-def line_classes(df: pd.DataFrame, reverse: dict[str, str],
-                 answers: list[LineClassAnswer]) -> pd.Series:
+def line_classes(df: pd.DataFrame, reverse: dict[str, str], answers: list[LineClassAnswer],
+                 would_sell: pd.Series) -> pd.Series:
     """Each line's class, NaN for a product. Two answers about one key: the
-    later one holds, as a later edit would."""
+    later one holds, as a later edit would. A line with a name and no SKU
+    whose name maps to exactly one SKU (`name_only_sku`) takes that SKU's
+    class when the SKU is classed and the name is not answered itself: a
+    postage refund rung by name was a product return with no purchase once
+    POST, a charge, was no sale - classing only the charges made a new
+    customer returning (Thach, 2E-l). "A product" is an answer that stops
+    it (2E-l review cycle 1: the user is the final authority, CLAUDE.md
+    3.3), and reads as NaN like every product."""
     classes = {key: answer.line_class for answer in answers
                if (key := answer_key(answer)) is not None}
     if not classes:
         return pd.Series(np.nan, index=df.index, dtype=object)
-    return line_keys(df, reverse).map(classes).astype(object)
+    names = text_identity(df, reverse.get("product_name"))
+    skus = text_identity(df, reverse.get("sku"))
+    own = keyed(names, skus).map(classes).astype(object)
+    inherited = ("sku:" + name_only_sku(names, skus, would_sell)).map(classes).astype(object)
+    answered = own.where(own.notna(), inherited)
+    return answered.where(answered.ne(PRODUCT)).astype(object)
+
+
+def name_only_sku(names: pd.Series, skus: pd.Series, would_sell: pd.Series) -> pd.Series:
+    """For a line with a name and no SKU, the one SKU its name maps to among
+    the lines that WOULD be sales if nothing were classed (2E-f L4, read so
+    since 2E-d2 cycle 3 F3); NaN otherwise. Sale lines only, so a stock note
+    written on one SKU's write-off cannot pull every such note to it."""
+    sold = would_sell & skus.notna() & names.notna()
+    one_sku = skus[sold].groupby(names[sold]).agg(
+        lambda values: values.iloc[0] if values.nunique() == 1 else np.nan)
+    return names.map(one_sku.dropna()).where(skus.isna()).astype(object)

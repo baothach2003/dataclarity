@@ -19,9 +19,9 @@ from collections.abc import Iterable
 import pandas as pd
 
 from shared.numbers import is_negligible
-from stages.diagnose.thresholds import YOY_MIN_BASE_SHARE
+from stages.diagnose.thresholds import PRODUCTS_MAJORITY_SHARE, YOY_MIN_BASE_SHARE
 
-__all__ = ["is_negligible", "typical_magnitude", "usable_base"]
+__all__ = ["is_negligible", "products_hold_most", "typical_magnitude", "usable_base"]
 
 
 def typical_magnitude(values: Iterable[float]) -> float:
@@ -71,3 +71,18 @@ def usable_base(base: float, typical: float, scale: float) -> bool:
     base = float(base)
     return (base > 0 and base >= YOY_MIN_BASE_SHARE * typical
             and not is_negligible(base, scale))
+
+
+def products_hold_most(part: float, total: float, *magnitudes: float) -> bool:
+    """Does `part` hold MORE than PRODUCTS_MAJORITY_SHARE of `total`, in the
+    total's direction? Thach's "more than half" (2E-l) for every claim about
+    products: breadth and R1 (the products' own change) and a product-lens
+    headline (the change in gross sales).
+
+    Compared as money above residue, not as a ratio against 0.5: a product
+    moving 1.0 -> 1.3 of a 0.60 change is 0.5000000000000001 of it in binary,
+    and exactly half read as more than half (2E-l review cycle 1).
+    """
+    excess = part - PRODUCTS_MAJORITY_SHARE * total
+    return (total != 0 and (excess > 0) == (total > 0)
+            and not is_negligible(excess, total, *magnitudes))

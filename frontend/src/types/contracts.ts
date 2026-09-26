@@ -208,15 +208,18 @@ export interface OrderConfirmations {
   line_classes?: LineClassAnswer[]
 }
 
-// What a line that is not a product is (2E-d2): a charge the customer paid
-// stays in revenue, a discount stays as a deduction, a fee or cost and an
-// accounting adjustment leave revenue.
-export type LineClass = 'charge' | 'discount' | 'cost' | 'adjustment'
+// What a line that is not an ordinary product is (2E-d2, 2E-l): a charge the
+// customer paid stays in revenue but is no order, a discount stays as a
+// deduction, pooled items (many under one code) are sales never ranked, a fee
+// or cost and an accounting adjustment leave revenue.
+export type LineClass = 'charge' | 'discount' | 'pooled' | 'cost' | 'adjustment'
 
 export interface LineClassAnswer {
   value: string
   field: 'sku' | 'product_name'
-  line_class: LineClass
+  // 'product' is sent for a name (2E-l review cycle 1): unanswered, a line
+  // with no SKU takes the class of the one SKU its name is sold under.
+  line_class: LineClass | 'product'
 }
 
 export interface CleaningPlan {
