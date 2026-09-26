@@ -7,7 +7,7 @@ as a judgement - since ADR-0007 no row is one.
 """
 
 from contracts.diagnosis import is_verdict
-from stages.diagnose.members import product_totals
+from stages.diagnose.members import NOT_A_PRODUCT_KEY, product_totals
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.numbers import is_negligible, typical_magnitude, usable_base
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
@@ -187,7 +187,10 @@ def _pvm(term: str):
         # that; a product seen only through a refund this month is present
         # (members.py) but not sold, and L without it may be empty (2E
         # mutation check).
-        both = set(totals.orders_prev.index) & set(totals.orders_cur.index)
+        # Lines the user classed as not products are no product L holds
+        # (pvm.py, 2E-d2 doubt-review F2): postage sold every month made a
+        # catalogue with nothing in common look comparable.
+        both = (set(totals.orders_prev.index) & set(totals.orders_cur.index)) - {NOT_A_PRODUCT_KEY}
         if not both:
             return Outcome(verdict="inconclusive", evidence={"products_in_both_periods": 0},
                            rule="requires products sold in both periods (L)")

@@ -18,7 +18,8 @@ import pandas as pd
 
 from contracts.diagnosis import Dimension, Member
 from shared.products import GAP_LABEL, product_keys, product_labels
-from shared.transactions import is_blank, normalize_text, require_column
+from shared.text import is_blank, normalize_text
+from shared.transactions import require_column
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.thresholds import (
@@ -37,6 +38,8 @@ UNCATEGORISED_LABEL = "(uncategorised)"
 UNCATEGORISED_KEY = "\x00UNCATEGORISED"
 UNNAMED_PRODUCT_LABEL = GAP_LABEL  # stage 2 shows the gap in the same words
 UNNAMED_PRODUCT_KEY = "\x00UNNAMED_PRODUCT"
+NOT_A_PRODUCT_LABEL = "(not a product)"
+NOT_A_PRODUCT_KEY = "\x00NOT_A_PRODUCT"
 
 CUSTOMER_TYPES = ("new", "resurrected", "retained", "lapsed")
 
@@ -151,7 +154,10 @@ def _member(key: str, totals: MemberTotals, delta_total: float, scale: float = 0
         rev_cur=rev_cur,
         delta=delta,
         share_of_change=_share(delta, delta_total, scale),
-        is_data_gap=key in totals.gap_keys,
+        # The "(not a product)" bucket is kept out like a gap, but it is no
+        # missing data (2E-d2 review cycle 2).
+        is_data_gap=key in totals.gap_keys and key != NOT_A_PRODUCT_KEY,
+        is_not_a_product=key == NOT_A_PRODUCT_KEY,
     )
 
 
@@ -246,8 +252,12 @@ def product_totals(data: RunData) -> MemberTotals:
     keys = product_keys(data.df, data.parsed)
     labels = product_labels(data.df, data.parsed, keys).to_dict()
     labels[UNNAMED_PRODUCT_KEY] = UNNAMED_PRODUCT_LABEL
-    return _totals(data, keys.fillna(UNNAMED_PRODUCT_KEY), labels,
-                   frozenset({UNNAMED_PRODUCT_KEY}))
+    labels[NOT_A_PRODUCT_KEY] = NOT_A_PRODUCT_LABEL
+    # Lines the user classed as not products (2E-d2): postage and discounts
+    # are revenue, so the dimension must still add up with them, but they are
+    # no product - one bucket, kept out of recommendations like the gap.
+    keys = keys.fillna(UNNAMED_PRODUCT_KEY).mask(data.parsed.line_class.notna(), NOT_A_PRODUCT_KEY)
+    return _totals(data, keys, labels, frozenset({UNNAMED_PRODUCT_KEY, NOT_A_PRODUCT_KEY}))
 
 
 def customer_type_totals(data: RunData, classes: dict[str, str]) -> MemberTotals:

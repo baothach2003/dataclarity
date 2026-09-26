@@ -20,7 +20,8 @@ tables and stage 3's product lens alike.
 import pandas as pd
 
 from shared.products import GAP_LABEL, product_keys, product_labels, product_text
-from shared.transactions import customer_identity, is_blank, normalize_text, parse_transactions
+from shared.text import customer_identity, is_blank, normalize_text
+from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
            "Product": "product_name", "Sku": "sku"}

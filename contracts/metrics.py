@@ -1,9 +1,9 @@
 """metrics.json (docs/CONTRACTS.md section 6). Stage 2 never calls the AI."""
 
 from datetime import date
-from typing import ClassVar, Literal, Self
+from typing import Annotated, ClassVar, Literal, Self
 
-from pydantic import NonNegativeInt, model_validator
+from pydantic import Field, NonNegativeInt, model_validator
 
 from contracts._base import (
     ContractFile,
@@ -12,6 +12,7 @@ from contracts._base import (
     Percent,
     YearMonth,
 )
+from contracts.profile import LineClass
 
 # Only definitional bounds are enforced. Revenue, revenue shares and return
 # rates stay unbounded: refunds can make net revenue negative, and returns in a
@@ -71,6 +72,22 @@ class MonthlyRevenue(ContractModel):
     revenue: float
 
 
+class NonProductLines(ContractModel):
+    """The lines of one class the user gave in Review (Thach, 2E-d2), dated
+    and counted over the whole file: a charge the customer paid and a
+    discount stay in revenue; a fee or cost and an accounting adjustment are
+    left out of it - an adjustment's amount is the reconciling amount between
+    the file's total and the revenue shown. None of them is in a product
+    table. The reason says where the money went."""
+
+    line_class: LineClass
+    lines: Annotated[int, Field(gt=0)]
+    amount: float
+    amount_current: float
+    amount_previous: float
+    reason: str
+
+
 class CoreMetrics(ContractModel):
     revenue_current: float
     revenue_previous: float
@@ -108,9 +125,15 @@ class CoreMetrics(ContractModel):
     # 2E-h). The reason is null exactly when the count is 0.
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
+    # One row per class present, in the order charge, discount, cost,
+    # adjustment; empty when no line is classed (2E-d2).
+    non_product: list[NonProductLines]
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
+        classes = [row.line_class for row in self.non_product]
+        if len(set(classes)) != len(classes):
+            raise ValueError(f"non_product lists a class more than once: {classes}")
         if (self.undated_lines == 0) != (self.undated_lines_reason is None):
             raise ValueError("undated_lines_reason says why lines were left out; it is null "
                              "exactly when undated_lines is 0")
@@ -291,8 +314,11 @@ class MetricsContract(ContractFile):
     # unfilled_receipt_lines with its reason. 10 since 2E-k: a confirmed
     # walk-in placeholder has no customer (placeholder_lines), and the
     # order-id check is judged per receipt (most receipts unnamed, or one
-    # customer on most, falls back to the receipt question).
-    supported_major: ClassVar[int] = 10
+    # customer on most, falls back to the receipt question). 11 since 2E-d2:
+    # lines the user classed as not products leave the product tables, fees
+    # and adjustments leave revenue, a discount is no return line
+    # (core.non_product says what moved).
+    supported_major: ClassVar[int] = 11
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

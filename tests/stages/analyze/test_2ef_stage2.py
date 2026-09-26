@@ -161,5 +161,5 @@ def test_without_order_id_a_header_style_file_is_not_filled() -> None:
 
 def test_metrics_json_is_version_6_or_the_current_one() -> None:
     # 6.0 in 2E-f; 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2.
-    assert SCHEMA_VERSION == "10.0"  # 9.0 in 2E-e2; 10.0 since 2E-k
-    assert MetricsContract.supported_major == 10
+    assert SCHEMA_VERSION == "11.0"  # 9.0 in 2E-e2; 10.0 in 2E-k; 11.0 since 2E-d2
+    assert MetricsContract.supported_major == 11

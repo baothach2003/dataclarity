@@ -31,7 +31,7 @@ from stages.analyze.metrics_products import compute_product_metrics
 # with the user's answers in Review; unfilled receipt lines counted), 10.0
 # in 2E-k (confirmed walk-in placeholders unattributed; the order-id check
 # judged per receipt).
-SCHEMA_VERSION = "10.0"
+SCHEMA_VERSION = "11.0"
 METRICS_FILENAME = "metrics.json"
 
 

@@ -143,6 +143,15 @@ remap the question is asked again.
   remap, lines only). Shares are floored to one decimal. Yes:
   those lines have no customer. No: a real customer. An answer can be
   changed and applies to the customer column it was given for.
+- **Lines that may not be products** (2E-d2, Thach). One notice lists each
+  product key stage 1 found whose SKU or commonest name begins or ends with a
+  class word ("POSTAGE", "AMAZON FEE", "Adjust bad debt", "Discount",
+  "SAMPLES"; read from the profile's top values after a remap), with its
+  lines, its positive and negative money and a suggestion, and a choice per
+  key: not answered, a product, a charge paid by the customer (stays in
+  revenue), a discount (stays in revenue), a fee or cost (leaves revenue), an
+  accounting adjustment (leaves revenue). Nothing is chosen for the user;
+  unanswered, the lines stay products. Every class leaves the product tables.
 - **Is the customer written on a receipt's first line only?** Asked when the
   customer fill would happen (`receipt_fill_lines` above 0), or without a
   count when that was not measured for the current columns (stage 1 could not

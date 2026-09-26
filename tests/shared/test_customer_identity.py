@@ -10,7 +10,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from shared.transactions import customer_identity, merged_identity_count
+from shared.text import customer_identity, merged_identity_count
 from stages.diagnose.bridge import compute_bridge
 from stages.diagnose.lever import period_totals
 from stages.diagnose.signals import monthly_series

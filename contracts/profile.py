@@ -136,6 +136,31 @@ class CustomerPlaceholder(ContractModel):
     why: Literal["word", "share"]
 
 
+# The four classes of a line that is not a product (Thach, 2E-d2): a charge
+# the customer paid (postage) stays in revenue; a discount stays in revenue as
+# a deduction (2E-c); a fee or cost, and an accounting adjustment, leave it.
+LineClass = Literal["charge", "discount", "cost", "adjustment"]
+
+
+class NonProductCandidate(ContractModel):
+    """A product key whose lines may not be products (2E-d2), found by stage 1
+    on the raw file: its SKU text, or the name its lines carry most often,
+    begins or ends with a class word ("POSTAGE", "AMAZON FEE", "Adjust bad
+    debt"). Review asks the user what it is; the suggestion never applies by
+    itself."""
+
+    value: str  # the SKU (or, for a line without one, the name) as written most often
+    field: Literal["sku", "product_name"]
+    name: str | None  # the commonest name on its lines, for display
+    lines: NonNegativeInt
+    # Sums of its counted lines' amounts: M "Manual" on Online Retail II is
+    # +341,104.90 and -423,886.17, which a net figure would hide.
+    positive: Annotated[float, Field(ge=0, allow_inf_nan=False)]
+    negative: Annotated[float, Field(le=0, allow_inf_nan=False)]
+    suggested: LineClass | None  # None: a word that fits no class ("SAMPLES")
+    word: str  # the word that made it a candidate
+
+
 class SchemaInferenceContract(ContractFile):
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
@@ -165,6 +190,10 @@ class SchemaInferenceContract(ContractFile):
     # older than 2.2) - Review then reads profile.json's top values.
     customer_placeholders: list[CustomerPlaceholder] | None = None
     order_id_date_only: bool | None = None
+    # 2.3 (2E-d2): the product keys that may not be products, commonest
+    # first. None: not measured (quantity or price not mapped, or no line
+    # counted) - Review then reads profile.json's top values.
+    non_product_candidates: list[NonProductCandidate] | None = None
 
     # "Every profiled column appears exactly once" also needs profile.json, so
     # only its in-file half (no duplicates) is checked here; stage 1 checks the

@@ -190,4 +190,4 @@ def test_metrics_json_is_the_current_major_version() -> None:
     # 2E-g to "7.0" (product units, labels, the gap, velocity); 2E-h to "8.0"
     # (wall-clock dates, undated lines counted); 2E-e2 to "9.0" (the answers
     # from Review, unfilled receipt lines counted).
-    assert SCHEMA_VERSION == "10.0"  # 2E-k to "10.0" (walk-in placeholders)
+    assert SCHEMA_VERSION == "11.0"  # 2E-k to "10.0" (walk-in placeholders); 2E-d2 to "11.0" (non-product lines)

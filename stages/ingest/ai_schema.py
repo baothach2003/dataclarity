@@ -26,6 +26,7 @@ from stages.ingest.ai_input import MAX_AI_COLUMNS, build_prompt_variables
 from stages.ingest.contract_files import StaleInputError, write_contract
 from stages.ingest.customer_placeholders import placeholder_candidates
 from stages.ingest.issue_recount import recount_issues
+from stages.ingest.non_product_lines import non_product_candidates
 from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
 # A pct the AI copied from the profile may be rounded to one decimal.
@@ -33,7 +34,7 @@ PCT_TOLERANCE = 0.1
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "schema_inference"  # prompts/schema_inference.md
 OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "2.2"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders
+SCHEMA_VERSION = "2.3"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates
 
 
 class SchemaInferenceAnswer(BaseModel):
@@ -187,11 +188,12 @@ def infer_schema_run(
     # Stage 1's own checks on the raw file and this mapping - never the AI's:
     # the order_id check (2E-e), the measures for Review's fill and receipt
     # questions (2E-e2, 2E-k) and the walk-in placeholders (2E-k), from one
-    # parse.
+    # parse; the lines that may not be products (2E-d2).
     answered = [by_name[name] for name in sent]
     mapping = {c.source_name: c.canonical_field for c in answered if c.canonical_field != "ignore"}
     checks = order_checks(frame, mapping, parse_for_checks(frame, mapping))
     placeholders = placeholder_candidates(frame, mapping)
+    non_products = non_product_candidates(frame, mapping)
     columns, dataset_issues, _ = recount_issues(
         answered, answer.dataset_issues, frame, order_check=checks.spanning)
     contract = SchemaInferenceContract(
@@ -206,6 +208,7 @@ def infer_schema_run(
         receipt_fill_lines=checks.fill_lines,
         customer_placeholders=placeholders,
         order_id_date_only=checks.date_only,
+        non_product_candidates=non_products,
     )
     write_contract(output_path, contract)
     return contract

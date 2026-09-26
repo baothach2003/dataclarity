@@ -51,6 +51,11 @@ unchanged in Phase 3 session 3B:
   return lines only. Summed over every row, a free gift line a day took
   units per order from 3.0 to 4.0 while every paid basket held 3 units, and
   B2 headlined "baskets got bigger" over a price rise (2E-c doubt-review F1).
+- NON-PRODUCT LINES are the lines the user classed in Review (Thach, 2E-d2;
+  shared/line_classes.py). A charge the customer paid (postage) stays a sale
+  or return line, in revenue, but is no product. A discount is a deduction,
+  whatever its signs. A fee or cost and an accounting adjustment are left out
+  as "in" rows are (`left_out`) and reported by stage 2.
 """
 
 from dataclasses import dataclass
@@ -60,7 +65,9 @@ import pandas as pd
 
 from contracts.cleaning import OrderConfirmations
 from shared.dates import as_dates
+from shared.line_classes import line_classes
 from shared.orders import OrdersBasis, order_basis
+from shared.text import customer_identity, is_blank
 
 
 class RequiredColumnMissingError(ValueError):
@@ -93,17 +100,24 @@ class ParsedTransactions:
     # date/quantity/price all present, regardless of transaction_type.
     valid: pd.Series
     # `valid` AND counts towards revenue per the module docstring: excludes
-    # only rows explicitly "in". `valid & ~counted` is every explicit "in"
-    # row (metrics_products.py's stock-in side).
+    # rows explicitly "in", and lines the user classed as a fee or cost or an
+    # accounting adjustment (`left_out`, 2E-d2).
     counted: pd.Series
-    # `counted` AND quantity > 0 AND a positive amount: an order (module
-    # docstring, 2E and 2E-c).
+    # `counted` AND quantity > 0 AND a positive amount, not a discount: an
+    # order (module docstring, 2E and 2E-c).
     sale: pd.Series
-    # `counted` AND quantity < 0 AND a negative amount: a return line (2E-c2).
+    # `counted` AND quantity < 0 AND a negative amount, not a discount: a
+    # return line (2E-c2).
     returned: pd.Series
     # `counted` and neither of the two: a coupon, a discount, a write-off, a
     # free item, a zero-amount stock write-off (module docstring, 2E-c, 2E-c2).
     deduction: pd.Series
+    # The class the user gave each line in Review, NaN for a product (2E-d2,
+    # shared/line_classes.py): "charge", "discount", "cost" or "adjustment".
+    line_class: pd.Series
+    # `valid`, not "in", and classed a fee or cost or an adjustment: out of
+    # revenue and of every figure, as an "in" row is, but reported (2E-d2).
+    left_out: pd.Series
     # Net units: the quantity of sale and return lines, 0 elsewhere (2E-c).
     units: pd.Series
     # The order each row belongs to, and whether that is a real order id or
@@ -163,10 +177,19 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # back (3C doubt-review C2). An unrepresentable number is not a measurement,
     # so it is excluded here exactly like an unparseable one.
     valid = dates.notna() & np.isfinite(quantities) & np.isfinite(prices)
-    counted = valid & counts_as_sale
+    # The user's classes (Thach, 2E-d2). A fee or cost and an accounting
+    # adjustment leave revenue as an "in" row does - excluded, never
+    # subtracted - and are reported. A discount is 2E-c's deduction whatever
+    # its signs: a -1 @ +price discount read as a return line (2E-c2 item f).
+    # A charge the customer paid stays a sale or return line: only the product
+    # tables leave it (shared/products.py).
+    line_class = line_classes(df, reverse, answers.line_classes)
+    left_out = valid & counts_as_sale & line_class.isin(("cost", "adjustment"))
+    counted = valid & counts_as_sale & ~left_out
     amounts = quantities * prices
-    sale = counted & (quantities > 0) & (amounts > 0)
-    returned = counted & (quantities < 0) & (amounts < 0)
+    priced = counted & line_class.ne("discount")
+    sale = priced & (quantities > 0) & (amounts > 0)
+    returned = priced & (quantities < 0) & (amounts < 0)
     customers = customers_of(df, reverse.get("customer"))
     # A value the user confirmed as a placeholder for walk-ins ("Guest",
     # "Walk-in", "0") names no one (Thach, 2E-k): compared by identity.
@@ -178,8 +201,11 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # customer while its credit note's named line kept it, and a first-time
     # buyer's history "opened with a refund". Filling on no answer is 2E-f's
     # rule and its known limit L1, which Thach accepted as rare.
+    # A left-out line is out as an "in" row is: it names no receipt's other
+    # lines either (2E-d2 doubt-review F9: a bad debt under Dee named a
+    # receipt's walk-in line).
     orders = order_basis(order_ids(df, reverse.get("order_id")), dates.dt.normalize(),
-                         customers, sale, returned, counted, ~counts_as_sale,
+                         customers, sale, returned, counted, ~counts_as_sale | left_out,
                          receipt_answer=answers.order_id_is_receipt,
                          customer_column="customer" in reverse,
                          fill=answers.customer_on_first_line_only is not False)
@@ -194,6 +220,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
         sale=sale,
         returned=returned,
         deduction=counted & ~sale & ~returned,
+        line_class=line_class,
+        left_out=left_out,
         units=quantities.where(sale | returned, 0.0),
         order_key=orders.key,
         orders_basis=orders.basis,
@@ -244,63 +272,8 @@ def require_column(reverse: dict[str, str], canonical_field: str) -> str:
     return column
 
 
-
-
-def is_blank(values: pd.Series) -> pd.Series:
-    """True where a cell is missing or holds only whitespace - the same
-    definition of "missing" docs/AI_PIPELINE.md section 6 uses for
-    drop_rows_missing, applied to optional columns (`customer`, `sku`,
-    `category`) stage 1 has no reason to have trimmed."""
-    return values.isna() | (values.astype(object).str.strip() == "")
-
-
-def normalize_text(values: pd.Series) -> pd.Series:
-    """Strip and case-fold for grouping. astype(object): an all-missing column
-    can read back as float64, and .str only works on an object/string dtype.
-    NaN propagates through strip/lower/concat unharmed."""
-    return values.astype(object).str.strip().str.lower()
-
-
 def is_stock_in(values: pd.Series) -> pd.Series:
     """Where a transaction_type cell says "in", read as revenue scope has
     always read it (2A) - one reading for revenue scope and stage 2's
     stock-in lines (2E-g). NaN is not "in"."""
     return values.astype(object).str.strip().str.lower().eq("in")
-
-
-def customer_identity(values: pd.Series) -> pd.Series:
-    """The key that decides whether two rows are the same customer.
-
-    Stripped and case-folded, so "CUST_01", " cust_01" and "Cust_01 " are one
-    person - the same treatment product keys have had (shared/products.py)
-    since 2C, applied to the other identity column for the same reason
-    (Thach, session 3C2). Blank values stay blank, so `is_blank` still selects
-    the unattributed rows afterwards.
-
-    Why the asymmetry of the risk decides it: grouping raw *splits* one
-    customer into several, and 3C reproduced what that does - one customer
-    written three ways, buying the same amount each month, reads as
-    `new = 200 / lapsed = -200`, which is "we lost everyone and gained a
-    whole new base" printed on a flat month. That fabrication comes from
-    ordinary data entry and feeds the C-family hypotheses and possibly the
-    headline. The opposite error needs two genuinely different ids differing
-    only by case or whitespace, which is rare for POS codes.
-
-    Deliberately no further normalisation - no leading-zero stripping, no
-    punctuation rules (Thach, 3C2). Those would start merging ids that a POS
-    really does distinguish, and this helper's whole justification is that its
-    error direction is the safe one.
-    """
-    return normalize_text(values)
-
-
-def merged_identity_count(values: pd.Series) -> int:
-    """How many distinct raw values `customer_identity` collapsed away.
-
-    Distinct raw values minus distinct identities, over the rows passed in: a
-    customer written three ways contributes 2. Zero means normalisation
-    changed no grouping at all, which is what a clean file should show.
-    """
-    identity = customer_identity(values)
-    usable = ~is_blank(identity)
-    return int(values[usable].nunique() - identity[usable].nunique())

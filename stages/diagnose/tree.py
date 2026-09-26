@@ -84,7 +84,8 @@ def _check_reconciliation(data: RunData, tree: Tree) -> None:
             delta_net, "customer bridge", moved)
     _assert_sums(
         [tree.products.volume, tree.products.mix, tree.products.price,
-         tree.products.new_products, tree.products.discontinued_products],
+         tree.products.new_products, tree.products.discontinued_products,
+         tree.products.non_product],
         delta_gross, "product lens", moved)
     _assert_sums([delta_gross, -delta_returns, -delta_deductions], delta_net,
                  "returns lens", moved)

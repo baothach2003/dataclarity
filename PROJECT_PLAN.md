@@ -1786,7 +1786,7 @@ dataclarity/
       - Q2: "1900-01-01" is no date; the well-known sentinels 1899-12-30,
         1900-01-01 and 1970-01-01 are treated the same, counted and recorded
         (with the undated lines).
-- [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
+- [x] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
       decisions; the same stage 1 work as 2E-d - a Review flag and a
       cleaning-plan proposal). **Placed BEFORE the demo** by Thach's rule
       after 2E-c2 (anything that changes the demo's product tables):
@@ -1820,6 +1820,80 @@ dataclarity/
       a separate reconciling amount. The user confirms the classification in
       Review. Verify each code against Online Retail II before deciding its
       class, and flag any that does not fit.
+      **Done 2026-09-26 (second overnight run, session 2; the run stopped
+      after it - see 2E-l).** Method `C:\Users\Happy\2Ed2-method.txt`,
+      amended after each review cycle.
+      1. Stage 1 measures candidates on the raw file (new
+         `stages/ingest/non_product_lines.py`; schema_inference 2.3
+         `non_product_candidates`, null = not measured): a product key (the
+         SKU, else the name - `shared/line_classes.py`) whose SKU text or
+         commonest name BEGINS OR ENDS with a class word (letter-bounded,
+         plural "s"; "carriage" inside a name was four real Online Retail II
+         products), and whose counted lines move finite money. No number is
+         tuned. On Online Retail II: 13 keys in 2.2 s.
+      2. Review asks one notice, a choice per key, nothing pre-selected:
+         a product / a charge paid by the customer / a discount / a fee or
+         cost / an accounting adjustment. Unanswered = a product = the file
+         as before. Answers travel as `confirmations.line_classes` (plan and
+         cleaning_report 2.3).
+      3. Stages 2-3 (`shared/transactions.py`): a charge stays a sale or
+         return line in revenue; a discount is a deduction (2E-c's rule -
+         fixes 2E-c2 item f: -1 @ +price is no return line); a fee or cost
+         and an adjustment are left out as "in" rows are (and name no
+         receipt's other lines). No classed line has a product key;
+         metrics.json `core.non_product` reports each class. Stage 3's
+         product lens gains a `non_product` term (the charges' gross),
+         members a "(not a product)" bucket (`is_not_a_product`), so every
+         lens still reconciles. The first-day netting keys every line as
+         unanswered; the name-only vote reads the lines as if nothing were
+         classed.
+      Verification against Online Retail II (Thach's instruction): fit
+      their class - POST, DOT (charge); AMAZONFEE, CRUK (cost); B, ADJUST
+      (adjustment). **Flagged:** M "Manual" (+341,104.90 / -423,886.17, 862
+      positive lines on 554 invoices with products - much looks like manual
+      sales); BANK CHARGES (34 positive lines); D "Discount" fits none of
+      the three (given the fourth class by 2E-c's rule); S "SAMPLES" fits
+      none (asked with no suggestion); C2 "CARRIAGE", 23444 "Next Day
+      Carriage" and ADJUST2 were missed by the earlier no-digit scan.
+      Classed as decided, Online Retail II 2011-11: revenue 1,461,756.25 ->
+      1,479,736.99, return rate 0.159 -> 0.150, DOTCOM POSTAGE no longer the
+      top product, new customers 191 either way; stage 3 reconciles.
+      Unanswered, every figure is unchanged. Kaggle: no candidate.
+      metrics.json 11.0, diagnosis.json 10.0, stage 1 contracts 2.3.
+      Mutation: 37 Python and 13 frontend mutants in batches with a backup
+      each; every survivor killed by a test added for it.
+      Doubt-review, 3 cycles (the bound), triaged by section 6's rule:
+      cycle 1 (13) - F1 BLOCKING (a classed charge unmade new customers:
+      191 -> 190 on the demo) fixed with F2, F5, F8, F9, F12 and parts of
+      F4, F6, F7 ("hoa hong" - also roses - dropped); cycle 2 (9) - #7
+      fixed (`is_not_a_product`), #1 #5 recorded as consequences of the 2E-c
+      rule, #2 #6 docs; cycle 3 (6) - F3-F6 small and local, fixed after
+      the last cycle (unreviewed); **F1 and F2 split out as 2E-l: the stop
+      rule fired and the run stopped.** The rest is in 8D.
+- [ ] 2E-l **Headlines when the change sits outside the products** (split
+      out of 2E-d2 doubt-review cycle 3 under the stop rule; **for Thach -
+      the second overnight run stopped on it**). FABRICATE, headline.
+      - F2: a change carried by DEDUCTIONS has no hypothesis (Thach, 2E-c),
+        so the headline falls to a gross-lens hypothesis measured against
+        gross: 40 small shops with a discount promo month, discount classed
+        - rule 7 27 times, P2 11 times naming a sliver (seed 36: net -560,
+        deductions -555, "P2, 100% of the change in gross sales (-5.00)").
+        Unclassed, the same months headline P3 "returns" 36 times - the
+        discount read as a return (2E-c2 item f), wrong too. Coupons at a
+        negative price reach the same path without any class (2E-c).
+      - F1: R1 and breadth read products only (the gap and "(not a
+        product)" left out) but against the whole change: postage 5 -> 30
+        a day with one product +10 headlined "the change is concentrated in
+        one product or category" for +785. The "(no product name)" gap has
+        had the same path since 2E-g.
+      - Common export shape: discounts booked as lines (Online Retail II's
+        own -1 @ +price); not on the demo month. Not caused by 2E-d2 alone,
+        but opened to the commonest discount shape by it.
+      - Needs Thach's decision: how the headline treats a change carried by
+        deductions, charges or the gap - a hypothesis for them, or refusing
+        product-lens and concentration headlines when most of the change is
+        outside those lenses (a rule, possibly a threshold). Before 3E1b by
+        the asymmetry rule.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2114,6 +2188,25 @@ dataclarity/
       - cycle 3 F2: on a header-style export, shares are measured on raw
         lines before the receipt fill; the fix is a per-receipt measure.
       - `shared/transactions.py` is 306 lines and `ReviewPage.tsx` 364.
+      From 2E-d2 (lines that are not products; none fabricates on the demo):
+      - a plan transform that rewrites the SKU, name, quantity, price or
+        customer column acts on candidate lines too (Review's money is the
+        raw file's), and an answer matching zero lines is not reported;
+      - the frontend fallback after a remap reads one column's profile top
+        values, no money; toLowerCase vs casefold, \p{L} vs [^\W\d_];
+      - stage 1 loops over every distinct key in Python (21 s on ~1,000,000
+        distinct names) and the candidate list is uncapped;
+      - suggestion ambiguities ("Manual discount", "Late fee", "USER
+        MANUAL", "CARRIAGE CLOCK") and missed words (service charge,
+        surcharge, S&H, P+P, bad-debt);
+      - a name-only line named like a classed SKU is asked separately and,
+        unanswered, stays a product; a product named "(not a product)";
+      - left-out lines' dates still bound the file's period, as "in" rows'
+        do; a zero-money key ("FREE DELIVERY" 1 @ 0) is not asked yet can
+        be listed as a new product member; stage 1's commonest name counts
+        raw spellings, stage 2's labels the product reading;
+      - `stages/diagnose/members.py` is 313 lines, `ReviewPage.tsx` 370,
+        `contracts/metrics.py` 353.
       - Stage 1's order-check parse of Online Retail II took 6.4 s and
         12.4 s on two runs of unchanged code (machine load); part of the
         speed item above.
@@ -2252,6 +2345,14 @@ significance threshold, making a one-cent price rise a step change.
 **Phase in progress:** Phase 2/3. **Second overnight run** approved by Thach
 (2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i ->
 2E-j, stop before 3E1b; report in `C:\Users\Happy\overnight-report.txt`.
+**The second overnight run STOPPED after 2E-d2** (session 2 of 6): its
+doubt-review cycle 3 (the bound) found headline FABRICATEs on a common shape
+whose fix is not local - split out as **2E-l** (for Thach); the stop rule
+fired and Thach's run rules stop the whole run on it. Not started: the Online
+Retail II demo, 2E-d, 2E-i, 2E-j. Session **2E-d2** closed 2026-09-26 (see its
+checklist item): lines that are not products, proposed by stage 1 and classed
+in Review, applied by stages 2 and 3. metrics.json 11.0, diagnosis.json 10.0,
+stage 1 contracts 2.3. pytest 2899, Vitest 148.
 Session **2E-k** closed 2026-09-26 (see its checklist item): the customer
 column is never imputed; walk-in placeholders are measured by stage 1 and
 confirmed in Review; the receipt question is judged per receipt.
@@ -2727,7 +2828,9 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** the second overnight run (Thach, 2026-09-26): **2E-k ->
+**Next step:** Thach decides 2E-l (see its item and the report); then the
+rest of the second overnight run: **Online Retail II demo -> 2E-d -> 2E-i ->
+2E-j**, stop before 3E1b. The run as approved (Thach, 2026-09-26): **2E-k ->
 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j**, stop before 3E1b,
 same rules, the triage rule of section 6 applied to every finding. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
@@ -2752,9 +2855,10 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Second overnight run: read `C:\Users\Happy\overnight-report.txt` in
-   the morning. The first run's questions (2E-k, D2, Q1-Q4, the 2E-d2
-   revenue classes) are answered and recorded.
+1. Second overnight run: read `C:\Users\Happy\overnight-report.txt`. It
+   stopped after 2E-d2 on 2E-l (headlines when the change sits outside the
+   products); decide 2E-l and the flagged codes (M, S, D's class) before
+   the demo build.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend

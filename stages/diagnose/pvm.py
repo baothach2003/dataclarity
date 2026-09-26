@@ -56,7 +56,18 @@ def compute_products(data: RunData) -> ProductLens:
         price=price,
         new_products=float(current.revenue.reindex(new_only).sum()),
         discontinued_products=-float(previous.revenue.reindex(gone_only).sum()),
+        non_product=_non_product_gross(data, data.metrics.period.current)
+        - _non_product_gross(data, data.metrics.period.previous) + 0.0,
     )
+
+
+def _non_product_gross(data: RunData, month: str) -> float:
+    """The gross of the sale rows the user classed as not products - a
+    charge the customer paid (postage) is gross sales but no product whose
+    price, volume or mix could move (Thach, 2E-d2). Without its own term the
+    lens stops summing to the change in gross sales."""
+    mask = period_mask(data, month) & data.parsed.sale & data.parsed.line_class.notna()
+    return float(data.parsed.revenue_amounts[mask].sum())
 
 
 def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
@@ -78,7 +89,8 @@ def _gross_by_product(data: RunData, month: str) -> ProductPeriod:
     # Sale rows (shared/transactions.py, 2E-c), the same rows as the returns
     # lens's gross: a refund booked as quantity 1 at a negative price was a
     # "product sold at a lower price" here, and P1 headlined a price cut.
-    mask = period_mask(data, month) & data.parsed.sale
+    # A line the user classed as not a product is its own term (2E-d2).
+    mask = period_mask(data, month) & data.parsed.sale & data.parsed.line_class.isna()
     keys = identity[mask]
     units = data.parsed.quantities[mask].groupby(keys).sum()
     revenue = data.parsed.revenue_amounts[mask].groupby(keys).sum()

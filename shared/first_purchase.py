@@ -42,7 +42,7 @@ def first_purchase_months(
     the file holds none (only refunds, only deductions, or a history that
     opens with a refund). The caller passes the rows it identifies customers
     on, keyed as it groups them; `products` from shared/products.py
-    `product_keys` (NaN: no product - two nameless lines cannot be shown to
+    `netting_keys` (NaN: no product - two nameless lines cannot be shown to
     be one), `units` the
     parsed units (positive on a sale line, negative on a return line)."""
     frame = pd.DataFrame({"customer": customers, "day": dates.dt.normalize(),

@@ -15,7 +15,7 @@ metric's whole change.
 import pandas as pd
 
 from contracts.diagnosis import MixRate
-from shared.transactions import is_blank, normalize_text
+from shared.text import is_blank, normalize_text
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.members import UNCATEGORISED_KEY
 from stages.diagnose.numbers import is_negligible

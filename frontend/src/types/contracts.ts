@@ -154,6 +154,20 @@ export interface SchemaInferenceContract {
   // check could read dates only (null or absent: not measured).
   customer_placeholders?: CustomerPlaceholder[] | null
   order_id_date_only?: boolean | null
+  // 2.3 (2E-d2): null when not measured.
+  non_product_candidates?: NonProductCandidate[] | null
+}
+
+// A product key whose lines may not be products (2E-d2), measured by stage 1.
+export interface NonProductCandidate {
+  value: string
+  field: 'sku' | 'product_name'
+  name: string | null
+  lines: number
+  positive: number
+  negative: number
+  suggested: LineClass | null
+  word: string
 }
 
 // --- plan_proposed.json / plan_final.json --------------------------------------
@@ -190,6 +204,19 @@ export interface OrderConfirmations {
   customer_on_first_line_only: boolean | null
   // 2.2 (2E-k): the customer values confirmed as walk-in placeholders.
   customer_placeholders?: string[]
+  // 2.3 (2E-d2): the product keys the user classed as not products.
+  line_classes?: LineClassAnswer[]
+}
+
+// What a line that is not a product is (2E-d2): a charge the customer paid
+// stays in revenue, a discount stays as a deduction, a fee or cost and an
+// accounting adjustment leave revenue.
+export type LineClass = 'charge' | 'discount' | 'cost' | 'adjustment'
+
+export interface LineClassAnswer {
+  value: string
+  field: 'sku' | 'product_name'
+  line_class: LineClass
 }
 
 export interface CleaningPlan {

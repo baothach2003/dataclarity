@@ -173,6 +173,15 @@ read two ways before (1D):
   either, whatever their semantic type: a filled-in customer is a customer the
   file never named ("Unknown" became the top customer carrying every walk-in's
   money), and a blank customer is a walk-in
+- Lines that are not products (postage, fees, discounts, adjustments; Thach,
+  2E-d2) are classed by the user, not by the plan: stage 1 measures the
+  candidates itself on the raw file (CONTRACTS section 3), the user classes
+  them in Review (`confirmations.line_classes`), and stages 2 and 3 apply the
+  class (CONTRACTS section 6). No action is proposed for them - but the plan's
+  column actions act on their lines as on any other (a `fix_negative` on the
+  quantity, a `drop_rows_missing` on the customer), so the money Review shows
+  is the raw file's, not always the money that runs (review cycle 2 #2,
+  recorded for Phase 8)
 
 - flag_duplicate_keys: in the AI's proposal `keys` must be the business key, defined
   in section 11 (the count reported for `duplicate_business_key` and the rows this
@@ -792,12 +801,21 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   Deductions have no hypothesis in v1: a change they carry stays unexplained.
 - **Product lens (PVM, exact).** Partition products into L (in both periods), N
   (new) and X (discontinued). `delta_gross = delta_gross_L + gross_N(cur) -
-  gross_X(prev)`; for L, three-player Shapley over volume, mix and price.
+  gross_X(prev) + delta_gross_non_product` (the last term since 2E-d2); for
+  L, three-player Shapley over volume, mix and price.
   Rows whose `product_name` cell is empty form **one visible bucket**, not a
   silent omission: `groupby` drops null keys by default, so those rows left the
   lens while remaining in the gross total it reconciles against, and on the
   reproduction gross sales had fallen 49 while the lens reported a rise of 1 -
   a direction flip in the figures the headline is chosen from (3C doubt-review).
+  Lines the user classed as a charge the customer paid (postage, 2E-d2) are
+  gross sales but no product: their change is the lens's sixth term,
+  `non_product`, and they are in none of L, N or X - a rising postage per
+  shipment read as a price rise before. Online Retail II 2011-11: price
+  72,066.89 unclassed, 55,703.40 with only the four charge codes classed
+  (postage 21,982.29 as its own term), 96,350.48 with all twelve classes
+  (M "Manual"'s positive lines were a "product" whose price moved the other
+  way; review cycle 2 #6).
 - **Reconciliation is checked at runtime, not only in tests.** Every lens is
   asserted against its own total at `RECONCILE_REL_TOLERANCE` of the lens's
   own scale, plus `RECONCILE_FLOAT_TOLERANCE` of the money moved in the two
@@ -847,7 +865,13 @@ filtered like any other member, carries `is_data_gap`, and is excluded from
 the new/removed lists. Dropping such rows would leave the dimension
 reconciling to a subtotal while the report talks about the whole change. The
 flag, not the label, identifies the bucket: a real category spelled
-`(uncategorised)` stays separate. D3's evidence carries the uncategorised
+`(uncategorised)` stays separate. The product dimension's `(not a product)`
+bucket (2E-d2: lines the user classed as charges or discounts) is kept out the
+same way but flagged `is_not_a_product`, not `is_data_gap`: it is revenue, no
+missing data. Breadth and R1 read products only, leaving both buckets out -
+**known limit, split out for Thach (2E-d2 doubt-review cycle 3 F1):** they
+still read the whole change as the total, so a month moved by the classed
+lines can make R1 name one product that barely moved as "concentrated". D3's evidence carries the uncategorised
 share of each period's revenue, since how much of the shop is uncategorised is
 a data-completeness fact rather than a business one.
 

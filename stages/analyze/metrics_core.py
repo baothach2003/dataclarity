@@ -36,7 +36,7 @@ from pathlib import Path
 import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
-from contracts.metrics import CoreMetrics, MonthlyRevenue, Period
+from contracts.metrics import CoreMetrics, MonthlyRevenue, NonProductLines, Period
 from shared.numbers import pct_change
 from shared.orders import count_orders
 from shared.periods import previous_coverage
@@ -127,8 +127,51 @@ def compute_core_metrics(
                      period.previous),
         revenue_by_month=_revenue_by_month(months[parsed.counted], parsed.revenue_amounts[parsed.counted]),
         **_undated(parsed),
+        non_product=_non_product(parsed, months, period),
     )
     return period, core
+
+
+# Per class: the singular and plural of what happened to its lines (2E-d2).
+_NON_PRODUCT_REASONS = {
+    "charge": ("1 line classed in Review as a charge paid by the customer stays in revenue and is "
+               "in no product table",
+               "{n} lines classed in Review as charges paid by the customer stay in revenue and "
+               "are in no product table"),
+    "discount": ("1 line classed in Review as a discount stays in revenue as a deduction: it is no "
+                 "sale, no return, and in no product table",
+                 "{n} lines classed in Review as discounts stay in revenue as deductions: they are "
+                 "no sale, no return, and in no product table"),
+    "cost": ("1 line classed in Review as a fee or cost is left out of revenue and of every figure",
+             "{n} lines classed in Review as fees or costs are left out of revenue and of every "
+             "figure"),
+    # "Reported as a separate reconciling amount" (Thach). Not "the difference
+    # between the file's total and the revenue shown": fees, "in" rows and
+    # undated lines are out of revenue too (2E-d2 doubt-review F8).
+    "adjustment": ("1 line classed in Review as an accounting adjustment is left out of revenue and "
+                   "of every figure, and reported here as a reconciling amount",
+                   "{n} lines classed in Review as accounting adjustments are left out of revenue and "
+                   "of every figure, and reported here as a reconciling amount"),
+}
+
+
+def _non_product(parsed: ParsedTransactions, months: pd.Series, period: Period) -> list[NonProductLines]:
+    """The lines the user classed as not products, per class, over the dated
+    lines of a counted type (Thach, 2E-d2): whether their money stayed in
+    revenue or left it, a reader sees how much and where."""
+    rows = []
+    for line_class, (one, many) in _NON_PRODUCT_REASONS.items():
+        mask = (parsed.counted | parsed.left_out) & parsed.line_class.eq(line_class)
+        lines = int(mask.sum())
+        if lines == 0:
+            continue
+        amounts = parsed.revenue_amounts[mask]
+        rows.append(NonProductLines(
+            line_class=line_class, lines=lines, amount=float(amounts.sum()),
+            amount_current=float(amounts[months[mask] == period.current].sum()) + 0.0,
+            amount_previous=float(amounts[months[mask] == period.previous].sum()) + 0.0,
+            reason=one if lines == 1 else many.format(n=f"{lines:,}")))
+    return rows
 
 
 def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series) -> Period:

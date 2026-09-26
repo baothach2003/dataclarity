@@ -442,14 +442,18 @@ class ReturnsLens(ContractModel):
 
 
 class ProductLens(ContractModel):
-    """Price-volume-mix on gross sales. The five terms sum to the change in
-    gross sales - not to net revenue, which is the returns lens's total."""
+    """Price-volume-mix on gross sales. The six terms sum to the change in
+    gross sales - not to net revenue, which is the returns lens's total.
+    `non_product` is the change in the gross of lines the user classed as a
+    charge the customer paid (postage, 2E-d2): gross sales, but no product
+    whose price, volume or mix could move; 0.0 when none is classed."""
 
     volume: float
     mix: float
     price: float
     new_products: float
     discontinued_products: float
+    non_product: float
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
@@ -460,7 +464,7 @@ class ProductLens(ContractModel):
         this is the second line of defence, kept consistent across lenses so
         the next one written inherits the habit."""
         values = (self.volume, self.mix, self.price,
-                  self.new_products, self.discontinued_products)
+                  self.new_products, self.discontinued_products, self.non_product)
         if not all(isfinite(value) for value in values):
             raise ValueError("product lens figures must be finite")
         return self
@@ -491,12 +495,19 @@ class Member(ContractModel):
     # "(uncategorised)" as though it were a real product line (Thach, 3D); it
     # is a data-completeness signal, and D3 carries its share as evidence.
     is_data_gap: bool = False
+    # True for the product dimension's "(not a product)" bucket (2E-d2): the
+    # lines the user classed as charges or discounts - revenue, no missing
+    # data, but no product a recommendation could be about. Kept apart from
+    # `is_data_gap`, or postage would read as missing data (review cycle 2).
+    is_not_a_product: bool = False
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
         values = (self.rev_prev, self.rev_cur, self.delta, self.share_of_change)
         if not all(isfinite(value) for value in values):
             raise ValueError(f"member {self.name!r} must carry finite figures")
+        if self.is_data_gap and self.is_not_a_product:
+            raise ValueError(f"member {self.name!r} is a data gap or is_not_a_product, not both")
         return self
 
 
@@ -621,7 +632,11 @@ class DiagnosisContract(ContractFile):
     # answers in Review (an order id checked by date only; the customer fill).
     # 9 since 2E-k: confirmed walk-in placeholders are unattributed (the
     # bridge, the lever's customers), and the order-id check is per receipt.
-    supported_major: ClassVar[int] = 9
+    # 10 since 2E-d2: lines the user classed as not products leave the
+    # product lens (its `non_product` term) and the product members (one
+    # "(not a product)" bucket), fees and adjustments leave revenue, and a
+    # discount is a deduction, not a return.
+    supported_major: ClassVar[int] = 10
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers); re-analyse "

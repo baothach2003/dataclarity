@@ -83,7 +83,7 @@ def placeholder_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
     if "customer" not in reverse:
         return []
     try:
-        lines_read = _undated_lines(df, column_mapping)
+        lines_read = undated_lines(df, column_mapping)
     except RequiredColumnMissingError:
         return None
     counted = lines_read.counted
@@ -134,15 +134,17 @@ def _dominant(totals: pd.Series) -> object | None:
 
 class UndatedLines(NamedTuple):
     """`parse_transactions`' counted and sale lines without reading a date -
-    for stage 1's walk-in placeholder search, which reads no period (2E-k
-    doubt-review cycle 2 F5: day-first dates cost ~20 s at 650,000 rows)."""
+    for stage 1's searches, which read no period: walk-in placeholders (2E-k
+    doubt-review cycle 2 F5: day-first dates cost ~20 s at 650,000 rows) and
+    lines that may not be products (2E-d2). Nothing is classed yet at stage
+    1, so every line of a counted type counts."""
 
     counted: pd.Series
     sale: pd.Series
     amounts: pd.Series
 
 
-def _undated_lines(df: pd.DataFrame, column_mapping: dict[str, str]) -> UndatedLines:
+def undated_lines(df: pd.DataFrame, column_mapping: dict[str, str]) -> UndatedLines:
     """Raises RequiredColumnMissingError if quantity or unit_price has no
     mapped column."""
     reverse = {field: source for source, field in column_mapping.items()}

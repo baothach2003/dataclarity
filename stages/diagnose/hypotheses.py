@@ -66,7 +66,7 @@ def decomposition_gross(tree: Tree, name: str) -> float | None:
     if name == "product":
         p = tree.products
         return (abs(p.volume) + abs(p.mix) + abs(p.price) + abs(p.new_products)
-                + abs(p.discontinued_products))
+                + abs(p.discontinued_products) + abs(p.non_product))
     r = tree.returns
     return (abs(r.gross_cur - r.gross_prev) + abs(r.returns_cur - r.returns_prev)
             + abs(r.deductions_cur - r.deductions_prev))

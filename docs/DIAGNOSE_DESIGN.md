@@ -338,7 +338,9 @@ revenue-counted rows, `returns` = absolute revenue of negative-quantity rows.
 **5.5.7 Product lens: price-volume-mix on gross sales (exact).** Partition
 products (identity per 2C's rules) into: L (positive gross units in both periods),
 N (new: `cur` only), X (discontinued: `prev` only).
-`delta_gross = delta_gross_L + gross_N(cur) - gross_X(prev)`.
+`delta_gross = delta_gross_L + gross_N(cur) - gross_X(prev)` (plus, since
+2E-d2, the change in the gross of lines the user classed as charges - the
+lens's `non_product` term; AI_PIPELINE 7.6).
 For L, write `gross_L = Q * sum_i(s_i * p_i)` where `Q` = total units in L,
 `s_i` = unit share of product i, `p_i` = its average gross price. Shapley with
 three players (volume Q, mix vector s, price vector p) yields exact volume, mix
@@ -503,7 +505,8 @@ the SPECS UPDATE session; the skeleton is:
                   "previous_transition": {}},
     "returns": {"gross_prev": 0.0, "gross_cur": 0.0, "returns_prev": 0.0, "returns_cur": 0.0},
     "products": {"volume": 0.0, "mix": 0.0, "price": 0.0,
-                 "new_products": 0.0, "discontinued_products": 0.0}
+                 "new_products": 0.0, "discontinued_products": 0.0,
+                 "non_product": 0.0}
   },
   "localization": {"dimensions": [{"name": "category", "members": [],
                                    "other": {}, "new_members": [], "removed_members": []}],

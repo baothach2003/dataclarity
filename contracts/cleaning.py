@@ -6,7 +6,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
 from contracts._base import ContractFile, ContractModel
-from contracts.profile import CanonicalField, SemanticType
+from contracts.profile import CanonicalField, LineClass, SemanticType
 
 # The transform catalog, docs/AI_PIPELINE.md section 6. Typing every action
 # field with it is the whitelist: an off-catalog action cannot reach a contract
@@ -32,6 +32,16 @@ TransformAction = Literal[
 PlanSource = Literal["ai", "user_edited", "manual"]
 
 
+class LineClassAnswer(ContractModel):
+    """One product key the user classed in Review (2E-d2): its SKU - or, for
+    lines without one, its name - as written; stages 2 and 3 compare it as
+    they compare products (shared/line_classes.py)."""
+
+    value: str
+    field: Literal["sku", "product_name"]
+    line_class: LineClass
+
+
 class OrderConfirmations(ContractModel):
     """Two answers only the user can give, asked on the Review screen (Thach,
     2E-e2). None: not asked, or not answered.
@@ -55,6 +65,10 @@ class OrderConfirmations(ContractModel):
     # walk-ins ("Guest", "Walk-in", "0"), as written; stages 2 and 3 compare
     # them by customer identity, and their lines have no customer.
     customer_placeholders: list[str] = Field(default_factory=list)
+    # 2.3 (2E-d2): what the user said a product key's lines are when they are
+    # not products. Unanswered, or "a product", a key is not listed and its
+    # lines stay products.
+    line_classes: list[LineClassAnswer] = Field(default_factory=list)
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------

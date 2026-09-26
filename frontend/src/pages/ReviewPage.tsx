@@ -8,6 +8,7 @@ import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
 import { Notice } from '../components/Notice.tsx'
+import { NonProductNotice } from '../components/NonProductNotice.tsx'
 import { OrderNotices } from '../components/OrderNotices.tsx'
 import { PlaceholderNotices } from '../components/PlaceholderNotices.tsx'
 import { PreviewPane } from '../components/PreviewPane.tsx'
@@ -286,6 +287,11 @@ export function ReviewPage({
               candidates={orderAnswers.candidates}
               answers={orderAnswers.placeholderAnswers}
               onAnswer={orderAnswers.answerPlaceholder}
+            />
+            <NonProductNotice
+              candidates={orderAnswers.lineCandidates}
+              answers={orderAnswers.lineAnswers}
+              onAnswer={orderAnswers.answerLine}
             />
             <OrderNotices
               plan={plan}

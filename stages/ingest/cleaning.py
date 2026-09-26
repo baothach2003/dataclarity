@@ -36,7 +36,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "2.2"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders
+SCHEMA_VERSION = "2.3"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 

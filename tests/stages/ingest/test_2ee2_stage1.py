@@ -73,6 +73,6 @@ def test_execution_records_the_answers_that_ran(tmp_path: Path) -> None:
 
 
 def test_stage_1_contracts_are_2_1_or_later() -> None:
-    # 2.1 in 2E-e2; 2.2 since 2E-k (test_2ek_stage1.py).
+    # 2.1 in 2E-e2; 2.2 since 2E-k; 2.3 since 2E-d2 (test_2ed2_stage1.py).
     assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == (
-        "2.2", "2.2", "2.2")
+        "2.3", "2.3", "2.3")

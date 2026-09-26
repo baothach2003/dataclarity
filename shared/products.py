@@ -17,50 +17,69 @@ ranks (Thach, 2E-c2).
 A name-only line takes the SKU when its name, as carried by SALE lines that
 have a SKU, maps to exactly one SKU (Thach, 2E-f limit L4): a refund rung by
 description no longer reads as a second product. Sale lines only, so a stock
-note written on one SKU's write-off cannot pull every such note to it.
+note written on one SKU's write-off cannot pull every such note to it - read
+as if nothing were classed (2E-d2), so classing one SKU never moves another
+product's lines; a classed SKU itself is never taken.
 Online Retail II has no name-only line; 99 of its names map to several SKUs
 ("?" alone to 88) and stay names.
+
+A line the user classed in Review as not a product - postage, a fee, a
+discount, an adjustment (Thach, 2E-d2) - has no product key either. Unlike
+the gap it is no data problem: readers that must still add up to revenue
+(stage 3's product lens and members) carry it as a bucket of its own.
 """
 
-import re
 from collections import Counter
 
 import numpy as np
 import pandas as pd
 
+from shared.line_classes import keyed, text_identity
+from shared.text import product_text
 from shared.transactions import ParsedTransactions
 
 GAP_LABEL = "(no product name)"
 
-# Characters no reader sees in a product name: the soft hyphen, the Unicode
-# format characters (zero-width space, direction marks and embeddings, word
-# joiner, invisible operators, BOM, tags), variation selectors, the Hangul and
-# Mongolian fillers, the braille blank. A left-to-right mark alone made a
-# "product" with an empty label, the top product and biggest decliner, and one
-# inside a name split one product in two (2E-g doubt-review F3, cycle 2 F8,
-# cycle 3 F5). The zero-width non-joiner and joiner (U+200C, U+200D) are kept:
-# inside a word they change how it renders. PRODUCTS ONLY (Thach, option A):
-# customers, categories, order ids and stage 1 read text as they always did,
-# through shared/transactions.py, until one reading is decided for all.
-_INVISIBLE = re.compile(
-    "[\u00ad\u034f\u061c\u115f\u1160\u17b4\u17b5\u180b-\u180f\u200b\u200e\u200f"
-    "\u202a-\u202e\u2060-\u206f\u2800\u3164\ufe00-\ufe0f\ufeff\uffa0"
-    "\ufff9-\ufffb\U0001d173-\U0001d17a\U000e0000-\U000e007f]")
-
 
 def product_keys(df: pd.DataFrame, parsed: ParsedTransactions) -> pd.Series:
-    """Each line's product key, NaN for the data gap."""
-    name_col, sku_col = parsed.reverse.get("product_name"), parsed.reverse.get("sku")
-    names = _normalized(df, name_col)
-    skus = _normalized(df, sku_col)
-    keys = ("name:" + names).where(names.notna())
-    keys = ("sku:" + skus).where(skus.notna(), keys)
-    sold = parsed.sale & skus.notna() & names.notna()
+    """Each line's product key; NaN for the data gap, and for a line the
+    user classed in Review as not a product (Thach, 2E-d2: postage, fees,
+    discounts and adjustments leave every product table). Keyed as
+    shared/line_classes.py keys a line's class, one definition."""
+    return _keys(df, parsed, classed_leave=True)
+
+
+def netting_keys(df: pd.DataFrame, parsed: ParsedTransactions) -> pd.Series:
+    """The first-day netting's key (2E-f, shared/first_purchase.py): every
+    line keyed as it would be unanswered, classed or not. Keyed as no
+    product, a postage refund on a customer's first day was "nameless", the
+    history opened with a refund and the customer was never new - 191 new
+    customers read 190 on Online Retail II's 2011-11 (2E-d2 doubt-review F1);
+    keyed by its class's own line key, a refund rung without a SKU no longer
+    netted the classed POST sale (cycle 3 F4)."""
+    return _keys(df, parsed, classed_leave=False)
+
+
+def _keys(df: pd.DataFrame, parsed: ParsedTransactions, *, classed_leave: bool) -> pd.Series:
+    names = text_identity(df, parsed.reverse.get("product_name"))
+    skus = text_identity(df, parsed.reverse.get("sku"))
+    keys = keyed(names, skus)
+    # The name-only vote reads the lines as if nothing were classed: read on
+    # sales only, a classed fee (no sale) left "Manual" one SKU instead of two
+    # and a 900 line joined WHITE HEART (2E-d2 doubt-review cycle 3 F3).
+    would_sell = ((parsed.counted | parsed.left_out) & (parsed.quantities > 0)
+                  & (parsed.revenue_amounts > 0))
+    sold = would_sell & skus.notna() & names.notna()
     one_sku = skus[sold].groupby(names[sold]).agg(
         lambda values: values.iloc[0] if values.nunique() == 1 else np.nan)
     resolved = names.map(one_sku.dropna()).astype(object)
+    if classed_leave:
+        # A classed SKU names no product, so a name-only line cannot take it.
+        classed_skus = set(skus[parsed.line_class.notna()].dropna())
+        resolved = resolved.where(~resolved.isin(classed_skus))
     name_only = skus.isna() & resolved.notna()
-    return keys.where(~name_only, "sku:" + resolved.fillna(""))
+    keys = keys.where(~name_only, "sku:" + resolved.fillna(""))
+    return keys.where(parsed.line_class.isna()) if classed_leave else keys
 
 
 def product_labels(df: pd.DataFrame, parsed: ParsedTransactions, keys: pd.Series) -> pd.Series:
@@ -110,30 +129,12 @@ def product_labels(df: pd.DataFrame, parsed: ParsedTransactions, keys: pd.Series
     return pd.Series(unique, index=products, dtype=object)
 
 
-def product_text(values: pd.Series) -> pd.Series:
-    """A product name or SKU as a reader sees it: Unicode composed (NFC - a
-    name typed composed in one month and decomposed in the next was both a
-    top seller and the biggest decliner), invisible characters removed,
-    whitespace runs as one space, trimmed; NaN where nothing visible is left.
-    object dtype: an empty or all-missing column reads back as float, and
-    "name:" + a float series does not add (the empty-file case crashed)."""
-    text = (values.astype(object).str.normalize("NFC").str.replace(_INVISIBLE, "", regex=True)
-            .str.replace(r"\s+", " ", regex=True).str.strip())
-    return text.where(text.str.len() > 0).astype(object)
-
-
 def _fold(label: str) -> str:
     """A label as a reader compares it. Labels are built from `product_text`
     - already composed, free of invisible characters, spaces as one - so
     only case is left to fold (removing the rest again was a no-op, the
     mutation check's equivalent mutant P17)."""
     return label.casefold()
-
-
-def _normalized(df: pd.DataFrame, column: str | None) -> pd.Series:
-    """The key half: the product reading, case folded fully - "Maßband" and
-    "MASSBAND" are one product (F6) - where customers keep 3C2's lower-case."""
-    return _shown(df, column).str.casefold().astype(object)
 
 
 def _shown(df: pd.DataFrame, column: str | None) -> pd.Series:

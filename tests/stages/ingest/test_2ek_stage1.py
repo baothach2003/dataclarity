@@ -140,7 +140,7 @@ def test_the_schema_step_writes_the_candidates(tmp_path: Path) -> None:
     assert [(c.value, c.why) for c in schema.customer_placeholders] == [("Guest", "word")]
 
 
-def test_contracts_carry_the_placeholders_and_are_2_2() -> None:
+def test_contracts_carry_the_placeholders_and_are_2_2_or_later() -> None:
     confirmed = OrderConfirmations(customer_placeholders=["Guest"])
     plan = CleaningPlanContract(schema_version="2.2", generated_at=NOW, source="manual",
                                 dataset_actions=[], column_actions=[], confirmations=confirmed)
@@ -150,8 +150,9 @@ def test_contracts_carry_the_placeholders_and_are_2_2() -> None:
     # None: not measured (review cycle 1 F4; [] in the first RED set).
     assert SchemaInferenceContract.model_fields["customer_placeholders"].default is None
     assert CustomerPlaceholder(value="0", lines=3, lines_pct=12.5, revenue_pct=None, why="word").value == "0"
+    # 2.3 since 2E-d2 (test_2ed2_stage1.py).
     assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == (
-        "2.2", "2.2", "2.2")
+        "2.3", "2.3", "2.3")
 
 
 def test_the_revenue_share_is_of_sale_revenue_not_net() -> None:

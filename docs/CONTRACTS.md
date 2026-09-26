@@ -98,7 +98,12 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
     {"value": "Guest", "lines": 5210, "lines_pct": 22.8, "revenue_pct": 18.4,
      "why": "word"}
   ],
-  "order_id_date_only": false
+  "order_id_date_only": false,
+  "non_product_candidates": [
+    {"value": "DOT", "field": "sku", "name": "DOTCOM POSTAGE", "lines": 1446,
+     "positive": 322657.48, "negative": -10.01, "suggested": "charge",
+     "word": "postage"}
+  ]
 }
 ```
 Enums: see `docs/AI_PIPELINE.md` section 5. Validation rules: every profiled
@@ -143,6 +148,26 @@ times its largest customer. No date is read for this search. Review asks about e
 dates only (section 6). Both are `null` when not measured (the raw file did
 not parse into lines, or a file older than `2.2`); Review then reads
 profile.json.
+`non_product_candidates` (`2.3`, session 2E-d2, Thach) is stage 1's own
+measure too: the product keys whose lines may not be products - postage,
+fees, commissions, bank charges, discounts, accounting adjustments. A key is
+the line's SKU when it has one, else its name (`shared/line_classes.py`,
+`field` says which), read as products are read. It is a candidate when its
+SKU text, or the name its lines carry most often, has a class word as its
+FIRST or LAST word - letter-bounded, plural "s"; in order, adjustment
+(adjust, adjustment, bad debt, manual, write-off, "dieu chinh"), discount
+(discount, coupon, "giam gia", "chiet khau"), charge (postage, shipping,
+delivery, carriage, freight, p&p, "phi van chuyen", "phi ship"), cost (fee,
+bank charge, commission; not the Vietnamese "hoa hong", which is also roses),
+and "sample" with no suggestion - and
+its counted lines move money. Measured on Online Retail II: "carriage"
+inside a name was four real products (FRENCH CARRIAGE LANTERN, BAROQUE
+CARRIAGE CLOCK), so first-or-last; 13 keys are asked, among them C2
+"CARRIAGE" and 23444 "Next Day Carriage", which a scan of digit-free codes
+had missed. `positive` and `negative` sum the counted lines' amounts by sign
+(M "Manual": +341,104.90 and -423,886.17). `suggested` never applies by
+itself. `null` when not measured (quantity or price not mapped, nothing
+counted); Review then reads profile.json.
 
 ## 4. `plan_proposed.json` and `plan_final.json` (stage 1 steps C and D)
 
@@ -207,6 +232,14 @@ object reads as no answers); `null` is "not asked or not answered":
   customer identity). Their lines have no customer (section 6). Sent only when
   there are some; an answer applies only to the customer column it was given
   for.
+- `line_classes` (`2.3`, 2E-d2): the product keys the user classed in Review
+  as not products - `{"value", "field": "sku" | "product_name",
+  "line_class": "charge" | "discount" | "cost" | "adjustment"}`, the value as
+  written (stages compare it as they compare products; a `sku` answer does
+  not class a line without a SKU). Unanswered, or "a product", a key is not
+  listed and its lines stay products. Sent only when there are some; an
+  answer applies only to the product column it was given for. What each
+  class does: section 6.
 The AI's proposal never carries an answer (stage 1 builds it field by field),
 and the Review screen sends only answers to questions that still apply, about
 the columns they were given for - except the receipt answer: an answer
@@ -283,7 +316,12 @@ Rules for the values (no field changed):
     "return_rate_current": 0.042, "return_rate_current_reason": null,
     "return_rate_previous": 0.038, "return_rate_previous_reason": null,
     "revenue_by_month": [{"period": "2011-01", "revenue": 690000.0}],
-    "undated_lines": 0, "undated_lines_reason": null
+    "undated_lines": 0, "undated_lines_reason": null,
+    "non_product": [
+      {"line_class": "charge", "lines": 3931, "amount": 449559.47,
+       "amount_current": 47935.73, "amount_previous": 26311.91,
+       "reason": "3,931 lines classed in Review as charges paid by the customer stay in revenue and are in no product table"}
+    ]
   },
   "customers": {
     "rfm_reference_date": "2011-12-10",
@@ -333,6 +371,40 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   from this one reading. **`undated_lines`** counts the lines with no
   readable date (blank, or no date) - in no month and so in no figure - and
   `undated_lines_reason` says so; it is null exactly when the count is 0.
+- **Lines the user classed as not products** (Thach, 2E-d2; plan
+  `confirmations.line_classes`): a **charge** the customer paid (postage)
+  stays in revenue and stays a sale or return line - orders, AOV, units and
+  gross are unchanged - but is in no product table; a **discount** is a
+  deduction (2E-c) whatever its signs - in revenue, no sale, no return, no
+  units (a -1 @ +price discount was a return line, 2E-c2 item f); a **fee or
+  cost** and an **accounting adjustment** are left out of revenue and of
+  every figure as an "in" row is - no revenue, order, customer or product.
+  No classed line is in a product table (top products, decliners, Pareto,
+  velocity). **`core.non_product`** lists one row per class present (order
+  charge, discount, cost, adjustment): its dated counted lines, their amount
+  over the file and in the current and previous month, and a reason saying
+  where the money went - an adjustment's amount is reported as a separate
+  reconciling amount (Thach; not "the file's total minus the revenue shown",
+  which fees, "in" rows and undated lines also make up - review F8). Empty
+  when nothing is classed. The first-day netting keys every line as it
+  would be keyed unanswered (`shared/products.netting_keys`): keyed as no
+  product, a postage refund on a customer's first day unmade a new customer
+  (review F1, cycle 3 F4). The name-only-to-SKU vote (2E-f L4) reads the lines
+  as if nothing were classed, and never gives a line a classed SKU: classing
+  one SKU moves no other product's lines (cycle 3 F3). A
+  left-out line names no receipt's other lines, as an "in" row does not
+  (review F9). Measured on Online Retail II, classed as Thach decided: 2011-11
+  revenue 1,461,756.25 -> 1,479,736.99 (the fees' -18,044.00 and the
+  adjustments' +63.26 left out), return rate 0.159 -> 0.150, DOTCOM POSTAGE
+  no longer the top product, new customers 191 either way.
+  Consequences that follow from the rules and are recorded (review cycle 2):
+  a discount booked -1 @ +price is no return line once classed, so every
+  figure that reads return lines moves - the return rate, and the first-day
+  rule: a first receipt carrying one no longer "opens with a refund", so its
+  customer is new (#1). A discount, fee or adjustment line's blank order id
+  no longer counts in the blank-id rule (it reads sale and return lines), so
+  classing such lines can move a file from basis "lines" to "order_id" (#5),
+  as a coupon's blank id never counted.
 
 - **`orders_basis`** (2E-e): "order_id" when the optional field `order_id` is
   mapped and passes stage 1's check - then orders are the distinct order keys
@@ -668,7 +740,8 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
                 "returns_prev": 48000.0, "returns_cur": 48000.0,
                 "deductions_prev": 0.0, "deductions_cur": 0.0},
     "products": {"volume": -96000.0, "mix": -21000.0, "price": -8000.0,
-                 "new_products": 12000.0, "discontinued_products": -27000.0}
+                 "new_products": 12000.0, "discontinued_products": -27000.0,
+                 "non_product": 0.0}
   },
   "localization": {
     "dimensions": [{"name": "category",
@@ -834,7 +907,11 @@ and the field ignored.
 `localization.dimensions[].name` is `category | product | customer_type`;
 `category` is absent when no column is mapped to it. Each member carries
 `is_data_gap`, true for the bucket holding rows whose key column was blank -
-`(uncategorised)`, `(no product name)`, `(no customer)`. Those buckets exist so
+`(uncategorised)`, `(no product name)`, `(no customer)`. The product
+dimension's `(not a product)` bucket (2E-d2: the lines the user classed as
+charges or discounts - revenue, no missing data, but no product) carries
+`is_not_a_product` instead, never both; it too stays out of `new_members`,
+`removed_members` and recommendations. Those buckets exist so
 the dimension still accounts for its whole change, and step 7 must never write
 a recommendation about one as though it were a real product group. **A member
 is identified by that flag, not by its name**: a real category spelled
@@ -1084,6 +1161,15 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-26: **session 2E-d2, lines that are not products.**
+  `schema_inference.json` (`non_product_candidates`), `plan_*.json` and
+  `cleaning_report.json` (`confirmations.line_classes`) went to `2.3` -
+  optional fields, minor; `metrics.json` to `11.0` (`core.non_product`
+  required; fees and adjustments leave revenue, a discount is no return line,
+  classed lines leave the product tables) and `diagnosis.json` to `10.0`
+  (`tree.products.non_product` required: the lens's six terms sum to the
+  change in gross sales; the `(not a product)` member). Readers refuse `10.x`
+  metrics and `9.x` diagnosis files with "re-analyse this run".
 - 2026-09-26: **session 2E-k, walk-in placeholders.** `schema_inference.json`
   (`customer_placeholders`, `order_id_date_only`), `plan_*.json` and
   `cleaning_report.json` (`confirmations.customer_placeholders`) went to `2.2`

@@ -121,4 +121,4 @@ def test_customer_type_members_carry_every_line_of_a_receipt() -> None:
 
 def test_diagnosis_json_is_version_5_or_the_current_one() -> None:
     # 5.0 in 2E-f; 6.0 in 2E-g; 7.0 in 2E-h; 8.0 since 2E-e2.
-    assert DiagnosisContract.supported_major == 9  # 8.0 in 2E-e2; 9.0 since 2E-k
+    assert DiagnosisContract.supported_major == 10  # 8.0 in 2E-e2; 9.0 in 2E-k; 10.0 since 2E-d2
