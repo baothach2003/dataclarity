@@ -1992,6 +1992,8 @@ dataclarity/
       5: #1 split out under the stop rule as **2E-m**; docs and suppressions
       fixed; 2 recorded. pytest 2966, Vitest 156.
       **The stop rule fired: the third overnight run stops here.**
+      **Thach, after the third run (2026-09-27):** D2-D9 kept; D8 stays as
+      a guard, on the unified definition of 2E-m; D9 accepted, per 2E-g.
 - [ ] 2E-m **Headline ranking across lenses measured against different
       totals** (split out of 2E-l doubt-review cycle 3 under the stop rule;
       **for Thach - the third overnight run stopped on it**). FABRICATE,
@@ -2017,6 +2019,59 @@ dataclarity/
         share. Before 3E1b by the asymmetry rule.
       Repros: scratchpad `2el/review3/s3b_gate_rank_clear.py`,
       `s6_sweep_rank.py`, `s6b_sweep_rank_postage.py`, `s4_orii_months.py`.
+      **Decided by Thach (2026-09-27, after the third overnight run):
+      option (a).** Shares with different denominators cannot be compared:
+      P4's 93% is of the NET change, P1's 100% of the GROSS change, and the
+      smaller cause wins only because its denominator is smaller. The
+      headline states the net change, so rule 6 RANKS every supported cause
+      by its share of the net change. Verdicts inside each lens keep their
+      own totals as 3E1 decided; only the ranking uses the common
+      denominator - recorded as superseding 3E1's ranking rule.
+      **One definition only:** "the share of the change that sits in the
+      products" = the net change carried by the product classes divided by
+      the total net change, used identically by breadth, R1 and the D8 gate
+      ("7% against 62% on the same month is the same disease as the
+      ranking"). D8 stays as a guard, on this definition.
+- [ ] 2E-t **Line taxonomy - DESIGN only** (Thach, 2026-09-27, after the
+      third overnight run; method only, no code; stops for his approval).
+      Builds on what 2E-l created (the charge, discount and pooled classes),
+      consolidating, not redoing. Brief: the engine has inferred line
+      meaning from the SIGNS of quantity and amount in several places, and
+      the taxonomy grew one class per incident; signs are lossy (a customer
+      return and a damaged write-off both carry negative quantity; a coupon
+      and a refund both carry a negative amount) and money and stock were
+      mixed. Design:
+      a. a CLOSED class list on accounting categories: sale, pooled /
+         unidentified sale, customer return, discount / allowance (contra
+         revenue), customer-paid charge, gift card sale (a liability, not
+         revenue until redeemed), fee / expense, accounting adjustment (bad
+         debt is an expense), stock-in, stock write-off, stock count
+         adjustment, UNCLASSIFIED, plus anything the code already
+         distinguishes; the accounting test "tied to the sale, or tied to the
+         cost of earning it";
+      b. an effects matrix as the single source of truth: each class against
+         gross sales, returns, discounts, other revenue, net revenue, orders,
+         units, return rate, customer activity, product tables, and a
+         separate STOCK ledger, where a return goes back into stock only when
+         the data says so;
+      c. classification once, in stage 1, in evidence order: a source signal
+         the user maps (a transaction-type column, invoice prefixes such as C
+         and A) > deterministic rules (today's rules, moved into one
+         classifier) > AI suggestions the user confirms in Review; each line
+         gets `line_class` and `class_source` in cleaned.csv; stages 2 and 3
+         read only `line_class`;
+      d. a test that every counted line falls into exactly one class;
+         UNCLASSIFIED isolated, never assumed a sale, its share shown in
+         Review and metrics.json; Review shows gross - returns - discounts +
+         other revenue = net;
+      e. the migration: every earlier decision it changes, the contract
+         bumps, and both demo files unchanged except where a documented class
+         change applies, each difference explained and measured.
+      Deliver the design file and an ADR-0008 draft, with a proposed
+      implementation split (Thach expects 2-3 sessions). The Online Retail II
+      demo comes after the taxonomy: it changes the demo's revenue (gift
+      vouchers are counted as sales today, but are a liability until
+      redeemed).
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2493,7 +2548,17 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3. **Third overnight run** approved by Thach
+**Phase in progress:** Phase 2/3. **Fourth overnight run** approved by Thach
+(2026-09-27, after reading the third run's report): **2E-m** (the ranking by
+share of the net change and the one definition of "the change in the
+products"), full process -> **2E-t** (the line taxonomy, DESIGN only: the
+design file and an ADR-0008 draft, then it waits for Thach's approval) ->
+while it waits, **2E-i**, then **2E-j** (neither depends on line classes).
+Stop there: not the taxonomy implementation, the demo, 2E-d or 3E1b. Report
+in `C:\Users\Happy\overnight-report.txt` (the third run's kept as
+`overnight-report-run3.txt`). Thach's decisions on the third run are
+recorded in the 2E-l and 2E-m items; the demo moves after the taxonomy.
+**Third overnight run** approved by Thach
 (2026-09-27): 2E-r (the scoped review of the unreviewed cycle-3 fixes) ->
 2E-l -> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j, stop before 3E1b; same
 rules, the triage rule; report in `C:\Users\Happy\overnight-report.txt`
@@ -3023,9 +3088,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Third overnight run: read `C:\Users\Happy\overnight-report.txt`.
-   Decide 2E-m (the headline ranking across lenses), and keep or veto the
-   decisions made alone (D2-D9, D8 and D9 especially).
+1. Fourth overnight run: read `C:\Users\Happy\overnight-report.txt`,
+   and approve (or change) the line taxonomy design (2E-t) before any of it
+   is implemented.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
@@ -3038,8 +3103,9 @@ still not started; its Insights frame now waits on 3E (see
    customer-sampled with a fixed seed to about 40MB, keeping every row of each
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The
-   sampling script and what it sampled go in the README. **Built between
-   2E-d2 and 2E-d** (Thach; was "before 3E2", then after 2E-c, then after
+   sampling script and what it sampled go in the README. **Built after
+   the line taxonomy (2E-t)** (Thach, 2026-09-27: it changes the demo's
+   revenue); before that between 2E-d2 and 2E-d (Thach; was "before 3E2", then after 2E-c, then after
    2E-c2; order_id (2E-e), the tie rule (2E-f), the product tables (2E-g)
    and non-product lines (2E-d2) come first so the demo shows honest KPIs
    and product tables; its line classes as Thach decided on 2026-09-27:
