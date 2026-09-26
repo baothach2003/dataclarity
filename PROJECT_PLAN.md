@@ -255,7 +255,9 @@ dataclarity/
 > then **2E-d** (implausible lines, then the residue scale), then **2E-i**
 > (one text reading for every stage; before 3E1b by the asymmetry rule), then
 > **2E-j** (day-first dates decided at stage 1; moved after 2E-i because the
-> overnight run of 2026-09-26 does not hold it) - 2E-c and 2E-d
+> overnight run of 2026-09-26 does not hold it) - **2E-k** (never impute
+> the customer column, walk-in placeholders; Thach, after that run) goes
+> first, before 2E-d2 - 2E-c and 2E-d
 > both before 3E1b by the asymmetry rule, each with its reproduction in its
 > checklist item - then **3E1b**, then **3E2**, then **3E3**
 > (three-factor level 2; Thach, 2E: after 3E2, before 3F), then **3D7**, then
@@ -1622,6 +1624,10 @@ dataclarity/
       question (the measure ran unanswered). ReviewPage.tsx (339 lines
       before, 362 now) and contracts/metrics.py (303 before) are over the
       ~300-line rule.
+      **Accepted by Thach (2026-09-26):** decisions D1-D9 of the overnight
+      report, D2 confirmed (an unanswered fill question fills); K1-K7, the
+      two files over 300 lines and stage 2's ~25 s at 650,000 rows are
+      recorded for Phase 8 (8D).
       Original item text below, kept as the record.
       2E-e2 **The order basis, visible and decided in Review** (Thach, after
       2E-e: decisions 1 and 2 above; placed by Claude after 2E-g and before
@@ -1672,15 +1678,24 @@ dataclarity/
       disappears; and 2E-e2's receipt gate is bypassed (cycle 3 F1: a daily
       batch code with one named line in 200 and the rest imputed read 20
       orders at AOV 50 against 100 lines at 10, and stage 3 recomputes the
-      same 20). **FABRICATE, HIGH.** Not fixed: cleaned.csv does not mark
-      imputed cells, so stage 2 cannot tell "Unknown" from a customer, and
-      the fix is a stage 1 legality decision. **Proposed, not decided:** add
-      `customer` to `NEVER_IMPUTED_FIELDS` like `order_id` (the recorded
-      reason for never-imputed fields: a filled-in value is counted in the
-      report as if measured), with the frontend mirror and the cleaning
-      prompt. Placement by the asymmetry rule: before the demo build (Online
-      Retail II's Customer ID is about 22% blank, so the AI's default plan
-      would impute it) and before 3E1b.
+      same 20). **FABRICATE, HIGH.** Not fixed in 2E-e2: cleaned.csv does
+      not mark imputed cells, so stage 2 cannot tell "Unknown" from a
+      customer, and the fix is a stage 1 legality decision.
+      **Decided by Thach (2026-09-26, after the overnight run):**
+      1. Never impute the customer column, keyed on the canonical field
+         `customer` whatever its semantic type (with the frontend mirror and
+         the cleaning prompt).
+      2. The same problem from the data side: source files that write a
+         placeholder for walk-ins ("Guest", "Walk-in", "0"). If one customer
+         value carries an unusual share of revenue or lines, Review asks "is
+         this a placeholder for walk-ins?"; Yes means those lines are
+         unattributed. A false flag only costs the user one question, so it
+         is safe.
+      3. Q4 folded in on the same principle: when the customer column is
+         mostly blank or mostly one placeholder, the order-id check falls
+         back to the receipt question (2E-e2's D3) rather than passing.
+      Runs first in the second overnight run (2E-k -> 2E-d2 -> demo -> 2E-d
+      -> 2E-i -> 2E-j).
 - [ ] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
       reader** (Thach, at 2E-h). Australia, the UK and Vietnam write the day
       first. When the cleaning plan parses the date column (1E's
@@ -1710,6 +1725,15 @@ dataclarity/
       stage 1 version bump. The asymmetry rule still holds (before any
       verdict session), and building the demo first exposes nothing: both
       demo files write ISO dates.
+      **Also here (Thach, 2026-09-26, answering 2E-h's Q1 and Q2):**
+      - Q1: keep "Mar 2024" as a date (the 1st), but detect MONTH-GRAIN
+        files (every counted line on day 1). There, the day-level steps
+        (D1, the calendar, R3, the invoice day) are not applicable and say
+        so; otherwise D1 reads 29 missing days a month and fabricates
+        "missing data".
+      - Q2: "1900-01-01" is no date; the well-known sentinels 1899-12-30,
+        1900-01-01 and 1970-01-01 are treated the same, counted and recorded
+        (with the undated lines).
 - [ ] 2E-d2 **Non-product lines, identified at stage 1** (Thach, at 2E-c's
       decisions; the same stage 1 work as 2E-d - a Review flag and a
       cleaning-plan proposal). **Placed BEFORE the demo** by Thach's rule
@@ -1736,6 +1760,14 @@ dataclarity/
       is what the demo will show. Method before code there: the codes are
       specific to this export, so stage 1 must PROPOSE (AI schema step or a
       pattern the user confirms), never silently drop; the user decides.
+      **Revenue question answered by Thach (2026-09-26):** customer-paid
+      charges (postage) STAY in revenue and LEAVE the product tables; fees
+      and costs (bank charges, marketplace fees, commissions) LEAVE revenue,
+      since they are costs; accounting adjustments (bad debt, manual
+      adjustments) leave revenue and the product tables and are reported as
+      a separate reconciling amount. The user confirms the classification in
+      Review. Verify each code against Online Retail II before deciding its
+      class, and flag any that does not fit.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2001,6 +2033,15 @@ dataclarity/
       checks per SEC-5; `DATABASE_URL` handled as a secret so it never reaches logs
       (SEC-4)
 - [ ] 8C Test sweep + coverage review on `stages/` and `backend/app/services/`
+- [ ] 8D Accepted limits from Phase 2 (Thach, 2026-09-26; scheduled here by
+      the triage rule in section 6): 2E-e2's K1-K7 (see its checklist item -
+      whitespace ids in Review's count, a mostly-blank customer column,
+      blank ids on stock-in lines, 2.0 reports read as unanswered, raw-vs-
+      cleaned customer counts, a No with named credit notes, a fill without
+      its question on a one-customer file); files over ~300 lines
+      (frontend `ReviewPage.tsx`, `contracts/metrics.py`); stage 2 takes
+      ~25 s at 650,000 rows (SPECS section 11 wants seconds). Every finding
+      the triage rule does not block lands here too, with its session.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2112,6 +2153,13 @@ significance threshold, making a one-cent price rise a step change.
 - **Mandatory every session:** before ending the turn, edit THIS file with the
   file-editing tool: tick completed items, rewrite section 12 (phase in progress,
   concrete next step, Notes). Overwrite stale notes, don't append forever.
+- **Triage (Thach, 2026-09-26, permanent):** a finding BLOCKS progress only if
+  it BOTH fabricates a verdict, headline or KPI AND occurs on the demo
+  datasets or a common real-world export shape (day-first dates, walk-in
+  placeholders, sales-only files, receipt numbers without customers, and
+  similar). Everything else is recorded in full and scheduled into Phase 8
+  (Hardening). Apply it to classify findings in every session, review cycles
+  included.
 
 ## 7. Model Usage Policy
 
@@ -2126,9 +2174,13 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
-**Phase in progress:** Phase 2/3, Thach's overnight run of 2026-09-26
-(2E-h, 2E-e2, 2E-d2, the Online Retail II demo, 2E-d, 2E-i; stop before
-3E1b; report in `C:\Users\Happy\overnight-report.txt`). **The run STOPPED
+**Phase in progress:** Phase 2/3. **Second overnight run** approved by Thach
+(2026-09-26): 2E-k -> 2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i ->
+2E-j, stop before 3E1b; report in `C:\Users\Happy\overnight-report.txt`.
+Thach's decisions on the first run are recorded in the 2E-e2, 2E-k, 2E-j
+and 2E-d2 items, section 6 (the triage rule) and 8D.
+The first overnight run of 2026-09-26 (2E-h, 2E-e2, 2E-d2, the Online
+Retail II demo, 2E-d, 2E-i; stop before 3E1b) **STOPPED
 after 2E-e2**: its doubt-review cycle 3 (the bound) found a FABRICATE whose
 fix is not local - imputing the customer column bypasses an unanswered
 receipt question - so the stop rule fired, and Thach's run rules stop the
@@ -2594,13 +2646,13 @@ exactly, and the backend wiring composes already-reviewed primitives
 (`run_state`, `RunWork`, `stage_errors`) rather than inventing new ones - the
 one genuinely new runtime behavior (concurrent-call refusal) was verified
 with a real multi-threaded test, not just read for plausibility.
-**Next step:** Thach's decision on **2E-k** (never impute the customer
-column?), then his approval to resume the run: 2E-d2, the Online Retail II
-demo, 2E-d, 2E-i, then 2E-j before 3E1b. Order (Thach, at
+**Next step:** the second overnight run (Thach, 2026-09-26): **2E-k ->
+2E-d2 -> Online Retail II demo -> 2E-d -> 2E-i -> 2E-j**, stop before 3E1b,
+same rules, the triage rule of section 6 applied to every finding. Order (Thach, at
 2E-c2's start; 2E-g and 2E-d2 placed after 2E-c2; 2E-e2 after 2E-e): **2E-c
 -> 2E-c2 -> 2E-e order_id -> 2E-f tie rule and per-product netting -> 2E-g
 product tables -> 2E-h wall-clock dates -> 2E-e2 order basis in Review ->
-2E-d2 non-product lines ->
+2E-k customer never imputed, walk-in placeholders -> 2E-d2 non-product lines ->
 Online Retail II demo -> 2E-d -> 2E-i one text reading -> 2E-j day-first
 dates -> 3E1b -> 3E2**. 2E-c2 runs without item 4 (moved to 2E-f). The demo moved ahead of 2E-d because 2E-d's sweep needs
 real legitimate large lines and the real 80,995-unit typo pair. 3E1b is how D1 learns from history, and rule 6's size test
@@ -2619,16 +2671,9 @@ Phase 6 (Insights, Dashboard) is
 still not started; its Insights frame now waits on 3E (see
 `docs/FIGMA_DESIGN_NOTES.md`).
 **Action needed from Thach:**
-1. Overnight run: read `C:\Users\Happy\overnight-report.txt`. 2E-h and 2E-e2
-   are committed and pushed by the CLAUDE.md "Pushing" rule. **The run
-   stopped after 2E-e2 (the stop rule): decide 2E-k** - add `customer` to
-   the never-imputed fields? - and whether to resume the run. 2E-e2's known
-   limits K1-K7 and decision D2 (no answer to the fill question fills) are
-   in its checklist item and the report. Two 2E-h findings
-   await a decision: a date with no day ("Mar 2024", "2024") reads as the
-   1st, and "1900-01-01" passes the lower bound (2E-h checklist item).
-   2E-j (day-first dates) moved after 2E-i, before 3E1b, because the run
-   list does not hold it.
+1. Second overnight run: read `C:\Users\Happy\overnight-report.txt` in
+   the morning. The first run's questions (2E-k, D2, Q1-Q4, the 2E-d2
+   revenue classes) are answered and recorded.
 2. Re-verify the rebuilt Preview pane live in the browser (still outstanding
    from before 2A; not touched by any Stage 2 or Stage 3 session).
 3. `.env`'s `ANTHROPIC_API_KEY`: still not re-checked since the Stage-1-frontend
