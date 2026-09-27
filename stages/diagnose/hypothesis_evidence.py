@@ -6,13 +6,19 @@ shared share rule in `hypotheses.py` judges. None of them reads a step-4 row
 as a judgement - since ADR-0007 no row is one.
 """
 
-from contracts.diagnosis import is_verdict
 from stages.diagnose.members import product_totals
-from stages.diagnose.lever import month_revenue
-from stages.diagnose.numbers import is_negligible, typical_magnitude, usable_base
+from stages.diagnose.numbers import is_negligible
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
 from stages.diagnose.stockout import detect_stockouts
-from stages.diagnose.trust import excess_zero_days
+# D1 and the time family live in their own module (file size, 2E-j).
+from stages.diagnose.hypothesis_evidence_time import (
+    check_of as _check,
+    d1,
+    month_grain_outcome,
+    t1,
+    t2,
+    t3,
+)
 # The customer family lives in its own module (file size); c4 is re-exported.
 from stages.diagnose.hypothesis_evidence_customers import (
     NOT_TESTABLE_NO_CUSTOMER,
@@ -23,36 +29,7 @@ from stages.diagnose.hypothesis_evidence_customers import (
 # B2 and its interim refusal live in their own module (file size, 2E-c).
 from stages.diagnose.hypothesis_evidence_lever import b2
 
-def _check(inputs: Step7Inputs, check_id: str):
-    return next(check for check in inputs.trust.checks if check.id == check_id)
-
-
 # --- data quality -------------------------------------------------------------
-
-def d1(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    check = _check(inputs, "D1")
-    if "estimated_revenue_gap" not in check.evidence:
-        # D1 could not run, or blocked before measuring (a previous month the
-        # file only partly covers): there is no gap figure to weigh.
-        return Outcome(verdict="inconclusive", evidence=dict(check.evidence),
-                       rule="D1 could not measure the gaps: " + check.message)
-    gap_cur = float(check.evidence["estimated_revenue_gap"])
-    gap_prev = float(check.evidence["estimated_revenue_gap_prev"])
-    evidence = {"estimated_revenue_gap": gap_cur, "estimated_revenue_gap_prev": gap_prev,
-                "d1_status": check.status}
-    if check.status == "ok":
-        # Tied to the check (Thach, 3E1): a few excess zero days are noise in
-        # a sparse shop, and D1 came out supported on 17-24 of 40 shops with
-        # NO missing data. "Missing" is what the check's thresholds define,
-        # and the rule says what the check found rather than "none" (cycle 3).
-        found = (check.evidence["excess_zero_days_cur"], check.evidence["excess_zero_days_prev"])
-        return Outcome(verdict="ruled_out", evidence=evidence,
-                       rule=f"excess zero days (current {found[0]:.1f}, previous "
-                            f"{found[1]:.1f}) stay under the D1 check's thresholds")
-    # Days with no sales this month pull the change down, last month's push it
-    # up, each priced at its OWN month's pace (7.3; 3E1 doubt-review cycle 2, F1).
-    return Outcome(contribution=gap_prev - gap_cur, evidence=evidence)
-
 
 def _directional_check(check_id: str):
     def evaluate(inputs: Step7Inputs, moved: Changes) -> Outcome:
@@ -63,73 +40,6 @@ def _directional_check(check_id: str):
                                                   **check.evidence},
                        rule=f"supported when {check_id} cautions")
     return evaluate
-
-
-# --- time -----------------------------------------------------------------------
-
-def t1(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    effect = inputs.calendar.calendar_effect
-    return Outcome(contribution=effect, evidence={"calendar_effect": effect,
-                                                  "method": inputs.calendar.method})
-
-
-def t2(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    """Seasonality: what last year's move from the same previous month to the
-    same current month would have done to this year's previous month. Divides
-    by the year-ago previous month, so it goes through the SAME base guard as
-    step 4's year-over-year series (`usable_base`) - a 12.50 year-ago month
-    would otherwise make seasonality "explain" anything."""
-    frame = inputs.frame
-    if frame.year_ago_current is None or frame.year_ago_previous is None:
-        return Outcome(verdict="inconclusive",
-                       evidence={"reason": "the year-ago pair is not in the data"},
-                       rule="requires the year-ago pair")
-    ly_prev = month_revenue(inputs.data, frame.year_ago_previous)
-    ly_cur = month_revenue(inputs.data, frame.year_ago_current)
-    history = [month_revenue(inputs.data, month) for month in inputs.history]
-    typical = typical_magnitude(history)
-    scale = max((abs(value) for value in history), default=0.0)
-    evidence = {"ly_prev": ly_prev, "ly_cur": ly_cur,
-                "revenue_prev": moved.revenue_prev, "typical_month": typical}
-    if not usable_base(ly_prev, typical, scale):
-        return Outcome(verdict="inconclusive", evidence=evidence,
-                       rule="the year-ago previous month fails the base guard "
-                            "(AI_PIPELINE 7.5): not a denominator")
-    if moved.revenue_prev <= 0 or ly_cur <= 0:
-        return Outcome(verdict="inconclusive", evidence=evidence,
-                       rule="a month netted zero or below; a seasonal ratio "
-                            "cannot be applied to it")
-    # D1 checks only the compared months; a year-ago month with missing days
-    # is a "season" that never happened: last February's 10-day gap
-    # headlined rule 5 (3E1 doubt-review cycle 3). Any excess day refuses; checked last, after the
-    # arithmetic refusals.
-    check = _check(inputs, "D1")
-    for label, month in (("cur", frame.year_ago_current), ("prev", frame.year_ago_previous)):
-        found = excess_zero_days(inputs.data, check, month)
-        evidence[f"excess_zero_days_year_ago_{label}"] = None if found is None else round(found, 3)
-    if any(evidence[f"excess_zero_days_year_ago_{label}"] != 0 for label in ("cur", "prev")):
-        return Outcome(verdict="inconclusive", evidence=evidence,
-                       rule="a year-ago month has days with no sales beyond this store's "
-                            "pattern (or D1 learned none), so it is not a season to compare")
-    return Outcome(contribution=moved.revenue_prev * (ly_cur / ly_prev - 1), evidence=evidence)
-
-
-def t3(inputs: Step7Inputs, moved: Changes) -> Outcome:
-    """Always inconclusive in v1 (ADR-0007), written as the full rule so the
-    Backlog's "unusualness verdicts" switches it on by changing `is_verdict`
-    alone."""
-    signals = inputs.signals or []
-    without = [s.series for s in signals if not is_verdict(s)]
-    revenue = next((s for s in signals if s.series == "revenue"), None)
-    evidence = {"series_without_verdict": without}
-    if revenue is None or not is_verdict(revenue):
-        return Outcome(verdict="inconclusive", evidence=evidence,
-                       rule="revenue has no year-over-year verdict (ADR-0006, ADR-0007)")
-    fired = [s.series for s in signals if is_verdict(s) and s.rule in (1, 2)]
-    routine = not fired and not moved.alert
-    return Outcome(verdict="supported" if routine else "ruled_out",
-                   evidence={**evidence, "series_with_signal": fired},
-                   rule="no rule-1 or rule-2 verdict on any series and no masked alert")
 
 
 # --- lever ----------------------------------------------------------------------
@@ -146,7 +56,10 @@ def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     check = _check(inputs, "D1")
     excess = (check.evidence.get("excess_zero_days_cur"),
               check.evidence.get("excess_zero_days_prev"))
-    if None in excess or max(excess) > 0:
+    # A month-grain file has no day to miss: the refusal does not apply
+    # (Thach, Q1 of 2E-h; 2E-j review cycle 1 #3).
+    grain = bool(check.evidence.get("month_grain"))  # the check knows the file's grain
+    if not grain and (None in excess or max(excess) > 0):
         return Outcome(verdict="inconclusive",
                        evidence={"d1_status": check.status,
                                  "excess_zero_days_cur": excess[0],
@@ -274,6 +187,8 @@ def r2(inputs: Step7Inputs, moved: Changes) -> Outcome:
 
 
 def r3(inputs: Step7Inputs, moved: Changes) -> Outcome:
+    if inputs.data.metrics.period.month_grain:
+        return month_grain_outcome("a run of days without a sale")
     found = detect_stockouts(inputs.data)
     return Outcome(contribution=sum(item.contribution for item in found),
                    evidence={"products": [vars(item) for item in found],

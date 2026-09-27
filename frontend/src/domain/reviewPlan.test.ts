@@ -12,7 +12,7 @@ describe('buildManualPlan', () => {
 
     // 2.1 in 2E-e2, 2.2 in 2E-k (minor bumps); 3.0 since 2E-l: the line-class
     // enum gained "pooled", a major bump - a '2.x' manual plan is refused.
-    expect(buildManualPlan(profile, null).schema_version).toBe('3.0')
+    expect(buildManualPlan(profile, null).schema_version).toBe('3.1') // 3.1 since 2E-j (the date answer)
   })
 
   it('starts with no answer to either Review question (2E-e2)', () => {

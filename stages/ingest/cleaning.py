@@ -29,6 +29,7 @@ from shared.run_registry import run_file
 from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.contract_files import write_files_atomically
+from stages.ingest.date_order import execution_order
 from stages.ingest.plan_validation import validate_final_plan
 from stages.ingest.profiling import NA_TOKENS, RAW_FILENAME, read_csv_text
 from stages.ingest.transform_catalog import execution_rank
@@ -36,7 +37,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "3.0"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major)
+SCHEMA_VERSION = "3.1"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 
@@ -196,6 +197,9 @@ def execute_run(
     # `for_execution` switches on the required-field rules and nothing else.
     validate_final_plan(
         plan, [str(name) for name in frame.columns], for_execution=require_required_fields)
+    # On the raw file, before anything runs: a plan dropping the rows that
+    # prove the order must not lose the proof (2E-j).
+    date_order = execution_order(plan, frame)
 
     cleaned, changes = apply_plan(frame, plan)
     if cleaned.empty:
@@ -223,6 +227,9 @@ def execute_run(
         # The user's answers from Review, exactly as submitted: stages 2 and 3
         # read them here (2E-e2), and unanswered stays unconfirmed.
         confirmations=plan.confirmations,
+        # The order the date column's day-month-year cells were read in: the
+        # answer, else the raw file's proof (2E-j).
+        date_order=date_order,
     )
     write_files_atomically([
         (run_file(runs_root, run_id, CLEANED_FILENAME), cleaned_csv_text(cleaned).encode("utf-8")),

@@ -87,6 +87,9 @@ def build_profile_json(profile: ProfileContract) -> str:
         dumped["sample_values"] = [
             None if v is None else _cut(v) for v in dumped["sample_values"]
         ]
+        # Stage 1's own measure for Review (2E-j), not the AI's to read: its
+        # examples are cells beyond the bounded sample (review cycle 1 #5).
+        dumped.pop("date_order", None)
         columns.append(dumped)
     dataset = profile.dataset.model_dump(mode="json")
     # The dataset figures cover the whole file; say how many columns are listed.

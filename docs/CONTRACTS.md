@@ -68,6 +68,35 @@ Rules:
 Numeric-only fields (`min`, `max`, `mean`, `median`, `q1`, `q3`) are `null` for
 non-numeric columns. `top_values` is capped at 10 entries per column.
 
+`date_order` (`1.1`, session 2E-j, Thach) is present on a text column whose
+day-month-year or month-day-year dates - two numbers of one or two digits and
+a year of two or four, separated by `/`, `.`, `-` or spaces, anywhere in the
+cell ("05/01/2026", "Mon 5.1.26 10:30"), never inside ISO or a time, and never
+in a cell that also holds a year-first date ("2026-01-05 10.30.00") - can be
+read two ways; `null` otherwise (and absent from a `1.0` file):
+
+```json
+"date_order": {"shaped": 9120, "day_first": 3940, "month_first": 0,
+               "ambiguous": 5010, "day_first_example": "13/01/2026",
+               "month_first_example": null, "decision": "day_first", "hint": null}
+```
+
+A first number 13-31 with a second 1-12 proves day first, the reverse month
+first (`day_first` and `month_first` count those cells, each with its first
+example - the date text alone, never the rest of the cell). `ambiguous`
+counts the cells either order reads, each as another date (two numbers 1-12
+that differ; "05/05/2026" reads the same either way). `decision` is the
+proven order, or `"ask"` when both are proven, or neither is and some cell is
+ambiguous; a column where nothing depends on the order carries no measure.
+`hint` is a suggestion only (2E-d2): when every such cell holds the date
+alone, its first number 1 while the second varies - the 1st of each month
+written day first, which can never prove itself - it is `"day_first"` (the
+reverse: `"month_first"`); Review states both readings and chooses neither.
+Measured per column, whatever the column is mapped to, so Review reads the
+date column's own measure after a remap or on a manual plan. Stage 1's own
+measure, for Review: the AI's copy of the profile leaves it out (its examples
+are cells beyond the bounded sample).
+
 ## 3. `schema_inference.json` (stage 1 AI step A)
 
 ```json
@@ -266,6 +295,18 @@ file Review judged by date only (2E-e2 doubt-review cycle 3 F1, resolved). A pla
 its answers has `source` "user_edited". A `2.0` plan reads as nothing
 confirmed.
 
+`confirmations.dates_day_first` (`3.1`, session 2E-j, Thach) answers Review's
+date question - `true`: the date column's day-month-year cells are written
+day first; `false`: month first; `null`: not asked or not answered. Asked
+when that column's `date_order.decision` is `"ask"` (section 2), and then
+required: stage 1 refuses to execute a plan whose date column proves neither
+order (or both) and carries no answer, because either default fabricates
+dates (an Australian shop's days 1-12 read month first landed in January to
+December). A `parse_datetime` on the date column must read those cells as
+the decided order does, or the plan is refused (it would write wrong dates to
+`cleaned.csv`); readings are compared on those cells, so a step that happens
+to be right - per cell, pandas reads "15/01/2024" as 15 January - runs.
+
 ## 5. `cleaning_report.json` (stage 1 output F)
 
 ```json
@@ -285,7 +326,8 @@ confirmed.
   ],
   "column_mapping": {"Prod Name": "product_name", "Qty": "quantity"},
   "confirmations": {"order_id_is_receipt": null,
-                    "customer_on_first_line_only": null}
+                    "customer_on_first_line_only": null},
+  "date_order": null
 }
 ```
 
@@ -300,6 +342,16 @@ Rules for the values (no field changed):
 - `confirmations` (`2.1`, 2E-e2) are the plan's answers exactly as submitted
   (section 4); stages 2 and 3 read them here, with `column_mapping`. A `2.0`
   report reads as nothing confirmed.
+- `date_order` (`3.1`, 2E-j) is the order the transaction_date column's
+  day-month-year cells were read in: the user's answer, else what the RAW
+  file proved (decided before any action runs, so a plan dropping the rows
+  that prove it keeps the proof); `null` when no cell is written so, and in a
+  `3.0` report. A proof is no answer, so `confirmations` keeps the user's
+  alone. Stages 2 and 3 read a date column the plan did not parse in this
+  order (`CleaningReportContract.applied_confirmations`); with none recorded,
+  as before 2E-j (pandas month first, a cell that cannot be swapped). A
+  parse step whose format puts the year first cannot read such a date and is
+  never compared with the order.
 - `encoding_fallback` is warned, with the detail "file decoded as latin-1", when the
   file was not UTF-8. `cleaned.csv` is always UTF-8. `text_reads_as_missing` is warned,
   with the count and the columns, when cells hold text that reads back as missing
@@ -316,7 +368,8 @@ Rules for the values (no field changed):
   "schema_version": "10.0", "generated_at": "...",
   "period": {"current": "2011-11", "previous": "2011-10",
              "data_start": "2010-12-01", "data_end": "2011-12-09",
-             "previous_complete": true, "previous_incomplete_reason": null},
+             "previous_complete": true, "previous_incomplete_reason": null,
+             "month_grain": false},
   "core": {
     "revenue_current": 1150000.0, "revenue_previous": 1290000.0,
     "revenue_change_pct": -10.9, "revenue_change_pct_reason": null,
@@ -383,6 +436,29 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   from this one reading. **`undated_lines`** counts the lines with no
   readable date (blank, or no date) - in no month and so in no figure - and
   `undated_lines_reason` says so; it is null exactly when the count is 0.
+- **The date order** (Thach, 2E-j): a cell written day-month-year or
+  month-day-year is read in the order stage 1 recorded (section 5,
+  `date_order`) - only such a cell; ISO, a month name or a time is read as
+  before, so "2026-01-05" is never 1 May. A cell that order cannot hold (a
+  month 13) is no date. **Placeholder dates** are no date too (Thach, Q2 of
+  2E-h): 1899-12-30 and 1900-01-01 (Excel's day 0 and day 1, carried by a
+  time-only cell) and 1970-01-01 (a zero timestamp), at any time of day.
+  Both are counted in `undated_lines`, and its reason names them. The epoch
+  written on a western clock (1969-12-31) is a placeholder too.
+- **A month-grain file** (Thach, Q1 of 2E-h; `period.month_grain`): every
+  COUNTED line is at midnight on the 1st, over two months or more - "Mar
+  2024" reads as the 1st. Such a file records months, not days: its line on
+  the 1st stands for the month, so no day says whether the last month is
+  over. By the elapsed-day rule below it was always dropped (the report
+  compared the two months before it); now the last month holding a SALE line
+  is `current` once it has ended on every clock (12 hours past its end in
+  UTC - the run's clock is UTC, the dates the shop's): a report pulled
+  mid-month holds a month-to-date row, which compared as a whole month read
+  -36.7%, and a later stock-in row made an empty month current. One pulled
+  mid-month and analysed after that month ended cannot be told apart (a known
+  limit). With no customer column, the order-id check by date reads only the
+  month, and its reason says so. Stage 3's day-level steps do not apply
+  (section 7).
 - **Lines the user classed as not products** (Thach, 2E-d2, 2E-l; plan
   `confirmations.line_classes`): a **charge** the customer paid (postage)
   stays in revenue but is no order and no return line (Thach, 2E-l: an
@@ -904,8 +980,18 @@ Consumers must therefore honour the following, and
   chart without claiming the month was judged. This is a rule, not a
   preference: the step-4 gate that used to prevent such a claim was deleted
   by ADR-0006 and this is where the responsibility moved.
-`calendar.method` is `weekday_weights | day_count`. `tree.method` is always
-`"shapley"`.
+`calendar.method` is `weekday_weights | day_count | not_applicable`.
+`not_applicable` (15.0, 2E-j) is a month-grain file (`metrics.period.
+month_grain`): `expected_cur` and `expected_prev` are null, `calendar_effect`
+is 0 and `evidence.reason` says the file records months, not days - its
+weekday weights were all 0 (every day but the 1st holds nothing) and T1
+"ruled out" the calendar on no evidence. In such a file the D1 check's
+status is `not_applicable` (15.0) with that message - it read "normal"
+having measured nothing - and the trust verdict does not count it (not
+`inconclusive`, which would badge every monthly file `caution`); hypotheses
+D1, T1 and R3 are `not_testable`, saying so; T2's year-ago zero-day guard and
+B1's missing-day refusal, day-level too, do not apply, and their evidence
+says so. `tree.method` is always `"shapley"`.
 
 **Arrays in the example above show one representative element.** Every
 `lever` level carries exactly the factors its `formula` names, in that order -
@@ -1222,6 +1308,18 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-27: **session 2E-j, dates decided at stage 1 (Thach).**
+  `profile.json` went to `1.1` (optional per-column `date_order`) and the
+  stage 1 contracts to `3.1` (optional `confirmations.dates_day_first` and
+  `cleaning_report.json`'s `date_order`; `schema_inference.json` kept in
+  step, unchanged) - minor, readers unaffected. `metrics.json` went to
+  `14.0` (`period.month_grain`, required; a date column read in the decided
+  order; placeholder dates and days the order cannot hold undated; a
+  month-grain file's last month compared) and `diagnosis.json` to `15.0`
+  (`calendar.method` gained `not_applicable` with nullable expectations, a
+  trust check's `status` gained `not_applicable`; in a month-grain file D1,
+  T1 and R3 are not testable, and T2 and B1 read the months). Both demo files are ISO and
+  unchanged. Readers refuse `13.x` metrics and `14.x` diagnosis files.
 - 2026-09-27: **session 2E-i, one text reading for every stage (Thach).**
   `metrics.json` went to `13.0` and `diagnosis.json` to `14.0`: customers,
   order ids, categories and transaction types read what a reader sees (a

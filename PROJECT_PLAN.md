@@ -1793,8 +1793,48 @@ dataclarity/
       last cycle, so unreviewed; F2 to 8D, judged not blocking (it needs
       an off-list code AND a key account on a quarter or more of the
       walk-in receipts) - the stop rule did not fire. For Thach to overrule.
-- [ ] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
-      reader** (Thach, at 2E-h). Australia, the UK and Vietnam write the day
+- [x] 2E-j **Day-first dates, decided at stage 1 and consumed by the shared
+      reader** (Thach, at 2E-h). **Done 2026-09-27** (fifth overnight run,
+      session 4; method `C:\Users\Happy\2Ej-method.txt`, six amendments):
+      - **The order is decided at stage 1.** profile.json 1.1 measures every
+        text column (`date_order`: cells proving day first - a first number
+        13-31 -, month first, `ambiguous` ones, the decision, a hint);
+        execution decides on the RAW file - the user's answer, else the proof
+        - and refuses a plan when both or neither prove it and nobody answered
+        (either default fabricates), or when the date column's parse step
+        reads some cell otherwise (readings compared on those cells only).
+        cleaning_report.json records `date_order` (3.1); `confirmations`
+        keep the answers alone. Review asks "How are the dates in X
+        written?", Confirm waits; a proven order is shown with its proof, a
+        conflicting parse step with its fix.
+      - **The shared reader** reads a day-month-year date (found anywhere in
+        the cell) in that order only - as ISO for a four-digit year, per
+        distinct value: a million DD/MM/YYYY cells 93-112 s before, 3.5 s now
+        - a cell the order cannot hold is no date, ISO is never re-read
+        (`dayfirst` no longer turns "2026-01-05" into 1 May). The Australian
+        shop reads July and August, 3,100 each.
+      - **Q1 month grain**: every counted line at midnight on the 1st, two
+        months or more. The last month holding a sale is current once over
+        on every clock (12 h past its UTC end) - it was always dropped; D1
+        `not_applicable`, D1/T1/R3 not testable, the calendar
+        `not_applicable`, T2 and B1 read the months, the order-id reason
+        says the date is only the month. **Q2**: 1900-01-01, 1969-12-31,
+        1970-01-01 (any time) are no date, counted as undated with the
+        reason. **From 2E-h**: basic-ISO offsets with an explicit format or
+        "ISO8601" parse, and the change log notes them.
+      - metrics.json 14.0 (`period.month_grain`), diagnosis.json 15.0 (the
+        calendar and a trust check may be `not_applicable`). Both demo files
+        are identical apart from `month_grain: false` (both write ISO).
+      - Tests first (4 Python files, 2 frontend); mutation: 55 Python mutants,
+        53 killed, 2 equivalent (redundant guards); 14 frontend, all killed
+        (tests added for 12 of them). Doubt-review 3
+        cycles (13, 7, 9 findings; cross-model skipped: non-interactive):
+        cycle 1's blocker (a month-to-date row compared as a whole month) and
+        cycle 2's regression (a later stock-in month made current) fixed;
+        cycle 3: nothing blocks; its four local fixes are UNREVIEWED (a
+        separator after the year, the hint beside a proof, the manual plan's
+        version, docs). Questions for Thach in the overnight report (Q8-Q10).
+      Original item text: Australia, the UK and Vietnam write the day
       first. When the cleaning plan parses the date column (1E's
       `parse_datetime`, with its `dayfirst`), cleaned.csv holds ISO dates and
       nothing is ambiguous; but when it does not - one action per column, so
@@ -2690,6 +2730,18 @@ dataclarity/
       U+13430-1343F are format characters that are not default-ignorable yet
       read as blank; `product_text` on a numeric column raises (as before;
       stages read text). The overrides and isolates question is on 2E-i.
+      From 2E-j: month-END dated monthly files are not month grain (D1 "ok"
+      on nothing, T1/R3 ruled out); one counted line off the 1st makes a
+      file daily; Excel's "Mar-24" is undated (older); YY/MM/DD without a
+      year-first format reads as D/M/Y (as before); a month-grain report
+      pulled mid-month and analysed after that month ended; a run profiled
+      before 2E-j has no measure (re-upload); separators "_" or none with an
+      explicit format are not checked against the order; generic cleaning
+      and date columns other than transaction_date keep pandas' per-cell
+      reading (cleaned.csv only); a year-first format still requires the
+      answer; the month-grain last month waits until 12:00 UTC on the 1st;
+      profiling costs ~1 s more on a 50 MB file with timestamp columns;
+      Vietnamese "SA"/"CH" AM/PM markers read as no date (older).
       From 2E-t (older, found while measuring; Thach to place, design
       questions 6-7): the stock ledger reads a zero-amount -20 line as +20
       stock (days to stockout 57 instead of 17, files with stock-in lines);
@@ -2841,7 +2893,13 @@ Session **2E-i** closed 2026-09-27 (session 3; see its item): one text
 reading for every stage - blank means nothing visible, two values merge
 only on what a reader cannot see; metrics.json 13.0, diagnosis.json 14.0;
 both demo files byte-identical. Cycle 3's doc fixes are unreviewed; one
-question (overrides and isolates). pytest 3036. **Next:** 2E-j.
+question (overrides and isolates). pytest 3036.
+Session **2E-j** closed 2026-09-27 (session 4; see its item): the date order
+decided at stage 1 and read by the shared reader, month-grain files, the
+placeholder dates; metrics.json 14.0, diagnosis.json 15.0, profile 1.1,
+stage 1 3.1; both demo files identical. Cycle 3's local fixes are
+unreviewed. pytest 3149, Vitest 180. **The fifth overnight run is
+complete - stopped as planned. Next: Thach's decisions on its report.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

@@ -45,7 +45,7 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
     # 2.0 in 2E-e (order_id widened the enum: major); 2.1 since 2E-e2 (confirmations: minor).
-    assert (returned.schema_version, returned.generated_at, returned.source) == ("3.0", NOW, "ai")  # 2.2 in 2E-k, 2.3 in 2E-d2 (minor); 3.0 since 2E-l ("pooled": major)
+    assert (returned.schema_version, returned.generated_at, returned.source) == ("3.1", NOW, "ai")  # 2.2 in 2E-k, 2.3 in 2E-d2 (minor); 3.0 in 2E-l ("pooled": major); 3.1 since 2E-j (minor)
     assert not any(a.edited_by_user for a in returned.column_actions)
     assert not any(a.edited_by_user for a in returned.dataset_actions)
 

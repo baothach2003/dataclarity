@@ -150,9 +150,9 @@ def test_contracts_carry_the_placeholders_and_are_2_2_or_later() -> None:
     # None: not measured (review cycle 1 F4; [] in the first RED set).
     assert SchemaInferenceContract.model_fields["customer_placeholders"].default is None
     assert CustomerPlaceholder(value="0", lines=3, lines_pct=12.5, revenue_pct=None, why="word").value == "0"
-    # 2.3 in 2E-d2; 3.0 since 2E-l (test_2el_stage1.py).
+    # 2.3 in 2E-d2; 3.0 in 2E-l (test_2el_stage1.py); 3.1 since 2E-j.
     assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == (
-        "3.0", "3.0", "3.0")
+        "3.1", "3.1", "3.1")
 
 
 def test_the_revenue_share_is_of_sale_revenue_not_net() -> None:

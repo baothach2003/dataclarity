@@ -75,6 +75,50 @@ class TopValue(ContractModel):
     count: NonNegativeInt
 
 
+# How a column's day-month-year or month-day-year cells are written (2E-j).
+DateOrder = Literal["day_first", "month_first"]
+
+
+class DateOrderMeasure(ContractModel):
+    """Stage 1's own measure of a column's cells written day-month-year or
+    month-day-year (two numbers and a year: "05/01/2026", "5.1.26"), on the
+    raw file (2E-j). A first number 13-31 proves day first, a second number
+    13-31 month first. `ambiguous` counts the cells either order reads, each
+    as another date (two numbers 1-12 that differ; "05/05/2026" reads the
+    same either way). `decision` is "ask" when both orders are proven, or
+    neither is and some cell is ambiguous, and Review then asks the user; a
+    column where nothing depends on the order carries no measure. `hint` is
+    a suggestion only (2E-d2): the 1st of each month written day first never
+    proves itself. The examples are the date text alone, never the cell."""
+
+    shaped: Annotated[int, Field(gt=0)]
+    day_first: NonNegativeInt
+    month_first: NonNegativeInt
+    ambiguous: NonNegativeInt
+    day_first_example: str | None
+    month_first_example: str | None
+    decision: DateOrder | Literal["ask"]
+    hint: DateOrder | None
+
+    @model_validator(mode="after")
+    def _decision_follows_the_counts(self) -> Self:
+        proven = {"day_first": self.day_first > 0, "month_first": self.month_first > 0}
+        if sum(proven.values()) == 1:
+            expected = next(order for order, proof in proven.items() if proof)
+        elif all(proven.values()) or self.ambiguous:
+            expected = "ask"
+        else:
+            raise ValueError("a column where nothing depends on the order carries no measure")
+        if self.decision != expected:
+            raise ValueError(f"decision must be {expected!r} for these counts")
+        if self.hint is not None and self.decision != "ask":
+            raise ValueError("a hint is given only when the order is asked")
+        if (self.day_first_example is None) != (self.day_first == 0) or (
+                (self.month_first_example is None) != (self.month_first == 0)):
+            raise ValueError("an example is given exactly when its order is proven")
+        return self
+
+
 class ColumnProfile(ContractModel):
     name: str
     dtype: str
@@ -90,6 +134,9 @@ class ColumnProfile(ContractModel):
     q3: float | None
     top_values: Annotated[list[TopValue], Field(max_length=MAX_TOP_VALUES)]
     sample_values: list[str | None]
+    # 1.1 (2E-j): only for a column with a cell written day-month-year or
+    # month-day-year; None otherwise, and in a 1.0 file.
+    date_order: DateOrderMeasure | None = None
 
 
 class ProfileContract(ContractFile):

@@ -166,8 +166,8 @@ def test_contracts_carry_the_line_classes_and_are_2_3_or_later() -> None:
     assert CleaningPlanContract.model_validate_json(plan.model_dump_json()).confirmations == answered
     assert OrderConfirmations().line_classes == []
     assert SchemaInferenceContract.model_fields["non_product_candidates"].default is None
-    # 3.0 since 2E-l: "pooled" widened the line-class enum (test_2el_stage1.py).
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("3.0", "3.0", "3.0")
+    # 3.0 in 2E-l: "pooled" widened the line-class enum (test_2el_stage1.py); 3.1 since 2E-j.
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("3.1", "3.1", "3.1")
 
 
 # "product" is an answer since 2E-l review cycle 1 - for a name it stops the

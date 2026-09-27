@@ -56,7 +56,7 @@ def load_run(runs_root: Path, run_id: str) -> RunData:
         run_file(runs_root, run_id, METRICS_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    return build_run_data(frame, report.column_mapping, metrics, report.confirmations)
+    return build_run_data(frame, report.column_mapping, metrics, report.applied_confirmations())
 
 
 def build_run_data(
@@ -68,7 +68,8 @@ def build_run_data(
     exactly as stage 2 read them (2E-e2)."""
     parsed = parse_transactions(df, column_mapping, confirmations)
     months = parsed.dates.dt.to_period("M").astype(str)
-    covered = complete_months(metrics.period.data_start, metrics.period.data_end)
+    covered = complete_months(metrics.period.data_start, metrics.period.data_end,
+                              month_grain=metrics.period.month_grain)
     return RunData(
         df=df,
         parsed=parsed,
@@ -96,9 +97,16 @@ def period_mask(data: RunData, month: str) -> pd.Series:
     return data.parsed.counted & (data.months == month)
 
 
-def complete_months(data_start: date, data_end: date) -> list[str]:
+# Why a day-level step does not apply to a month-grain file (Thach, Q1 of
+# 2E-h; metrics.json's `period.month_grain`).
+MONTH_GRAIN_NOTE = ("the file records months, not days (every counted line is dated the 1st "
+                    "of its month)")
+
+
+def complete_months(data_start: date, data_end: date, *, month_grain: bool = False) -> list[str]:
     """Calendar months the file covers from their first day to their last,
-    ascending.
+    ascending. In a month-grain file (2E-j) a line on the 1st stands for
+    its month, so every month from the first to the last is covered.
 
     Deliberately stricter than 2A's `select_period`, which asks only whether a
     month has *elapsed* by `data_end` (a shop whose first sale is on the 15th
@@ -114,7 +122,7 @@ def complete_months(data_start: date, data_end: date) -> list[str]:
     year, month = data_start.year, data_start.month
     while (year, month) <= (data_end.year, data_end.month):
         first = date(year, month, 1)
-        last = date(year, month, calendar.monthrange(year, month)[1])
+        last = first if month_grain else date(year, month, calendar.monthrange(year, month)[1])
         if first >= data_start and last <= data_end:
             months.append(f"{year:04d}-{month:02d}")
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)

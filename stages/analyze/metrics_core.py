@@ -29,18 +29,18 @@ fields:
   "nothing moved" when revenue appeared from nothing (2E).
 """
 
-import calendar
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import CoreMetrics, MonthlyRevenue, NonProductLines, Period
+from shared.date_evidence import month_grain
 from shared.numbers import pct_change
 from shared.orders import count_orders
-from shared.periods import previous_coverage
 from shared.run_registry import run_file
+from stages.analyze.period_selection import select_period
 from shared.transactions import (
     # Re-exported deliberately: this error is part of what calling stage 2
     # can raise, and both the backend and this stage's tests catch it here.
@@ -76,7 +76,7 @@ def core_metrics_for_run(
     # cast (AI_PIPELINE.md section 12: a plan cannot require transaction_date
     # to be parsed).
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    return compute_core_metrics(frame, report.column_mapping, now, report.confirmations)
+    return compute_core_metrics(frame, report.column_mapping, now, report.applied_confirmations())
 
 
 def compute_core_metrics(
@@ -88,7 +88,8 @@ def compute_core_metrics(
     Review (2E-e2)."""
     now = now or datetime.now(UTC)
     parsed = parse_transactions(df, column_mapping, confirmations)
-    period = select_period(parsed.dates, now, parsed.dates[parsed.sale])
+    period = select_period(parsed.dates, now, parsed.dates[parsed.sale],
+                           grain=month_grain(parsed.dates[parsed.counted]))
 
     months = parsed.dates.dt.to_period("M").astype(str)
     current_mask = parsed.counted & (months == period.current)
@@ -180,55 +181,6 @@ def _non_product(parsed: ParsedTransactions, months: pd.Series, period: Period) 
     return rows
 
 
-def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series) -> Period:
-    """`current` is the latest calendar month fully elapsed by the data's
-    last date (docs/CONTRACTS.md section 6's worked example: data_end
-    2011-12-09 -> current 2011-11, the partial December excluded); `previous`
-    is the month before it. Whether an earlier month has any data of its own
-    does not matter for the choice, only whether that month's own last day has
-    passed. Falls back to `now`'s month when the data holds no parseable date
-    at all.
-
-    Whether `previous` is a base to compare with is decided separately, over
-    the SALE rows' dates (`counted_dates`; required, because neither a
-    stock-in row nor a refund line may complete the month), by the definition
-    stage 3 shares (shared/periods.py, 2E)."""
-    valid = dates.dropna()
-    if valid.empty:
-        data_start = data_end = now.date()
-    else:
-        data_start = valid.min().date()
-        data_end = valid.max().date()
-
-    current = _last_complete_month(data_end)
-    previous = _format_year_month(_month_before(*current))
-    coverage = previous_coverage(counted_dates, previous)
-    return Period(
-        current=_format_year_month(current),
-        previous=previous,
-        data_start=data_start,
-        data_end=data_end,
-        previous_complete=coverage.complete,
-        previous_incomplete_reason=coverage.reason,
-    )
-
-
-def _last_complete_month(data_end: date) -> tuple[int, int]:
-    year, month = data_end.year, data_end.month
-    if data_end.day < calendar.monthrange(year, month)[1]:
-        return _month_before(year, month)
-    return year, month
-
-
-def _month_before(year: int, month: int) -> tuple[int, int]:
-    return (year - 1, 12) if month == 1 else (year, month - 1)
-
-
-def _format_year_month(year_month: tuple[int, int]) -> str:
-    year, month = year_month
-    return f"{year:04d}-{month:02d}"
-
-
 def _bucket(parsed: ParsedTransactions, mask: pd.Series) -> tuple[float, int, int, int]:
     """Net revenue and active customers over every counted row (3C: a
     returns-only customer is active); orders and returns over sale and return
@@ -265,7 +217,9 @@ def _undated(parsed: ParsedTransactions) -> dict:
     lose them silently. Blank cells and cells that are no date ("now", a bare
     time, a year outside 1900-2100, text that does not parse) are one count:
     a plan that parsed the date column has already turned every no-date
-    blank, so a split between the two was wrong there (2E-h review F5)."""
+    blank, so a split between the two was wrong there (2E-h review F5).
+    Since 2E-j a placeholder date and a day and month the file's date order
+    cannot hold are no date too, and the reason names them."""
     count = int(parsed.dates.isna().sum())
     if count == 0:
         return {"undated_lines": 0, "undated_lines_reason": None}
@@ -274,8 +228,9 @@ def _undated(parsed: ParsedTransactions) -> dict:
     return {"undated_lines": count,
             "undated_lines_reason": (
                 f"{lines} no readable date - blank, or no date (such as \"now\", a time with "
-                f"no date, a year outside 1900-2100, or text that does not parse) - so {rest} "
-                "left out of every figure")}
+                "no date, a year outside 1900-2100, a placeholder date such as 1900-01-01 or "
+                "1970-01-01, a day and month the file's date order cannot hold, or text that "
+                f"does not parse) - so {rest} left out of every figure")}
 
 
 def _revenue_by_month(months: pd.Series, amounts: pd.Series) -> list[MonthlyRevenue]:

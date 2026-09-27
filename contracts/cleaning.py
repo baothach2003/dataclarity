@@ -6,7 +6,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
 from contracts._base import ContractFile, ContractModel
-from contracts.profile import CanonicalField, LineClass, SemanticType
+from contracts.profile import CanonicalField, DateOrder, LineClass, SemanticType
 
 # The transform catalog, docs/AI_PIPELINE.md section 6. Typing every action
 # field with it is the whitelist: an off-catalog action cannot reach a contract
@@ -75,6 +75,11 @@ class OrderConfirmations(ContractModel):
     # products; "a product" is listed for a name only (3.0, 2E-l review
     # cycle 1: it stops the name's lines taking their SKU's class).
     line_classes: list[LineClassAnswer] = Field(default_factory=list)
+    # 3.1 (2E-j): the user's answer to Review's date question - True: the
+    # date column's day-month-year cells are written day first; False: month
+    # first. Asked only when the file proves neither (or both). In
+    # cleaning_report.json the order that was applied is `date_order`.
+    dates_day_first: StrictBool | None = None
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------
@@ -164,8 +169,19 @@ class CleaningReportContract(ContractFile):
     # 2.1 (2E-e2): the answers that ran, for stages 2 and 3; a 2.0 report
     # reads as nothing confirmed, and so does null (review cycle 3 F6).
     confirmations: OrderConfirmations = Field(default_factory=OrderConfirmations)
+    # 3.1 (2E-j): the order the transaction_date column's day-month-year cells
+    # were read in - the user's answer, else what the raw file proved; None
+    # when no such cell (or a 3.0 report, read as before).
+    date_order: DateOrder | None = None
 
     @field_validator("confirmations", mode="before")
     @classmethod
     def _null_is_unanswered(cls, value: object) -> object:
         return {} if value is None else value
+
+    def applied_confirmations(self) -> OrderConfirmations:
+        """The answers as stages 2 and 3 read them: with the date order stage
+        1 applied, so a date column the plan did not parse is read in it (a
+        proof is no answer, so `confirmations` keeps the user's alone)."""
+        applied = None if self.date_order is None else self.date_order == "day_first"
+        return self.confirmations.model_copy(update={"dates_day_first": applied})

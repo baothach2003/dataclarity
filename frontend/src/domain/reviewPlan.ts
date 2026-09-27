@@ -50,7 +50,7 @@ export function buildManualPlan(profile: ProfileContract, schema: SchemaInferenc
     // enum; 2.1 in 2E-e2, 2.2 in 2E-k: confirmations; 3.0 since 2E-l: the
     // line-class enum gained "pooled"). A stale major is refused, so the no-AI
     // path could not clean.
-    schema_version: '3.0',
+    schema_version: '3.1',
     generated_at: new Date().toISOString(),
     source: 'manual',
     dataset_actions: [],

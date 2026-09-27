@@ -7,6 +7,8 @@ import type { CanonicalField } from '../types/contracts.ts'
 interface ActionBarProps {
   isNotInventory: boolean
   missingFields: CanonicalField[]
+  // A question stage 1 will not run without (2E-j: how the dates are written).
+  unanswered: string | null
   editedCount: number
   attentionCount: number
   canReset: boolean
@@ -19,6 +21,7 @@ interface ActionBarProps {
 export function ActionBar({
   isNotInventory,
   missingFields,
+  unanswered,
   editedCount,
   attentionCount,
   canReset,
@@ -27,7 +30,9 @@ export function ActionBar({
   onReset,
   onConfirm,
 }: ActionBarProps) {
-  const blocked = !isNotInventory && missingFields.length > 0
+  const missing = !isNotInventory && missingFields.length > 0
+  const waiting = !isNotInventory && !missing && unanswered !== null
+  const blocked = missing || waiting
   const confirmLabel = isNotInventory ? 'Clean & download' : 'Confirm & Clean'
 
   return (
@@ -35,9 +40,11 @@ export function ActionBar({
       <span className="action-bar__status">
         {isNotInventory
           ? 'Generic cleaning: downloads only'
-          : blocked
+          : missing
             ? `Required fields not mapped: ${joinFieldLabels(missingFields)}`
-            : `${String(editedCount)} column${editedCount === 1 ? '' : 's'} edited · ${String(attentionCount)} need attention`}
+            : waiting
+              ? unanswered
+              : `${String(editedCount)} column${editedCount === 1 ? '' : 's'} edited · ${String(attentionCount)} need attention`}
       </span>
       <div className="action-bar__buttons">
         <button type="button" className="link-button" onClick={onCancel} disabled={executing}>
@@ -60,7 +67,7 @@ export function ActionBar({
           >
             {executing ? 'Cleaning…' : confirmLabel}
           </button>
-          {blocked && (
+          {missing && (
             <span className="tooltip" role="tooltip">
               Map product name, transaction date and quantity first
             </span>

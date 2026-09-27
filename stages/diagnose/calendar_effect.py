@@ -13,7 +13,7 @@ the standard library's `calendar`, which `inputs` uses.
 import pandas as pd
 
 from contracts.diagnosis import Calendar
-from stages.diagnose.inputs import RunData, days_in_month, month_dates
+from stages.diagnose.inputs import MONTH_GRAIN_NOTE, RunData, days_in_month, month_dates
 from stages.diagnose.thresholds import CALENDAR_MIN_WEEKS
 
 WEEKDAY_NAMES = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
@@ -23,6 +23,13 @@ def compute_calendar(data: RunData, history: list[str]) -> Calendar:
     period = data.metrics.period
     revenue_prev = data.metrics.core.revenue_previous
     change_abs = data.metrics.core.revenue_current - revenue_prev
+    if period.month_grain:
+        # Every day but the 1st holds nothing, so each weekday's median was 0
+        # and T1 "ruled out" the calendar on no evidence; a day count would
+        # assume a shop trading every day. Neither is known (2E-j).
+        return Calendar(method="not_applicable", expected_cur=None, expected_prev=None,
+                        calendar_effect=0.0, calendar_adjusted_change=change_abs,
+                        evidence={"reason": f"the calendar cannot be weighed: {MONTH_GRAIN_NOTE}"})
 
     weights = _weekday_weights(data, history)
     if weights is None:

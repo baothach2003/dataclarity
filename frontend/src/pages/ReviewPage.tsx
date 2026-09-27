@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
+import { DateOrderNotice } from '../components/DateOrderNotice.tsx'
 import { Notice } from '../components/Notice.tsx'
 import { NonProductNotice } from '../components/NonProductNotice.tsx'
 import { OrderNotices } from '../components/OrderNotices.tsx'
@@ -293,6 +294,13 @@ export function ReviewPage({
               answers={orderAnswers.lineAnswers}
               onAnswer={orderAnswers.answerLine}
             />
+            <DateOrderNotice
+              plan={plan}
+              profile={profile}
+              answer={orderAnswers.dateAnswer}
+              onAnswer={orderAnswers.answerDate}
+              onFixParse={(name, params) => { handleActionChange(name, 'parse_datetime', params) }}
+            />
             <OrderNotices
               plan={plan}
               answers={orderAnswers.answers}
@@ -354,6 +362,7 @@ export function ReviewPage({
         <ActionBar
           isNotInventory={isNotInventory}
           missingFields={missingFields}
+          unanswered={orderAnswers.dateUnanswered ? 'Answer how the dates are written first' : null}
           editedCount={editedCount}
           attentionCount={attentionCount}
           canReset={aiProposal !== null}

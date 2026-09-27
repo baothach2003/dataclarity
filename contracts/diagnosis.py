@@ -43,10 +43,12 @@ class Frame(ContractModel):
 
 
 class TrustCheck(ContractModel):
-    """One of the step 2 data-quality checks (docs/AI_PIPELINE.md 7.3)."""
+    """One of the step 2 data-quality checks (docs/AI_PIPELINE.md 7.3).
+    "not_applicable" (15.0, 2E-j): D1 in a month-grain file, which has no day
+    to miss - it says so, and the trust verdict does not count it."""
 
     id: Literal["D1", "D2", "D3"]
-    status: Literal["ok", "caution", "blocked", "inconclusive"]
+    status: Literal["ok", "caution", "blocked", "inconclusive", "not_applicable"]
     evidence: dict[str, Any]
     message: str
 
@@ -60,21 +62,29 @@ class Trust(ContractModel):
 class Calendar(ContractModel):
     """Step 3 (docs/AI_PIPELINE.md 7.4). `calendar_effect` is the part of the
     change explained by month shape alone; positive means the current month's
-    weekday mix was worth more than the previous month's."""
+    weekday mix was worth more than the previous month's. "not_applicable"
+    (2E-j): the file records months, not days - no expectation, no effect,
+    and `evidence` says why."""
 
-    method: Literal["weekday_weights", "day_count"]
-    expected_cur: float
-    expected_prev: float
+    method: Literal["weekday_weights", "day_count", "not_applicable"]
+    expected_cur: float | None
+    expected_prev: float | None
     calendar_effect: float
     calendar_adjusted_change: float
     evidence: dict[str, Any]
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
-        values = (self.expected_cur, self.expected_prev, self.calendar_effect,
-                  self.calendar_adjusted_change)
+        expected = (self.expected_cur, self.expected_prev)
+        nulls = sum(value is None for value in expected)
+        if nulls == 1 or (nulls == 2) != (self.method == "not_applicable"):
+            raise ValueError("the expected figures are null exactly when the calendar does not apply")
+        values = [value for value in expected if value is not None] + [
+            self.calendar_effect, self.calendar_adjusted_change]
         if not all(isfinite(value) for value in values):
             raise ValueError("calendar figures must be finite")
+        if self.method == "not_applicable" and self.calendar_effect != 0:
+            raise ValueError("a calendar that does not apply has no effect")
         return self
 
 
@@ -668,8 +678,12 @@ class DiagnosisContract(ContractFile):
     # the returns class), one fit measure ranks every cause, and rule 6 can
     # name a tie or no cause (`hypothesis_id` null) - Thach. 14 since 2E-i:
     # customers, order ids and categories read what a reader sees (the
-    # bridge, the lever's orders, the category dimension, breadth).
-    supported_major: ClassVar[int] = 14
+    # bridge, the lever's orders, the category dimension, breadth). 15 since
+    # 2E-j: a month-grain file compares its last month, its day-level steps
+    # do not apply (the D1 check "not_applicable"; D1, T1, R3 not testable;
+    # the calendar "not_applicable" with null expectations; T2 and B1 read
+    # the months), and a date column can be read day first.
+    supported_major: ClassVar[int] = 15
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "

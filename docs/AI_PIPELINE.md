@@ -140,7 +140,7 @@ ChangeLogEntry: `{action, column, cells_affected, rows_affected, params, detail}
 | impute_constant | categorical/text/boolean | value | fill NaN with an explicit value |
 | drop_rows_missing | any | - | drop rows null, or showing nothing - only spaces (1F) or characters that render as nothing (2E-i) - in this column |
 | drop_column | any | - | remove the column |
-| parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged; a UTC offset is dropped and the date and time kept as written (1F) |
+| parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged; a UTC offset is dropped and the date and time kept as written (1F); `dayfirst` reads only day-month-year cells, never ISO, and a cell it cannot hold is no date (2E-j) |
 | cast_type | any | target | safe cast; failures flagged, never silently coerced |
 | trim_whitespace | text/categorical/identifier | - | strip surrounding whitespace |
 | normalize_case | text/categorical/identifier | mode: title/lower/upper | consistent casing |
@@ -302,7 +302,9 @@ the same shared definition.
 
 ### 7.3 Step 2: Trust gate
 
-Three checks, each `ok | caution | blocked | inconclusive`.
+Three checks, each `ok | caution | blocked | inconclusive | not_applicable`
+(`not_applicable`: D1 in a month-grain file - it has no day to miss - not
+counted in the verdict; 2E-j).
 
 - **D1 coverage.** `zero_days` = calendar days in a period with no SALE row
   (2E doubt-review F2: a day holding only refund lines is a day without
@@ -396,8 +398,11 @@ assigned to a period. Fixing that needs dropped-row counts per month in
 
 ### 7.4 Step 3: Calendar adjustment
 
-Needs `CALENDAR_MIN_WEEKS` of history, measured as calendar days in the history
-window (`CALENDAR_MIN_WEEKS * 7`), else `method = "day_count"`. In practice the
+A month-grain file (2E-j, `metrics.period.month_grain`) records months, not
+days: `method = "not_applicable"`, no expectation and no effect, and T1 is
+not testable. Otherwise the step needs `CALENDAR_MIN_WEEKS` of history,
+measured as calendar days in the history window (`CALENDAR_MIN_WEEKS * 7`),
+else `method = "day_count"`. In practice the
 fallback is rare: two complete months of history already clear it, so a file
 needs barely any history to earn weekday weights - unlike the XmR baselines in
 7.5, which need `XMR_MIN_BASELINE_POINTS` whole months and therefore go
@@ -1039,7 +1044,8 @@ contribution is `estimated_revenue_gap_prev - estimated_revenue_gap` (7.3):
 days with no sales this month pull the change down, last month's push it up.
 
 **B1 is `inconclusive` whenever a day may be missing** (Thach, 3E1 cycle 3):
-any excess zero day in either month, or a D1 check that learned no pattern.
+any excess zero day in either month, or a D1 check that learned no pattern -
+except in a month-grain file, which has no day to miss (2E-j).
 An order is a row count, so a day with no sales removes whole orders and
 reads as customers buying less often: two missing days under D1's threshold
 headlined "customers bought less often (100% of the change)". **B2 is not
@@ -1051,7 +1057,9 @@ is refused on 28 of 40 sparse shops (trading on 45% or 80% of days), and on
 neither demo run.
 
 **T2 is `inconclusive` when a year-ago month has a zero-sale day beyond
-D1's learned pattern** (3E1 cycle 3), or D1 learned none. D1 checks only the
+D1's learned pattern** (3E1 cycle 3), or D1 learned none - except in a
+month-grain file, where the guard does not apply and the evidence says so
+(2E-j). D1 checks only the
 compared months; last February's 10-day gap was headlined as the season.
 Checked after the base guard and the positivity checks. Measured cost: T2 is
 refused for coverage on 30 and 32 of 40 sparse shops (trading on 45% and 80%
@@ -1486,8 +1494,9 @@ and removes an earlier one; `plan_final.json` is never touched.
 execution report show them): a `format` with a year that does not match the
 cells (every date is flagged), `standardize_categories` keys absent from the
 data, a `cast_type` to integer on values beyond int64 (flagged, not raised),
-`dayfirst` (pandas applies it to every ambiguous cell, ISO-written ones included,
-so it is right only for a column written day-first throughout), and
+`dayfirst` against the date column's order (checked at execution since 2E-j:
+the user's answer, else the raw file's proof - CONTRACTS section 4; `dayfirst`
+itself reads only day-month-year cells, so ISO is never re-read as 1 May), and
 a plan that drops a column the data needs elsewhere (checked at execution, section 12).
 An alternative carries a name only: its params are supplied when the user picks it.
 

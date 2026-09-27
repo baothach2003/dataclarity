@@ -242,5 +242,5 @@ def test_a_missing_velocity_or_days_to_stockout_must_say_why() -> None:
 
 def test_metrics_json_is_version_7_or_the_current_one() -> None:
     # 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2 (test_2ee2_stage2.py).
-    assert SCHEMA_VERSION == "13.0"  # 9.0 in 2E-e2; 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 since 2E-i
-    assert MetricsContract.supported_major == 13
+    assert SCHEMA_VERSION == "14.0"  # 9.0 in 2E-e2; 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 in 2E-i; 14.0 since 2E-j
+    assert MetricsContract.supported_major == 14

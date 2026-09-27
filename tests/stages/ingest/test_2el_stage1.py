@@ -37,6 +37,7 @@ def test_pooled_is_an_answer() -> None:
 
 
 def test_stage_1_contracts_are_3_0() -> None:
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("3.0", "3.0", "3.0")
+    # 3.1 since 2E-j (optional fields: a minor bump; the major stays 3).
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("3.1", "3.1", "3.1")
     assert (SchemaInferenceContract.supported_major, CleaningPlanContract.supported_major,
             CleaningReportContract.supported_major) == (3, 3, 3)

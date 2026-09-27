@@ -12,7 +12,7 @@ must not claim to tell those apart.
 import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
-from stages.diagnose.inputs import RunData, days_in_month, month_dates
+from stages.diagnose.inputs import MONTH_GRAIN_NOTE, RunData, days_in_month, month_dates
 from stages.diagnose.frame import previous_coverage_of
 from stages.diagnose.thresholds import (
     D1_BLOCK_SHARE,
@@ -87,6 +87,15 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
                                      if coverage.first_counted else None),
                       "previous_month_has_sales": coverage.has_rows},
             message=coverage.reason)
+    # A month-grain file has one dated day a month, so a day with no sales
+    # is every day but the 1st: the check read "normal" and passed, having
+    # measured nothing (Thach, Q1 of 2E-h; 2E-j).
+    # Not applicable, as Thach put it - not "could not run", which would
+    # badge every monthly file "caution" (2E-j review cycle 1 #11).
+    if period.month_grain:
+        return TrustCheck(
+            id="D1", status="not_applicable", evidence={"month_grain": True},
+            message=f"Days with no sales do not apply: {MONTH_GRAIN_NOTE}.")
     # Only months that hold rows can teach what normal looks like. A history
     # month with nothing in it is itself a gap, and letting it set the
     # expectation lets missing data hide missing data: three empty months lift

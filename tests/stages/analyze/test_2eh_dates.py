@@ -341,6 +341,6 @@ def test_a_returns_only_id_is_judged_on_its_counted_lines() -> None:
 
 def test_versions() -> None:
     # 8.0 / 7.0 in 2E-h; 9.0 / 8.0 since 2E-e2 (test_2ee2_stage2.py).
-    assert SCHEMA_VERSION == "13.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 in 2E-l; 13.0 / 14.0 since 2E-i
-    assert MetricsContract.supported_major == 13
-    assert DiagnosisContract.supported_major == 14  # 12 in 2E-m; 13 in 2E-n; 14 since 2E-i
+    assert SCHEMA_VERSION == "14.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 in 2E-l; 13.0 / 14.0 in 2E-i; 14.0 / 15.0 since 2E-j
+    assert MetricsContract.supported_major == 14
+    assert DiagnosisContract.supported_major == 15  # 12 in 2E-m; 13 in 2E-n; 14 in 2E-i; 15 since 2E-j

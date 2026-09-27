@@ -150,13 +150,14 @@ def _receipt_refusal(answer: bool | None, why: str | None) -> str | None:
 def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
                 sale: pd.Series, returned: pd.Series, counted: pd.Series,
                 stock_in: pd.Series, *, receipt_answer: bool | None, customer_column: bool,
-                fill: bool) -> OrderBasis:
+                fill: bool, month_grain: bool = False) -> OrderBasis:
     """`ids` is the mapped order_id column, stripped, blank as NaN - or None
     when order_id is not mapped. `days`, `customers`, `sale` and `returned`
     are aligned with it; the check runs over the sale rows. `receipt_answer`
     is the user's answer to Review's receipt question (2E-e2); `fill` is False
     when the user answered that the customer is not written on a receipt's
-    first line only."""
+    first line only. In a `month_grain` file (2E-j) a day is a month, and a
+    check by date alone says so: a monthly batch code passes it."""
     # Every line its own order, under a key no real id takes. Not a leading
     # NUL: pandas' object-dtype `nunique` counts "\x00line 2" and "\x00line 3"
     # as ONE value (measured in 2E-e), so two blank-id lines became one order.
@@ -177,6 +178,8 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # customer "", every order split in two (cycle 2, F2).
     filled = _one_customer_per_order(ids, days, customers, moved, stock_in)
     why = by_date_only(ids[sale], filled[sale], customer_column)
+    if why is not None and month_grain:
+        why += "; the file records months, not days, so the date is only the month"
     refused = _receipt_refusal(receipt_answer, why)
     blank = int((moved & ids.isna()).sum())
     if blank:

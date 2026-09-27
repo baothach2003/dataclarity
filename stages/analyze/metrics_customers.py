@@ -75,6 +75,7 @@ from shared.run_registry import run_file
 from shared.first_purchase import first_purchase_months
 from shared.products import netting_keys
 from shared.numbers import is_negligible
+from shared.date_evidence import month_grain
 from shared.transactions import ParsedTransactions, parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
@@ -92,9 +93,7 @@ def _empty_new_vs_returning() -> NewVsReturning:
     return NewVsReturning(new_customers=0, returning_customers=0, new_revenue=0.0, returning_revenue=0.0)
 
 
-def customer_metrics_for_run(
-    runs_root: Path, run_id: str, now: datetime | None = None
-) -> CustomerMetrics:
+def customer_metrics_for_run(runs_root: Path, run_id: str, now: datetime | None = None) -> CustomerMetrics:
     """Read runs/<run_id>/cleaned.csv and cleaning_report.json and compute
     `customers`. `period` is recomputed the same way metrics_core does (the
     same run always yields the same period), so this stays independently
@@ -103,9 +102,10 @@ def customer_metrics_for_run(
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    parsed = parse_transactions(frame, report.column_mapping, report.confirmations)
-    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
-    return compute_customer_metrics(frame, report.column_mapping, period, report.confirmations)
+    parsed = parse_transactions(frame, report.column_mapping, report.applied_confirmations())
+    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale],
+                           grain=month_grain(parsed.dates[parsed.counted]))
+    return compute_customer_metrics(frame, report.column_mapping, period, report.applied_confirmations())
 
 
 def compute_customer_metrics(

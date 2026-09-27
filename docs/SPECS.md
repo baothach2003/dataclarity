@@ -117,6 +117,15 @@ UI guardrails: Confirm stays disabled until `product_name`, `transaction_date`
 and `quantity` are mapped; mapping two columns to the same canonical field is
 blocked inline; changing semantic type re-filters the legal action list.
 
+**Date question (session 2E-j, Thach),** above the order notices: when the
+date column's day-month-year cells can be read day first or month first and
+the file proves neither (or both), Review asks "How are the dates in "X"
+written?" - Day first (31/12/2026) or Month first (12/31/2026) - and Confirm
+waits for the answer (stage 1 refuses to run without one: either default
+fabricates dates). A proven order is shown with its proof; a parse step on the
+date column that reads the other way is shown with its fix. The answer
+applies only to the column it was given for.
+
 **Order notices (session 2E-e2, Thach),** above the column table, following
 the mapping as the user edits it (a dropped column is unmapped). None blocks
 Confirm. An answer applies only to the columns it was given for: after a

@@ -66,6 +66,7 @@ import numpy as np
 import pandas as pd
 
 from contracts.cleaning import OrderConfirmations
+from shared.date_evidence import answered_order, month_grain
 from shared.dates import as_dates
 from shared.line_classes import line_classes
 from shared.orders import OrdersBasis, order_basis
@@ -155,9 +156,9 @@ class ParsedTransactions:
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
                        confirmations: OrderConfirmations | None = None) -> ParsedTransactions:
     """`column_mapping` is cleaning_report.json's mapping of source column
-    name -> canonical field, `confirmations` its answers from Review (None:
-    nothing confirmed). Raises RequiredColumnMissingError if
-    transaction_date, quantity or unit_price has no mapped column."""
+    name -> canonical field, `confirmations` its answers as applied (with
+    stage 1's date order; None: nothing). Raises RequiredColumnMissingError
+    if transaction_date, quantity or unit_price has no mapped column."""
     reverse = {field: source for source, field in column_mapping.items()}
     answers = confirmations or OrderConfirmations()
 
@@ -170,7 +171,9 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # date. Read as UTC, a +10:00 shop's current month, the sign of its change
     # and its closed weekday all moved, and "now" dated a sale the day of the
     # run (2E-f doubt-review cycle 4 F3). shared/dates.py is stage 1's reader.
-    dates = as_dates(df[date_col], offsets="wall_clock")
+    # A day-month-year cell in stage 1's order (2E-j); none recorded (no such
+    # cell, or a report from before 2E-j): as before.
+    dates = as_dates(df[date_col], offsets="wall_clock", order=answered_order(answers.dates_day_first))
     quantities, prices, counts_as_sale = line_numbers(df, reverse, quantity_col, price_col)
 
     # A row with no parseable date, quantity or price cannot be measured or
@@ -221,7 +224,8 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
                          customers, sale, returned, counted, ~counts_as_sale | left_out,
                          receipt_answer=answers.order_id_is_receipt,
                          customer_column="customer" in reverse,
-                         fill=answers.customer_on_first_line_only is not False)
+                         fill=answers.customer_on_first_line_only is not False,
+                         month_grain=month_grain(dates[counted]))
     return ParsedTransactions(
         reverse=reverse,
         dates=dates,

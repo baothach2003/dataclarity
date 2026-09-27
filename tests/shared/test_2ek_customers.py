@@ -159,9 +159,9 @@ def test_the_receipt_answer_still_decides() -> None:
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "13.0"  # 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 since 2E-i
-    assert MetricsContract.supported_major == 13
-    assert DiagnosisContract.supported_major == 14  # 12 in 2E-m; 13 in 2E-n; 14 since 2E-i
+    assert SCHEMA_VERSION == "14.0"  # 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 in 2E-i; 14.0 since 2E-j
+    assert MetricsContract.supported_major == 14
+    assert DiagnosisContract.supported_major == 15  # 12 in 2E-m; 13 in 2E-n; 14 in 2E-i; 15 since 2E-j
 
 
 def test_a_named_and_an_unnamed_receipt_never_name_two_customers() -> None:

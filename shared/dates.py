@@ -11,12 +11,25 @@ UTC, so a +10:00 shop's current month, the sign of its change and its closed
 weekday all moved (2E-f doubt-review cycle 4 F3). Now both read it here.
 Stage 1 imports it (a stage may import shared/); its detectors keep the "utc"
 mode, where only whether a cell parses matters.
+
+Session 2E-j added what a cell cannot say by itself: whether "05/01/2026" is
+written day first or month first. pandas' `dayfirst` is a guess applied to
+every cell - it re-read "2026-01-05" as 1 May and swapped a contradicting
+"01/13/2026" back silently - and without it an Australian shop's days 1-12
+landed in January to December. The ORDER is decided at stage 1 (the user's
+answer, else the file's proof) and read here only on the cells written
+day-month-year or month-day-year; a cell that order cannot hold is no date.
+Also 2E-j: placeholder dates are no date. What a column says about its
+own order, and whether a file records months, is date_evidence.py's.
 """
 
 import re
 from typing import Any, Literal
 
+import numpy as np
 import pandas as pd
+
+from contracts.profile import DateOrder
 
 # A UTC offset after a time of day, in the forms people write: "10:00+01:00",
 # "10:00:00.250-0500", "10:00Z", "10:00 +10", "10:00 -5", "10:00 UTC", "10:00 GMT+2".
@@ -55,7 +68,36 @@ _ZONE_HINT = re.compile(r"(?i)(?:z|utc|gmt|[+-]\d{1,2}(?::?\d{2})?)\s*$")
 _ANY_OFFSET = re.compile(
     r"(?<=\d:\d{2})((?::\d{2})?(?:[.,]\d+)?(?:\s*[AaPp]\.?\s?[Mm]\.?)?)"
     r"\s*(?:[Zz]|UTC|GMT|utc|gmt|(?:UTC|GMT|utc|gmt)?[+-]\d{1,2}(?::?\d{2})?)$")
+# An offset after a basic ISO time ("20240330T101500+1100"), which
+# `_ANY_OFFSET` does not see (it needs a colon in the time): an explicit
+# "%Y%m%dT%H%M%S%z" matched nothing once mixed offsets were cut, and
+# "ISO8601" raised at execute (moved from 2E-h). Group 1 (seconds, fraction)
+# is kept.
+BASIC_UTC_OFFSET = re.compile(
+    r"(?<=T\d{4})((?:\d{2})?(?:[.,]\d+)?)\s*(?:[Zz]|[+-]\d{2}(?::?\d{2})?)$")
 Offsets = Literal["utc", "wall_clock", "raise"]
+# A day-month-year or month-day-year date anywhere in a cell: two numbers of
+# one or two digits and a year of two or four, each separated by / . - or
+# spaces - "05/01/2026", "Mon 5.1.26", "10:30 05/01/2026", "'05/01/2026"
+# (anchored at the start, the pattern missed all but the first, and `dayfirst`
+# stopped reaching them - 2E-j review cycle 1 #2). Never inside ISO or a time:
+# no digit, colon, dot, slash or dash before it, no digit or colon after,
+# nor a separator and a digit ("10.30 05-01-2026" read "10.30 05" as the date -
+# review cycle 3 #3).
+# Groups: first number, separator, second number, separator, year. Only such
+# a date can be read two ways; ISO, a month name or a serial number cannot.
+SHAPED = re.compile(r"(?<![\d:./\-])(\d{1,2})(\s*[/.\-]\s*|\s+)(\d{1,2})(\s*[/.\-]\s*|\s+)"
+                    r"(\d{4}|\d{2})(?![\d:]|[/.\-]\d)")
+# A year-first date in the same cell ("2026-01-05 10.30.00", "2026/1/5"): the
+# cell is not day-month-year, whatever else looks like one - a dotted time
+# read as D.M.YY (2E-j review cycle 2 #2).
+_YEAR_FIRST = re.compile(r"(?<!\d)\d{4}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{1,2}(?!\d)")
+# Days no sale happened on (Thach, Q2 of 2E-h): Excel's day 0 and day 1
+# (1899-12-30, 1900-01-01 - a time-only cell carries one of them) and the
+# Unix epoch - 1970-01-01, and 1969-12-31 where the epoch is written on a
+# western clock ("12/31/1969 19:00", 2E-j review cycle 1 #4). At any time of
+# day; 1899-12-30 is already outside MIN_YEAR.
+_PLACEHOLDER_DAYS = ((1900, 1, 1), (1969, 12, 31), (1970, 1, 1))
 
 
 def as_dates(
@@ -63,12 +105,21 @@ def as_dates(
     date_format: str | None = None,
     dayfirst: bool = False,
     offsets: Offsets = "utc",
+    order: DateOrder | None = None,
 ) -> pd.Series:
     """The column as timestamps; anything unparseable becomes NaT.
 
     With no `date_format`, pandas parses each cell on its own ("mixed"), which
-    is what a column of several formats needs. `dayfirst` then also decides
-    "2024-01-05", so it is the caller's (the user's) choice, not a guess.
+    is what a column of several formats needs. `order` then says how the
+    cells written day-month-year or month-day-year are read (2E-j): in that
+    order only, a cell it cannot hold (a month 13) no date; every other cell
+    is read as without it. `dayfirst` is the "day_first" order (stage 1's
+    parse step). With neither, pandas reads them month first and swaps a cell
+    that cannot be: stage 1's detectors, and a run from before 2E-j. A
+    `date_format` decides by itself.
+
+    Placeholder dates (1900-01-01, 1969-12-31, 1970-01-01, any time of day)
+    are no date.
 
     Cells written with different UTC offsets cannot share one dtype, so
     `offsets` says what to do with them:
@@ -87,7 +138,10 @@ def as_dates(
     if date_format is not None:
         options: dict[str, Any] = {"format": date_format}
     else:
-        options = {"format": "mixed", "dayfirst": dayfirst}
+        order = order or ("day_first" if dayfirst else None)
+        if order is not None:
+            text = _month_first(text, order)
+        options = {"format": "mixed", "dayfirst": False}
     try:
         parsed = pd.to_datetime(text, errors="coerce", **options)
     except ValueError:
@@ -101,7 +155,45 @@ def as_dates(
             parsed = pd.to_datetime(text, errors="coerce", utc=True, **options)
     if offsets == "wall_clock" and parsed.dt.tz is not None:
         parsed = parsed.dt.tz_localize(None)  # one shared offset: same rule, zone dropped
-    return parsed.where(parsed.dt.year.between(MIN_YEAR, MAX_YEAR))
+    placeholder = pd.Series(False, index=parsed.index)
+    for year, month, day in _PLACEHOLDER_DAYS:
+        placeholder |= parsed.dt.year.eq(year) & parsed.dt.month.eq(month) & parsed.dt.day.eq(day)
+    return parsed.where(parsed.dt.year.between(MIN_YEAR, MAX_YEAR) & ~placeholder)
+
+
+def _month_first(text: pd.Series, order: DateOrder) -> pd.Series:
+    """The cells holding a day-month-year date rewritten so pandas reads them
+    without a guess: a four-digit year as ISO ("2026-01-05 10:30"), a
+    two-digit one month first (dateutil keeps its century rule); a cell
+    `order` cannot hold is missing. Every other cell is untouched, so ISO is
+    never reordered. Read per distinct value: a million rows hold a few
+    thousand dates, and ISO also spares pandas its per-cell dateutil path
+    (93 s against a few for a million DD/MM/YYYY cells, measured in 2E-j)."""
+    codes, uniques = pd.factorize(text)
+    distinct = np.array([_in_order(value, order) for value in uniques], dtype=object)
+    read = pd.Series(distinct[codes] if len(distinct) else np.full(len(codes), None),
+                     index=text.index, dtype="str")
+    return read.mask(codes == -1)
+
+
+def day_month_year(value: str) -> re.Match[str] | None:
+    """The day-month-year or month-day-year date in a cell, or None - also
+    when the cell holds a year-first date."""
+    if _YEAR_FIRST.search(value):
+        return None
+    return SHAPED.search(value)
+
+
+def _in_order(value: str, order: DateOrder) -> str | None:
+    match = day_month_year(value)
+    if match is None:
+        return value
+    first, _, second, _, year = match.groups()
+    day, month = (int(first), int(second)) if order == "day_first" else (int(second), int(first))
+    if not 1 <= month <= 12:
+        return None
+    written = f"{year}-{month:02d}-{day:02d}" if len(year) == 4 else f"{month}/{day}/{year}"
+    return value[:match.start()] + written + value[match.end():]
 
 
 def _dated_cells(text: pd.Series) -> pd.Series:
@@ -116,7 +208,8 @@ def _dated_cells(text: pd.Series) -> pd.Series:
 def _wall_clock(text: pd.Series, date_format: str | None, options: dict[str, Any]) -> pd.Series:
     """The same cells with their offsets cut off, parsed as plain date-times. A
     format with an offset directive loses it too, or nothing would match."""
-    stripped = text.str.replace(_ANY_OFFSET, r"\1", regex=True)
+    stripped = (text.str.replace(_ANY_OFFSET, r"\1", regex=True)
+                .str.replace(BASIC_UTC_OFFSET, r"\1", regex=True))
     if date_format is not None:
         options = {"format": re.sub(r"\s*%z", "", date_format)}
     try:

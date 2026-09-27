@@ -335,9 +335,12 @@ def test_a_year_outside_1900_to_2100_is_not_a_date(cell: str) -> None:
 
 
 def test_the_first_and_last_day_of_the_range_are_dates() -> None:
-    parsed = as_dates(column("1900-01-01", "2100-12-31"))
+    # 1900-01-01 itself is Excel's day 1, a placeholder and no date since
+    # 2E-j (Thach, Q2 of 2E-h; tests/shared/test_2ej_dates.py): the year 1900
+    # is still in the range from its second day.
+    parsed = as_dates(column("1900-01-02", "2100-12-31", "1900-01-01"))
 
-    assert parsed.notna().all()
+    assert parsed.notna().tolist() == [True, True, False]
 
 
 def test_a_detector_agrees_with_the_transform_that_these_are_invalid() -> None:

@@ -18,10 +18,12 @@ from contracts.profile import (
     MAX_TOP_VALUES,
     ColumnProfile,
     DatasetStats,
+    DateOrderMeasure,
     ProfileContract,
     TopValue,
 )
 from shared.run_registry import run_file
+from shared.date_evidence import order_evidence_of_counts
 from stages.ingest.contract_files import write_contract
 
 # pandas 3.0 read_csv defaults, listed here so the definition of "missing" is
@@ -33,7 +35,7 @@ NA_TOKENS = [
 ]
 DELIMITER_CANDIDATES = ",;\t|"
 SAMPLE_VALUES_PER_COLUMN = 5  # evenly spaced rows (decided by Thach in 1B)
-SCHEMA_VERSION = "1.0"  # CONTRACTS.md section 1
+SCHEMA_VERSION = "1.1"  # CONTRACTS.md section 1; 1.1 (2E-j): a column's date order
 RAW_FILENAME = "raw.csv"  # CONTRACTS.md section 1
 PROFILE_FILENAME = "profile.json"
 
@@ -169,6 +171,10 @@ def profile_column(name: str, values: pd.Series) -> ColumnProfile:
         **stats,
         top_values=_top_values(counts),
         sample_values=_sample_values(values),
+        # Per column, whatever it is mapped to: Review reads the date
+        # column's, and a remap or a manual plan needs no other measure. A
+        # column of numbers holds no day-month-year cell.
+        date_order=date_order_measure(counts) if numbers is None else None,
     )
 
 
@@ -190,6 +196,21 @@ def _as_numbers(values: pd.Series, present: pd.Series) -> pd.Series | None:
     if not np.isfinite(numbers.dropna().to_numpy(dtype=float)).all():
         return None  # "inf" cannot round-trip through JSON
     return numbers
+
+
+def date_order_measure(counts: pd.Series) -> DateOrderMeasure | None:
+    """How a column's day-month-year or month-day-year cells are written
+    (2E-j; `counts`: each distinct cell and how many hold it); None when
+    nothing depends on the order. Execution decides on the same evidence
+    (date_order.py)."""
+    evidence = order_evidence_of_counts(counts)
+    decision = evidence.decision
+    if decision is None:
+        return None
+    return DateOrderMeasure(
+        shaped=evidence.shaped, day_first=evidence.day_first, month_first=evidence.month_first,
+        ambiguous=evidence.ambiguous, day_first_example=evidence.day_first_example,
+        month_first_example=evidence.month_first_example, decision=decision, hint=evidence.hint)
 
 
 def _top_values(counts: pd.Series) -> list[TopValue]:

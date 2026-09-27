@@ -30,8 +30,10 @@ from stages.analyze.metrics_products import compute_product_metrics
 # 2E-e2 (an order id checked by date only and the customer fill count only
 # with the user's answers in Review; unfilled receipt lines counted), 10.0
 # in 2E-k (confirmed walk-in placeholders unattributed; the order-id check
-# judged per receipt).
-SCHEMA_VERSION = "13.0"
+# judged per receipt). 14.0 in 2E-j (a date column read in the order stage 1
+# decided; placeholder dates undated; a month-grain file's last month
+# compared, `period.month_grain`).
+SCHEMA_VERSION = "14.0"
 METRICS_FILENAME = "metrics.json"
 
 
@@ -69,7 +71,7 @@ def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None) -> Me
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    metrics = assemble_metrics(frame, report.column_mapping, now, report.confirmations)
+    metrics = assemble_metrics(frame, report.column_mapping, now, report.applied_confirmations())
     write_atomically(
         run_file(runs_root, run_id, METRICS_FILENAME), metrics.model_dump_json(indent=2).encode("utf-8")
     )

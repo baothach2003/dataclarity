@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 # The date reader is shared with stages 2 and 3 since 2E-h (one rule, 1F's).
-from shared.dates import UTC_OFFSET, Offsets, as_dates  # noqa: F401 - Offsets: stage 1's name for it
+from shared.dates import BASIC_UTC_OFFSET, UTC_OFFSET, Offsets, as_dates  # noqa: F401 - Offsets: stage 1's name for it
 
 # A column counts as numeric / date when more than this share of its non-missing
 # values convert. Above half there is one dominant kind, and the rest is dirt.
@@ -57,11 +57,14 @@ def as_numbers(values: pd.Series) -> pd.Series:
 
 
 def has_utc_offset(values: pd.Series) -> bool:
-    """Whether any cell is written with a UTC offset ("+01:00", "-0500", "Z")."""
+    """Whether any cell is written with a UTC offset ("+01:00", "-0500", "Z"),
+    after a basic ISO time too ("20240330T101500+1100", 2E-j)."""
     text = as_text(values)
     # A cell that has an offset is a cell the strip changes (str.contains would
     # warn about the capture group).
-    return bool((text.str.replace(UTC_OFFSET, r"\1", regex=True).ne(text) & text.notna()).any())
+    stripped = (text.str.replace(UTC_OFFSET, r"\1", regex=True)
+                .str.replace(BASIC_UTC_OFFSET, r"\1", regex=True))
+    return bool((stripped.ne(text) & text.notna()).any())
 
 
 def present_mask(values: pd.Series) -> pd.Series:

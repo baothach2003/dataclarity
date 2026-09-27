@@ -58,7 +58,7 @@ def test_the_report_holds_what_ran_in_the_order_it_ran(tmp_path: Path) -> None:
 
     report = execute_run(tmp_path, run_id, DEDUPLICATING, now=NOW)
 
-    assert (report.schema_version, report.generated_at) == ("3.0", NOW)  # 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major)
+    assert (report.schema_version, report.generated_at) == ("3.1", NOW)  # 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
     assert (report.rows_in, report.rows_out) == (5, 4)
     # 5 source columns, plus the two flag columns the run added.
     assert (report.columns_in, report.columns_out) == (5, 7)
@@ -253,7 +253,7 @@ def test_the_files_are_plain_utf8_json_and_csv(tmp_path: Path) -> None:
 
     assert set(report) == {"schema_version", "generated_at", "rows_in", "rows_out", "columns_in",
                            "columns_out", "changes", "warnings", "column_mapping",
-                           "confirmations"}  # 2E-e2
+                           "confirmations", "date_order"}  # 2E-e2; 2E-j
 
 
 # --- cells that read back as missing (1F review) ---------------------------------------------

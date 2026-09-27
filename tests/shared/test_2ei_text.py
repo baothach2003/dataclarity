@@ -181,7 +181,7 @@ def test_a_stock_receipt_typed_in_with_a_zero_width_space_is_no_sale() -> None:
 
 # --- the contracts ---------------------------------------------------------------------
 
-def test_metrics_json_is_major_13_and_diagnosis_json_major_14() -> None:
+def test_metrics_json_is_major_13_and_diagnosis_json_major_14_or_the_current_ones() -> None:
     # The same data can group customers, orders and categories differently
     # (CONTRACTS 10: a change of meaning is a major bump, as 2E-g's product
     # reading was). Readers refuse the earlier majors.
@@ -194,10 +194,10 @@ def test_metrics_json_is_major_13_and_diagnosis_json_major_14() -> None:
     from tests.contracts.test_diagnosis import diagnosis_payload
     from tests.contracts.test_metrics import metrics_payload
 
-    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("13.0", 13, 14)
+    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("14.0", 14, 15)  # 13 / 14 in 2E-i; 14 / 15 since 2E-j
     metrics, diagnosis = metrics_payload(), diagnosis_payload()
-    assert (metrics["schema_version"], diagnosis["schema_version"]) == ("13.0", "14.0")
-    metrics["schema_version"], diagnosis["schema_version"] = "12.0", "13.0"
+    assert (metrics["schema_version"], diagnosis["schema_version"]) == ("14.0", "15.0")
+    metrics["schema_version"], diagnosis["schema_version"] = "13.0", "14.0"
     with pytest.raises(ValidationError, match="re-analyse"):
         MetricsContract.model_validate(metrics)
     with pytest.raises(ValidationError, match="re-analyse"):

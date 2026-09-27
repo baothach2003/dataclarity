@@ -96,6 +96,27 @@ export interface ColumnProfile {
   q3: number | null
   top_values: TopValue[]
   sample_values: (string | null)[]
+  // 1.1 (2E-j): only for a column with a cell written day-month-year or
+  // month-day-year; null or absent otherwise.
+  date_order?: DateOrderMeasure | null
+}
+
+// How a column's day-month-year or month-day-year cells are written (2E-j).
+export type DateOrder = 'day_first' | 'month_first'
+
+// Stage 1's measure of one column on the raw file (2E-j): a first number
+// 13-31 proves day first, a second month first; 'ask' when both or neither
+// prove it. The hint is a suggestion only.
+export interface DateOrderMeasure {
+  shaped: number
+  day_first: number
+  month_first: number
+  // Cells either order reads, each as another date (two numbers 1-12 that differ).
+  ambiguous: number
+  day_first_example: string | null
+  month_first_example: string | null
+  decision: DateOrder | 'ask'
+  hint: DateOrder | null
 }
 
 export interface ProfileContract {
@@ -206,6 +227,8 @@ export interface OrderConfirmations {
   customer_placeholders?: string[]
   // 2.3 (2E-d2): the product keys the user classed as not products.
   line_classes?: LineClassAnswer[]
+  // 3.1 (2E-j): the answer to the date question - true: day first.
+  dates_day_first?: boolean | null
 }
 
 // What a line that is not an ordinary product is (2E-d2, 2E-l): a charge the
@@ -262,6 +285,9 @@ export interface CleaningReport {
   column_mapping: Record<string, CanonicalField>
   // 2.1 (2E-e2): the answers that ran.
   confirmations?: OrderConfirmations
+  // 3.1 (2E-j): the order the date column was read in - the answer, else
+  // the raw file's proof.
+  date_order?: DateOrder | null
 }
 
 // --- preview (stages/ingest/preview.py PreviewResult) --------------------------

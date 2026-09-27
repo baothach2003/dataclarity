@@ -1,5 +1,6 @@
-// The Review screen's answers about orders, customers and lines that are not
-// products (sessions 2E-e2, 2E-k, 2E-d2), kept apart from the plan so an
+// The Review screen's answers about orders, customers, lines that are not
+// products and how the dates are written (sessions 2E-e2, 2E-k, 2E-d2,
+// 2E-j), kept apart from the plan so an
 // answer neither re-runs the preview nor is lost when the plan is reset to the
 // AI's. Each answer remembers the columns it was given for
 // (domain/orderChecks.ts, domain/customerChecks.ts, domain/lineClasses.ts).
@@ -7,6 +8,8 @@
 import { useState } from 'react'
 import { confirmedPlaceholders, customerColumn, customerIdentity, placeholderCandidates } from '../domain/customerChecks.ts'
 import type { PlaceholderCandidate, StoredPlaceholders } from '../domain/customerChecks.ts'
+import { applicableDateAnswer, dateQuestion } from '../domain/dateOrder.ts'
+import type { StoredDateAnswer } from '../domain/dateOrder.ts'
 import { answeredLineClasses, candidateColumn, nonProductCandidates } from '../domain/lineClasses.ts'
 import type { LineCandidate, StoredLineClasses } from '../domain/lineClasses.ts'
 import { NO_ANSWERS, answerKey, applicableAnswers, withApplicableConfirmations } from '../domain/orderChecks.ts'
@@ -29,6 +32,11 @@ export interface OrderAnswers {
   answer: (question: Question, value: boolean | null) => void
   answerPlaceholder: (value: string, placeholder: boolean | null) => void
   answerLine: (candidate: LineCandidate, choice: LineClass | 'product' | null) => void
+  // 2E-j: the answer to the date question while it applies, and whether it
+  // is asked and unanswered (Confirm waits: stage 1 refuses to run).
+  dateAnswer: boolean | null
+  dateUnanswered: boolean
+  answerDate: (dayFirst: boolean | null) => void
   /** `plan` with the answers that apply to it, as executed. */
   confirmed: (plan: CleaningPlan) => CleaningPlan
 }
@@ -41,6 +49,8 @@ export function useOrderAnswers(
   const [stored, setStored] = useState<StoredAnswers>(NO_ANSWERS)
   const [storedPlaceholders, setStoredPlaceholders] = useState<StoredPlaceholders>({})
   const [storedLines, setStoredLines] = useState<StoredLineClasses>({})
+  const [storedDate, setStoredDate] = useState<StoredDateAnswer | null>(null)
+  const dateAnswer = applicableDateAnswer(plan, profile, storedDate)
   const placeholders = confirmedPlaceholders(plan, profile, schema, storedPlaceholders)
   const column = customerColumn(plan)
   const placeholderAnswers = new Map(
@@ -64,6 +74,12 @@ export function useOrderAnswers(
     placeholderAnswers,
     lineCandidates,
     lineAnswers,
+    dateAnswer,
+    dateUnanswered: dateQuestion(plan, profile) !== null && dateAnswer === null,
+    answerDate: (dayFirst) => {
+      const question = dateQuestion(plan, profile)
+      setStoredDate(dayFirst === null || question === null ? null : { value: dayFirst, column: question.column })
+    },
     answer: (question, value) => {
       setStored((current) => ({
         ...current,
@@ -104,16 +120,19 @@ export function useOrderAnswers(
         stored,
         confirmedPlaceholders(submitted, profile, schema, storedPlaceholders),
       )
-      // The classes go only when there are some (2E-d2), as placeholders do.
+      // The classes go only when there are some (2E-d2), as placeholders do,
+      // and the date answer only when it applies (2E-j).
       const lineClasses = answeredLineClasses(submitted, profile, schema, storedLines)
-      if (lineClasses.length === 0) {
+      const dayFirst = applicableDateAnswer(submitted, profile, storedDate)
+      if (lineClasses.length === 0 && dayFirst === null) {
         return withAnswers
       }
       const confirmations: OrderConfirmations = {
         order_id_is_receipt: null,
         customer_on_first_line_only: null,
         ...withAnswers.confirmations,
-        line_classes: lineClasses,
+        ...(lineClasses.length > 0 ? { line_classes: lineClasses } : {}),
+        ...(dayFirst !== null ? { dates_day_first: dayFirst } : {}),
       }
       return { ...withAnswers, confirmations }
     },

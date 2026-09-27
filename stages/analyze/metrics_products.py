@@ -68,6 +68,7 @@ from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, Pr
 from shared.numbers import is_negligible, pct_change
 from shared.products import product_keys, product_labels
 from shared.run_registry import run_file
+from shared.date_evidence import month_grain
 from shared.transactions import ParsedTransactions, is_stock_in, parse_transactions, require_column
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
@@ -90,9 +91,10 @@ def product_metrics_for_run(
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    parsed = parse_transactions(frame, report.column_mapping, report.confirmations)
-    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale])
-    return compute_product_metrics(frame, report.column_mapping, period, report.confirmations)
+    parsed = parse_transactions(frame, report.column_mapping, report.applied_confirmations())
+    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale],
+                           grain=month_grain(parsed.dates[parsed.counted]))
+    return compute_product_metrics(frame, report.column_mapping, period, report.applied_confirmations())
 
 
 def compute_product_metrics(
