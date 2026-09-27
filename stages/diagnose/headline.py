@@ -9,7 +9,7 @@ estimated here.
 from contracts.diagnosis import Headline, Hypothesis, Tree, Trust
 from stages.diagnose.catalog import BY_ID, CATALOG
 from stages.diagnose.step7_inputs import Changes
-from stages.diagnose.numbers import is_negligible, products_hold_most
+from stages.diagnose.numbers import is_negligible
 from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 
 ORDER = {spec.id: index for index, spec in enumerate(CATALOG)}
@@ -51,31 +51,60 @@ def _moves_with_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
 
 
 def _lens_holds_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
-    """A product-lens share is a share of the GROSS change, which a
-    promotion or postage month barely moves: one unit's mix shift was 100%
-    of a -5 gross change and headlined a -780 month the discounts carried
-    (2E-l review cycle 1). So a product-lens cause is named only when MORE
-    than half of the change sits in the product lens - Thach's "more than
-    half" for claims about products (2E-l). Its verdict is not touched: it
-    does explain the gross change."""
-    if hypothesis.lens != "product":
-        return True
-    return moved.gross is not None and products_hold_most(
-        moved.gross, moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale)
+    """A product-lens cause is named only when MORE than half of the change
+    sits in the products (Thach's "more than half", 2E-l): one unit's mix
+    shift was 100% of a -5 gross change and headlined a -780 month the
+    discounts carried (2E-l review cycle 1). Measured as breadth and R1
+    measure it - the products' net change over the total net change (Thach,
+    2E-m: one definition; 2E-l's gross over net read 62% where breadth read
+    7%). Its verdict is not touched: it does explain the gross change."""
+    return hypothesis.lens != "product" or moved.products_hold_the_change
 
 
-def _fit(hypothesis: Hypothesis) -> float:
+def _fit(hypothesis: Hypothesis, moved: Changes) -> float:
     """How well a supported hypothesis explains the change, in [0, 1], for
-    ranking (Thach, 3E1). A term: min(|share|, 1). An expectation: the closer
-    to the change the better, so min(|share|, 2 - |share|) - ranking by the
-    largest |share| picked the WORST overshoot (T2 at 1.75 over T1 at 1.00).
-    A directional hypothesis has no share and ranks after all of them."""
-    if hypothesis.share is None:
+    ranking. Measured against the NET change the headline states, for every
+    lens (Thach, 2E-m, superseding 3E1's per-lens share): a product-lens
+    share is of the GROSS change, and P1's "100%" of gross -62 beat P4's 93%
+    of net -100 only because its denominator was smaller. The verdicts keep
+    their own lens totals. A term: min(size, 1). An expectation: the closer
+    to the change the better, so min(size, 2 - size) - ranking by the largest
+    size picked the WORST overshoot (T2 at 1.75 over T1 at 1.00; 3E1) -
+    floored at 0: R3 is judged against GROSS, so a supported R3 can be three
+    times the net change, and min(size, 2 - size) fell below a directional
+    cause's -1 (2E-m review cycle 1). A directional hypothesis has no number
+    and ranks after all of them."""
+    if hypothesis.contribution is None:
         return -1.0
-    size = abs(hypothesis.share)
+    size = abs(hypothesis.contribution / moved.net)
     if BY_ID[hypothesis.id].kind == "expectation":
-        return min(size, 2 - size)
+        return max(min(size, 2 - size), 0.0)
     return min(size, 1.0)
+
+
+def _best(candidates: list[Hypothesis], moved: Changes) -> Hypothesis:
+    """The best fit; a tie goes to catalog order (3E1) - except among TERMS
+    that are all past the net change (capped), where the larger share of it
+    decides (Thach, 2E-m: rank every cause by its share of the net change).
+    Catalog order named the smaller of two: P1 -23.8k over P2 -26.8k on a
+    -9.8k change (Online Retail II 2011-07, unanswered). A tie with an
+    expectation still goes to catalog order: an overshooting term does not
+    beat an exact explanation (3E1)."""
+    top = max(_fit(h, moved) for h in candidates)
+    tied = [h for h in candidates if _fit(h, moved) == top]
+    if len(tied) > 1 and all(BY_ID[h.id].kind == "term" and _past_the_change(h, moved) for h in tied):
+        return max(tied, key=lambda h: (abs(h.contribution / moved.net), -ORDER[h.id]))
+    return min(tied, key=lambda h: ORDER[h.id])
+
+
+def _past_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
+    """A term that alone moved more than the net change: other terms offset
+    it. One that explains the change exactly is not past it, and keeps its
+    catalog-order tie with the overshooting ones (2E-m review cycle 1) -
+    exactly above residue: -200.20 is past 800.1 - 1000.3 =
+    -200.19999999999993 by a float's last bit (review cycle 2)."""
+    excess = abs(hypothesis.contribution) - abs(moved.net)
+    return excess > 0 and not is_negligible(excess, moved.revenue_prev, moved.revenue_cur, moved.scale)
 
 
 def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | None,
@@ -131,20 +160,20 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
     context = [by_id[i] for i in ("T1", "T2") if by_id[i].verdict == "supported"
                and abs(by_id[i].share) >= HEADLINE_CONTEXT_MIN_SHARE]
     if context:
-        best = max(context, key=lambda h: (_fit(h), -ORDER[h.id]))
+        best = _best(context, moved)
         what = "the calendar (the mix of weekdays in each month)" if best.id == "T1" \
             else "seasonality (the same months a year earlier moved the same way)"
         return Headline(rule=5, hypothesis_id=None, lens=None,
                         message=f"{change} The change is consistent with {what}: "
                                 f"{_size(best, moved)}.")
 
-    # 6. The largest supported explanation. Directional hypotheses carry no
+    # 6. The best-supported explanation, ranked by share of the net change. Directional hypotheses carry no
     # share and rank after every share hypothesis, in catalog order.
     supported = [h for h in hypotheses if h.verdict == "supported"
                  and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)
                  and _lens_holds_the_change(h, moved)]
     if supported:
-        best = max(supported, key=lambda h: (_fit(h), -ORDER[h.id]))
+        best = _best(supported, moved)
         size = f", {_size(best, moved)}" if best.share is not None else ""
         return Headline(rule=6, hypothesis_id=best.id, lens=best.lens,
                         message=f"{change} The best-supported explanation: "

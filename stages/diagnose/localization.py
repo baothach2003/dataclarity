@@ -115,6 +115,16 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
     )
 
 
+def products_hold_the_change(breadth: Breadth) -> bool:
+    """Do the products hold more than half of the change? THE one definition
+    (Thach, 2E-m): the products' net change over the total net change, as
+    `compute_breadth` measured it - read here by the headline's product-lens
+    gate so breadth, R1 and the gate cannot disagree. 2E-l's gate read gross
+    over net instead: 62% where breadth read 7% on one month. A flat month
+    has no share (None) and holds nothing."""
+    return breadth.products_share_of_change is not None and breadth.classification != "outside_products"
+
+
 def _classify(declining_base_share: float, top_member_share: float) -> str:
     """Broad is tested first, per the spec's own order.
 

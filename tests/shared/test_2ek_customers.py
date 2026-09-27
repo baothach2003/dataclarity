@@ -161,7 +161,7 @@ def test_the_receipt_answer_still_decides() -> None:
 def test_versions() -> None:
     assert SCHEMA_VERSION == "12.0"  # 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 since 2E-l
     assert MetricsContract.supported_major == 12
-    assert DiagnosisContract.supported_major == 11
+    assert DiagnosisContract.supported_major == 12  # 12 since 2E-m
 
 
 def test_a_named_and_an_unnamed_receipt_never_name_two_customers() -> None:

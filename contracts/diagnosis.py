@@ -659,11 +659,14 @@ class DiagnosisContract(ContractFile):
     # lens loses `non_product` and gains `unidentified`, the lines with no
     # product identity), hypotheses P4 and P5, breadth measured over the
     # products' own change (`outside_products`, `products_share_of_change`),
-    # pooled items held with the data gap.
-    supported_major: ClassVar[int] = 11
+    # pooled items held with the data gap. 12 since 2E-m: rule 6 ranks every
+    # cause by its share of the NET change and the product-lens gate reads
+    # breadth's decision - the same data can name another cause (Thach).
+    supported_major: ClassVar[int] = 12
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
-        "definitions (returns lens, new and resurrected customers); re-analyse "
+        "definitions (returns lens, new and resurrected customers, the headline's "
+        "ranking); re-analyse "
         "this run")
 
     # Required but nullable: null means the AI step was unavailable, and a

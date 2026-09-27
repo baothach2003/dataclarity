@@ -1994,7 +1994,7 @@ dataclarity/
       **The stop rule fired: the third overnight run stops here.**
       **Thach, after the third run (2026-09-27):** D2-D9 kept; D8 stays as
       a guard, on the unified definition of 2E-m; D9 accepted, per 2E-g.
-- [ ] 2E-m **Headline ranking across lenses measured against different
+- [x] 2E-m **Headline ranking across lenses measured against different
       totals** (split out of 2E-l doubt-review cycle 3 under the stop rule;
       **for Thach - the third overnight run stopped on it**). FABRICATE,
       headline (a smaller cause called "the best-supported explanation").
@@ -2032,6 +2032,67 @@ dataclarity/
       the total net change, used identically by breadth, R1 and the D8 gate
       ("7% against 62% on the same month is the same disease as the
       ranking"). D8 stays as a guard, on this definition.
+      **Done 2026-09-27 (fourth overnight run, session 1; the run stopped
+      after it).** Method `C:\Users\Happy\2Em-method.txt` (amended after the
+      month measurement and before each review cycle's fixes). Rule 6 ranks
+      every supported cause by |contribution / net change| - 3E1's fit shapes
+      kept (a term capped at 1; an expectation min(size, 2 - size), floored
+      at 0 since R3 is judged against gross; directional last); among TERMS
+      all strictly past the change (above float residue) the larger share of
+      the net change decides (decision D1 of the run), any other tie catalog
+      order. The product-lens gate reads breadth's own decision
+      (`Changes.products_hold_the_change`), never gross over net. No field
+      changed, but the same data can name another cause: diagnosis.json 12.0
+      (the 2E-f / 2E-h precedents).
+      **Measured:** every Online Retail II month (Thach's classes and
+      unanswered) and Kaggle: 37 of 41 headlines unchanged; 2011-11 and
+      Kaggle unchanged; 2010-03 T1 -> R2 (both), 2011-06 unanswered P3 ->
+      P2, 2011-08 unanswered C1 -> P1 (the cap, question Q1).
+      **Mutation:** 10 on the build, 9 on cycle 1's fixes, 3 on cycle 2's -
+      every non-equivalent one killed (1 equivalent: `>` or `>=` 0 behind
+      the residue guard).
+      **Doubt-review:** two cycles (cross-model skipped: non-interactive).
+      Cycle 1, 8 findings: an R3 far past the change ranked after a
+      directional cause, the tie's measure untested, an exact term losing its
+      tie, docs and the version (fixed); the unanswered gate, the display
+      share (questions), float-exact R3 ties (8D). Cycle 2, 5: #1 blocks -
+      see 2E-n - and small fixes (the residue in "past the change", docs, a
+      type hint). pytest 2980. Cycle 2's small fixes are unreviewed.
+      **The run stopped here (Thach's rule "anything ambiguous").**
+- [ ] 2E-n **What "the change in the products" counts, and how terms past
+      the change rank** (split out of 2E-m's review cycle 2; **for Thach -
+      the fourth overnight run stopped on it**). FABRICATE, headline, a
+      regression against HEAD, on a common shape (refunds booked as negative
+      lines under the product's own SKU, as Online Retail II books them).
+      The one definition, read as the product members' NET change (sales
+      and refunds; D3 of 2E-l), counts the products' refunds: a month carried
+      by refunds "sits in the products" (100%), the gate opens, and a
+      product-lens term offset inside a tiny gross change outranks returns -
+      two products, gross -15, returns -200, net -215: "sales mix shifted
+      towards cheaper products (-390 against the change in gross sales of
+      -15)" where HEAD named returns (93%); 8 of 400 swept refund months.
+      Two honest readings of "the net change carried by the product
+      classes":
+      - N (built): the product members' net change, sales and refunds - what
+        breadth measures since 2E-l (D3, kept).
+      - G: the gross change of product SALE lines - customer returns their
+        own class, as the taxonomy brief (2E-t) lists them, and as B worded
+        it ("the product lens's own change": PVM decomposes gross sales).
+      Measured in a scratch copy, every Online Retail II month (both states)
+      and Kaggle: the readings differ in ONE of 41 - 2011-06 unanswered, N
+      names P2 (breadth broad), G names P3 as HEAD did (breadth
+      outside_products, 27%). 2011-11: the same headline (rule 5) and class
+      (mixed) either way; products' share 0.943 (N) against 0.895 (G).
+      Kaggle identical. The refund month: G names returns. G also closes the
+      unanswered 2011-06 case (Q2 of the run).
+      Also for the same decision: the cap on terms past the change (Q1 -
+      2011-08 unanswered names prices at 19x a +1.4k change over new
+      customers at 1.2x) and the tie's direction among such terms (D1: the
+      larger share; in a sweep P5 at 7.8x beat P3 at 1.14x); an exact term
+      later in catalog order joining a tie of overshooting terms restores the
+      smaller one (float-exact); the display of the share the ranking used
+      (Q3). Repros: scratchpad `2em/review2/`, `2em/g/` (reading G),
+      `2em/months2_*.json`.
 - [ ] 2E-t **Line taxonomy - DESIGN only** (Thach, 2026-09-27, after the
       third overnight run; method only, no code; stops for his approval).
       Builds on what 2E-l created (the charge, discount and pooled classes),
@@ -2416,6 +2477,10 @@ dataclarity/
       - a whole share with a float remainder (1.0000000000000018) prints as
         two figures, not "100%" (headline `_size`);
       - `stages/diagnose/members.py` is 319 lines.
+      From 2E-m: float-exact ties involving R3 (the one expectation after the
+      terms in catalog order) go to catalog order against the tie rule's
+      reason (older than 2E-m); a hand-built `Changes` defaults to the gate
+      open (only `changes()` builds one in production).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2548,6 +2613,13 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**The fourth overnight run STOPPED after 2E-m** (session 1 of 4): its
+doubt-review cycle 2 found a headline FABRICATE (a regression, on a common
+shape) that turns on how Thach's one definition reads - split out as **2E-n**
+(for Thach, both readings measured); overnight rule "anything ambiguous". Not
+started: 2E-t (design), 2E-i, 2E-j. Session **2E-m** closed 2026-09-27 (see
+its item): rule 6 ranks by share of the net change, the gate reads breadth's
+decision, diagnosis.json 12.0. pytest 2980, Vitest 156.
 **Phase in progress:** Phase 2/3. **Fourth overnight run** approved by Thach
 (2026-09-27, after reading the third run's report): **2E-m** (the ranking by
 share of the net change and the one definition of "the change in the

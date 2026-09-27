@@ -966,7 +966,10 @@ the top five are chosen for being the largest movers. Since 2E-l (Thach) it is
 measured against the products' OWN change, and only when more than half of
 the change sits in them (above floating-point residue); otherwise the
 classification is `outside_products`. `products_share_of_change` is the
-products' change over the total change - null for a flat month.
+products' change over the total change - null for a flat month. It is the one
+definition of the share of the change in the products (Thach, 2E-m): R1 and
+the headline's product-lens gate (rule 6) read breadth's decision, never a
+measure of their own.
 
 **Blank categories are handled differently here from `metrics.json`'s
 `by_dimension` (section 6), on purpose. Do not "fix" either one to match the
@@ -1196,6 +1199,15 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-27: **session 2E-m, the headline's ranking (Thach).**
+  `diagnosis.json` went to `12.0`: no field changed, but the same data can
+  name a different cause (Online Retail II 2010-03: T1 under 11.0, R2 now) -
+  a change of meaning, major. Rule 6 ranks every supported cause by its
+  share of the NET change (superseding 3E1's per-lens share; among terms all
+  past the change, the larger share decides), and the product-lens gate
+  reads breadth's decision - the products' net change over the net change,
+  one definition for breadth, R1 and the gate. Readers refuse `11.x`
+  diagnosis files ("re-analyse this run").
 - 2026-09-27: **session 2E-l, lines outside the products.**
   `schema_inference.json`, `plan_*.json` and `cleaning_report.json` went to
   `3.0`: the line-class enum gained `pooled`, and a line-class answer may be

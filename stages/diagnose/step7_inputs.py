@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from contracts.diagnosis import Calendar, Frame, Localization, Signal, Tree, Trust
 from stages.diagnose.inputs import RunData, money_moved
 from stages.diagnose.lever import month_revenue
+from stages.diagnose.localization import products_hold_the_change
 
 
 @dataclass(frozen=True)
@@ -56,6 +57,11 @@ class Changes:
     # What stage 2's orders are (2E-e): the wording says "lines" when they are
     # lines. A hand-built Changes (tests) is on lines, the honest default.
     orders_basis: str = "lines"
+    # Do the products hold more than half of the change - breadth's own
+    # decision (localization.products_hold_the_change, Thach 2E-m), read by
+    # the headline's product-lens gate. `changes()` always sets it; a
+    # hand-built Changes (tests) holds the change unless it says otherwise.
+    products_hold_the_change: bool = True
 
 
 def changes(inputs: Step7Inputs) -> Changes:
@@ -65,7 +71,10 @@ def changes(inputs: Step7Inputs) -> Changes:
     tree = inputs.tree
     gross = (tree.returns.gross_cur - tree.returns.gross_prev) if tree else None
     alert = bool(tree and tree.lever.masked_shift_alert)
+    localization = inputs.localization
     return Changes(prev, cur, cur - prev, gross, alert, money_moved(inputs.data),
                    # The basis the lever counted on (F10): the same shared
                    # rule stage 2 wrote into metrics.json.
-                   orders_basis=inputs.data.parsed.orders_basis)
+                   orders_basis=inputs.data.parsed.orders_basis,
+                   products_hold_the_change=(localization is not None
+                                             and products_hold_the_change(localization.breadth)))

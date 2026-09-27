@@ -105,8 +105,11 @@ def test_a_month_of_cheaper_postage_headlines_the_charges_not_a_mix_sliver() -> 
     assert "customers paid less in charges (postage, delivery)" in headline.message
 
 
-def _product_lens_headline(gross: float) -> tuple[int, str | None]:
-    # P1 explains all of the gross change; the net change is -200.
+def _product_lens_headline(gross: float, holds: bool) -> tuple[int, str | None]:
+    # P1 explains all of the gross change; the net change is -200. Whether
+    # the products hold more than half of it is breadth's decision (Thach,
+    # 2E-m: one definition - the products' NET change over the net change;
+    # its exact half and residue are tested at breadth, below).
     hypotheses = []
     for spec in CATALOG:
         supported = spec.id == "P1"
@@ -115,18 +118,21 @@ def _product_lens_headline(gross: float) -> tuple[int, str | None]:
             verdict="supported" if supported else "ruled_out",
             contribution=gross if supported else None, share=1.0 if supported else None,
             evidence={}, rule="test"))
-    moved = Changes(revenue_prev=1000.0, revenue_cur=800.0, net=-200.0, gross=gross, alert=False)
+    moved = Changes(revenue_prev=1000.0, revenue_cur=800.0, net=-200.0, gross=gross, alert=False,
+                    products_hold_the_change=holds)
     headline = choose_headline(trust(), hypotheses, None, moved)
     return headline.rule, headline.hypothesis_id
 
 
 def test_a_product_lens_cause_headlines_only_when_the_lens_holds_more_than_half() -> None:
-    assert _product_lens_headline(-101.0) == (6, "P1")
-    # Exactly half is not MORE than half - and neither is half plus residue.
-    assert _product_lens_headline(-100.0) == (7, None)
-    assert _product_lens_headline(-100.00000000000001) == (7, None)
-    # A gross change the other way holds none of the change.
-    assert _product_lens_headline(150.0) == (7, None)
+    assert _product_lens_headline(-101.0, holds=True) == (6, "P1")
+    # Since 2E-m the gross change no longer decides: more than half of the
+    # net change in gross, but not in the products' own change - no P1...
+    assert _product_lens_headline(-101.0, holds=False) == (7, None)
+    # ...and the products holding the change opens it at any gross.
+    assert _product_lens_headline(-100.0, holds=True) == (6, "P1")
+    # A gross change the other way moves against the change: never named.
+    assert _product_lens_headline(150.0, holds=True) == (7, None)
 
 
 # --- F4: breadth's "more than half" above residue -----------------------------

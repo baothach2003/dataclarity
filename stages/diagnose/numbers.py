@@ -76,8 +76,9 @@ def usable_base(base: float, typical: float, scale: float) -> bool:
 def products_hold_most(part: float, total: float, *magnitudes: float) -> bool:
     """Does `part` hold MORE than PRODUCTS_MAJORITY_SHARE of `total`, in the
     total's direction? Thach's "more than half" (2E-l) for every claim about
-    products: breadth and R1 (the products' own change) and a product-lens
-    headline (the change in gross sales).
+    products: breadth decides it over the products' own net change, and R1
+    and the headline's product-lens gate read breadth's decision (Thach,
+    2E-m: one definition).
 
     Compared as money above residue, not as a ratio against 0.5: a product
     moving 1.0 -> 1.3 of a 0.60 change is 0.5000000000000001 of it in binary,
