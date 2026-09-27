@@ -2246,6 +2246,33 @@ dataclarity/
       products' share under reading G (Online Retail II 2011-02: 2.71) and
       the product lens (R2 named a cancelled order at HEAD); a cancellation
       class belongs in the design.
+      **Design delivered 2026-09-27 (fifth overnight run, session 2), for
+      Thach's approval:** `docs/LINE_TAXONOMY.md` and
+      `docs/adr/0008-line-taxonomy.md`, both PROPOSED. Two questions decide
+      a class - what the ITEM is (per key) and what the LINE does (money
+      from the amount's sign; a mapped type value or invoice prefix changes
+      it only where it adds what the signs lack; a zero-amount line's
+      direction mapped per description and sign); a closed class list from
+      ordered rules that place every line; an effects matrix whose customer
+      columns and `counted` reproduce today's rules, with a stock ledger in
+      magnitudes; the migration measured - unanswered or with his classes,
+      no revenue, product table or headline moves on either demo file. A
+      three-session split (2E-t1 classifier, 2E-t2 stages 2-3, 2E-t3
+      Review); eight questions (section 8). `cancellation` is not a class
+      (the data cannot tell it from a same-day return or a re-issue).
+      **Corrected by measurement:** the gift vouchers do not change the demo
+      MONTH's revenue (none in 2011-11); one, 16.67, sits in 2011-10, its
+      previous month, and confirming the class moves six months (2010-10 and
+      2010-11 among them, which seasonality reads).
+      **Doubt-review:** three fresh-context cycles on the design, 11 / 11 / 9
+      findings, each revision folding them in (section 9); **the third
+      revision's corrections are unreviewed - a fourth review follows his
+      answers, before 2E-t1.**
+      **Found while measuring, older than the design (for Thach to place):**
+      the stock ledger reads a zero-amount -20 line as +20 stock (57 days to
+      stockout instead of 17; only files with stock-in lines, neither demo
+      file); lines with no parseable quantity or price are reported nowhere
+      (Kaggle 1,213, 9.6% of the file - a SUPPRESS on a demo file).
       Deliver the design file and an ADR-0008 draft, with a proposed
       implementation split (Thach expects 2-3 sessions). The Online Retail II
       demo comes after the taxonomy: it changes the demo's revenue (gift
@@ -2749,8 +2776,11 @@ item): the products' share reads their sale lines (reading G), one fit for
 every cause, exact ties name every tied cause, the movements when nothing
 fits, the net share in the wording; diagnosis.json 13.0. The demo month
 2011-11 is byte-identical. Cycle 3's local fixes are UNREVIEWED. Questions
-Q1-Q4 for Thach in the item. pytest 3014, Vitest 156. **Next:** 2E-t (the
-line taxonomy, DESIGN only; stops for his approval), then 2E-i, 2E-j.
+Q1-Q4 for Thach in the item. pytest 3014, Vitest 156.
+Session **2E-t** (the line taxonomy, DESIGN only) delivered 2026-09-27
+(session 2): `docs/LINE_TAXONOMY.md` and ADR-0008, PROPOSED, waiting for
+his approval and eight answers; its third revision is unreviewed (a fourth
+review before 2E-t1). **Next:** 2E-i, then 2E-j.
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
