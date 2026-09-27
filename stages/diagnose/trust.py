@@ -87,8 +87,8 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
                                      if coverage.first_counted else None),
                       "previous_month_has_sales": coverage.has_rows},
             message=coverage.reason)
-    # A month-grain file has one dated day a month, so a day with no sales
-    # is every day but the 1st: the check read "normal" and passed, having
+    # A month-grain file has one dated day a month (the 1st or the last), so
+    # a day with no sales is every other day: the check read "normal" and passed, having
     # measured nothing (Thach, Q1 of 2E-h; 2E-j).
     # Not applicable, as Thach put it - not "could not run", which would
     # badge every monthly file "caution" (2E-j review cycle 1 #11).

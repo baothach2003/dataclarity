@@ -122,8 +122,11 @@ date column's day-month-year cells can be read day first or month first and
 the file proves neither (or both), Review asks "How are the dates in "X"
 written?" - Day first (31/12/2026) or Month first (12/31/2026) - and Confirm
 waits for the answer (stage 1 refuses to run without one: either default
-fabricates dates). A proven order is shown with its proof; a parse step on the
-date column that reads the other way is shown with its fix. The answer
+fabricates dates). A proven order is shown with its proof, and the user may
+override it ("They are written month first"; Thach, 2E-o Q8) - the cells
+only the proven order can hold then have no date and are counted as
+undated; a parse step on the date column that reads the other way is shown
+with its fix. The answer
 applies only to the column it was given for.
 
 **Order notices (session 2E-e2, Thach),** above the column table, following

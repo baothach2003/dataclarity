@@ -59,7 +59,8 @@ class Period(ContractModel):
     # previous-month raw totals are a partial month (CONTRACTS.md section 6).
     previous_complete: bool
     previous_incomplete_reason: str | None
-    # 14.0 (2E-j): every COUNTED line is at midnight on the 1st, over two
+    # 14.0 (2E-j): every COUNTED line is at midnight on the 1st (or, 15.0 since
+    # 2E-o, every one on the last day of its month), over two
     # months or more - the file records months, not days. Its last sale
     # month, once over, is then the current month, and stage 3's day-level
     # steps do not apply.
@@ -331,8 +332,10 @@ class MetricsContract(ContractFile):
     # and a cell with nothing visible is blank. 14 since 2E-j: a date column
     # can be read day first (the order stage 1 decided), placeholder dates and
     # days the order cannot hold are undated, and a month-grain file compares
-    # its last month (`period.month_grain`).
-    supported_major: ClassVar[int] = 14
+    # its last month (`period.month_grain`). 15 since 2E-o: a month-end dated
+    # file is month grain too (another month compared), and a day-month-year
+    # date is found beside a dotted time or before its time.
+    supported_major: ClassVar[int] = 15
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

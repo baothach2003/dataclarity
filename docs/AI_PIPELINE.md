@@ -768,7 +768,8 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   since 2C (Thach, 3C2), and since 2E-i read as a reader tells them apart:
   Unicode composed, the characters that render as nothing and change nothing
   removed (a trailing zero-width space made one customer a lapsed and a new
-  one), the direction marks (their rare reordering of digits is a known
+  one; some others that draw nothing still split - a known limit), the
+  direction marks (their rare reordering of digits is a known
   cost), a no-break space read as a space - never full
   case folding
   ("Weiss" and "Weiss" with a sharp s stay two people). Both stages use it, which is what keeps
@@ -978,7 +979,7 @@ grew 2.7x.
 | B2 | lever | lever | term | Basket size changed | fall: Baskets got smaller; rise: Baskets got bigger | level-2 units-per-order contribution | net units > 0 |
 | P1 | product_returns | product | term | Like-for-like prices changed | - | PVM price effect | products in L |
 | P2 | product_returns | product | term | Sales mix shifted | fall: Sales mix shifted towards cheaper products; rise: Sales mix shifted towards pricier products | PVM mix effect | products in L |
-| P3 | product_returns | returns | term | Returns changed | - | `-delta_returns` | none |
+| P3 | product_returns | returns | term | Returns changed | fall: Returns took more revenue away; rise: Returns took less revenue away | `-delta_returns` | none |
 | P4 | product_returns | returns | term | Discounts and other deductions changed | fall: Discounts and other deductions took more revenue away; rise: Discounts and other deductions took less revenue away | `-delta_deductions` | none |
 | P5 | product_returns | returns | term | Charges paid by customers changed | fall: Customers paid less in charges (postage, delivery); rise: Customers paid more in charges (postage, delivery) | `delta_charges` | lines classed as charges |
 | R1 | localization_lifecycle | localization | directional | The change is concentrated in one product or category | - | directional: breadth `concentrated` and top member moving with the total | none |
@@ -1141,7 +1142,10 @@ while the month fell 450 short of its season. Written as a band, not
    only in 7.9: the headline is written by code and is still produced in
    degraded mode, where no narration validator runs.
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
-   state that.
+   state that - when it fits BEST: rules 5 and 6 are ranked together under
+   the one fit (Thach, 2E-o Q1), so a context cause no longer wins by coming
+   first (Kaggle 2024-12: T2 at 1.48x beside B1 at 0.96x names B1). A tie of
+   a context cause with a rule-6 cause is named in rule 6's words.
 6. Otherwise the best-fitting `supported` hypothesis, naming its lens and
    its rendered statement - **except D2 and D3**, whose finding is the trust
    caution shown beside every headline; caution never changes the headline
@@ -1164,13 +1168,19 @@ while the month fell 450 short of its season. Written as a band, not
    every tied cause, with `hypothesis_id` and `lens` null. When share causes
    rule 6 may name exist but none has a positive fit - each lands at least
    |net| from the change (twice it, or short of that only by float residue)
-   - "The change is what remains of movements in opposite directions: down,
-   X (lens, -a); up, Y (lens, +b)", the change's direction first, in money
-   (`hypothesis_id` null). Each is the largest MEASURED movement that way -
-   a term whatever its verdict (a term against the change is ruled out only
-   for its direction), an expectation (D1, T1, T2, R3 estimates; C1-C3 are
-   differences between two transitions, no part of this change) only when
-   supported - every one of an exact tie. The sentence claims no more than
+   - "The change is what remains of movements in opposite directions, among
+   them: down, X (lens, -a); up, Y (lens, +b)", the change's direction
+   first, in money (`hypothesis_id` null). "Among them" (2E-o Q5 #1): the
+   two named are not the whole change - on Online Retail II 2011-07 they
+   added to +5,763 beside a -9,823 change. Each is the largest MEASURED
+   movement that way - a term whatever its verdict (a term against the
+   change is ruled out only for its direction), what the catalog calls an
+   expectation only when supported (D1, T1, T2, R3 estimate what a cause
+   would have done; C2 is a difference between two transitions; C1 and C3
+   are parts of the change under the customer split, judged as expectations
+   by the catalog) - every one of an exact tie. P3's statement carries its
+   direction: P3 reads "returns took less revenue away" when refunds fell
+   ("up, returns changed" read as returns rising). The sentence claims no more than
    the direction and money of what it names: a ruled-out cause can fit (T1
    at 1.84x, outside its band), so can a product-lens cause the gate held
    back, the movement named can be smaller than the change, and the tree
@@ -1181,8 +1191,9 @@ while the month fell 450 short of its season. Written as a band, not
    it is closed whenever the products' sales carry at most half of the
    change - also when they moved against it, and then "no tested cause
    moved revenue up" stood beside a supported price rise (2E-n review cycle
-   1). A directional hypothesis comes after all of this, as it ranks after
-   every share cause.
+   1). A supported directional hypothesis (a directional R1, C4) comes
+   after the share causes that fit and BEFORE the movements sentence, which
+   is the last resort (Thach, 2E-o Q4; C4 is always inconclusive in v1).
 7. Nothing supported - no single tested cause explains most of the change,
    followed by the `partial` ones.
 
@@ -1208,7 +1219,8 @@ differ in binary. **An exact tie names every tied cause, never one by
 catalog order** (Thach, 2E-n). Ranking by the largest share picked the
 WORST overshoot - T2 at 1.75 over T1 at 1.00 (3E1); an overshoot never
 beats an exact explanation. A directional hypothesis ranks after every
-share cause. Rule 5 applies only when T1 or T2 fits above residue: named
+share cause that fits, before the movements. Rule 5's causes are ranked
+with rule 6's (2E-o Q1); rule 5 names them only when they fit best: named
 only when supported (within 0.2-1.8 of the change) and at least half of it,
 each fits by at least 0.2 of the change - which, on a change of cents, can
 be residue; rule 6 then decides (2E-n review cycle 1).

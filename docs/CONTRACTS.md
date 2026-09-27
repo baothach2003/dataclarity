@@ -72,8 +72,13 @@ non-numeric columns. `top_values` is capped at 10 entries per column.
 day-month-year or month-day-year dates - two numbers of one or two digits and
 a year of two or four, separated by `/`, `.`, `-` or spaces, anywhere in the
 cell ("05/01/2026", "Mon 5.1.26 10:30"), never inside ISO or a time, and never
-in a cell that also holds a year-first date ("2026-01-05 10.30.00") - can be
-read two ways; `null` otherwise (and absent from a `1.0` file):
+in a cell that also holds a year-first date ("2026-01-05 10.30.00") or a month
+in words ("05-JAN-26 10.30.00 AM": its date is in words) - can be read two
+ways; `null` otherwise (and absent from a `1.0` file). A four-digit year
+wins among a cell's candidates; a dotted one ("10.30.00") loses to any other,
+is refused before AM/PM, and two dotted ones with nothing better are no date
+(2E-o). Read in an order, the date is rewritten in place, and a dotted time
+in the rest of the cell is written with colons:
 
 ```json
 "date_order": {"shaped": 9120, "day_first": 3940, "month_first": 0,
@@ -297,9 +302,11 @@ confirmed.
 
 `confirmations.dates_day_first` (`3.1`, session 2E-j, Thach) answers Review's
 date question - `true`: the date column's day-month-year cells are written
-day first; `false`: month first; `null`: not asked or not answered. Asked
-when that column's `date_order.decision` is `"ask"` (section 2), and then
-required: stage 1 refuses to execute a plan whose date column proves neither
+day first; `false`: month first; `null`: not asked or not answered. The
+user may also answer against a proven order (Thach, 2E-o Q8: one typo can
+prove an order): the answer wins, and the cells only the other order can
+hold become undated, counted with their reason. Asked when that column's
+`date_order.decision` is `"ask"` (section 2), and then required: stage 1 refuses to execute a plan whose date column proves neither
 order (or both) and carries no answer, because either default fabricates
 dates (an Australian shop's days 1-12 read month first landed in January to
 December). A `parse_datetime` on the date column must read those cells as
@@ -446,9 +453,12 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   Both are counted in `undated_lines`, and its reason names them. The epoch
   written on a western clock (1969-12-31) is a placeholder too.
 - **A month-grain file** (Thach, Q1 of 2E-h; `period.month_grain`): every
-  COUNTED line is at midnight on the 1st, over two months or more - "Mar
-  2024" reads as the 1st. Such a file records months, not days: its line on
-  the 1st stands for the month, so no day says whether the last month is
+  COUNTED line is at midnight on the 1st - or every one at midnight on the
+  last day of its month, an accounting period end (Thach, 2E-o Q10) - over
+  two months or more - "Mar 2024" reads as the 1st. A month holding a sale
+  line counts as covered (a two-month file dated 31 January is not "30 days
+  into" January). Such a file records months, not days: its line on
+  the 1st (or the last day) stands for the month, so no day says whether the last month is
   over. By the elapsed-day rule below it was always dropped (the report
   compared the two months before it); now the last month holding a SALE line
   is `current` once it has ended on every clock (12 hours past its end in
@@ -685,10 +695,12 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   when it shows nothing - only whitespace, format characters that draw
   nothing (joiners, direction controls, tags - not the prepended
   concatenation marks, which draw a sign), variation selectors, or the
-  products' invisible characters - in every column, stage 1's
-  `drop_rows_missing` and plan checks included. Two
+  products' invisible characters - in every column stages 2 and 3 read,
+  and in stage 1's `drop_rows_missing` and plan checks (the profile's
+  missing counts and the imputations still count NA tokens only - 2E-o Q5
+  #10, a known limit). Two
   customers, order ids, categories or transaction types are one value when
-  they differ in what a reader cannot see: Unicode composition, the
+  they differ in these ways a reader cannot see: Unicode composition, the
   characters that render as nothing AND change nothing around them (the
   zero-width space, word joiner, BOM, soft hyphen, invisible operators), the
   direction marks (a stray one rendered nothing; the rare id they reorder is
@@ -696,8 +708,11 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   overrides, embeddings and isolates (they can reorder: a wrapper that
   renders alike still splits - a limit for Thach), the joiners or the
   variation selectors (they can change what is shown), never another whitespace
-  kind (a control character, the wider ideographic space), never full case
-  folding. Customers and categories are then lower-cased, a category's runs
+  kind inside a value (a control character, the wider ideographic space - at
+  the ends every whitespace kind is trimmed), never full case folding. Some
+  characters that draw nothing still split a value (the Hangul filler,
+  tags, the combining grapheme joiner; a trailing joiner) - a known limit
+  (2E-o Q5 #6, #7). Customers and categories are then lower-cased, a category's runs
   of spaces read as one, an order id keeps its case. A line's product is its SKU,
   else its name (a name-only line takes the SKU when its name, on sale lines
   that have one, maps to exactly one SKU); a line with neither is the
@@ -984,7 +999,7 @@ Consumers must therefore honour the following, and
 `not_applicable` (15.0, 2E-j) is a month-grain file (`metrics.period.
 month_grain`): `expected_cur` and `expected_prev` are null, `calendar_effect`
 is 0 and `evidence.reason` says the file records months, not days - its
-weekday weights were all 0 (every day but the 1st holds nothing) and T1
+weekday weights were all 0 (every day but one holds nothing) and T1
 "ruled out" the calendar on no evidence. In such a file the D1 check's
 status is `not_applicable` (15.0) with that message - it read "normal"
 having measured nothing - and the trust verdict does not count it (not
@@ -1308,6 +1323,16 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-28: **session 2E-o, the fifth run's answers (Thach).** `metrics.json`
+  went to `15.0` (a file dated on each month's last day is month grain too, so
+  another month is compared; a day-month-year date is found beside a dotted
+  time or before its time) and `diagnosis.json` to `16.0` (rules 5 and 6 are
+  ranked together, so the same data can name another cause - Kaggle 2024-12
+  moves from seasonality T2 at 1.48x to B1 at 0.96x; a supported directional
+  cause comes before the movements; P3 reads signed; a trust check may be
+  `not_applicable` in a month-end file). The Online Retail II demo month
+  2011-11 is unchanged in both states. Readers refuse `14.x` metrics and
+  `15.x` diagnosis files.
 - 2026-09-27: **session 2E-j, dates decided at stage 1 (Thach).**
   `profile.json` went to `1.1` (optional per-column `date_order`) and the
   stage 1 contracts to `3.1` (optional `confirmations.dates_day_first` and

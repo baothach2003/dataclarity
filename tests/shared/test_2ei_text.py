@@ -4,7 +4,8 @@ before the change.
 Two questions, two readings (shared/text.py):
 - Is a cell EMPTY? Nothing visible - the same for every column: a cell of
   only whitespace or format characters that draw nothing renders as nothing.
-- Are two cells the SAME value? Differences a reader cannot see merge:
+- Are two cells the SAME value? These differences a reader cannot see merge
+  (others still split - 2E-o Q5 #7):
   Unicode composition, the characters that render as nothing AND change
   nothing around them (zero-width space, word joiner, BOM, soft hyphen, the
   invisible operators), a no-break space for a space - and the direction
@@ -194,10 +195,10 @@ def test_metrics_json_is_major_13_and_diagnosis_json_major_14_or_the_current_one
     from tests.contracts.test_diagnosis import diagnosis_payload
     from tests.contracts.test_metrics import metrics_payload
 
-    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("14.0", 14, 15)  # 13 / 14 in 2E-i; 14 / 15 since 2E-j
+    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("15.0", 15, 16)  # 13 / 14 in 2E-i; 14 / 15 in 2E-j; 15 / 16 since 2E-o
     metrics, diagnosis = metrics_payload(), diagnosis_payload()
-    assert (metrics["schema_version"], diagnosis["schema_version"]) == ("14.0", "15.0")
-    metrics["schema_version"], diagnosis["schema_version"] = "13.0", "14.0"
+    assert (metrics["schema_version"], diagnosis["schema_version"]) == ("15.0", "16.0")
+    metrics["schema_version"], diagnosis["schema_version"] = "14.0", "15.0"
     with pytest.raises(ValidationError, match="re-analyse"):
         MetricsContract.model_validate(metrics)
     with pytest.raises(ValidationError, match="re-analyse"):

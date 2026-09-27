@@ -3,7 +3,9 @@
 // how the date column's day-month-year cells are written, when the file
 // cannot say. Unlike the order questions it blocks Confirm until answered
 // (the action bar says so): stage 1 refuses to run without it, because
-// either default fabricates dates. A proven order is shown with its proof,
+// either default fabricates dates. A proven order is shown with its proof
+// and may be overridden (Thach, 2E-o Q8: the answer wins, the cells against it
+// become undated),
 // and a parse step reading the other way is shown with its fix.
 
 import { Notice } from './Notice.tsx'
@@ -20,6 +22,10 @@ interface DateOrderNoticeProps {
 
 const WORDS: Record<DateOrder, string> = { day_first: 'day first', month_first: 'month first' }
 
+function other(order: DateOrder): DateOrder {
+  return order === 'day_first' ? 'month_first' : 'day_first'
+}
+
 function count(value: number, singular: string, plural: string): string {
   return `${value.toLocaleString('en-US')} ${value === 1 ? singular : plural}`
 }
@@ -33,10 +39,10 @@ function why(measure: DateOrderMeasure): string {
 
 function hint(measure: DateOrderMeasure): string {
   if (measure.hint === 'day_first') {
-    return ' Read day first, every date is the 1st of a month, as in a file of monthly figures; read month first, they are the first days of one month.'
+    return ' Read day first, every date is the 1st of a month, as in a file of monthly figures; read month first, they all fall in the first days of January.'
   }
   if (measure.hint === 'month_first') {
-    return ' Read month first, every date is the 1st of a month, as in a file of monthly figures; read day first, they are the first days of one month.'
+    return ' Read month first, every date is the 1st of a month, as in a file of monthly figures; read day first, they all fall in the first days of January.'
   }
   return ''
 }
@@ -52,6 +58,7 @@ export function DateOrderNotice({ plan, profile, answer, onAnswer, onFixParse }:
   const proven = measure.decision === 'ask' ? null : measure.decision
   const proof = proven === 'day_first' ? measure.day_first : measure.month_first
   const example = proven === 'day_first' ? measure.day_first_example : measure.month_first_example
+  const answerOrder: DateOrder | null = answer === null ? null : answer ? 'day_first' : 'month_first'
 
   return (
     <>
@@ -87,9 +94,32 @@ export function DateOrderNotice({ plan, profile, answer, onAnswer, onFixParse }:
           As you answered.
         </Notice>
       )}
-      {proven !== null && (
-        <Notice tone="info" title={`Dates in "${column}" are read ${WORDS[proven]}`}>
+      {proven !== null && (answerOrder === null || answerOrder === proven) && (
+        <Notice
+          tone="info"
+          title={`Dates in "${column}" are read ${WORDS[proven]}`}
+          actions={
+            // Thach, 2E-o Q8: the user may override a proof - a typo can prove an order.
+            <button type="button" className="link-button" onClick={() => { onAnswer(proven !== 'day_first') }}>
+              {`They are written ${WORDS[other(proven)]}`}
+            </button>
+          }
+        >
           {`${count(proof, 'date', 'dates')}, such as "${example ?? ''}", can only be read that way.`}
+        </Notice>
+      )}
+      {proven !== null && answerOrder !== null && answerOrder !== proven && (
+        <Notice
+          // A warning: overriding a proof leaves dates undated and moves others (2E-o review cycle 2 #9).
+          tone="warning"
+          title={`Dates in "${column}" are read ${WORDS[answerOrder]}`}
+          actions={
+            <button type="button" className="link-button" onClick={() => { onAnswer(null) }}>
+              Change
+            </button>
+          }
+        >
+          {`As you answered: ${count(proof, 'date that can only be read', 'dates that can only be read')} ${WORDS[proven]}, such as "${example ?? ''}", will have no date, and ${proof === 1 ? 'is' : 'are'} counted as undated; ${count(measure.ambiguous, 'date that reads', 'dates that read')} either way ${measure.ambiguous === 1 ? 'is' : 'are'} read ${WORDS[answerOrder]}.`}
         </Notice>
       )}
       {conflict !== null && (

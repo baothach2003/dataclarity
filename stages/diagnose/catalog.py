@@ -179,7 +179,11 @@ CATALOG: tuple[HypothesisSpec, ...] = (
         "P3", "product_returns", "returns", "term",
         "Returns changed",
         "`-delta_returns`",
-        "none"),
+        "none",
+        # Signed like P4 (2E-o Q5 #1): its sign is revenue's, so fewer
+        # refunds read "up, returns changed" - as if returns had risen.
+        rendered=("Returns took more revenue away",
+                  "Returns took less revenue away")),
     # Thach, 2E-l (an amendment to ADR-0005): a promotion month is a real,
     # nameable cause. Without P4 a month moved by deductions headlined a
     # gross-lens sliver (P2 at -5 of -560) or "returns".

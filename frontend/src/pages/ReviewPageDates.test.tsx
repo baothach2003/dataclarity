@@ -182,7 +182,8 @@ describe('ReviewPage: how the dates are written', () => {
   it('states both readings of the first of each month, choosing neither (review cycle 2 #3)', () => {
     renderReview({ ...AMBIGUOUS, hint: 'day_first' })
 
-    expect(screen.getByText(/Read day first, every date is the 1st of a month.*read month first, they are the first days of one month/)).toBeDefined()
+    // 2E-o Q5 #9: month first, a file over several years is not "one month".
+    expect(screen.getByText(/Read day first, every date is the 1st of a month.*read month first, they all fall in the first days of January/)).toBeDefined()
     expect(confirmButton().disabled).toBe(true)
   })
 
@@ -192,6 +193,54 @@ describe('ReviewPage: how the dates are written', () => {
     expect(screen.getByText('Dates in "Day" are read day first')).toBeDefined()
     expect(screen.getByText(/12 dates, such as "13\/01\/2026", can only be read that way/)).toBeDefined()
     expect(confirmButton().disabled).toBe(false)
+  })
+
+  it('lets the user override a proven order; the answer wins (Thach, 2E-o Q8)', async () => {
+    const { executePlan } = renderReview({
+      ...AMBIGUOUS,
+      shaped: 13,
+      day_first: 1,
+      ambiguous: 12,
+      day_first_example: '13/09/2026',
+      decision: 'day_first',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'They are written month first' }))
+
+    expect(screen.getByText('Dates in "Day" are read month first')).toBeDefined()
+    expect(screen.getByText(/1 date that can only be read day first, such as "13\/09\/2026", will have no date/)).toBeDefined()
+    // Review cycle 2 #9: what happens to the ambiguous dates too.
+    expect(screen.getByText(/12 dates that read either way are read month first/)).toBeDefined()
+    expect(confirmButton().disabled).toBe(false)
+    fireEvent.click(confirmButton())
+    await vi.waitFor(() => {
+      expect(executePlan).toHaveBeenCalledTimes(1)
+    })
+    expect(executePlan.mock.calls[0][2].confirmations?.dates_day_first).toBe(false)
+  })
+
+  it('overriding a proof under a per-cell parse step says the step needs a format (review cycle 1 #8)', () => {
+    // Per cell, pandas reads 13/09/2026 day first; answered month first it is no date - only a format helps.
+    renderReview(
+      { ...AMBIGUOUS, shaped: 13, day_first: 1, ambiguous: 12, day_first_example: '13/09/2026', decision: 'day_first' },
+      makePlan('parse_datetime', {}),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'They are written month first' }))
+
+    expect(screen.getByText('The parse step on "Day" reads these dates day first')).toBeDefined()
+    expect(screen.getByText(/give it a format such as %m\/%d\/%Y/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Read them month first' })).toBeNull()
+  })
+
+  it('can go back to the proof after overriding it', () => {
+    renderReview({ ...AMBIGUOUS, shaped: 13, day_first: 1, ambiguous: 12, day_first_example: '13/09/2026', decision: 'day_first' })
+    fireEvent.click(screen.getByRole('button', { name: 'They are written month first' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }))
+
+    expect(screen.getByText('Dates in "Day" are read day first')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'They are written month first' })).toBeDefined()
   })
 
   it('asks nothing for a file with no such dates', () => {

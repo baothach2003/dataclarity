@@ -108,8 +108,10 @@ def _misread(column: str, values: pd.Series, params: dict, order: DateOrder,
                f"{evidence.day_first_example!r} day first")
     else:
         fix = "leave dayfirst and a day-first format out, or give a format such as '%m/%d/%Y'"
-    # The answer is named only when there was one: a proven order has no
-    # question in Review to change (review cycle 2 #2).
+    # The answer is named only when there was one; a proven order is
+    # overridden in Review, not answered (2E-j review cycle 2 #2; 2E-o Q8).
+    # Never advice to override a proof: it steered a user against the data
+    # to fit the plan's step (2E-o review cycle 3 #5).
     also = ", or change the answer to the date question in Review" if answered else ""
     return (f"parse_datetime on column {column!r} reads {cells[first]!r} as "
             f"{step[first]:%Y-%m-%d}, but the dates are written {_WORDS[order]} ({want}): "

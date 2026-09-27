@@ -1,6 +1,8 @@
 """Step 7's headline, written by code (docs/AI_PIPELINE.md 7.8): the report
 must state its conclusion when the AI is unavailable, so this sentence is
-never the AI's. First matching rule wins.
+never the AI's. First matching rule wins - except that rules 5 and 6 rank
+their causes together under one fit (Thach, 2E-o Q1), and a supported
+directional cause comes before the movements (Q4).
 
 Every number in a message comes from the blocks it is chosen from; nothing is
 estimated here.
@@ -127,11 +129,13 @@ def _largest(causes: list[Hypothesis], moved: Changes) -> list[Hypothesis]:
 def _measured(hypothesis: Hypothesis) -> bool:
     """A movement that was MEASURED, whatever its verdict: a term - a part of
     one of the tree's decompositions, ruled out against the change only for
-    its direction. An expectation - D1, T1, T2, R3 estimate what a cause
-    WOULD have done; C1-C3 are differences between two transitions,
-    term(t) - term(t-1), no part of this month's change (2E-n review cycle
-    3: C2 at +400 read "lapsed customers took less revenue away" while this
-    month's lapsed term pulled revenue down) - counts only when supported."""
+    its direction. What the catalog calls an expectation counts only when
+    supported: D1, T1, T2 and R3 estimate what a cause WOULD have done; C2 is
+    a difference between two transitions, no part of this month's change
+    (2E-n review cycle 3: C2 at +400 read "lapsed customers took less revenue
+    away" while this month's lapsed term pulled revenue down); C1 and C3 are
+    parts of the change under the customer split, but the catalog judges
+    them as expectations too (2E-o Q5 #5 corrected the premise)."""
     return BY_ID[hypothesis.id].kind == "term" or hypothesis.verdict == "supported"
 
 
@@ -162,8 +166,11 @@ def _opposing(hypotheses: list[Hypothesis], moved: Changes) -> str:
              for way, causes in ways if causes]
     # No claim that no cause fits: a ruled-out cause can (Online Retail II
     # 2011-07 unanswered: T1 at 1.84x fits 0.16; review cycle 1), and so can
-    # one the product-lens gate held back (cycle 2).
-    return "The change is what remains of movements in opposite directions: " + "; ".join(named) + "."
+    # one the product-lens gate held back (cycle 2). "Among them": the two
+    # named are not the whole change - on Online Retail II 2011-07 they added
+    # to +5,763.46 beside a -9,823.01 change (2E-o Q5 #1).
+    return ("The change is what remains of movements in opposite directions, among them: "
+            + "; ".join(named) + ".")
 
 
 def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | None,
@@ -215,14 +222,24 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
                     f"{average} {pair['aov']:+,.2f}: large movements that "
                     "largely cancelled out. This may be seasonal.")
 
-    # 5. Calendar or seasonality explains most of it - when one fits above
-    # residue. Supported and at least half of the change, each lands within
-    # 0.8 of it, but on a change of cents 0.2 of it can be residue: the
-    # sentence came out "consistent with ." (review cycle 1). Then rule 6.
+    # 5 and 6, ranked together under the one fit (Thach, 2E-o Q1): rule 5's
+    # context causes - the calendar or seasonality, supported and at least
+    # half of the change - and rule 6's share causes compete, and the
+    # closest fit wins, whichever rule it belongs to. Ranked first, a context
+    # cause won at 1.48x of the change beside B1 at 0.96x (Kaggle 2024-12).
+    # Positive fit above residue: on a change of cents 0.2 of it can be
+    # residue, and the sentence came out "consistent with ." (review cycle 1).
     context = [by_id[i] for i in ("T1", "T2") if by_id[i].verdict == "supported"
                and abs(by_id[i].share) >= HEADLINE_CONTEXT_MIN_SHARE]
-    named = _closest(context, moved)
-    if named:
+    supported = [h for h in hypotheses if h.verdict == "supported"
+                 and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)
+                 and _lens_holds_the_change(h, moved)]
+    shares = [h for h in supported if h.contribution is not None]
+    ranked = shares + [h for h in context if h.id not in {s.id for s in shares}]
+    named = _closest(ranked, moved)
+    # 5. Calendar or seasonality - when only they fit best (a T2 under half
+    # of the change is rule 6's, as before).
+    if named and all(h.id in {c.id for c in context} for h in named):
         if len(named) == 1:
             what = f"{CONTEXT[named[0].id]}: {_size(named[0], moved)}"
         else:
@@ -230,22 +247,19 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
         return Headline(rule=5, hypothesis_id=None, lens=None,
                         message=f"{change} The change is consistent with {what}.")
 
-    # 6. The best-fitting supported cause, closest to the net change; with no
-    # cause fitting, the movements that offset each other; a directional
-    # cause (no number) after every share cause, as 3E1 ranked it.
-    supported = [h for h in hypotheses if h.verdict == "supported"
-                 and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)
-                 and _lens_holds_the_change(h, moved)]
-    shares = [h for h in supported if h.contribution is not None]
-    named = _closest(shares, moved)
+    # 6. The best-fitting supported cause, closest to the net change (a tie
+    # across the two rules named in rule 6's words); then a supported
+    # directional cause, which carries no number (Thach, 2E-o Q4: a
+    # directional R1 before the movements); the movements that offset each
+    # other are the last resort.
     if named:
         return _explanation(named, moved, change)
-    if shares:
-        return Headline(rule=6, hypothesis_id=None, lens=None,
-                        message=f"{change} {_opposing(hypotheses, moved)}")
     directional = [h for h in supported if h.contribution is None]
     if directional:
         return _explanation(directional, moved, change)
+    if shares:
+        return Headline(rule=6, hypothesis_id=None, lens=None,
+                        message=f"{change} {_opposing(hypotheses, moved)}")
 
     # 7. Nothing supported - the engine does not invent a cause.
     partial = [h for h in hypotheses if h.verdict == "partial"]

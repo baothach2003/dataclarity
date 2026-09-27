@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 from contracts.profile import DateOrder
-from shared.dates import day_month_year
+from shared.date_text import day_month_year
 
 
 @dataclass(frozen=True)
@@ -80,11 +80,11 @@ def order_evidence_of_counts(counts: pd.Series) -> OrderEvidence:
     found = _holds_a_date(texts)
     weights = counts.to_numpy()[found]
     # Every `found` text holds a match (the same test), so none is None.
-    matches = [m for text in texts[found] if (m := day_month_year(text)) is not None]
-    first = np.array([int(m.group(1)) for m in matches], dtype=int)
-    second = np.array([int(m.group(3)) for m in matches], dtype=int)
-    dates = [m.group(0).strip() for m in matches]
-    date_only = all(m.string.strip() == m.group(0).strip() for m in matches)
+    pairs = [(text, date) for text in texts[found] if (date := day_month_year(text)) is not None]
+    first = np.array([date.first for _, date in pairs], dtype=int)
+    second = np.array([date.second for _, date in pairs], dtype=int)
+    dates = [date.text for _, date in pairs]
+    date_only = all(text.strip() == date.text for text, date in pairs)
     proves_day = (first >= 13) & (first <= 31) & (second >= 1) & (second <= 12)
     proves_month = (second >= 13) & (second <= 31) & (first >= 1) & (first <= 12)
     ambiguous = (first >= 1) & (first <= 12) & (second >= 1) & (second <= 12) & (first != second)
@@ -126,13 +126,17 @@ def applied_order(evidence: OrderEvidence, day_first: bool | None) -> DateOrder 
 
 
 def month_grain(dates: pd.Series) -> bool:
-    """Every dated line at midnight on the 1st, over at least two months: the
-    file records months, not days (Thach, Q1 of 2E-h). The caller passes
-    the COUNTED lines' dates, as his words say. "Mar 2024" is read as the
-    1st, so such a file has no day to measure - and one month alone cannot
-    be told from a shop that sold on one day."""
+    """Every dated line at midnight on the 1st - or every one at midnight on
+    the last day of its month (Thach, 2E-o Q10: an accounting period end) -
+    over at least two months: the file records months, not days (Thach, Q1
+    of 2E-h). The caller passes the COUNTED lines' dates, as his words say.
+    "Mar 2024" is read as the 1st, so such a file has no day to measure -
+    and one month alone cannot be told from a shop that sold on one day. One
+    end or the other throughout: a mix is no grain."""
     dated = dates.dropna()
     if dated.empty:
         return False
-    on_the_first = dated.dt.day.eq(1) & dated.eq(dated.dt.normalize())
-    return bool(on_the_first.all()) and dated.dt.to_period("M").nunique() >= 2
+    midnight = dated.eq(dated.dt.normalize())
+    one_end = (bool((midnight & dated.dt.day.eq(1)).all())
+               or bool((midnight & dated.dt.is_month_end).all()))
+    return one_end and dated.dt.to_period("M").nunique() >= 2

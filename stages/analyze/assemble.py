@@ -32,8 +32,9 @@ from stages.analyze.metrics_products import compute_product_metrics
 # in 2E-k (confirmed walk-in placeholders unattributed; the order-id check
 # judged per receipt). 14.0 in 2E-j (a date column read in the order stage 1
 # decided; placeholder dates undated; a month-grain file's last month
-# compared, `period.month_grain`).
-SCHEMA_VERSION = "14.0"
+# compared, `period.month_grain`). 15.0 in 2E-o (month-end grain; the date
+# found beside a dotted time or before its time).
+SCHEMA_VERSION = "15.0"
 METRICS_FILENAME = "metrics.json"
 
 

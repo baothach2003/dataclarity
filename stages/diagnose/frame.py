@@ -50,7 +50,8 @@ def previous_coverage_of(data: RunData) -> PreviousCoverage:
     January compares February with half a January: "+110, customers bought
     more often (100%)" on identical daily trading (3E1 cycle 3)."""
     return previous_coverage(data.parsed.dates[data.parsed.sale],
-                             data.metrics.period.previous)
+                             data.metrics.period.previous,
+                             month_grain=data.metrics.period.month_grain)
 
 
 def previous_leading_days_missing(data: RunData) -> int:

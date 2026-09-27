@@ -48,14 +48,16 @@ export function dateQuestion(plan: CleaningPlan, profile: ProfileContract): Date
   return found !== null && found.measure.decision === 'ask' ? found : null
 }
 
-/** The stored answer while it still applies: asked, about the same column. */
+/** The stored answer while it still applies: about the same column, which
+ * carries a measure - asked, or proven and overridden (Thach, 2E-o Q8: the
+ * user's answer wins over a proof; the cells against it become undated). */
 export function applicableDateAnswer(
   plan: CleaningPlan,
   profile: ProfileContract,
   stored: StoredDateAnswer | null,
 ): boolean | null {
-  const question = dateQuestion(plan, profile)
-  return question !== null && stored !== null && stored.column === question.column ? stored.value : null
+  const found = dateMeasure(plan, profile)
+  return found !== null && stored !== null && stored.column === found.column ? stored.value : null
 }
 
 /** The order stage 1 will apply: the answer, else the proof. */

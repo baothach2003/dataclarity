@@ -177,8 +177,8 @@ def test_no_cause_with_a_positive_fit_names_the_largest_movement_each_way() -> N
     assert (headline.rule, headline.hypothesis_id, headline.lens) == (6, None, None)
     assert headline.message == (
         "Revenue went from 1,000.00 to 800.00 (-200.00). The change is what remains of movements in "
-        "opposite directions: down, like-for-like prices changed (product lens, -600.00); up, sales mix "
-        "shifted (product lens, +380.00).")
+        "opposite directions, among them: down, like-for-like prices changed (product lens, -600.00); up, "
+        "sales mix shifted (product lens, +380.00).")  # 2E-o Q5 #1: "among them"
 
 
 def test_twice_the_change_is_no_fit() -> None:
@@ -262,8 +262,8 @@ def test_a_price_rise_against_a_refund_month_is_named_as_the_movement_up() -> No
     assert (results["P1"].verdict, results["P1"].contribution) == ("supported", pytest.approx(155.0))
     assert headline.message == (
         "Revenue went from 1,550.00 to 1,405.00 (-145.00). The change is what remains of movements in "
-        "opposite directions: down, returns changed (returns lens, -300.00); up, like-for-like prices "
-        "changed (product lens, +155.00).")
+        "opposite directions, among them: down, returns took more revenue away (returns lens, -300.00); "
+        "up, like-for-like prices changed (product lens, +155.00).")  # 2E-o Q5 #1: signed, "among them"
 
 
 def test_the_no_fit_message_claims_no_fit_a_gated_cause_would_contradict() -> None:
@@ -275,7 +275,7 @@ def test_the_no_fit_message_claims_no_fit_a_gated_cause_would_contradict() -> No
 
     assert headline.message.startswith(
         "Revenue went from 1,000.00 to 845.00 (-155.00). The change is what remains of movements in "
-        "opposite directions: down, returns changed")
+        "opposite directions, among them: down, returns changed")  # 2E-o Q5 #1
     assert "largest" not in headline.message
     assert "fits" not in headline.message
 
@@ -285,10 +285,13 @@ def test_residue_is_no_movement_the_other_way() -> None:
 
     # Nothing tested moved it up: only the movement down is named - no claim
     # about the rest (it sits in parts no hypothesis names, such as volume).
-    assert headline.message.endswith("opposite directions: down, returns changed (returns lens, -600.00).")
+    assert headline.message.endswith("opposite directions, among them: down, returns changed (returns lens, "
+                                     "-600.00).")  # 2E-o Q5 #1: "among them"
 
 
 def test_the_movements_named_claim_no_rank_among_parts_no_hypothesis_names() -> None:
+    # (Through `_headline`, statements are unsigned; stage 3 signs P3 since
+    # 2E-o - test_2eo_headline.py.)
     # Review cycle 3 #2: "The largest down: mix" stood beside a larger
     # level-1 customers factor (Online Retail II 2011-07 unanswered): the
     # tree's parts are not all hypotheses. The movement named each way is the
@@ -424,8 +427,8 @@ def test_diagnosis_json_is_major_13_or_the_current_one_and_refuses_a_12_file() -
     # name another cause, and rule 6 may name none or two (CONTRACTS 10).
     # 13.0 in 2E-n; 14.0 in 2E-i; 15.0 since 2E-j.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 15
-    assert DiagnosisContract.model_validate(payload).schema_version == "15.0"
+    assert DiagnosisContract.supported_major == 16
+    assert DiagnosisContract.model_validate(payload).schema_version == "16.0"
 
     payload["schema_version"] = "12.0"
     with pytest.raises(ValidationError, match="re-analyse"):

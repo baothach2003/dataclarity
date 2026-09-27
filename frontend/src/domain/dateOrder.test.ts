@@ -107,10 +107,12 @@ describe('dateQuestion', () => {
 })
 
 describe('applicableDateAnswer and appliedOrder', () => {
-  it('keeps an answer only for the column it was given for, while asked', () => {
+  it('keeps an answer only for the column it was given for, while the column carries a measure', () => {
     expect(applicableDateAnswer(plan(), profile(AMBIGUOUS), { value: true, column: 'Day' })).toBe(true)
     expect(applicableDateAnswer(plan(), profile(AMBIGUOUS), { value: true, column: 'Other' })).toBeNull()
-    expect(applicableDateAnswer(plan(), profile(DAY_FIRST), { value: false, column: 'Day' })).toBeNull()
+    // Thach, 2E-o Q8: an answer may override a proven order.
+    expect(applicableDateAnswer(plan(), profile(DAY_FIRST), { value: false, column: 'Day' })).toBe(false)
+    expect(applicableDateAnswer(plan(), profile(null), { value: false, column: 'Day' })).toBeNull()
     expect(applicableDateAnswer(plan(), profile(AMBIGUOUS), null)).toBeNull()
   })
 

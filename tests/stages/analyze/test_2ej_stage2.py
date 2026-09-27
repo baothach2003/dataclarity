@@ -117,9 +117,9 @@ def test_a_daily_file_ending_on_the_first_still_drops_its_last_month() -> None:
     assert metrics.period.current == "2026-08"
 
 
-def test_metrics_json_is_14() -> None:
-    assert SCHEMA_VERSION == "14.0"
-    assert MetricsContract.supported_major == 14
+def test_metrics_json_is_14_or_the_current_one() -> None:
+    assert SCHEMA_VERSION == "15.0"
+    assert MetricsContract.supported_major == 15
 
 
 def test_the_receipt_check_by_date_says_the_date_is_a_month() -> None:

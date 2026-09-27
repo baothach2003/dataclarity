@@ -2389,8 +2389,40 @@ dataclarity/
       section 7 splits them, the full process each; the migration table in
       the design's section 6 is the regression anchor, and any demo
       difference not listed there stops the run.
-- [ ] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
-      (Thach, 2026-09-28). First one scoped fresh-context review of every
+- [x] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
+      (Thach, 2026-09-28). **Done 2026-09-28** (sixth overnight run, session
+      1; method `C:\Users\Happy\2Eo-method.txt`, five amendments):
+      - **Q5 scoped review** (10 findings). #1 blocked (a FABRICATE on the
+        demo data, Online Retail II 2011-07 unanswered, and a common shape):
+        the movements sentence read "up, returns changed" when refunds fell,
+        and the two named added to the wrong sign - P3 now reads signed
+        ("returns took less revenue away"), the sentence says "among them".
+        Also: a date followed by its time kept in the order; a dotted time
+        never taken for a date; docs made true of the code.
+      - **Q1** rules 5 and 6 ranked together under the one fit; **Q4** a
+        supported directional cause before the movements; **Q8** Review may
+        override a proven date order (the cells against it undated and
+        counted); **Q10** month grain also covers files dated on each month's
+        last day (the previous month covered by a sale; complete months from
+        the first to the last counted month).
+      - Measured before code (a prototype on every Online Retail II month in
+        both states + Kaggle) and after: **the demo month 2011-11 is byte-
+        identical in both states; Kaggle 2024-12 T2 (1.48x) -> B1 (0.96x),
+        as Thach expected**; metrics, verdicts and localization of both demo
+        files identical. Not demo headlines, listed for Thach: classed
+        2010-02 -> P2, classed 2011-08 -> C3 (his Q1 case), unanswered 2011-02
+        -> P2; wording only (P3 signed, "among them"): classed 2011-01, 2011-06,
+        unanswered 2011-06, 2011-07.
+      - metrics.json 15.0, diagnosis.json 16.0. shared/date_text.py split out
+        of shared/dates.py.
+      - Tests first (3 Python files + the frontend's); mutation 36 mutants
+        (32 Python, 4 frontend), all killed (2 by tests added). Doubt-review 3
+        cycles (9, 10, 9 findings; cross-model skipped: non-interactive):
+        nothing on the demo data; cycles 1-2 caught regressions of my own
+        date-text fixes (fixed); cycle 3: nothing blocks, its four local fixes
+        are UNREVIEWED (a short year followed by another date, "1030" as a
+        year, the refusal's override advice removed, complete months' end).
+      Original item text: First one scoped fresh-context review of every
       unreviewed fix (2E-n's cycle 3, 2E-i's cycle 3 docs, 2E-j's four local
       fixes - his Q5). Then:
       - Q1: rank rules 5 and 6 together under the one fit measure. Kaggle's
@@ -2807,6 +2839,17 @@ dataclarity/
       U+13430-1343F are format characters that are not default-ignorable yet
       read as blank; `product_text` on a numeric column raises (as before;
       stages read text). The overrides and isolates question is on 2E-i.
+      From 2E-o: the bridge's left-censoring counts months from any row (an
+      opening stock-in row months before the first sale lifted it and named
+      C3 - older, a FABRICATE on an uncommon shape); rule 2 (D1) still wins by
+      coming first (a question for Thach); "10.05.30 2026" read as 2030 (as
+      before); a colonless time after a separator ("05-01-2026-1030")
+      bypasses the order (older); "klo 10.30", "Uhr", "as" and "2026-01-05
+      10.30.00" stay no date (as before); month-end grain needs midnight;
+      several characters that draw nothing still split a text value, and the
+      profile's missing counts and the imputations count NA tokens only
+      (2E-i's docs corrected); an expectation counted only when supported is
+      live only for R3 and at residue (2E-n's movements).
       From 2E-j: month-END dated monthly files are not month grain (D1 "ok"
       on nothing, T1/R3 ruled out); one counted line off the 1st makes a
       file daily; Excel's "Mar-24" is undated (older); YY/MM/DD without a
@@ -2989,6 +3032,13 @@ freeze** recorded here and in CLAUDE.md. Stop before the Online Retail II
 demo build and before 3E1b; same rules. Report in
 `C:\Users\Happy\overnight-report.txt` (the fifth run's kept as
 `overnight-report-run5.txt`).
+Session **2E-o** closed 2026-09-28 (sixth run, session 1; see its item): the
+scoped review's blocker fixed (P3 signed, "among them"), rules 5 and 6 ranked
+together, a directional cause before the movements, a proven date order
+overridable in Review, month-end grain; metrics.json 15.0, diagnosis.json
+16.0. The demo month 2011-11 byte-identical; Kaggle T2 -> B1 as expected.
+Cycle 3's local fixes unreviewed. pytest 3198, Vitest 183. **Next: the 2E-t
+revision and its fourth review.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

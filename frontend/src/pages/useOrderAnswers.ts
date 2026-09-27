@@ -8,7 +8,7 @@
 import { useState } from 'react'
 import { confirmedPlaceholders, customerColumn, customerIdentity, placeholderCandidates } from '../domain/customerChecks.ts'
 import type { PlaceholderCandidate, StoredPlaceholders } from '../domain/customerChecks.ts'
-import { applicableDateAnswer, dateQuestion } from '../domain/dateOrder.ts'
+import { applicableDateAnswer, dateMeasure, dateQuestion } from '../domain/dateOrder.ts'
 import type { StoredDateAnswer } from '../domain/dateOrder.ts'
 import { answeredLineClasses, candidateColumn, nonProductCandidates } from '../domain/lineClasses.ts'
 import type { LineCandidate, StoredLineClasses } from '../domain/lineClasses.ts'
@@ -77,8 +77,9 @@ export function useOrderAnswers(
     dateAnswer,
     dateUnanswered: dateQuestion(plan, profile) !== null && dateAnswer === null,
     answerDate: (dayFirst) => {
-      const question = dateQuestion(plan, profile)
-      setStoredDate(dayFirst === null || question === null ? null : { value: dayFirst, column: question.column })
+      // Asked, or a proof overridden (2E-o Q8): either way about the column measured.
+      const found = dateMeasure(plan, profile)
+      setStoredDate(dayFirst === null || found === null ? null : { value: dayFirst, column: found.column })
     },
     answer: (question, value) => {
       setStored((current) => ({

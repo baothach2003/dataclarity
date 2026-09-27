@@ -101,8 +101,8 @@ def test_a_daily_file_keeps_its_day_level_steps() -> None:
     assert hypotheses["R3"].verdict != "not_testable"
 
 
-def test_diagnosis_json_is_15() -> None:
-    assert DiagnosisContract.supported_major == 15
+def test_diagnosis_json_is_15_or_the_current_one() -> None:
+    assert DiagnosisContract.supported_major == 16
 
 
 def test_the_calendar_contract_ties_null_expectations_to_not_applicable() -> None:

@@ -8,10 +8,12 @@ One reading for every stage (Thach, 2E-i), on two questions:
 - Is a cell EMPTY? Nothing visible (`is_blank`): a cell of only whitespace,
   format characters that draw nothing (`_VISIBLE_FORMAT` excepted) or the
   products' invisible characters renders as nothing - the same for every
-  column, stage 1's drop_rows_missing included.
-- Are two cells the SAME value? Differences a reader cannot see merge
-  (`identifier_text`): Unicode composition, the characters that render as
-  nothing AND change nothing around them (`_NOTHING`), a no-break space for a
+  column stages 2 and 3 read, and stage 1's drop_rows_missing (its profile
+  and imputations still count NA tokens only - 2E-o Q5 #10).
+- Are two cells the SAME value? These differences a reader cannot see merge
+  (`identifier_text`; others still split - the Hangul filler, tags, a
+  trailing joiner, a direction wrapper - 2E-o Q5 #7): Unicode composition, the
+  characters that render as nothing AND change nothing around them (`_NOTHING`), a no-break space for a
   space, whitespace at the ends - and the direction marks (`_MARKS`), whose
   rare reordering of digits and punctuation is a known cost. Each reader
   then decides case and runs of spaces. Products read wider (`product_text`,
@@ -88,7 +90,10 @@ def _as_text(values: pd.Series) -> pd.Series:
 def _read_once(values: pd.Series, read) -> pd.Series:
     """`read` applied to each distinct value once: a column of a million
     cells holds a few thousand values (shared/line_classes.text_identity's
-    reason, 2E-d2)."""
+    reason, 2E-d2). pandas' factorize compares a text only up to a NUL, so
+    every reader built on this can mis-group texts holding one - unreachable
+    from an upload, whose CSV reader cuts a cell at a NUL (2E-i review cycle
+    3 #2; 2E-o Q5 #8)."""
     codes, uniques = pd.factorize(_as_text(values))
     if len(uniques) == 0:
         return pd.Series(np.nan, index=values.index, dtype=object)
@@ -201,9 +206,8 @@ def product_text(values: pd.Series) -> pd.Series:
     "name:" + a float series does not add (the empty-file case crashed).
     Invisible characters go BEFORE composing, and a name that shows nothing
     (`_shows_nothing`: a lone joiner too) is NaN, as `is_blank` reads it
-    (a text holding a NUL can compare wrongly in pandas' factorize - stage 1's
-    CSV reader already cuts a cell at a NUL; 2E-i review cycle 3 #2)
-    (2E-i review cycle 1 #2, #6)."""
+    (2E-i review cycle 1 #2, #6; the NUL caveat of `_read_once` holds here
+    too)."""
     text = (values.astype(object).str.replace(_INVISIBLE, "", regex=True).str.normalize("NFC")
             .str.replace(r"\s+", " ", regex=True).str.strip())
     # Judged once per distinct value: per cell it cost ~0.5 s a call on

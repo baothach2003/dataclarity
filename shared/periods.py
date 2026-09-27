@@ -46,7 +46,12 @@ class PreviousCoverage:
     reason: str | None  # why the month is not a base; None when complete
 
 
-def previous_coverage(sale_dates: pd.Series, previous: str) -> PreviousCoverage:
+def previous_coverage(sale_dates: pd.Series, previous: str, *,
+                      month_grain: bool = False) -> PreviousCoverage:
+    """In a month-grain file (2E-j, 2E-o) a sale line dated the month's end
+    stands for the month: a two-month file dated 31 January read "30 days
+    into 2024-01" and blocked. There the month is covered when it holds a
+    sale."""
     year, month = (int(part) for part in previous.split("-"))
     start = date(year, month, 1)
     days = (date(year + month // 12, month % 12 + 1, 1) - start).days
@@ -55,6 +60,8 @@ def previous_coverage(sale_dates: pd.Series, previous: str) -> PreviousCoverage:
     in_month = valid[valid.dt.to_period("M").astype(str) == previous]
     has_rows = not in_month.empty
     leading = days if first is None else min(days, max(0, (first - start).days))
+    if month_grain and has_rows:
+        leading = 0
     complete = has_rows and leading < PREVIOUS_MIN_MISSING_DAYS
     if complete:
         reason = None

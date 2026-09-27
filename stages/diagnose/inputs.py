@@ -68,8 +68,16 @@ def build_run_data(
     exactly as stage 2 read them (2E-e2)."""
     parsed = parse_transactions(df, column_mapping, confirmations)
     months = parsed.dates.dt.to_period("M").astype(str)
-    covered = complete_months(metrics.period.data_start, metrics.period.data_end,
-                              month_grain=metrics.period.month_grain)
+    grain = metrics.period.month_grain
+    counted = parsed.dates[parsed.counted].dropna()
+    # In a month-grain file a month is covered from the first COUNTED one: an
+    # uncounted row dated earlier added an empty history month (2E-o review
+    # cycle 1 #9).
+    start = counted.min().date() if grain and not counted.empty else metrics.period.data_start
+    # ...and to the last counted one: a later uncounted row added empty months
+    # after the current one (review cycle 3 #7).
+    end = counted.max().date() if grain and not counted.empty else metrics.period.data_end
+    covered = complete_months(start, end, month_grain=grain)
     return RunData(
         df=df,
         parsed=parsed,
@@ -99,14 +107,15 @@ def period_mask(data: RunData, month: str) -> pd.Series:
 
 # Why a day-level step does not apply to a month-grain file (Thach, Q1 of
 # 2E-h; metrics.json's `period.month_grain`).
-MONTH_GRAIN_NOTE = ("the file records months, not days (every counted line is dated the 1st "
-                    "of its month)")
+MONTH_GRAIN_NOTE = ("the file records months, not days (every counted line is dated the 1st, "
+                    "or the last day, of its month)")
 
 
 def complete_months(data_start: date, data_end: date, *, month_grain: bool = False) -> list[str]:
     """Calendar months the file covers from their first day to their last,
-    ascending. In a month-grain file (2E-j) a line on the 1st stands for
-    its month, so every month from the first to the last is covered.
+    ascending. In a month-grain file (2E-j) a line on the 1st - or on the
+    last day, 2E-o - stands for its month, so every month from the first to
+    the last is covered.
 
     Deliberately stricter than 2A's `select_period`, which asks only whether a
     month has *elapsed* by `data_end` (a shop whose first sale is on the 15th
@@ -122,8 +131,8 @@ def complete_months(data_start: date, data_end: date, *, month_grain: bool = Fal
     year, month = data_start.year, data_start.month
     while (year, month) <= (data_end.year, data_end.month):
         first = date(year, month, 1)
-        last = first if month_grain else date(year, month, calendar.monthrange(year, month)[1])
-        if first >= data_start and last <= data_end:
+        last = date(year, month, calendar.monthrange(year, month)[1])
+        if month_grain or (first >= data_start and last <= data_end):
             months.append(f"{year:04d}-{month:02d}")
         year, month = (year + 1, 1) if month == 12 else (year, month + 1)
     return months

@@ -24,7 +24,7 @@ def compute_calendar(data: RunData, history: list[str]) -> Calendar:
     revenue_prev = data.metrics.core.revenue_previous
     change_abs = data.metrics.core.revenue_current - revenue_prev
     if period.month_grain:
-        # Every day but the 1st holds nothing, so each weekday's median was 0
+        # Every day but one a month holds nothing, so each weekday's median was 0
         # and T1 "ruled out" the calendar on no evidence; a day count would
         # assume a shop trading every day. Neither is known (2E-j).
         return Calendar(method="not_applicable", expected_cur=None, expected_prev=None,

@@ -28,8 +28,8 @@ def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series, *,
     stage 3 shares (shared/periods.py, 2E).
 
     In a month-grain file (`grain`: every counted line at midnight on the
-    1st, shared/date_evidence.month_grain; 2E-j) a line on the 1st stands
-    for its month, so no day says whether the last month is over: by the
+    1st, or on the last day of its month - shared/date_evidence.month_grain;
+    2E-j, 2E-o) such a line stands for its month, so no day says whether the last month is over: by the
     elapsed-day rule it was always dropped, and the report compared the two
     months before it. The file's last month with a SALE line is the current
     month once it has ended on every clock - `now` is UTC and the dates are
@@ -54,7 +54,7 @@ def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series, *,
     else:
         current = _last_complete_month(data_end)
     previous = _format_year_month(_month_before(*current))
-    coverage = previous_coverage(counted_dates, previous)
+    coverage = previous_coverage(counted_dates, previous, month_grain=grain)
     return Period(
         current=_format_year_month(current),
         previous=previous,

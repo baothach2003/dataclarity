@@ -165,24 +165,24 @@ def _supported(moved: Changes, **causes: float | None) -> str | None:
     return choose_headline(trust(), hypotheses, tree(False), moved).hypothesis_id
 
 
-def test_a_supported_expectation_far_past_the_change_still_ranks_before_a_directional_cause() -> None:
+def test_a_directional_cause_comes_before_the_movements_of_a_share_cause_far_past_the_change() -> None:
     # R3 is judged against gross (-3,000: 100%, supported) but ranked against
-    # net (-900): 3.33 times the change, no positive fit (Thach, 2E-n). The
-    # share causes' outcome - the movements that offset each other - still
-    # comes before a directional cause, which ranks after every share cause
-    # (3E1; 2E-m review cycle 1 #2).
+    # net (-900): 3.33 times the change, no positive fit (Thach, 2E-n). A
+    # supported directional cause is named before the movements, which are
+    # the last resort (Thach, 2E-o Q4, reversing 3E1's order here; it was
+    # "the movements before a directional cause" in 2E-m review cycle 1 #2).
     moved = Changes(revenue_prev=10000.0, revenue_cur=9100.0, net=-900.0, gross=-3000.0, alert=False)
 
-    assert _supported(moved, R3=-3000.0, R1=None) is None
-    assert _supported(moved, R3=-2700.0, C4=None) is None
+    assert _supported(moved, R3=-3000.0, R1=None) == "R1"
+    assert _supported(moved, R3=-2700.0, C4=None) == "C4"
     hypotheses = [Hypothesis(id=spec.id, family=spec.family, lens=spec.lens, statement=spec.statement,
                              verdict="supported" if spec.id in ("R3", "R1") else "ruled_out",
                              contribution=-3000.0 if spec.id == "R3" else None,
                              share=-1.0 if spec.id == "R3" else None, evidence={}, rule="test")
                   for spec in CATALOG]
     message = choose_headline(trust(), hypotheses, tree(False), moved).message
-    assert "The change is what remains of movements in opposite directions" in message
-    assert "a top product may have run out of stock (product lens, -3,000.00)" in message
+    assert "movements in opposite directions" not in message
+    assert "The best-supported explanation: " in message
 
 
 def test_the_ranking_reads_the_share_of_the_net_change_not_the_verdicts_share() -> None:
@@ -207,8 +207,8 @@ def test_diagnosis_json_is_major_12_or_the_current_one_and_refuses_an_11_file() 
     # under 11.0, R2 since 12.0) - a change of meaning, a major bump
     # (CONTRACTS 10). 12.0 in 2E-m; 13.0 in 2E-n; 14.0 in 2E-i; 15.0 since 2E-j.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 15
-    assert DiagnosisContract.model_validate(payload).schema_version == "15.0"
+    assert DiagnosisContract.supported_major == 16
+    assert DiagnosisContract.model_validate(payload).schema_version == "16.0"
 
     payload["schema_version"] = "11.0"
     with pytest.raises(ValidationError, match="re-analyse"):

@@ -682,8 +682,11 @@ class DiagnosisContract(ContractFile):
     # 2E-j: a month-grain file compares its last month, its day-level steps
     # do not apply (the D1 check "not_applicable"; D1, T1, R3 not testable;
     # the calendar "not_applicable" with null expectations; T2 and B1 read
-    # the months), and a date column can be read day first.
-    supported_major: ClassVar[int] = 15
+    # the months), and a date column can be read day first. 16 since 2E-o: rules 5 and 6 are ranked together (the
+    # same data can name another cause - Kaggle 2024-12 T2 -> B1), a
+    # directional cause comes before the movements, P3 reads signed, and a
+    # month-end file's D1, T1 and R3 do not apply.
+    supported_major: ClassVar[int] = 16
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "

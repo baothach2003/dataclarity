@@ -286,6 +286,8 @@ def test_a_proven_order_names_no_answer_to_change(tmp_path: Path) -> None:
 
     assert "set its dayfirst to true" in str(refused.value)
     assert "change the answer" not in str(refused.value)
+    # Nor advice to override the proof to fit the step (2E-o review cycle 3 #5).
+    assert "other way" not in str(refused.value)
 
 
 def test_a_hint_goes_only_with_a_question() -> None:
