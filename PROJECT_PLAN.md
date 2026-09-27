@@ -2059,6 +2059,9 @@ dataclarity/
       see 2E-n - and small fixes (the residue in "past the change", docs, a
       type hint). pytest 2980. Cycle 2's small fixes are unreviewed.
       **The run stopped here (Thach's rule "anything ambiguous").**
+      **Thach, after the fourth run (2026-09-27):** D2 and D3 accepted; D1
+      (the larger share among terms past the change) superseded by his Q2 -
+      see 2E-n.
 - [ ] 2E-n **What "the change in the products" counts, and how terms past
       the change rank** (split out of 2E-m's review cycle 2; **for Thach -
       the fourth overnight run stopped on it**). FABRICATE, headline, a
@@ -2093,6 +2096,29 @@ dataclarity/
       smaller one (float-exact); the display of the share the ranking used
       (Q3). Repros: scratchpad `2em/review2/`, `2em/g/` (reading G),
       `2em/months2_*.json`.
+      **Decided by Thach (2026-09-27, after the fourth overnight run):**
+      - Q1 - **reading G.** The product lens's share is the gross change of
+        product SALE lines; customer returns are their own class. It is how
+        accounting presents it (gross sales and sales returns are separate
+        lines), it matches the 2E-t brief, and it is what he meant by B. It
+        also resolves 2011-06 unanswered.
+      - Q2 - **neither the cap nor D1: ONE fit measure for every cause**,
+        3E1's residual-band shape, fit = max(0, 1 - |1 - share of the net
+        change|): a cause close to the change fits best, 1.14x still fits
+        well, 19x does not. This supersedes 3E1's term cap and 2E-m's D1.
+        If no cause has a positive fit, the headline says the net change is
+        the remainder of opposing forces and names the largest contribution
+        each way, in money (no percentage above 100). An exact tie names
+        both, never catalog order. Method before code: measure every Online
+        Retail II month in both states plus Kaggle, and a sweep including
+        2011-07, 2011-08 and the P5 7.8x versus P3 1.14x case; list every
+        headline that changes. **If the demo month 2011-11 changes, stop and
+        show him before implementing.**
+      - Q4 - the headline prints only the share of the NET change (the
+        change it states), and only when it is at most 100%. The gross-lens
+        share stays in the evidence.
+      - Q5 - yes: a scoped review of 2E-m's unreviewed cycle-2 fixes at the
+        start of 2E-n.
 - [ ] 2E-t **Line taxonomy - DESIGN only** (Thach, 2026-09-27, after the
       third overnight run; method only, no code; stops for his approval).
       Builds on what 2E-l created (the charge, discount and pooled classes),
@@ -2128,6 +2154,12 @@ dataclarity/
       e. the migration: every earlier decision it changes, the contract
          bumps, and both demo files unchanged except where a documented class
          change applies, each difference explained and measured.
+      **Thach, after the fourth run (2026-09-27, his Q3):** UNCLASSIFIED is
+      only for lines no rule can place. A line the rules suggest is a charge
+      but the user has not confirmed keeps its rule-based class, marked
+      "unconfirmed" (2E-d2: a suggestion never applies itself), so an
+      unanswered file does not lose revenue. 2E-n's reading G already fixes
+      the gate case raised in 2E-m.
       Deliver the design file and an ADR-0008 draft, with a proposed
       implementation split (Thach expects 2-3 sessions). The Online Retail II
       demo comes after the taxonomy: it changes the demo's revenue (gift
@@ -2613,6 +2645,15 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Fifth overnight run** approved by Thach (2026-09-27, after reading the
+fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
+cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
+wording; full process; method before code, and a stop before implementing
+if the demo month 2011-11 changes) -> **2E-t** (the line taxonomy, DESIGN
+only; stops for his approval) -> **2E-i** -> **2E-j**. Stop there, same
+rules. Report in `C:\Users\Happy\overnight-report.txt` (the fourth run's
+kept as `overnight-report-run4.txt`). His decisions on the fourth run are
+recorded in the 2E-m, 2E-n and 2E-t items.
 **The fourth overnight run STOPPED after 2E-m** (session 1 of 4): its
 doubt-review cycle 2 found a headline FABRICATE (a regression, on a common
 shape) that turns on how Thach's one definition reads - split out as **2E-n**
