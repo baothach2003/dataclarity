@@ -173,11 +173,12 @@ def test_rule_5_prefers_the_closer_expectation_even_when_it_comes_second() -> No
     assert "seasonality" in headline.message
 
 
-def test_rule_6_caps_a_term_so_an_exact_expectation_is_not_beaten_by_an_overshoot() -> None:
+def test_rule_6_never_lets_an_overshoot_beat_an_exact_expectation() -> None:
     """A term's share of the NET change can exceed 1 when other terms offset
-    it: B1 at 1.50. Its fit is capped at 1, level with C1 explaining the
-    change exactly, and the tie goes to catalog order (C1 first). Uncapped,
-    the overshooting term would outrank the exact explanation."""
+    it: B1 at 1.50. Ranked by its largest share it would outrank C1
+    explaining the change exactly (3E1 capped it at 1 and broke the tie by
+    catalog order). One fit measure for every cause (Thach, 2E-n): C1 fits 1,
+    B1 fits 0.5."""
     headline = choose_headline(trust(), catalog(C1=("supported", -1.00, {}),
                                                 B1=("supported", -1.50, {})), tree(False), MOVED)
 

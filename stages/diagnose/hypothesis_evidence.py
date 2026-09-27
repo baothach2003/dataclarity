@@ -237,9 +237,12 @@ def p5(inputs: Step7Inputs, moved: Changes) -> Outcome:
 
 def r1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     breadth = inputs.localization.breadth
-    totals = product_totals(inputs.data)
     # Products only, as breadth measures them: the gap is never the top
-    # product (Thach, after 2E-g review cycle 3).
+    # product (Thach, after 2E-g review cycle 3). Each product's own (net)
+    # change, as breadth's concentration: R1 asks where the NET change sits,
+    # and read on sale lines an order cancelled the month before was named
+    # the top product with a revenue of 0 in both months (2E-n review cycle 1).
+    totals = product_totals(inputs.data)
     keys = (set(totals.rev_prev.index) | set(totals.rev_cur.index)) - totals.gap_keys
     deltas = {key: float(totals.rev_cur.get(key, 0.0)) - float(totals.rev_prev.get(key, 0.0))
               for key in keys}
@@ -257,8 +260,9 @@ def r1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     # products (Thach, 2E-l; localization.compute_breadth).
     verdict = "supported" if breadth.classification == "concentrated" and moving else "ruled_out"
     return Outcome(verdict=verdict, evidence=evidence,
-                   rule="breadth concentrated - more than half of the change in the products, measured "
-                        "against their own change - and the top product moving with the total")
+                   rule="breadth concentrated - more than half of the change in the products' sales, the "
+                        "concentration over each product's own change - and the top product moving with "
+                        "the total")
 
 
 def r2(inputs: Step7Inputs, moved: Changes) -> Outcome:

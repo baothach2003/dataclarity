@@ -860,13 +860,17 @@ category's price can rise while the overall average falls, and only this split
 says so.
 
 **Breadth.** Measured over the products' OWN change (Thach, 2E-l): the
-sum of the product members' deltas, the gap buckets left out - their net
-change (sales and returns of products), over the total net change: the one
-definition of "the share of the change that sits in the products", which R1
-and the headline's product-lens gate read too (Thach, 2E-m). Until the line
-taxonomy (2E-t) defines the product classes they are these members: the gap
-(no SKU and no name) and pooled items are no product (2E-g, Q4), and the
-"(not a product)" bucket holds the charges and discounts. When more than
+sum of the product members' deltas, the gap buckets left out - over their
+SALE lines only (Thach, 2E-n: reading G - customer returns are their own
+class, as accounting keeps sales returns apart from gross sales), over the
+total net change: the one definition of "the share of the change that sits
+in the products", which R1 and the headline's product-lens gate read too
+(Thach, 2E-m). Read as the products' net change (sales AND refunds), a
+month carried by refunds "sat in the products" and opened the gate for a
+mix term offset inside a -15 gross change (2E-m review cycle 2). Until the
+line taxonomy (2E-t) defines the product classes they are these members:
+the gap (no SKU and no name) and pooled items are no product (2E-g, Q4), and
+the "(not a product)" bucket holds the charges and discounts. When more than
 half of the change does not sit in the products (the products' change has
 not the total's sign, or is at most `PRODUCTS_MAJORITY_SHARE` of it - judged
 as money above residue, so exactly half is never "more" by 1e-16, 2E-l review
@@ -875,7 +879,14 @@ cycle 1) the classification is
 product +10 had headlined "concentrated in one product" for +785.
 `products_share_of_change` says how much sat there. Otherwise:
 `declining_base_share` (share of `prev` revenue held by members moving the
-same way as the products' change) and `top_member_share`. `broad` at
+same way as the products' change) and `top_member_share` - both, and R1's top
+product, over each product's own NET change, as the product dimension above
+(whose members reconcile to the net change): R1 asks where the net change
+sits, and read on sale lines an order placed and cancelled the month before
+became a product's "change" - R1 named a product whose revenue was 0 in both
+months (2E-n review cycle 1). A cancellation still inflates that month's
+gross sales, so the share (and the product lens) can read far above 1 after
+one (Online Retail II 2011-02: 2.71) - a class for the line taxonomy (2E-t). `broad` at
 `BREADTH_BROAD`, `concentrated` at `BREADTH_CONCENTRATED`, else `mixed`; broad
 is tested first, because when both hold, "this is happening across the
 business" redirects attention better than "one member leads it". Broad points
@@ -1127,43 +1138,74 @@ while the month fell 450 short of its season. Written as a band, not
    while refunds sank revenue was named "the best explanation" of the fall
    (3E1 cycle 3). A **product-lens** hypothesis (P1, P2, R2, R3) is named
    only when more than half of the change sits in the products - breadth's
-   own decision (7.7: the products' net change over the total net change,
-   more than `PRODUCTS_MAJORITY_SHARE`, above floating-point residue), ONE
-   definition for breadth, R1 and this gate (Thach, 2E-m; 2E-l's gate read
-   gross over net: 62% where breadth read 7% on the same month). Since the
-   ranking reads the net change, a sliver of the gross change no longer beats
-   P4 on its own (2E-l's -5 of -5 gross against -775 of -780); the gate still
-   holds back a real product-lens cause when the change sits outside the
-   products - gross 80% of a -100 month, the products' own net change 35%:
-   P1 -80 is not named over P4 -65 (2E-m). Its verdict is not touched.
+   own decision (7.7: the change in the products' SALE lines over the total
+   net change, more than `PRODUCTS_MAJORITY_SHARE`, above floating-point
+   residue), ONE definition for breadth, R1 and this gate (Thach, 2E-m and
+   2E-n). It holds back a product-lens term that lands near the net change
+   while the products' sales carry less than half of it: sales -195 and
+   refunds -200 of a -395 month, the mix term -420 (1.06x) - offset inside
+   gross sales by the price - is not named over returns (51%). Its verdict
+   is not touched.
+   The cause named is the one that fits best (below); an exact tie names
+   every tied cause, with `hypothesis_id` and `lens` null. When share causes
+   rule 6 may name exist but none has a positive fit - each lands at least
+   |net| from the change (twice it, or short of that only by float residue)
+   - "The change is what remains of movements in opposite directions: down,
+   X (lens, -a); up, Y (lens, +b)", the change's direction first, in money
+   (`hypothesis_id` null). Each is the largest MEASURED movement that way -
+   a term whatever its verdict (a term against the change is ruled out only
+   for its direction), an expectation (D1, T1, T2, R3 estimates; C1-C3 are
+   differences between two transitions, no part of this change) only when
+   supported - every one of an exact tie. The sentence claims no more than
+   the direction and money of what it names: a ruled-out cause can fit (T1
+   at 1.84x, outside its band), so can a product-lens cause the gate held
+   back, the movement named can be smaller than the change, and the tree
+   has parts no hypothesis names (volume, the level-1 customers - "the
+   largest down: mix" stood beside a larger customers factor); a way no
+   tested movement took is left unnamed (2E-n review cycles 1-3). The
+   product-lens gate does not apply: it guards naming an explanation, and
+   it is closed whenever the products' sales carry at most half of the
+   change - also when they moved against it, and then "no tested cause
+   moved revenue up" stood beside a supported price rise (2E-n review cycle
+   1). A directional hypothesis comes after all of this, as it ranks after
+   every share cause.
 7. Nothing supported - no single tested cause explains most of the change,
    followed by the `partial` ones.
 
 Trust `caution` never changes the headline and is always shown beside it.
 
-**Ranking by fit**, for rules 5 and 6, ties broken by catalog order, every
-cause measured by its share of the NET change the headline states - `size =
-|contribution / net change|` (Thach, 2E-m, **superseding 3E1's per-lens
-share**: a product-lens share is of the GROSS change, and P1's "100%" of
-gross -62 beat P4's 93% of net -100 only because its denominator was
-smaller). The verdicts keep their own lens totals (3E1). A term by
-`min(size, 1)`; an expectation by `min(size, 2 - size)` floored at 0 (R3 is
-judged against gross and can be three times the net change - below the floor it
-ranked after a directional cause; 2E-m review cycle 1), the closer to the
-change the better; a directional hypothesis after every share. Ranking by
-the largest size picked the WORST overshoot - T2 at 1.75 over T1 at 1.00
-(3E1). Terms that all overshoot the net change tie at the cap; among them
-the larger share of the net change decides (2E-m: catalog order named P1
--23.8k over P2 -26.8k on a -9.8k change, Online Retail II 2011-07). A tie
-between a term and an expectation still goes to catalog order: an
-overshooting term does not beat an exact explanation (3E1).
+**Ranking by fit**, for rules 5 and 6: ONE fit measure for every cause
+(Thach, 2E-n, **superseding 3E1's cap on terms and 2E-m's tie rule among
+terms past the change**), 3E1's residual band for every kind -
+`fit = max(0, 1 - |1 - s|)`, `s` the cause's share of the NET change the
+headline states (`contribution / net change`; Thach, 2E-m, superseding
+3E1's per-lens share - P1's "100%" of gross -62 beat P4's 93% of net -100
+only because its denominator was smaller). The verdicts keep their own lens
+totals (3E1). A cause close to the change fits best: 1.14x still fits well
+(0.86), 19x not at all (0). The cap had scored every term past the change
+1, so prices at 19x a +1.4k change beat new customers at 1.2x (Online
+Retail II 2011-08, unanswered) and charges at 7.8x beat returns at 1.14x (a
+sweep). Since `fit = 1 - |net - contribution| / |net|`, for one net change
+fit ranks as the distance from the change in money, closest first; it is
+compared as money, so a positive fit (a distance under |net|) and an exact
+tie (equal distances) are judged above floating-point residue - 0.9x and
+1.1x of the change are one tie, though `1 - |1 - 0.9|` and `1 - |1 - 1.1|`
+differ in binary. **An exact tie names every tied cause, never one by
+catalog order** (Thach, 2E-n). Ranking by the largest share picked the
+WORST overshoot - T2 at 1.75 over T1 at 1.00 (3E1); an overshoot never
+beats an exact explanation. A directional hypothesis ranks after every
+share cause. Rule 5 applies only when T1 or T2 fits above residue: named
+only when supported (within 0.2-1.8 of the change) and at least half of it,
+each fits by at least 0.2 of the change - which, on a change of cents, can
+be residue; rule 6 then decides (2E-n review cycle 1).
 
 **No percentage above 100.** A share up to 100% is written as a percentage of
 the change; above that, as the contribution against the change ("+800.00
 against the change of +200.00"), because a percentage over 100 reads as a
-finding when it is the mark of an overshoot. The product lens's share is of
-the change in GROSS sales and says so, with that figure, since the headline
-opens with the net change.
+finding when it is the mark of an overshoot. The share printed is always of
+the NET change the headline states, for every lens (Thach, 2E-n): the
+product lens's share of the change in GROSS sales, printed beside it until
+2E-n, stays in the hypothesis's `share` and evidence.
 
 **Not testable with this schema** (always listed, never evaluated). Saying
 what could not be tested is part of the answer, not an omission.

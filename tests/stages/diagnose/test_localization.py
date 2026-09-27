@@ -719,10 +719,13 @@ def test_breadth_is_broad_when_most_of_the_base_moves_together() -> None:
 def test_breadth_is_concentrated_when_one_member_carries_the_move() -> None:
     rows = [row(date(2011, 10, index + 1), qty=10, price=10.0, product=f"P{index}")
             for index in range(10)]
-    rows += [row(date(2011, 11, index + 1), qty=10, price=10.0, product=f"P{index}")
+    # One product collapses - in its SALES: 10 -> 1, on November 30 so the
+    # file reaches the month's end (2E-n: a refund is the returns class, and
+    # the products' share of the change is their sales'; it was a -9 refund
+    # line); the other nine are unchanged.
+    rows += [row(date(2011, 11, 30 if index == 0 else index + 1), qty=1 if index == 0 else 10, price=10.0,
+                 product=f"P{index}")
              for index in range(10)]
-    # One product collapses; the other nine are unchanged.
-    rows.append(row(date(2011, 11, 30), qty=-9, price=10.0, product="P0"))
     data = run_data(rows, CATEGORY_MAPPING)
     delta = month_revenue(data, "2011-11") - month_revenue(data, "2011-10")
 

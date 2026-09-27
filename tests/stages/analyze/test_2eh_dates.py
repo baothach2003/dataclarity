@@ -343,4 +343,4 @@ def test_versions() -> None:
     # 8.0 / 7.0 in 2E-h; 9.0 / 8.0 since 2E-e2 (test_2ee2_stage2.py).
     assert SCHEMA_VERSION == "12.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 since 2E-l
     assert MetricsContract.supported_major == 12
-    assert DiagnosisContract.supported_major == 12  # 12 since 2E-m
+    assert DiagnosisContract.supported_major == 13  # 12 in 2E-m; 13 since 2E-n

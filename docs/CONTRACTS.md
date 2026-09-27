@@ -965,11 +965,16 @@ few - measured over the top five, every change would look concentrated, since
 the top five are chosen for being the largest movers. Since 2E-l (Thach) it is
 measured against the products' OWN change, and only when more than half of
 the change sits in them (above floating-point residue); otherwise the
-classification is `outside_products`. `products_share_of_change` is the
-products' change over the total change - null for a flat month. It is the one
-definition of the share of the change in the products (Thach, 2E-m): R1 and
-the headline's product-lens gate (rule 6) read breadth's decision, never a
-measure of their own.
+classification is `outside_products`. Since 2E-n
+`products_share_of_change` is the change in the products' SALE lines over
+the total change - customer returns are their own class (Thach) - null for a
+flat month. It is the one definition of the share of the change in the
+products (Thach, 2E-m): R1 and the headline's product-lens gate (rule 6) read
+breadth's decision, never a measure of their own. `declining_base_share`,
+`top_member_share` and R1's top product stay over each product's own net
+change, as the product dimension (which reconciles to the net change): read
+on sale lines, a cancelled order became a product's "change" (2E-n review
+cycle 1).
 
 **Blank categories are handled differently here from `metrics.json`'s
 `by_dimension` (section 6), on purpose. Do not "fix" either one to match the
@@ -1022,7 +1027,9 @@ incomplete previous month it carries only `previous_leading_days_missing`,
 and `statement` come from `stages/diagnose/catalog.py`, the catalog's single
 home, which `docs/AI_PIPELINE.md` 7.8 mirrors under test. `headline.rule` is `1`-`7`
 (`docs/AI_PIPELINE.md` section 7); `hypothesis_id` and `lens` are `null` for
-rules that name no hypothesis (1, 2, 3, 4, 5, 7). Every `evidence` value is a
+rules that name no hypothesis (1, 2, 3, 4, 5, 7), and for rule 6 when it
+names an exact tie, or when no cause it may name fits and it names the
+movements that offset each other (2E-n) - the message names them. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
 section 4. All money and share figures are floats; counts are integers.
 `ai_findings` (when present) is `{summary, headline_explanation,
@@ -1199,6 +1206,17 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-27: **session 2E-n, the products' sales and one fit (Thach).**
+  `diagnosis.json` went to `13.0`: breadth's `products_share_of_change` (and
+  so the classification, R1 and the product-lens gate) reads the products'
+  SALE lines - customer returns are their own class - so the same data can
+  classify breadth and name the headline's cause differently; rule 6 ranks
+  every cause by one fit, `max(0, 1 - |1 - share of the net change|)`
+  (superseding 3E1's cap and 2E-m's tie rule), and names every cause of an
+  exact tie, or with no nameable cause fitting the largest measured
+  movement each way (direction and money only), both with `hypothesis_id`
+  null; the headline prints
+  only the share of the net change. Readers refuse `12.x` diagnosis files ("re-analyse this run").
 - 2026-09-27: **session 2E-m, the headline's ranking (Thach).**
   `diagnosis.json` went to `12.0`: no field changed, but the same data can
   name a different cause (Online Retail II 2010-03: T1 under 11.0, R2 now) -

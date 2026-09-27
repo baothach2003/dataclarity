@@ -47,25 +47,44 @@ def compute_localization(data: RunData, delta_total: float) -> Localization:
         # produced metrics.json at all, so there is no run where this is
         # missing). Session 3D's choice - DIAGNOSE_DESIGN 5.6 defines breadth
         # over "members" without naming the dimension. Flagged for veto.
-        breadth=compute_breadth(products, delta_total, scale),
+        # The products' share of the change is their SALE lines' (Thach,
+        # 2E-n: reading G): read as their net change, a month carried by
+        # their refunds "sat in the products" and opened the headline's
+        # product-lens gate for a mix term offset inside a -15 gross change
+        # (2E-m review cycle 2). Refunds are the returns class. Where the
+        # change concentrates stays each product's own (net) change: read on
+        # sale lines, an order cancelled the month before became a product's
+        # "change" and R1 named a product whose revenue was 0 in both months
+        # (2E-n review cycle 1).
+        breadth=compute_breadth(products, delta_total, scale,
+                                products_change=sum(_deltas(product_totals(data, sales_only=True)).values())),
     )
 
 
-def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0) -> Breadth:
+def _deltas(totals: MemberTotals) -> dict[str, float]:
+    """Each real member's change. A data gap ("(no product name)") is no
+    member whose share of the change could be concentrated - unnamed lines
+    falling made R1 name the gap its top product with a share of 1.0 (Thach,
+    after 2E-g review cycle 3)."""
+    keys = sorted((set(totals.rev_prev.index) | set(totals.rev_cur.index)) - totals.gap_keys)
+    return {key: float(totals.rev_cur.get(key, 0.0)) - float(totals.rev_prev.get(key, 0.0))
+            for key in keys}
+
+
+def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0,
+                    products_change: float | None = None) -> Breadth:
     """How concentrated the change is.
 
     Both figures are computed over EVERY member, not the handful the
     dimension names: breadth measured over the top five would report that
     every change is concentrated, since the top five are chosen for being the
-    largest movers.
+    largest movers. `products_change` is the products' own change the share
+    is measured on - `compute_localization` passes their sale lines' (2E-n),
+    as production must; left out, it is the members' own change, which is
+    the same thing only when every line is a sale (the unit tests' shops).
     """
-    # Over the dimension's real members: a data gap ("(no product name)") is
-    # no member whose share of the change could be concentrated - unnamed
-    # lines falling made R1 name the gap its top product with a share of 1.0
-    # (Thach, after 2E-g review cycle 3).
-    keys = sorted((set(totals.rev_prev.index) | set(totals.rev_cur.index)) - totals.gap_keys)
-    deltas = {key: float(totals.rev_cur.get(key, 0.0)) - float(totals.rev_prev.get(key, 0.0))
-              for key in keys}
+    deltas = _deltas(totals)
+    keys = list(deltas)
 
     # The base is positive previous revenue only. A member whose previous
     # month netted below zero (more refunded than sold) would otherwise make
@@ -85,8 +104,11 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
     # change, and only when more than half of the change sits in them (the
     # "more than half" of 2E-k D1). Postage 5 -> 30 a day with one product +10
     # headlined "the change is concentrated in one product" for +785.
-    products_change = sum(deltas.values())
-    share_in_products = None if flat_total else products_change / delta_total
+    if products_change is None:
+        products_change = sum(deltas.values())
+    # + 0.0: sales that did not move over a change that did divide to -0.0,
+    # which JSON writes as "-0.0" (2E-n review cycle 2).
+    share_in_products = None if flat_total else products_change / delta_total + 0.0
     in_products = not flat_total and products_hold_most(products_change, delta_total,
                                                         *base.values(), scale)
     # When more than half of a change that moved sits in the products, their
@@ -117,11 +139,11 @@ def compute_breadth(totals: MemberTotals, delta_total: float, scale: float = 0.0
 
 def products_hold_the_change(breadth: Breadth) -> bool:
     """Do the products hold more than half of the change? THE one definition
-    (Thach, 2E-m): the products' net change over the total net change, as
+    (Thach, 2E-m): the change in the products' SALE lines over the total net
+    change (2E-n: reading G - customer returns are their own class), as
     `compute_breadth` measured it - read here by the headline's product-lens
-    gate so breadth, R1 and the gate cannot disagree. 2E-l's gate read gross
-    over net instead: 62% where breadth read 7% on one month. A flat month
-    has no share (None) and holds nothing."""
+    gate so breadth, R1 and the gate cannot disagree. A flat month has no
+    share (None) and holds nothing."""
     return breadth.products_share_of_change is not None and breadth.classification != "outside_products"
 
 

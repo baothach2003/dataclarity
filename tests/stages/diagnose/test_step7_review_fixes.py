@@ -99,7 +99,9 @@ def test_a_headline_never_prints_a_share_above_one_hundred_percent() -> None:
     headline = choose_headline(trust, hypotheses, tree, moved)
 
     assert "400%" not in headline.message
-    assert "+800.00 against the change in gross sales of +200.00" in headline.message
+    # 4x the change fits it not at all (Thach, 2E-n): named in money as a
+    # movement other movements offset.
+    assert "like-for-like prices changed (product lens, +800.00)" in headline.message
 
 
 # --- 2. a gap in the previous month ------------------------------------------------
@@ -178,23 +180,24 @@ def test_a_data_quality_flag_never_takes_the_headline() -> None:
     assert headline.rule == 7
 
 
-def test_an_overshooting_product_share_is_printed_against_gross_sales() -> None:
-    """The product lens decomposes GROSS sales, so its overshoot is printed
-    against the gross change (+200), not net revenue (+150 here, returns grew
-    by 50) - otherwise the figure beside it is a different total. (Net was -50
-    until 3E1 cycle 3, which stopped rule 6 naming a cause that moved against
-    the net change - the fixture's own shape.)"""
+def test_an_overshooting_product_share_is_printed_against_the_net_change() -> None:
+    """The headline prints a share of the change it states - the NET change -
+    for every lens (Thach, 2E-n Q4): 3E1 printed a product-lens overshoot
+    against the gross change (+200), a second total beside the net one (+150
+    here, returns grew by 50). The verdict's own share (1.25 of gross) stays
+    in the evidence."""
     hypotheses = [Hypothesis(id=s.id, family=s.family, lens=s.lens, statement=s.statement,
                              verdict="supported" if s.id == "P1" else "ruled_out",
-                             contribution=800.0 if s.id == "P1" else None,
-                             share=4.0 if s.id == "P1" else None, evidence={}, rule="t")
+                             contribution=250.0 if s.id == "P1" else None,
+                             share=1.25 if s.id == "P1" else None, evidence={}, rule="t")
                   for s in CATALOG]
     moved = Changes(1000.0, 1150.0, 150.0, 200.0, False)
 
     headline = choose_headline(NS(verdict="trusted", checks=[]), hypotheses,
                                NS(lever=NS(masked_shift_alert=False)), moved)
 
-    assert "+800.00 against the change in gross sales of +200.00" in headline.message
+    assert headline.message.endswith("(product lens, +250.00 against the change of +150.00).")
+    assert "gross" not in headline.message
 
 
 # --- cycle 2 of the 3E1 doubt-review --------------------------------------------

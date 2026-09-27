@@ -7,32 +7,35 @@ estimated here.
 """
 
 from contracts.diagnosis import Headline, Hypothesis, Tree, Trust
-from stages.diagnose.catalog import BY_ID, CATALOG
+from stages.diagnose.catalog import BY_ID
 from stages.diagnose.step7_inputs import Changes
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 
-ORDER = {spec.id: index for index, spec in enumerate(CATALOG)}
 # Their finding IS the trust caution, shown beside every headline; 7.8 says
 # caution never changes the headline, so rule 6 does not name them (3E1).
 NOT_A_HEADLINE = ("D2", "D3")
+CONTEXT = {"T1": "the calendar (the mix of weekdays in each month)",
+           "T2": "seasonality (the same months a year earlier moved the same way)"}
+
+
+def _residue(amount: float, moved: Changes) -> bool:
+    """Float residue next to the two months and the money moved - the scale
+    every "nothing" in stage 3 is judged against (2E doubt-review cycle 3)."""
+    return is_negligible(amount, moved.revenue_prev, moved.revenue_cur, moved.scale)
 
 
 def _size(hypothesis: Hypothesis, moved: Changes) -> str:
-    """A share as a reader can take it: a percentage up to 100%, otherwise the
-    two figures - "1000% of the change" reads as a finding when it is the
-    sign that the estimate overshot (3E1 doubt-review). The product lens
-    decomposes GROSS sales, so its share says so and shows that total: the
-    headline opens with the NET change, and "86% of the change" beside it
-    was a share of a different number (3E1 doubt-review cycle 2, H3)."""
-    if hypothesis.lens == "product":
-        what = f"the change in gross sales ({moved.gross:+,.2f})"
-        total = moved.gross
-    else:
-        what, total = "the change", moved.net
-    if abs(hypothesis.share) <= 1:
-        return f"{abs(hypothesis.share):.0%} of {what}"
-    return f"{hypothesis.contribution:+,.2f} against {what.split(' (')[0]} of {total:+,.2f}"
+    """The share of the NET change - the change the headline states - for
+    every lens, and a percentage only up to 100% (Thach, 2E-n Q4): "1000% of
+    the change" reads as a finding when it is the sign of an overshoot (3E1),
+    so past the change the two figures are printed instead. A product-lens
+    cause printed its share of GROSS sales beside a net change it was ranked
+    against (2E-m); its verdict's own share stays in the evidence."""
+    past = abs(hypothesis.contribution) - abs(moved.net)
+    if past <= 0 or _residue(past, moved):
+        return f"{min(abs(hypothesis.contribution / moved.net), 1.0):.0%} of the change"
+    return f"{hypothesis.contribution:+,.2f} against the change of {moved.net:+,.2f}"
 
 
 def _moves_with_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
@@ -45,66 +48,122 @@ def _moves_with_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
         return True
     # A change of zero has no best explanation in either direction: the sign
     # test alone admitted every negative cause when net was exactly 0 (cycle 4).
-    if is_negligible(moved.net, moved.revenue_prev, moved.revenue_cur, moved.scale):
+    if _residue(moved.net, moved):
         return False
     return (hypothesis.contribution > 0) == (moved.net > 0)
 
 
 def _lens_holds_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
     """A product-lens cause is named only when MORE than half of the change
-    sits in the products (Thach's "more than half", 2E-l): one unit's mix
-    shift was 100% of a -5 gross change and headlined a -780 month the
-    discounts carried (2E-l review cycle 1). Measured as breadth and R1
-    measure it - the products' net change over the total net change (Thach,
-    2E-m: one definition; 2E-l's gross over net read 62% where breadth read
-    7%). Its verdict is not touched: it does explain the gross change."""
+    sits in the products (Thach's "more than half", 2E-l), read from
+    breadth's decision - the change in the products' SALE lines over the net
+    change, customer returns being their own class (Thach, 2E-m: one
+    definition; 2E-n: reading G). A product-lens term can land near the net
+    change by an offset inside gross sales: sales -195 and refunds -200 of a
+    -395 month, the mix -420 (1.06x) against the price - the refunds carried
+    half the month, so returns (51%) are named, not the mix. Its verdict is
+    not touched: it does explain the gross change."""
     return hypothesis.lens != "product" or moved.products_hold_the_change
 
 
-def _fit(hypothesis: Hypothesis, moved: Changes) -> float:
-    """How well a supported hypothesis explains the change, in [0, 1], for
-    ranking. Measured against the NET change the headline states, for every
-    lens (Thach, 2E-m, superseding 3E1's per-lens share): a product-lens
-    share is of the GROSS change, and P1's "100%" of gross -62 beat P4's 93%
-    of net -100 only because its denominator was smaller. The verdicts keep
-    their own lens totals. A term: min(size, 1). An expectation: the closer
-    to the change the better, so min(size, 2 - size) - ranking by the largest
-    size picked the WORST overshoot (T2 at 1.75 over T1 at 1.00; 3E1) -
-    floored at 0: R3 is judged against GROSS, so a supported R3 can be three
-    times the net change, and min(size, 2 - size) fell below a directional
-    cause's -1 (2E-m review cycle 1). A directional hypothesis has no number
-    and ranks after all of them."""
-    if hypothesis.contribution is None:
-        return -1.0
-    size = abs(hypothesis.contribution / moved.net)
-    if BY_ID[hypothesis.id].kind == "expectation":
-        return max(min(size, 2 - size), 0.0)
-    return min(size, 1.0)
+def _distance(hypothesis: Hypothesis, moved: Changes) -> float:
+    """How far a cause's contribution lands from the net change, in money.
+
+    ONE fit for every cause (Thach, 2E-n, superseding 3E1's cap on terms and
+    2E-m's D1): fit = max(0, 1 - |1 - share of the net change|) = max(0, 1 -
+    distance / |net|). For one net change the order of fit is the order of
+    this distance, closest first - so a cause at 1.14x of the change beats
+    one at 7.8x, which the cap scored alike. Compared as money so that
+    "positive" and "tied" are judged above float residue: 0.9x and 1.1x of
+    the change are one tie, while 1 - |1 - 0.9| and 1 - |1 - 1.1| differ in
+    binary."""
+    return abs(moved.net - hypothesis.contribution)
 
 
-def _best(candidates: list[Hypothesis], moved: Changes) -> Hypothesis:
-    """The best fit; a tie goes to catalog order (3E1) - except among TERMS
-    that are all past the net change (capped), where the larger share of it
-    decides (Thach, 2E-m: rank every cause by its share of the net change).
-    Catalog order named the smaller of two: P1 -23.8k over P2 -26.8k on a
-    -9.8k change (Online Retail II 2011-07, unanswered). A tie with an
-    expectation still goes to catalog order: an overshooting term does not
-    beat an exact explanation (3E1)."""
-    top = max(_fit(h, moved) for h in candidates)
-    tied = [h for h in candidates if _fit(h, moved) == top]
-    if len(tied) > 1 and all(BY_ID[h.id].kind == "term" and _past_the_change(h, moved) for h in tied):
-        return max(tied, key=lambda h: (abs(h.contribution / moved.net), -ORDER[h.id]))
-    return min(tied, key=lambda h: ORDER[h.id])
+def _fits(hypothesis: Hypothesis, moved: Changes) -> bool:
+    """A positive fit: closer to the change than |net|, i.e. a share of it
+    strictly between 0 and 2, above residue. Twice the change fits as badly
+    as none of it."""
+    room = abs(moved.net) - _distance(hypothesis, moved)
+    return room > 0 and not _residue(room, moved)
 
 
-def _past_the_change(hypothesis: Hypothesis, moved: Changes) -> bool:
-    """A term that alone moved more than the net change: other terms offset
-    it. One that explains the change exactly is not past it, and keeps its
-    catalog-order tie with the overshooting ones (2E-m review cycle 1) -
-    exactly above residue: -200.20 is past 800.1 - 1000.3 =
-    -200.19999999999993 by a float's last bit (review cycle 2)."""
-    excess = abs(hypothesis.contribution) - abs(moved.net)
-    return excess > 0 and not is_negligible(excess, moved.revenue_prev, moved.revenue_cur, moved.scale)
+def _closest(candidates: list[Hypothesis], moved: Changes) -> list[Hypothesis]:
+    """The share causes with a positive fit that come closest to the change.
+    An exact tie keeps every tied cause - the headline names them all, never
+    one by catalog order (Thach, 2E-n); `candidates` come in catalog order,
+    which is only the order they are listed in."""
+    fitting = [h for h in candidates if _fits(h, moved)]
+    if not fitting:
+        return []
+    best = min(_distance(h, moved) for h in fitting)
+    return [h for h in fitting if _residue(_distance(h, moved) - best, moved)]
+
+
+def _statement(hypothesis: Hypothesis) -> str:
+    return hypothesis.statement[0].lower() + hypothesis.statement[1:]
+
+
+def _explanation(named: list[Hypothesis], moved: Changes, change: str) -> Headline:
+    """Rule 6 naming its best-fitting causes - one, or every cause of an
+    exact tie, with no single `hypothesis_id` then (as rule 5 names T1/T2)."""
+    def one(h: Hypothesis) -> str:
+        size = f", {_size(h, moved)}" if h.contribution is not None else ""
+        return f"{_statement(h)} ({h.lens} lens{size})"
+    if len(named) == 1:
+        best = named[0]
+        return Headline(rule=6, hypothesis_id=best.id, lens=best.lens,
+                        message=f"{change} The best-supported explanation: {one(best)}.")
+    return Headline(rule=6, hypothesis_id=None, lens=None,
+                    message=f"{change} Equally well supported: " + "; ".join(one(h) for h in named) + ".")
+
+
+def _largest(causes: list[Hypothesis], moved: Changes) -> list[Hypothesis]:
+    """The largest movement - every one of an exact tie."""
+    top = max(abs(h.contribution) for h in causes)
+    return [h for h in causes if _residue(abs(h.contribution) - top, moved)]
+
+
+def _measured(hypothesis: Hypothesis) -> bool:
+    """A movement that was MEASURED, whatever its verdict: a term - a part of
+    one of the tree's decompositions, ruled out against the change only for
+    its direction. An expectation - D1, T1, T2, R3 estimate what a cause
+    WOULD have done; C1-C3 are differences between two transitions,
+    term(t) - term(t-1), no part of this month's change (2E-n review cycle
+    3: C2 at +400 read "lapsed customers took less revenue away" while this
+    month's lapsed term pulled revenue down) - counts only when supported."""
+    return BY_ID[hypothesis.id].kind == "term" or hypothesis.verdict == "supported"
+
+
+def _opposing(hypotheses: list[Hypothesis], moved: Changes) -> str:
+    """No cause rule 6 may name fits the change (Thach, 2E-n) - each lands
+    at least |net| from it - so the change is what remains of movements that
+    offset each other. One movement each way is named, in money - a
+    percentage over 100 reads as a finding (3E1): the largest measured one
+    (`_measured`), every one of an exact tie. The sentence says only its
+    direction and money: the tree's parts are not all hypotheses (volume, the
+    level-1 customers), so "the largest down" was false beside a larger part
+    no hypothesis names (review cycle 3); for the same reason a way nothing
+    tested moved is left unnamed rather than claimed. The product-lens gate
+    guards naming an EXPLANATION and does not apply here: it is closed
+    whenever the products' sales carry at most half of the change - also
+    when they moved against it, and then "no tested cause moved revenue up"
+    stood beside a supported price rise (review cycle 1). Lenses are never
+    added together: each figure carries its own lens. D2 and D3 are
+    directional - no number - so no NOT_A_HEADLINE test is needed here
+    (mutation check: equivalent)."""
+    pool = [h for h in hypotheses if h.contribution is not None and _measured(h)
+            and not _residue(h.contribution, moved)]
+    rise = moved.net > 0
+    ways = [("up" if rise else "down", [h for h in pool if (h.contribution > 0) == rise]),
+            ("down" if rise else "up", [h for h in pool if (h.contribution > 0) != rise])]
+    named = ["{}, {}".format(way, " and ".join(f"{_statement(h)} ({h.lens} lens, {h.contribution:+,.2f})"
+                                               for h in _largest(causes, moved)))
+             for way, causes in ways if causes]
+    # No claim that no cause fits: a ruled-out cause can (Online Retail II
+    # 2011-07 unanswered: T1 at 1.84x fits 0.16; review cycle 1), and so can
+    # one the product-lens gate held back (cycle 2).
+    return "The change is what remains of movements in opposite directions: " + "; ".join(named) + "."
 
 
 def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | None,
@@ -156,34 +215,41 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
                     f"{average} {pair['aov']:+,.2f}: large movements that "
                     "largely cancelled out. This may be seasonal.")
 
-    # 5. Calendar or seasonality explains most of it.
+    # 5. Calendar or seasonality explains most of it - when one fits above
+    # residue. Supported and at least half of the change, each lands within
+    # 0.8 of it, but on a change of cents 0.2 of it can be residue: the
+    # sentence came out "consistent with ." (review cycle 1). Then rule 6.
     context = [by_id[i] for i in ("T1", "T2") if by_id[i].verdict == "supported"
                and abs(by_id[i].share) >= HEADLINE_CONTEXT_MIN_SHARE]
-    if context:
-        best = _best(context, moved)
-        what = "the calendar (the mix of weekdays in each month)" if best.id == "T1" \
-            else "seasonality (the same months a year earlier moved the same way)"
+    named = _closest(context, moved)
+    if named:
+        if len(named) == 1:
+            what = f"{CONTEXT[named[0].id]}: {_size(named[0], moved)}"
+        else:
+            what = "; and equally with ".join(f"{CONTEXT[h.id]}: {_size(h, moved)}" for h in named)
         return Headline(rule=5, hypothesis_id=None, lens=None,
-                        message=f"{change} The change is consistent with {what}: "
-                                f"{_size(best, moved)}.")
+                        message=f"{change} The change is consistent with {what}.")
 
-    # 6. The best-supported explanation, ranked by share of the net change. Directional hypotheses carry no
-    # share and rank after every share hypothesis, in catalog order.
+    # 6. The best-fitting supported cause, closest to the net change; with no
+    # cause fitting, the movements that offset each other; a directional
+    # cause (no number) after every share cause, as 3E1 ranked it.
     supported = [h for h in hypotheses if h.verdict == "supported"
                  and h.id not in NOT_A_HEADLINE and _moves_with_the_change(h, moved)
                  and _lens_holds_the_change(h, moved)]
-    if supported:
-        best = _best(supported, moved)
-        size = f", {_size(best, moved)}" if best.share is not None else ""
-        return Headline(rule=6, hypothesis_id=best.id, lens=best.lens,
-                        message=f"{change} The best-supported explanation: "
-                                f"{best.statement[0].lower() + best.statement[1:]} "
-                                f"({best.lens} lens{size}).")
+    shares = [h for h in supported if h.contribution is not None]
+    named = _closest(shares, moved)
+    if named:
+        return _explanation(named, moved, change)
+    if shares:
+        return Headline(rule=6, hypothesis_id=None, lens=None,
+                        message=f"{change} {_opposing(hypotheses, moved)}")
+    directional = [h for h in supported if h.contribution is None]
+    if directional:
+        return _explanation(directional, moved, change)
 
     # 7. Nothing supported - the engine does not invent a cause.
     partial = [h for h in hypotheses if h.verdict == "partial"]
     tail = ("" if not partial else " Partly consistent: "
-            + "; ".join(f"{h.statement[0].lower() + h.statement[1:]} ({h.id})"
-                        for h in partial) + ".")
+            + "; ".join(f"{_statement(h)} ({h.id})" for h in partial) + ".")
     return Headline(rule=7, hypothesis_id=None, lens=None,
                     message=f"{change} No single tested cause explains most of the change.{tail}")

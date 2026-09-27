@@ -21,6 +21,7 @@ line a day: a discount -1 @ 5, 30 in August; or postage 1 @ 30, 5 in August.
 The gross change is -5 in both; the deductions carry -775, or the charges.
 """
 
+import math
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
@@ -136,6 +137,18 @@ def test_a_product_lens_cause_headlines_only_when_the_lens_holds_more_than_half(
 
 
 # --- F4: breadth's "more than half" above residue -----------------------------
+
+def test_a_share_of_minus_zero_is_zero() -> None:
+    # 2E-n review cycle 2: sales that did not move over a change that did
+    # divide to -0.0, which JSON writes as "-0.0".
+    empty = pd.Series(dtype=float)
+    totals = MemberTotals(rev_prev=pd.Series({"a": 1.0}), rev_cur=pd.Series({"a": 1.0}),
+                          orders_prev=empty, orders_cur=empty, labels={"a": "A"}, gap_keys=frozenset())
+
+    share = compute_breadth(totals, -5.0, products_change=0.0).products_share_of_change
+
+    assert (share, math.copysign(1.0, share)) == (0.0, 1.0)
+
 
 def test_exactly_half_by_floating_point_residue_is_not_more_than_half() -> None:
     # A moves 1.0 -> 1.3 (0.30000000000000004 in binary) of a 0.60 change:

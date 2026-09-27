@@ -57,9 +57,9 @@ class Changes:
     # What stage 2's orders are (2E-e): the wording says "lines" when they are
     # lines. A hand-built Changes (tests) is on lines, the honest default.
     orders_basis: str = "lines"
-    # Do the products hold more than half of the change - breadth's own
-    # decision (localization.products_hold_the_change, Thach 2E-m), read by
-    # the headline's product-lens gate. `changes()` always sets it; a
+    # Do the products' sales hold more than half of the change - breadth's
+    # own decision (localization.products_hold_the_change; Thach 2E-m, 2E-n),
+    # read by the headline's product-lens gate. `changes()` always sets it; a
     # hand-built Changes (tests) holds the change unless it says otherwise.
     products_hold_the_change: bool = True
 

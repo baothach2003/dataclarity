@@ -74,21 +74,22 @@ def test_rule_6_ranks_by_the_share_of_the_net_change() -> None:
     assert changes(inputs).products_hold_the_change is True
 
 
-def test_the_gate_reads_the_products_net_change_as_breadth_does() -> None:
+def test_the_gate_reads_the_products_share_as_breadth_does() -> None:
     # P0 at 2 on 10 days: gross -80, P1 = -80; July's 9 refunds of P3 do not
     # recur: +45; 13 discount lines in August: P4 = -65. Net 2,125 -> 2,025
-    # (-100). Gross is 80% of it, but the products' net change is -80 + 45 =
-    # -35: 35%, not more than half.
+    # (-100). The products' SALES carry -80 of it, 80% (Thach, 2E-n: reading
+    # G - the refunds that stopped are the returns class, P3's). Under 2E-m's
+    # reading, the products' net change -80 + 45 = 35%, the gate closed and
+    # P4 was named; P1 is the closer cause (0.80 against 0.65).
     inputs, results, headline = _run(_shop("2", 10, 9, 0, 13), {"D": "discount"})
 
     breadth = inputs.localization.breadth
-    assert breadth.products_share_of_change == pytest.approx(0.35)
-    assert (breadth.classification, results["R1"].verdict) == ("outside_products", "ruled_out")
-    assert changes(inputs).products_hold_the_change is False
+    assert breadth.products_share_of_change == pytest.approx(0.80)
+    assert breadth.classification != "outside_products"
+    assert changes(inputs).products_hold_the_change is True
     assert (results["P1"].verdict, results["P1"].contribution) == ("supported", pytest.approx(-80.0))
     assert results["P4"].contribution == pytest.approx(-65.0)
-    # Before: gross over net (80%) opened the gate and P1 (0.8) was named.
-    assert (headline.rule, headline.hypothesis_id) == (6, "P4")
+    assert (headline.rule, headline.hypothesis_id) == (6, "P1")
 
 
 def _headline(holds: bool) -> tuple[int, str | None]:
@@ -123,21 +124,21 @@ def test_the_gate_reads_breadths_decision(classification: str, share: float | No
     assert products_hold_the_change(breadth) is holds
 
 
-def test_terms_that_both_overshoot_the_change_rank_by_their_share_of_it() -> None:
-    # Online Retail II 2011-07 unanswered: P1 -23.8k and P2 -26.8k on a net
-    # change of -9.8k - both past the change, both capped at a fit of 1. The
-    # tie went to catalog order and named the SMALLER cause (P1); among terms
-    # the larger share of the net change decides (Thach, 2E-m). Here P1 is
-    # -240 and P2 -270 of -200.
+def test_terms_that_both_overshoot_the_change_rank_by_how_close_they_come() -> None:
+    # Both past the change: P1 -240 (1.20x, fit 0.80) and P2 -270 (1.35x,
+    # fit 0.65) of -200. 3E1's cap scored both 1, catalog order named P1 and
+    # 2E-m's D1 then named the larger share (P2); one fit measure for every
+    # cause names the closer (Thach, 2E-n: D1 superseded).
     headline = choose_headline(trust(), catalog(P1=("supported", -1.20, {}), P2=("supported", -1.35, {})),
                                tree(False), MOVED)
 
-    assert headline.hypothesis_id == "P2"
+    assert headline.hypothesis_id == "P1"
 
 
-def test_an_overshooting_term_still_ties_an_exact_expectation_to_catalog_order() -> None:
-    # 3E1's cap, kept: B1 at 1.5 and P2 at 1.35 do not beat C1 explaining the
-    # change exactly - a tie with an expectation goes to catalog order.
+def test_an_exact_expectation_beats_overshooting_terms() -> None:
+    # C1 explains the change exactly (fit 1); B1 at 1.5 and P2 at 1.35 fit
+    # 0.5 and 0.65 - an overshoot never beats an exact explanation (3E1),
+    # now by the one fit measure rather than a cap and a tie.
     headline = choose_headline(trust(), catalog(C1=("supported", -1.00, {}), B1=("supported", -1.50, {}),
                                                 P2=("supported", -1.35, {})), tree(False), MOVED)
 
@@ -166,38 +167,48 @@ def _supported(moved: Changes, **causes: float | None) -> str | None:
 
 def test_a_supported_expectation_far_past_the_change_still_ranks_before_a_directional_cause() -> None:
     # R3 is judged against gross (-3,000: 100%, supported) but ranked against
-    # net (-900): 3.33 times the change, so min(size, 2 - size) is -1.33 -
-    # below a directional cause's -1. Every share cause ranks first (#2).
+    # net (-900): 3.33 times the change, no positive fit (Thach, 2E-n). The
+    # share causes' outcome - the movements that offset each other - still
+    # comes before a directional cause, which ranks after every share cause
+    # (3E1; 2E-m review cycle 1 #2).
     moved = Changes(revenue_prev=10000.0, revenue_cur=9100.0, net=-900.0, gross=-3000.0, alert=False)
 
-    assert _supported(moved, R3=-3000.0, R1=None) == "R3"
-    assert _supported(moved, R3=-2700.0, C4=None) == "R3"
+    assert _supported(moved, R3=-3000.0, R1=None) is None
+    assert _supported(moved, R3=-2700.0, C4=None) is None
+    hypotheses = [Hypothesis(id=spec.id, family=spec.family, lens=spec.lens, statement=spec.statement,
+                             verdict="supported" if spec.id in ("R3", "R1") else "ruled_out",
+                             contribution=-3000.0 if spec.id == "R3" else None,
+                             share=-1.0 if spec.id == "R3" else None, evidence={}, rule="test")
+                  for spec in CATALOG]
+    message = choose_headline(trust(), hypotheses, tree(False), moved).message
+    assert "The change is what remains of movements in opposite directions" in message
+    assert "a top product may have run out of stock (product lens, -3,000.00)" in message
 
 
-def test_the_tie_among_terms_reads_the_share_of_the_net_change_not_the_verdicts_share() -> None:
-    # Gross -100, net -200: B1 -300 (1.5 of net) and P2 -270 (1.35 of net;
-    # 2.7 of gross, the share its verdict stores) - both capped (#4).
+def test_the_ranking_reads_the_share_of_the_net_change_not_the_verdicts_share() -> None:
+    # Gross -100, net -200: B1 -300 (1.5 of net, fit 0.5) and P2 -270 (1.35
+    # of net, fit 0.65; 2.7 of gross, the share its verdict stores - which
+    # would fit 0) (#4).
     moved = Changes(revenue_prev=1000.0, revenue_cur=800.0, net=-200.0, gross=-100.0, alert=False)
 
-    assert _supported(moved, B1=-300.0, P2=-270.0) == "B1"
-    # Equal shares of the net change: catalog order.
-    assert _supported(moved, P1=-240.0, P2=-240.0) == "P1"
+    assert _supported(moved, B1=-300.0, P2=-270.0) == "P2"
+    # Equal shares of the net change: an exact tie names both, no single id
+    # (Thach, 2E-n: never catalog order).
+    assert _supported(moved, P1=-240.0, P2=-240.0) is None
 
 
 def test_an_exact_term_is_not_beaten_by_an_overshooting_one() -> None:
-    # The larger share decides only among terms that ALL overshoot: B1
-    # explaining the -200 exactly ties P2 at 1.35 on the cap, and a tie with
-    # an exact explanation goes to catalog order (#5; 3E1).
+    # B1 explains the -200 exactly (fit 1); P2 at 1.35 fits 0.65 (#5; 3E1).
     assert _supported(MOVED, B1=-200.0, P2=-270.0) == "B1"
 
 
-def test_diagnosis_json_is_major_12_and_refuses_an_11_file() -> None:
+def test_diagnosis_json_is_major_12_or_the_current_one_and_refuses_an_11_file() -> None:
     # The same data can name a different cause (Online Retail II 2010-03: T1
-    # under 11.0, R2 now) - a change of meaning, a major bump (CONTRACTS 10).
+    # under 11.0, R2 since 12.0) - a change of meaning, a major bump
+    # (CONTRACTS 10). 12.0 in 2E-m; 13.0 since 2E-n.
     payload = diagnosis_payload()
-    payload["schema_version"] = "12.0"
-    assert DiagnosisContract.supported_major == 12
-    assert DiagnosisContract.model_validate(payload).schema_version == "12.0"
+    assert DiagnosisContract.supported_major == 13
+    assert DiagnosisContract.model_validate(payload).schema_version == "13.0"
 
     payload["schema_version"] = "11.0"
     with pytest.raises(ValidationError, match="re-analyse"):
@@ -206,8 +217,8 @@ def test_diagnosis_json_is_major_12_and_refuses_an_11_file() -> None:
 
 def test_a_term_equal_to_the_change_up_to_residue_is_not_past_it() -> None:
     # 800.1 - 1000.3 is -200.19999999999993 in binary: B1 at -200.20, exact to
-    # the cent, is no overshoot, so its tie with P2 stays catalog order (2E-m
-    # review cycle 2).
+    # the cent, fits the change (2E-m review cycle 2; since 2E-n no tie among
+    # overshooting terms needs it).
     moved = Changes(revenue_prev=1000.3, revenue_cur=800.1, net=800.1 - 1000.3, gross=800.1 - 1000.3, alert=False)
 
     assert _supported(moved, B1=-200.20, P2=-270.0) == "B1"

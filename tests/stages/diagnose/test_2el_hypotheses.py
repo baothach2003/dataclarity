@@ -109,10 +109,17 @@ def test_the_change_outside_the_products_is_never_concentrated_in_one() -> None:
     assert results["R1"].verdict == "ruled_out"
 
 
+def _without_p0_sales(df: pd.DataFrame, last_day: int) -> pd.DataFrame:
+    """P0 does not sell on August 1 to `last_day` - a change in its SALES,
+    which is what the products' change counts (Thach, 2E-n: reading G)."""
+    gone = (df["Sku"] == "P0") & (df["Date"] >= "2026-08-01") & (df["Date"] <= f"2026-08-{last_day:02d}")
+    return df[~gone].reset_index(drop=True)
+
+
 def test_a_change_in_one_product_is_still_concentrated() -> None:
-    # P0's August 15 line is a refund of 20 instead of a sale of 1 (-210),
-    # the discount stays at 5 a day: all of the -210 is in the products, P0.
-    df = _shop("discount", p0_change=-21)
+    # P0 sells on none of August 1-21 (-210), the discount stays at 5 a day:
+    # all of the -210 is in the products' sales, P0's.
+    df = _without_p0_sales(_shop("discount"), 21)
     df.loc[(df["Sku"] == "D") & df["Date"].str.startswith("2026-08"), "Price"] = "5"
 
     inputs, results, _ = _step7(df, {"D": "discount"})
@@ -122,11 +129,27 @@ def test_a_change_in_one_product_is_still_concentrated() -> None:
     assert (breadth.classification, results["R1"].verdict) == ("concentrated", "supported")
 
 
+def test_a_refund_of_one_product_is_the_returns_not_a_change_in_the_products() -> None:
+    # Until 2E-n the test above booked its -210 as P0's August 15 line, a
+    # refund of 20 instead of a sale of 1 - and the products held it all.
+    # A refund is the customer returns class (Thach, 2E-n: reading G): the
+    # products' sales moved only by the lost sale of 1 at 10, 5% of -210.
+    df = _shop("discount", p0_change=-21)
+    df.loc[(df["Sku"] == "D") & df["Date"].str.startswith("2026-08"), "Price"] = "5"
+
+    inputs, results, _ = _step7(df, {"D": "discount"})
+
+    breadth = inputs.localization.breadth
+    assert breadth.products_share_of_change == pytest.approx(10 / 210)
+    assert (breadth.classification, results["R1"].verdict) == ("outside_products", "ruled_out")
+    assert results["P3"].contribution == pytest.approx(-200.0)
+
+
 def test_exactly_half_in_the_products_is_not_more_than_half() -> None:
-    # P0's August 15 line a refund of 30 instead of a sale of 1 (-310), the
-    # discount 5 -> 15 a day (deductions +310): the products hold exactly
-    # half of the -620 change - not MORE than half (2E-k D1's word).
-    df = _shop("discount", p0_change=-31)
+    # P0 sells on none of August's 31 days (-310), the discount 5 -> 15 a day
+    # (deductions +310): the products hold exactly half of the -620 change -
+    # not MORE than half (2E-k D1's word).
+    df = _without_p0_sales(_shop("discount"), 31)
     df.loc[(df["Sku"] == "D") & df["Date"].str.startswith("2026-08"), "Price"] = "15"
 
     inputs, results, _ = _step7(df, {"D": "discount"})

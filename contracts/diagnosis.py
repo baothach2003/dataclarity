@@ -564,15 +564,17 @@ class MixRate(ContractModel):
 
 class Breadth(ContractModel):
     """Measured over the products' own change (2E-l, Thach): "concentrated"
-    only when more than half of the change sits in the products;
-    `outside_products` when it does not - the change sits in charges,
-    discounts, pooled or unnamed lines, and no product is its home."""
+    only when more than half of the change sits in the products' sales
+    (2E-n); `outside_products` when it does not - the change sits in customer
+    returns, charges, discounts, pooled or unnamed lines, and no product is
+    its home. The two shares are over each product's own (net) change."""
 
     declining_base_share: UnitInterval
     top_member_share: UnitInterval
     classification: Literal["broad", "mixed", "concentrated", "outside_products"]
-    # The products' change over the whole change; null when the total did not
-    # move. Unbounded: products can move more than the total, others offsetting.
+    # The change in the products' SALE lines over the whole change (2E-n);
+    # null when the total did not move. Unbounded: products can move more
+    # than the total, others offsetting.
     products_share_of_change: float | None
 
 
@@ -661,8 +663,11 @@ class DiagnosisContract(ContractFile):
     # products' own change (`outside_products`, `products_share_of_change`),
     # pooled items held with the data gap. 12 since 2E-m: rule 6 ranks every
     # cause by its share of the NET change and the product-lens gate reads
-    # breadth's decision - the same data can name another cause (Thach).
-    supported_major: ClassVar[int] = 12
+    # breadth's decision - the same data can name another cause (Thach). 13
+    # since 2E-n: breadth and R1 read the products' SALE lines (refunds are
+    # the returns class), one fit measure ranks every cause, and rule 6 can
+    # name a tie or no cause (`hypothesis_id` null) - Thach.
+    supported_major: ClassVar[int] = 13
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "

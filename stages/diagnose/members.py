@@ -245,7 +245,13 @@ def category_totals(data: RunData) -> MemberTotals | None:
     return _totals(data, keys, labels, frozenset({UNCATEGORISED_KEY}))
 
 
-def product_totals(data: RunData) -> MemberTotals:
+def product_totals(data: RunData, *, sales_only: bool = False) -> MemberTotals:
+    """Revenue and orders per product member. `sales_only` counts the SALE
+    lines alone - the products' share of the change as breadth, R1 and the
+    headline's gate read it (Thach, 2E-n: customer returns are their own
+    class, as accounting separates gross sales from sales returns). The
+    dimension and the concentration keep every line: the dimension must
+    reconcile to the net change."""
     require_column(data.parsed.reverse, "product_name")
     # Stage 2's keys and labels (shared/products.py, 2E-g): a line with a SKU
     # and no name is its product - it was in the gap while stage 2 named it
@@ -263,7 +269,8 @@ def product_totals(data: RunData) -> MemberTotals:
     # treatment as "(no product name)" (Thach).
     keys = keys.fillna(UNNAMED_PRODUCT_KEY).mask(data.parsed.line_class.isin(("charge", "discount")),
                                                  NOT_A_PRODUCT_KEY)
-    return _totals(data, keys, labels, frozenset({UNNAMED_PRODUCT_KEY, NOT_A_PRODUCT_KEY}))
+    return _totals(data, keys, labels, frozenset({UNNAMED_PRODUCT_KEY, NOT_A_PRODUCT_KEY}),
+                   data.parsed.sale if sales_only else None)
 
 
 def customer_type_totals(data: RunData, classes: dict[str, str]) -> MemberTotals:
@@ -296,12 +303,13 @@ def _labels(source: pd.Series, keys: pd.Series, reserved: dict[str, str]) -> dic
 
 
 def _totals(
-    data: RunData, keys: pd.Series, labels: dict[str, str], gap_keys: frozenset[str]
+    data: RunData, keys: pd.Series, labels: dict[str, str], gap_keys: frozenset[str],
+    rows: pd.Series | None = None,
 ) -> MemberTotals:
     period = data.metrics.period
     frames = {}
     for label, month in (("prev", period.previous), ("cur", period.current)):
-        mask = period_mask(data, month)
+        mask = period_mask(data, month) if rows is None else period_mask(data, month) & rows
         grouped = keys[mask]
         frames[f"rev_{label}"] = data.parsed.revenue_amounts[mask].groupby(grouped).sum()
         # Orders containing the member (2E-e): distinct order keys among its

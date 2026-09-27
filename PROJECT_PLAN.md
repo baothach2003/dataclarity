@@ -2062,7 +2062,7 @@ dataclarity/
       **Thach, after the fourth run (2026-09-27):** D2 and D3 accepted; D1
       (the larger share among terms past the change) superseded by his Q2 -
       see 2E-n.
-- [ ] 2E-n **What "the change in the products" counts, and how terms past
+- [x] 2E-n **What "the change in the products" counts, and how terms past
       the change rank** (split out of 2E-m's review cycle 2; **for Thach -
       the fourth overnight run stopped on it**). FABRICATE, headline, a
       regression against HEAD, on a common shape (refunds booked as negative
@@ -2119,6 +2119,87 @@ dataclarity/
         share stays in the evidence.
       - Q5 - yes: a scoped review of 2E-m's unreviewed cycle-2 fixes at the
         start of 2E-n.
+      **Done 2026-09-27 (fifth overnight run, session 1).** Method
+      `C:\Users\Happy\2En-method.txt` (written before code; four amendments:
+      the measurement, the go, each review cycle before its fixes).
+      **Q5 first:** a scoped fresh-context review of 2E-m's cycle-2 fixes,
+      6 findings - fits and ties compared float-exactly (a cause exact to the
+      cent lost to a 1.35x / 1.5x overshoot by how the net rounded; two
+      FABRICATEs, not on the demo nor a common shape) superseded by Q2 and
+      kept as tests; a stale gate docstring rewritten; doc wording in code
+      2E-n replaced; one display edge to 8D.
+      **Built:** reading G is the SHARE - `products_share_of_change`, the
+      "more than half" behind breadth's class, R1's precondition and the
+      product-lens gate read the products' SALE lines
+      (`product_totals(sales_only=True)`); the concentration figures, R1's
+      top product and the product dimension stay on each product's own net
+      change. One fit for every cause, max(0, 1 - |1 - share of the net
+      change|), compared as money (the distance from the net change) so a
+      positive fit and an exact tie are judged above residue; an exact tie
+      names every tied cause (rules 5 and 6, `hypothesis_id` null); rule 5
+      only when a context cause fits. No nameable cause fits: "The change is
+      what remains of movements in opposite directions: down, X (lens, -a);
+      up, Y (lens, +b)" - the largest MEASURED movement each way (a term
+      whatever its verdict, an expectation only when supported; no gate),
+      direction and money only. The headline prints the share of the net
+      change, a percentage only up to 100%. 3E1's cap, 2E-m's D1 and
+      `_past_the_change` are gone. diagnosis.json 13.0.
+      **Measured before code** (a scratch prototype; HEAD's headline.py on
+      the same hypotheses): every Online Retail II month in both states and
+      Kaggle - **the demo month 2011-11 keeps its headline byte for byte in
+      both states** (seasonality 86% / 99%), so Thach's stop condition did
+      not fire; Kaggle unchanged. 5 headlines change: 2011-10 classed R2
+      (1.68x) -> C3 (0.85x); unanswered 2011-06 P2 -> P3 (G), 2011-07 P2
+      (2.74x) -> the movements (mix -26.9k down, returns +32.7k up), 2011-08
+      P1 (19x) -> C1 (1.2x), 2011-10 R2 (1.77x) -> C3 (0.89x). Sweeps
+      (general classed 579 / unanswered 296 / refund months 342, non-alert):
+      154 / 79 / 63 headlines change, every one away from a cause past the
+      change; seed 537 P5 (7.8x) -> P3 (1.14x).
+      **Decisions made alone (for Thach):** D1 the concentration and R1
+      stay on net (GALL - all of breadth on sale lines - was built first
+      and reverted by review cycle 1: a cancelled order became R1's top
+      product); D2 the "each way" movements (terms whatever verdict,
+      expectations only when supported, no gate, one named each way, a way
+      no tested movement took left unnamed); D3 the movements before a
+      directional cause; D4 money comparisons above residue; D5 no new
+      field - a tie or no fit is rule 6 with a null id (rule 5's
+      precedent); D6 13.0.
+      **Tests first:** tests/stages/diagnose/test_2en_headline.py;
+      retargeted to the new decisions, none relaxed: test_2el_hypotheses (a
+      product's change built from sale lines; the refund fixture kept as a
+      returns-class test), test_2em_ranking, test_step7_review_fixes,
+      test_localization (a collapse in sales), test_headline (a docstring);
+      version literals 12 -> 13.
+      **Mutation:** 38 mutants in five batches, backup each, no residue: 35
+      killed (7 by tests added for them), 3 equivalent (two inclusive
+      comparisons behind a residue guard that covers 0; a dead D2/D3
+      exclusion - removed).
+      **Doubt-review:** three cycles (cross-model skipped: non-interactive).
+      Cycle 1, 5: the no-fit movements dropped gated and unsupported ones
+      and said "no tested cause moved revenue up" beside a supported price
+      rise (FABRICATE, common shape), GALL's R1 named a cancelled order
+      (FABRICATE, common shape), "no tested cause fits" false on the demo
+      file, rule 5's empty sentence, docs - fixed. Cycle 2, 6: the "no cause
+      fits" claim and "larger" dropped, a unit test retargeted, -0.0 fixed;
+      questions Q1-Q2 (below); one item to 8D. Cycle 3 (scoped, the bound),
+      5 + 2: the customer flows are no movement of this change (FABRICATE,
+      common shape) and "the largest down" was false beside a tree part no
+      hypothesis names (FABRICATE, the demo file) - both fixed locally
+      (expectations only when supported; direction and money only), docs;
+      Q3 (below); -0.0 contributions to 8D. **Cycle 3's fixes landed after
+      the last review: UNREVIEWED.** pytest 3014, Vitest 156.
+      **Questions for Thach:** Q1 rule 5 (T1/T2) comes before rule 6's one
+      fit: Kaggle names T2 at 1.48x over B1 at 0.96x, Online Retail II
+      classed 2011-08 T1 at 1.72x over C3 at 1.03x (older than 2E-n) - rank
+      rules 5 and 6 together? (2011-11 would keep its headline.) Q2 R1's
+      concentration on each product's net change lets a refund spike on one
+      SKU be "the product" (P3 claims the same money); on sale lines a
+      cancelled order was - which reading? Q3 the movements are named while
+      a product-lens cause the gate held back fits exactly (P1 -155 on
+      -155) - keep the gate there? Q4 (D3) the movements before a supported
+      R1: on the cancelled-order shop R1 (P0 -50) was the better headline.
+      Repros: scratchpad `2en/review1`-`review3`, `2en/months.json`,
+      `2en/fw_*.json`, `2en/replay.py`.
 - [ ] 2E-t **Line taxonomy - DESIGN only** (Thach, 2026-09-27, after the
       third overnight run; method only, no code; stops for his approval).
       Builds on what 2E-l created (the charge, discount and pooled classes),
@@ -2160,6 +2241,11 @@ dataclarity/
       "unconfirmed" (2E-d2: a suggestion never applies itself), so an
       unanswered file does not lose revenue. 2E-n's reading G already fixes
       the gate case raised in 2E-m.
+      **Input from 2E-n (review cycles 1-3):** an order placed and cancelled
+      (a sale and its refund) inflates that month's gross sales - the
+      products' share under reading G (Online Retail II 2011-02: 2.71) and
+      the product lens (R2 named a cancelled order at HEAD); a cancellation
+      class belongs in the design.
       Deliver the design file and an ADR-0008 draft, with a proposed
       implementation split (Thach expects 2-3 sessions). The Online Retail II
       demo comes after the taxonomy: it changes the demo's revenue (gift
@@ -2308,6 +2394,11 @@ dataclarity/
 - [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
       not-tested validator, degraded mode, one real API check (a few cents - the
       only session in Phase 3 that spends credit). Doubt-review: yes
+      **From 2E-n:** `prompts/root_cause.md` says to write only about
+      supported/partial hypotheses, while rule 6's no-fit headline names
+      measured movements whatever their verdict (a ruled-out term against
+      the change) - the prompt must let the explanation name them as
+      movements, never as causes.
 - [ ] 3G Assembly and endpoint: full `diagnosis.json` written atomically,
       `POST /api/runs/{id}/diagnose`, state machine. Decide then whether a
       `diagnosed` status is added (Alembic migration) or `analyzed` + the file's
@@ -2507,12 +2598,20 @@ dataclarity/
         products (suggestions only);
       - CONTRACTS example blocks carry stale `schema_version` literals;
       - a whole share with a float remainder (1.0000000000000018) prints as
-        two figures, not "100%" (headline `_size`);
+        two figures, not "100%" (headline `_size`) - FIXED in 2E-n (past the
+        change is judged above residue);
       - `stages/diagnose/members.py` is 319 lines.
       From 2E-m: float-exact ties involving R3 (the one expectation after the
       terms in catalog order) go to catalog order against the tie rule's
       reason (older than 2E-m); a hand-built `Changes` defaults to the gate
-      open (only `changes()` builds one in production).
+      open (only `changes()` builds one in production). (The R3 ties: FIXED
+      in 2E-n - ties are judged in money and name every tied cause.)
+      From 2E-n: `top_member_share` 1.0 from a float-residue movement on a
+      flat month (Q5 #6); a change of cents on a month of a million lets
+      rule 5 fall to rule 6 and list a supported estimate as a movement in
+      the words "seasonality explains the change" (cycle 2 #5); P3/P4
+      contributions write -0.0 into diagnosis.json (Kaggle 2024-12; older;
+      cycle 3 #7).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2645,6 +2744,13 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+Session **2E-n** closed 2026-09-27 (fifth overnight run, session 1; see its
+item): the products' share reads their sale lines (reading G), one fit for
+every cause, exact ties name every tied cause, the movements when nothing
+fits, the net share in the wording; diagnosis.json 13.0. The demo month
+2011-11 is byte-identical. Cycle 3's local fixes are UNREVIEWED. Questions
+Q1-Q4 for Thach in the item. pytest 3014, Vitest 156. **Next:** 2E-t (the
+line taxonomy, DESIGN only; stops for his approval), then 2E-i, 2E-j.
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

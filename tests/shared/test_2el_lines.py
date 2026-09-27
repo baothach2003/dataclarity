@@ -196,4 +196,4 @@ def test_a_line_with_a_sku_never_takes_another_skus_class() -> None:
 def test_versions() -> None:
     assert SCHEMA_VERSION == "12.0"
     assert MetricsContract.supported_major == 12
-    assert DiagnosisContract.supported_major == 12  # 12 since 2E-m
+    assert DiagnosisContract.supported_major == 13  # 12 in 2E-m; 13 since 2E-n
