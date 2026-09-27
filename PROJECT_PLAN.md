@@ -2363,6 +2363,83 @@ dataclarity/
       demo comes after the taxonomy: it changes the demo's revenue (gift
       vouchers are counted as sales today, but are a liability until
       redeemed).
+      **Thach, after the fifth run (2026-09-28): approved in principle,
+      subject to these answers and a fourth fresh-context review.**
+      1. Cancellations: out of v1; a same-day credit stays a return. Return
+         rate is labelled honestly wherever it is shown: it includes same-day
+         cancellations, which the data cannot separate.
+      2. Refusals: none in v1. UNCLASSIFIED stays the tested, empty class.
+      3. Returns to stock: only under a type mapped "return", as designed.
+      4. Gift cards: outside revenue and not counted once the user confirms;
+         `gift_card_redemption` kept.
+      5. Zero-amount direction: NO default. "Negative = out, positive with no
+         customer = in" is inferred from Online Retail II alone, and applying
+         it to every file is a guess. Unknown stays unknown: velocity null
+         with its reason (the cost falls only on files with stock-in lines;
+         neither demo has one).
+      6. The stock ledger fix: in 2E-t2.
+      7. Reporting unmeasurable lines: in 2E-t2.
+      8. Kaggle's payment method as transaction_type: a separate item - the
+         schema prompt was fixed earlier, but the demo run holds the old
+         inference; re-run stage 1's schema inference on Kaggle when the demo
+         is rebuilt (a real API call, a few cents) to confirm the fix holds.
+      The revision folds these in and gets the fourth fresh-context review;
+      if it finds anything that fabricates or needs a definition from him,
+      the run stops and reports. Then 2E-t1, 2E-t2, 2E-t3 as the design's
+      section 7 splits them, the full process each; the migration table in
+      the design's section 6 is the regression anchor, and any demo
+      difference not listed there stops the run.
+- [ ] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
+      (Thach, 2026-09-28). First one scoped fresh-context review of every
+      unreviewed fix (2E-n's cycle 3, 2E-i's cycle 3 docs, 2E-j's four local
+      fixes - his Q5). Then:
+      - Q1: rank rules 5 and 6 together under the one fit measure. Kaggle's
+        headline is expected to change from T2 (1.48x) to B1 (0.96x):
+        implement if that is the only demo change, and record it. STOP and
+        show him if 2011-11 changes or any other demo headline changes.
+      - Q4: supported causes, a directional R1 included, come before the
+        movements sentence, which is the last resort.
+      - Q8: Review may override a proven date order; the user's answer
+        wins, and the contradicting cells become undated and counted with
+        their reason.
+      - Q10: month grain also covers files whose every counted line falls
+        on the last day of its month.
+      Decided, nothing to build: Q2 R1's concentration stays on each
+      product's NET change (D1 of 2E-n as built - on sale lines a cancelled
+      order became the top product; on net, R1 and P3 describe the same money
+      through two lenses, never summed); Q3 the gate stays (P1 equalling the
+      net change while the products' sales carry 23% is a coincidence inside
+      an offset lens, not an explanation); Q6 to Phase 8; Q9 kept (the
+      month-grain last month waits until it is over on every clock); D1-D10
+      accepted.
+- [ ] 2E-t1 **Line taxonomy: the classifier and stage 1's contracts** (the
+      design's section 7). After the 2E-t revision and its fourth review.
+- [ ] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the design's
+      section 7), with the stock ledger fix and the report of unmeasurable
+      lines (Thach's answers 6 and 7).
+- [ ] 2E-t3 **Line taxonomy: Review** (the design's section 7).
+- [ ] 2E-u **The data failure-mode catalog** (Thach, 2026-09-28). Method
+      before code. Consolidate every known input-data failure mode (the 2E
+      series' fixes, the 8D list, Online Retail II's quirks, the line
+      taxonomy) into `docs/DATA_FAILURE_MODES.md`, grouped (line types,
+      identities, dates, amounts and quantities, coverage, placeholders, file
+      structure). Each mode: how it is detected, how it is handled (fix,
+      ask, flag or refuse), the owning stage, and the test that covers it. A
+      deterministic dirty-file generator (one sample per mode, fixed seed)
+      and a conformance suite whose one rule is: the correct result or an
+      explicit refusal, never a silent wrong figure. Existing tests are
+      referenced, not duplicated; any mode with no test yet is listed. From
+      then on a new finding enters as a catalog row plus a generator case.
+- [ ] **SCOPE FREEZE for v1** (Thach, 2026-09-28), recorded here and in
+      CLAUDE.md, effective after 2E-u: the foundational definitions (line
+      classes, orders, customers, products, dates, text reading, periods) are
+      frozen. One is reopened only for a finding that fabricates a verdict,
+      headline or KPI on either demo dataset. Everything else becomes a
+      catalog row marked "known limit", scheduled into Phase 8 and listed in
+      the README's Known limitations. Review depth by risk: the full process
+      for code that produces conclusions (the rest of stage 3, stage 4); for
+      display and infrastructure (stage 5's assembly, the frontend, deploy),
+      failing tests first plus one review cycle, with mutation only on logic.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2899,7 +2976,19 @@ decided at stage 1 and read by the shared reader, month-grain files, the
 placeholder dates; metrics.json 14.0, diagnosis.json 15.0, profile 1.1,
 stage 1 3.1; both demo files identical. Cycle 3's local fixes are
 unreviewed. pytest 3149, Vitest 180. **The fifth overnight run is
-complete - stopped as planned. Next: Thach's decisions on its report.**
+complete - stopped as planned.**
+**Sixth overnight run** approved by Thach (2026-09-28, after reading the
+fifth run's report; his answers are in the 2E-t and 2E-o items): **2E-o**
+(the scoped review of every unreviewed fix first, then Q1, Q4, Q8, Q10) ->
+**2E-t revision** (his eight answers folded in, then the fourth
+fresh-context review; stop and report if it finds anything that fabricates
+or needs his definition) -> **2E-t1 -> 2E-t2 -> 2E-t3** (the design's
+migration table the regression anchor; any demo difference not listed there
+stops the run) -> **2E-u** (the data failure-mode catalog) -> **the scope
+freeze** recorded here and in CLAUDE.md. Stop before the Online Retail II
+demo build and before 3E1b; same rules. Report in
+`C:\Users\Happy\overnight-report.txt` (the fifth run's kept as
+`overnight-report-run5.txt`).
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
