@@ -17,16 +17,16 @@ Design decisions (Thach, Phase 2D):
   previous period, current/previous revenue summed, no positivity filter
   (unlike products' top_products - a category dropping to $0, or newly
   appearing, is exactly what this block exists to show, not something to
-  exclude). A blank category value (missing, or whitespace-only - the same
-  "missing" definition metrics_core.is_blank already uses for `customer`)
-  is excluded; its revenue is still counted in core.revenue_current, just
-  not attributed to a category here.
-- A category value is stripped and case-folded before grouping (the same
-  pattern metrics_products.py already uses for product identity, after that
-  session's own doubt-review found formatting noise silently fragmenting
-  one real value into several), so "Home Decor", " Home Decor" and "home
-  decor" are one category. The displayed `name` is that category's
-  first-seen spelling anywhere in the file.
+  exclude). A blank category value (missing, or showing nothing - the one
+  "missing" of shared/text.is_blank, every column's since 2E-i) is excluded;
+  its revenue is still counted in core.revenue_current, just not attributed
+  to a category here.
+- A category value is read as stage 3 reads it (shared/text.category_key,
+  2E-i): what no reader can see removed, runs of spaces as one, lower-cased
+  - so "Home Decor", " Home Decor", "home decor" and "Home Decor" with a
+  trailing zero-width space are one category. The displayed `name` is that
+  category's first spelling in the file as it is shown (category_text), the
+  same label stage 3 gives it.
 - `contribution_pct` = this member's own (revenue_current - revenue_previous),
   divided by core's own total change (core.revenue_current -
   core.revenue_previous) - the "total change" docs/CONTRACTS.md section 6
@@ -49,6 +49,7 @@ import pandas as pd
 from contracts.cleaning import OrderConfirmations
 from contracts.metrics import CoreMetrics, DimensionBreakdown, DimensionChange, Period
 from shared.numbers import is_negligible
+from shared.text import category_key, category_text
 from shared.transactions import ParsedTransactions, is_blank, parse_transactions
 
 
@@ -99,9 +100,12 @@ def _dimension_changes(
 
     raw = df[column]
     identified = ~is_blank(raw)
-    normalized = raw.astype(object).str.strip().str.lower()
-
-    table = pd.DataFrame({"key": normalized, "display": raw, "revenue": parsed.revenue_amounts})
+    # One reading with stage 3 (shared/text.py, 2E-i): a trailing zero-width
+    # space or a no-break space split one category into one that collapsed
+    # and one that appeared, in both stages alike; the label is the first
+    # spelling as it is shown, the same as stage 3's.
+    table = pd.DataFrame({"key": category_key(raw), "display": category_text(raw),
+                          "revenue": parsed.revenue_amounts})
     display_names = table.loc[identified].groupby("key")["display"].first()
 
     current = table[current_mask & identified].groupby("key")["revenue"].sum()

@@ -205,10 +205,10 @@ def test_an_exact_term_is_not_beaten_by_an_overshooting_one() -> None:
 def test_diagnosis_json_is_major_12_or_the_current_one_and_refuses_an_11_file() -> None:
     # The same data can name a different cause (Online Retail II 2010-03: T1
     # under 11.0, R2 since 12.0) - a change of meaning, a major bump
-    # (CONTRACTS 10). 12.0 in 2E-m; 13.0 since 2E-n.
+    # (CONTRACTS 10). 12.0 in 2E-m; 13.0 in 2E-n; 14.0 since 2E-i.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 13
-    assert DiagnosisContract.model_validate(payload).schema_version == "13.0"
+    assert DiagnosisContract.supported_major == 14
+    assert DiagnosisContract.model_validate(payload).schema_version == "14.0"
 
     payload["schema_version"] = "11.0"
     with pytest.raises(ValidationError, match="re-analyse"):

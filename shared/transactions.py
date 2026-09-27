@@ -69,7 +69,7 @@ from contracts.cleaning import OrderConfirmations
 from shared.dates import as_dates
 from shared.line_classes import line_classes
 from shared.orders import OrdersBasis, order_basis
-from shared.text import customer_identity, is_blank
+from shared.text import customer_identity, identifier_text, is_blank
 
 
 class RequiredColumnMissingError(ValueError):
@@ -267,10 +267,12 @@ def line_numbers(df: pd.DataFrame, reverse: dict[str, str], quantity_col: str,
 
 
 def order_ids(df: pd.DataFrame, column: str | None) -> pd.Series | None:
-    """The column stripped, blank cells as NaN; None when not mapped."""
+    """The column as a reader tells ids apart (`identifier_text`, case kept),
+    blank cells as NaN; None when not mapped. "INV1" and "INV1" with a
+    trailing zero-width space were two orders (Thach, 2E-i)."""
     if column is None:
         return None
-    return df[column].astype(object).str.strip().where(~is_blank(df[column]))
+    return identifier_text(df[column]).where(~is_blank(df[column]))
 
 
 def customers_of(df: pd.DataFrame, column: str | None) -> pd.Series:
@@ -289,5 +291,6 @@ def require_column(reverse: dict[str, str], canonical_field: str) -> str:
 def is_stock_in(values: pd.Series) -> pd.Series:
     """Where a transaction_type cell says "in", read as revenue scope has
     always read it (2A) - one reading for revenue scope and stage 2's
-    stock-in lines (2E-g). NaN is not "in"."""
-    return values.astype(object).str.strip().str.lower().eq("in")
+    stock-in lines (2E-g) - through `identifier_text` (2E-i: "IN" with a
+    zero-width space was a sale). NaN is not "in"."""
+    return identifier_text(values).str.lower().eq("in")

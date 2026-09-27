@@ -178,10 +178,10 @@ def test_revenue_scope_and_stock_in_read_in_alike() -> None:
 
 
 def test_stage_2_and_stage_3_read_categories_alike() -> None:
-    """Categories read as before 2E-g in BOTH stages (option A): a trailing
-    zero-width space still makes "Toys" two categories - the FABRICATE the
-    one-text-reading session fixes - but stage 2 and stage 3 split it the
-    same way (cycle 2 F1 was the two stages disagreeing)."""
+    """Stage 2 and stage 3 read categories alike (cycle 2 F1 was the two
+    stages disagreeing). Under option A a trailing zero-width space still made
+    "Toys" two categories in both; one text reading for every stage (Thach,
+    2E-i) makes it one, in both."""
     from stages.diagnose.members import category_totals
     from tests.stages.diagnose.diagnose_fixtures import run_data
 
@@ -194,7 +194,7 @@ def test_stage_2_and_stage_3_read_categories_alike() -> None:
     stage_2 = {c.name for c in data.metrics.by_dimension.category}
     stage_3 = set(category_totals(data).labels.values()) - {"(uncategorised)"}
 
-    assert stage_2 == stage_3 == {"Other", "Toys", "Toys\u200b"}
+    assert stage_2 == stage_3 == {"Other", "Toys"}
 
 
 def test_a_product_keeps_one_label_in_both_months() -> None:
@@ -242,5 +242,5 @@ def test_a_missing_velocity_or_days_to_stockout_must_say_why() -> None:
 
 def test_metrics_json_is_version_7_or_the_current_one() -> None:
     # 7.0 in 2E-g; 8.0 in 2E-h; 9.0 since 2E-e2 (test_2ee2_stage2.py).
-    assert SCHEMA_VERSION == "12.0"  # 9.0 in 2E-e2; 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 since 2E-l
-    assert MetricsContract.supported_major == 12
+    assert SCHEMA_VERSION == "13.0"  # 9.0 in 2E-e2; 10.0 in 2E-k; 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 since 2E-i
+    assert MetricsContract.supported_major == 13

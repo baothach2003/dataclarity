@@ -419,13 +419,13 @@ def test_rule_5_needs_a_context_cause_that_fits_above_residue() -> None:
 
 # --- the contract ----------------------------------------------------------------------
 
-def test_diagnosis_json_is_major_13_and_refuses_a_12_file() -> None:
+def test_diagnosis_json_is_major_13_or_the_current_one_and_refuses_a_12_file() -> None:
     # Breadth's products_share_of_change reads sale lines, the same data can
     # name another cause, and rule 6 may name none or two (CONTRACTS 10).
+    # 13.0 in 2E-n; 14.0 since 2E-i.
     payload = diagnosis_payload()
-    payload["schema_version"] = "13.0"
-    assert DiagnosisContract.supported_major == 13
-    assert DiagnosisContract.model_validate(payload).schema_version == "13.0"
+    assert DiagnosisContract.supported_major == 14
+    assert DiagnosisContract.model_validate(payload).schema_version == "14.0"
 
     payload["schema_version"] = "12.0"
     with pytest.raises(ValidationError, match="re-analyse"):

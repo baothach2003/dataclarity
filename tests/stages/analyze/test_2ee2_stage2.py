@@ -158,6 +158,6 @@ def test_each_block_run_on_its_own_reads_the_answers_too(tmp_path: Path) -> None
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "12.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 since 2E-l
-    assert MetricsContract.supported_major == 12
-    assert DiagnosisContract.supported_major == 13  # 12 in 2E-m; 13 since 2E-n
+    assert SCHEMA_VERSION == "13.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 in 2E-l; 13.0 / 14.0 since 2E-i
+    assert MetricsContract.supported_major == 13
+    assert DiagnosisContract.supported_major == 14  # 12 in 2E-m; 13 in 2E-n; 14 since 2E-i

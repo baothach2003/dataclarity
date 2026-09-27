@@ -18,7 +18,7 @@ import pandas as pd
 
 from contracts.diagnosis import Dimension, Member
 from shared.products import GAP_LABEL, product_keys, product_labels
-from shared.text import is_blank, normalize_text
+from shared.text import category_key, category_text, is_blank
 from shared.transactions import require_column
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.inputs import RunData, period_mask
@@ -32,7 +32,7 @@ from stages.diagnose.thresholds import (
 # is identified by `is_data_gap`, not by its name, so a real category that
 # happens to be spelled this way stays a separate member rather than merging
 # into the gap (Thach, 3D). The internal key carries characters no real key
-# can hold - upper case: `normalize_text` lowercases and product keys are
+# can hold - upper case: `category_key` lowercases and product keys are
 # casefolded - so they cannot collide during grouping either. Not a leading
 # NUL: pandas reads an object key only up to one, so "\x00UNNAMED_PRODUCT"
 # and "\x00NOT_A_PRODUCT" grouped as ONE member once pooled items filled the
@@ -232,7 +232,8 @@ def category_totals(data: RunData) -> MemberTotals | None:
     column = data.parsed.reverse.get("category")
     if column is None:
         return None
-    keys = normalize_text(data.df[column])
+    # The key and label stage 2 reads (shared/text.py, 2E-i).
+    keys = category_key(data.df[column])
     blank = is_blank(data.df[column])
     # Blank categories are one visible member, not an omission (Thach, 3D).
     # Dropping them would leave the dimension reconciling to a subtotal while
@@ -241,7 +242,7 @@ def category_totals(data: RunData) -> MemberTotals | None:
     # `by_dimension`, which excludes them: that block has no reconciliation
     # duty, this one does.
     keys = keys.where(~blank, UNCATEGORISED_KEY)
-    labels = _labels(data.df[column], keys, {UNCATEGORISED_KEY: UNCATEGORISED_LABEL})
+    labels = _labels(category_text(data.df[column]), keys, {UNCATEGORISED_KEY: UNCATEGORISED_LABEL})
     return _totals(data, keys, labels, frozenset({UNCATEGORISED_KEY}))
 
 
@@ -293,8 +294,9 @@ def customer_type_totals(data: RunData, classes: dict[str, str]) -> MemberTotals
 
 
 def _labels(source: pd.Series, keys: pd.Series, reserved: dict[str, str]) -> dict[str, str]:
-    """Each key's first-seen spelling in the file, so the report shows what the
-    shop actually typed rather than the normalised key."""
+    """Each key's first-seen spelling in `source`, so the report shows what
+    the shop typed rather than the normalised key - for categories, as it is
+    shown (`category_text`, the label stage 2 gives it too; 2E-i)."""
     frame = pd.DataFrame({"key": keys, "label": source})
     labels = frame.groupby("key")["label"].first().to_dict()
     for key, label in reserved.items():

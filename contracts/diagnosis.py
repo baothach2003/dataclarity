@@ -666,8 +666,10 @@ class DiagnosisContract(ContractFile):
     # breadth's decision - the same data can name another cause (Thach). 13
     # since 2E-n: breadth and R1 read the products' SALE lines (refunds are
     # the returns class), one fit measure ranks every cause, and rule 6 can
-    # name a tie or no cause (`hypothesis_id` null) - Thach.
-    supported_major: ClassVar[int] = 13
+    # name a tie or no cause (`hypothesis_id` null) - Thach. 14 since 2E-i:
+    # customers, order ids and categories read what a reader sees (the
+    # bridge, the lever's orders, the category dimension, breadth).
+    supported_major: ClassVar[int] = 14
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "

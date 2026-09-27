@@ -20,7 +20,7 @@ tables and stage 3's product lens alike.
 import pandas as pd
 
 from shared.products import GAP_LABEL, product_keys, product_labels, product_text
-from shared.text import customer_identity, is_blank, normalize_text
+from shared.text import customer_identity, is_blank
 from shared.transactions import parse_transactions
 
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
@@ -224,21 +224,20 @@ def test_braille_and_tag_blanks_are_blank() -> None:
     assert product_text(blanks).isna().all()
 
 
-def test_customers_categories_and_blanks_read_exactly_as_before_2eg() -> None:
-    """Option A (Thach): the shared helpers are HEAD's - strip and lower-case,
-    nothing else - so no product rule reaches a customer, a category, an order
-    id or stage 1. "Weiss" and "Wei\u00df" stay two customers, a zero-width
-    space stays part of a customer id, composition is left alone. One text
-    reading for every stage is its own session."""
+def test_customers_read_what_a_reader_sees_but_not_the_product_rules() -> None:
+    """Option A (Thach, 2E-g) kept the product rules off customers; one reading
+    for every stage (Thach, 2E-i) then merged only what no reader can see: a
+    zero-width space and a decomposed accent no longer split a customer, and a
+    cell of only a zero-width space is blank. The product rules still stop at
+    products: "Weiss" and "Wei\u00df" stay two customers (no case folding)."""
     import unicodedata
 
     decomposed = unicodedata.normalize("NFD", "Nguy\u1ec5n")
     values = pd.Series([" Weiss ", "Wei\u00df", "An\u200b", decomposed, "\u200b"])
 
     assert customer_identity(values).tolist() == [
-        "weiss", "wei\u00df", "an\u200b", decomposed.lower(), "\u200b"]
-    assert normalize_text(values).tolist() == customer_identity(values).tolist()
-    assert is_blank(values).tolist() == [False, False, False, False, False]
+        "weiss", "wei\u00df", "an", unicodedata.normalize("NFC", decomposed).lower(), ""]
+    assert is_blank(values).tolist() == [False, False, False, False, True]
 
 
 def test_an_invisible_character_inside_a_name_does_not_split_a_product() -> None:

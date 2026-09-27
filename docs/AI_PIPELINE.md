@@ -138,7 +138,7 @@ ChangeLogEntry: `{action, column, cells_affected, rows_affected, params, detail}
 | impute_mean | numeric | - | fill NaN with mean |
 | impute_mode | categorical/text/boolean | - | fill NaN with mode |
 | impute_constant | categorical/text/boolean | value | fill NaN with an explicit value |
-| drop_rows_missing | any | - | drop rows null, or holding only spaces, in this column (1F) |
+| drop_rows_missing | any | - | drop rows null, or showing nothing - only spaces (1F) or characters that render as nothing (2E-i) - in this column |
 | drop_column | any | - | remove the column |
 | parse_datetime | datetime | format?, dayfirst? | parse to ISO 8601; unparseable -> NaT, flagged; a UTC offset is dropped and the date and time kept as written (1F) |
 | cast_type | any | target | safe cast; failures flagged, never silently coerced |
@@ -758,9 +758,15 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   computed for the previous transition when history allows, so C1-C3 can compare
   flows. If `cur` falls in the first `LEFT_CENSOR_MONTHS` months of the file,
   "new" is unreliable and C1/C3 return `inconclusive`.
-  Customers are keyed on a **normalised identity** - stripped and case-folded
-  by `shared.transactions.customer_identity`, the same treatment product keys
-  have had since 2C (Thach, 3C2). Both stages use it, which is what keeps
+  Customers are keyed on a **normalised identity** - stripped and lower-cased
+  by `shared.text.customer_identity`, the same treatment product keys had
+  since 2C (Thach, 3C2), and since 2E-i read as a reader tells them apart:
+  Unicode composed, the characters that render as nothing and change nothing
+  removed (a trailing zero-width space made one customer a lapsed and a new
+  one), the direction marks (their rare reordering of digits is a known
+  cost), a no-break space read as a space - never full
+  case folding
+  ("Weiss" and "Weiss" with a sharp s stay two people). Both stages use it, which is what keeps
   their `active_customers` figures equal. Keyed raw, one customer written two
   ways is two people, and if the spellings fall either side of the period
   boundary the bridge reports one lapsing and one arriving - "we lost everyone

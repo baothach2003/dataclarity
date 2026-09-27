@@ -129,7 +129,7 @@ reads, so it was not measured). A `2.0` file reads as `null`.
 are stage 1's own measures too, on the raw file and these columns' mapping.
 A placeholder candidate is a customer value that may stand for walk-ins, at
 any share when it reads as a placeholder - a whole placeholder word inside it
-(stripped and case-folded: "Guest Customer", "Cash Sale", "Walk-In Client",
+(read as the customer identity - 2E-i: "Guest Customer", "Cash Sale", "Walk-In Client",
 "Khach le", "Consumidor Final", "Publico en General", "Laufkunde", "none",
 "(blank)"), "customer" alone, "n.a.", no letter or digit ("-"), or a number
 at or below zero ("0", "0.0", "-1") - and otherwise when it carries 10% or
@@ -603,10 +603,26 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   products. **Products (2E-g, Thach):** keys and labels come from
   `shared/products.py`, shared with stage 3. A product name or SKU is read
   as a reader sees it - Unicode composed, invisible characters removed
-  (the zero-width joiners kept), spaces as one, case fully folded - for
-  products ONLY: customers, categories, order ids and stage 1 read text as
-  before 2E-g (Thach, option A), until one reading is decided for every
-  stage. A line's product is its SKU,
+  (the zero-width joiners kept), spaces as one, case fully folded - the
+  products' own reading (Thach, option A). **Every other column (2E-i,
+  Thach): one reading for every stage** (`shared/text.py`). A cell is blank
+  when it shows nothing - only whitespace, format characters that draw
+  nothing (joiners, direction controls, tags - not the prepended
+  concatenation marks, which draw a sign), variation selectors, or the
+  products' invisible characters - in every column, stage 1's
+  `drop_rows_missing` and plan checks included. Two
+  customers, order ids, categories or transaction types are one value when
+  they differ in what a reader cannot see: Unicode composition, the
+  characters that render as nothing AND change nothing around them (the
+  zero-width space, word joiner, BOM, soft hyphen, invisible operators), the
+  direction marks (a stray one rendered nothing; the rare id they reorder is
+  the known cost), a no-break space for a space. Never the direction
+  overrides, embeddings and isolates (they can reorder: a wrapper that
+  renders alike still splits - a limit for Thach), the joiners or the
+  variation selectors (they can change what is shown), never another whitespace
+  kind (a control character, the wider ideographic space), never full case
+  folding. Customers and categories are then lower-cased, a category's runs
+  of spaces read as one, an order id keeps its case. A line's product is its SKU,
   else its name (a name-only line takes the SKU when its name, on sale lines
   that have one, maps to exactly one SKU); a line with neither is the
   `(no product name)` data gap - in every total, in no table (top products,
@@ -1206,6 +1222,14 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-27: **session 2E-i, one text reading for every stage (Thach).**
+  `metrics.json` went to `13.0` and `diagnosis.json` to `14.0`: customers,
+  order ids, categories and transaction types read what a reader sees (a
+  trailing zero-width space no longer makes a second customer, order or
+  category, and "IN" with one is still stock received), and a cell with
+  nothing visible is blank in every column - so the same data can group
+  differently. Both demo files are identical. Readers refuse `12.x` metrics
+  and `13.x` diagnosis files ("re-analyse this run").
 - 2026-09-27: **session 2E-n, the products' sales and one fit (Thach).**
   `diagnosis.json` went to `13.0`: breadth's `products_share_of_change` (and
   so the classification, R1 and the product-lens gate) reads the products'

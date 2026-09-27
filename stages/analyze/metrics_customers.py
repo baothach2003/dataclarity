@@ -133,7 +133,7 @@ def compute_customer_metrics(
             placeholder_lines_reason=None,
         )
 
-    # A counted row with no customer value, or one holding only whitespace
+    # A counted row with no customer value, or one showing nothing (is_blank)
     # (customer is not a required field, so stage 1 has no reason to have
     # trimmed it), cannot be attributed to anyone - unless its receipt names
     # one (`parsed.customers`, 2E-f).

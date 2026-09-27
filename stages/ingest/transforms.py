@@ -45,6 +45,7 @@ from typing import Any
 import pandas as pd
 
 from contracts.cleaning import TransformAction
+from shared.text import is_blank
 from stages.ingest import column_kinds
 from stages.ingest.changes import (
     FLAG_PREFIX,
@@ -105,11 +106,21 @@ def drop_rows_missing(df: pd.DataFrame, column: str | None, params: Params) -> R
     # product name is no more a product name than an empty one, and a column has
     # one action, so it cannot be trimmed and dropped both. Only this action reads
     # it so; profiling and the imputations still take "missing" to be the NA tokens.
-    blank = ~missing & column_kinds.as_text(values).str.strip().eq("")
+    # "Blank" is the stages' own (shared/text.is_blank, Thach, 2E-i): a cell of
+    # only invisible characters shows nothing too, and was kept here while stage 2
+    # read its line as the "(no product name)" gap (2E-g review cycle 3 F5).
+    spaces = (~missing & column_kinds.as_text(values).str.strip().eq("")).fillna(False).astype(bool)
+    blank = ~missing & is_blank(values)
+    invisible = blank & ~spaces
     dropped = int(missing.sum() + blank.sum())
     detail = f"dropped {dropped} rows with no {column}"
-    if blank.any():
-        detail += f" ({int(blank.sum())} of them only spaces)"
+    parts = []
+    if spaces.any():
+        parts.append(f"{int(spaces.sum())} of them only spaces")
+    if invisible.any():
+        parts.append(f"{int(invisible.sum())} {'only' if parts else 'of them only'} invisible characters")
+    if parts:
+        detail += f" ({', '.join(parts)})"
     return df[~(missing | blank)], entry(
         "drop_rows_missing", column, params, rows=dropped, detail=detail)
 

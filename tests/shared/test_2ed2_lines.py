@@ -257,6 +257,6 @@ def test_the_returns_decomposition_counts_the_charges_term() -> None:
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "12.0"  # 11.0 in 2E-d2; 12.0 since 2E-l
-    assert MetricsContract.supported_major == 12
-    assert DiagnosisContract.supported_major == 13  # 12 in 2E-m; 13 since 2E-n
+    assert SCHEMA_VERSION == "13.0"  # 11.0 in 2E-d2; 12.0 in 2E-l; 13.0 since 2E-i
+    assert MetricsContract.supported_major == 13
+    assert DiagnosisContract.supported_major == 14  # 12 in 2E-m; 13 in 2E-n; 14 since 2E-i

@@ -320,8 +320,11 @@ class MetricsContract(ContractFile):
     # and adjustments leave revenue, a discount is no return line
     # (core.non_product says what moved). 12 since 2E-l: a charge is no order
     # and no return line (orders, AOV, return rate, units), and pooled items
-    # are sales ranked as no product.
-    supported_major: ClassVar[int] = 12
+    # are sales ranked as no product. 13 since 2E-i: customers, order ids,
+    # categories and transaction types read what a reader sees (a trailing
+    # zero-width space no longer makes a second customer, order or category),
+    # and a cell with nothing visible is blank.
+    supported_major: ClassVar[int] = 13
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

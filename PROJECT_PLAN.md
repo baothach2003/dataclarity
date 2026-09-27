@@ -1442,7 +1442,7 @@ dataclarity/
       first-day rule. Where a product name maps to exactly one SKU elsewhere
       in the file, a name-only line can be resolved to that SKU. Method
       before code.
-- [ ] 2E-i **One text reading for every stage** (Thach, after 2E-g: option A
+- [x] 2E-i **One text reading for every stage** (Thach, after 2E-g: option A
       confined 2E-g's text rules to products, because widening the shared
       `is_blank` / `normalize_text` reached every other reader and merged two
       visibly different customer ids). Customers, categories, order ids,
@@ -1464,6 +1464,51 @@ dataclarity/
       product reading handles. So it does not change the demo: after the
       demo and 2E-d, before 3E1b (the verdict session), since each case is a
       FABRICATE on a user's file.
+      **Done 2026-09-27 (fifth overnight run, session 3).** Method
+      `C:\Users\Happy\2Ei-method.txt` (before code; amended with the build and
+      before each review cycle's fixes). **Built** (`shared/text.py`), two
+      questions: a cell is EMPTY when it shows nothing (`is_blank`: only
+      whitespace, format characters that draw nothing, variation selectors,
+      the products' invisible characters) - every column, stage 1's
+      drop_rows_missing and plan checks included; two cells are the SAME
+      value when they differ in what a reader cannot see (`identifier_text`:
+      the zero-width space, word joiner, BOM, soft hyphen and invisible
+      operators removed, the direction marks removed, composed, a no-break
+      space read as a space, ends trimmed). Customers lower-cased (never
+      case-folded: "Weiss" and the sharp-s spelling stay two), order ids keep
+      their case, categories (`category_key` / `category_text`, one label for
+      both stages) and transaction types lower-cased. Readers: customers,
+      `order_ids`, `is_stock_in`, stage 2's and stage 3's categories,
+      mix_rate, stage 1's drop and plan checks; the product reading composes
+      after removing its invisible characters and blanks a name that shows
+      nothing. metrics.json 13.0, diagnosis.json 14.0; stage 1 contracts not
+      bumped (decision below). **Measured:** both demo files byte-identical
+      before and after (metrics.json, headlines, verdicts, localization, the
+      readings - scratchpad `2ei/before.json`, `after3.json`).
+      **Tests first:** `tests/shared/test_2ei_text.py` (24); retargeted:
+      2E-g's option-A test and its "both stages split alike" test (now one
+      category in both); version literals. **Mutation:** 29 mutants, backup
+      each, no residue - 28 killed, 1 equivalent (rebuilt faithfully and
+      killed). **Doubt-review:** three cycles (cross-model skipped). Cycle 1,
+      9: bidi marks and lone joiners still splitting, `\s` merging control
+      characters, plan checks, composition order, docs - fixed; no stage 1
+      bump, CJK compatibility ideographs, performance - recorded. Cycle 2, 5:
+      the conditional mark rule wrong both ways (-> marks removed everywhere,
+      the rare reordering cost written down), untested product order, visible
+      format signs and supplementary selectors, docs, performance - fixed.
+      Cycle 3, 5: overrides and isolates that render alike still split (not
+      a regression; a question), a NUL in factorize (latent), docs (fixed,
+      UNREVIEWED), rare Cf and a numeric product column (8D). pytest 3036.
+      **Decisions made alone (for Thach):** D1 the direction MARKS removed
+      everywhere - a stray one split a customer in Latin and right-to-left
+      text; the rare cost is an id whose digits a mark reorders ("12<RLM>-34"
+      merges with "12-34"); D2 the stage 1 contracts not bumped: a confirmed
+      walk-in placeholder now also covers its invisible variants (what the
+      user saw and meant); D3 NFC merges CJK compatibility ideographs (Unicode
+      canonical equivalence). **Question:** remove the overrides, embeddings
+      and isolates where they provably change nothing (a phone number copied
+      with LRE..PDF; a stray PDF)? Exactly deciding it needs the bidi
+      algorithm; kept today, they still split such a value.
 - [ ] 2E-d **Implausible lines, then the residue scale** (Thach, after 2E-b;
       split from 2E-c because it needs a new threshold and a sweep of
       legitimate large lines; **before 3E1b, after 2E-c, 2E-c2, 2E-e, 2E-f
@@ -2639,6 +2684,17 @@ dataclarity/
       the words "seasonality explains the change" (cycle 2 #5); P3/P4
       contributions write -0.0 into diagnosis.json (Kaggle 2024-12; older;
       cycle 3 #7).
+      From 2E-i: pandas' factorize compares object strings only up to a NUL,
+      so the per-value text readings can mis-group texts holding one (latent:
+      stage 1's CSV reader cuts a cell at a NUL); U+FFF9-FFFB and
+      U+13430-1343F are format characters that are not default-ignorable yet
+      read as blank; `product_text` on a numeric column raises (as before;
+      stages read text). The overrides and isolates question is on 2E-i.
+      From 2E-t (older, found while measuring; Thach to place, design
+      questions 6-7): the stock ledger reads a zero-amount -20 line as +20
+      stock (days to stockout 57 instead of 17, files with stock-in lines);
+      lines with no parseable quantity or price are reported nowhere
+      (Kaggle: 1,213, 9.6% of the file).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2780,7 +2836,12 @@ Q1-Q4 for Thach in the item. pytest 3014, Vitest 156.
 Session **2E-t** (the line taxonomy, DESIGN only) delivered 2026-09-27
 (session 2): `docs/LINE_TAXONOMY.md` and ADR-0008, PROPOSED, waiting for
 his approval and eight answers; its third revision is unreviewed (a fourth
-review before 2E-t1). **Next:** 2E-i, then 2E-j.
+review before 2E-t1).
+Session **2E-i** closed 2026-09-27 (session 3; see its item): one text
+reading for every stage - blank means nothing visible, two values merge
+only on what a reader cannot see; metrics.json 13.0, diagnosis.json 14.0;
+both demo files byte-identical. Cycle 3's doc fixes are unreviewed; one
+question (overrides and isolates). pytest 3036. **Next:** 2E-j.
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

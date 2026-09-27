@@ -17,6 +17,7 @@ from typing import Any
 import pandas as pd
 
 from contracts.cleaning import TransformAction
+from shared.text import is_blank
 from stages.ingest import column_kinds
 from stages.ingest.profiling import NA_TOKENS
 from stages.ingest.transform_catalog import (
@@ -67,10 +68,15 @@ def _fill_value(value: Any) -> str | None:
     problem = _scalar(value)
     if problem is not None:
         return problem
-    if isinstance(value, str) and (not value.strip() or value in NA_TOKENS):
+    # Nothing visible reads back as missing too (shared/text.is_blank, 2E-i).
+    if isinstance(value, str) and (_shows_nothing(value) or value in NA_TOKENS):
         return (f"must not be empty or a missing-value token such as 'NA' or 'N/A' "
                 f"(it would read back as missing), got {_show(value)}")
     return None
+
+
+def _shows_nothing(text: str) -> bool:
+    return bool(is_blank(pd.Series([text], dtype=object)).iloc[0])
 
 
 def _text(value: Any) -> str | None:
@@ -90,7 +96,7 @@ def _text_mapping(value: Any) -> str | None:
     for label in value.values():
         # Only what a label becomes matters. Merged into "NA" or an empty text it
         # would read back as missing the next time cleaned.csv is read.
-        if not label.strip() or label in NA_TOKENS:
+        if _shows_nothing(label) or label in NA_TOKENS:
             return (f"must not map a label to text that would read back as missing "
                     f"(an empty text, NA, N/A, NULL...), got {_show(label)}")
     return None

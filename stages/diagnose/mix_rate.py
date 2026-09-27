@@ -15,7 +15,7 @@ metric's whole change.
 import pandas as pd
 
 from contracts.diagnosis import MixRate
-from shared.text import is_blank, normalize_text
+from shared.text import category_key, is_blank
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.members import UNCATEGORISED_KEY
 from stages.diagnose.numbers import is_negligible
@@ -138,7 +138,7 @@ def _weighted_average(
 
 def _category_keys(data: RunData) -> pd.Series:
     column = data.parsed.reverse.get("category")
-    return normalize_text(data.df[column]).where(~is_blank(data.df[column]), UNCATEGORISED_KEY)
+    return category_key(data.df[column]).where(~is_blank(data.df[column]), UNCATEGORISED_KEY)
 
 
 def _orders_span_categories(data: RunData) -> bool:

@@ -34,7 +34,7 @@ from stages.ingest.line_reading import undated_lines
 PLACEHOLDER_SHARE = 0.10
 PLACEHOLDER_RATIO = 4
 # Words POS systems write for an unrecorded customer, found inside the
-# customer identity (stripped, case-folded): "Guest Customer", "Cash Sale",
+# customer identity (shared/text.customer_identity): "Guest Customer", "Cash Sale",
 # "Walk-In Client", and the defaults of other languages - "Khach le", "Khach
 # hang le", "Khach vang lai" (Vietnamese), "Consumidor Final", "Cliente
 # final", "Publico en General", "Laufkunde", "Barverkauf", "Client divers",
