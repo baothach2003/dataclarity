@@ -1,12 +1,12 @@
 # Line taxonomy - design (session 2E-t)
 
-**Status: PROPOSED - waiting for Thach's approval. Nothing here is built.**
-The decision record is `docs/adr/0008-line-taxonomy.md` (a draft, same
-status). Written 2026-09-27 in the fifth overnight run, from Thach's brief
-in PROJECT_PLAN item 2E-t (a)-(e), his answer to Q3 of the fourth run, and
-what session 2E-n's reviews found; revised after each of three
-fresh-context reviews (section 9 - the third revision's corrections are
-unreviewed). Figures are measured on the two demo files with today's code
+**Status: APPROVED IN PRINCIPLE (Thach, 2026-09-28), subject to his eight
+answers (section 8, now decisions) and a fourth fresh-context review
+(section 9). Nothing here is built.** The decision record is
+`docs/adr/0008-line-taxonomy.md`. Written 2026-09-27 in the fifth overnight
+run, from Thach's brief in PROJECT_PLAN item 2E-t (a)-(e), his answer to Q3
+of the fourth run, and what session 2E-n's reviews found; revised after each
+of three fresh-context reviews, then with his answers (sixth run). Figures are measured on the two demo files with today's code
 (scratchpad `2et/`, the reviews' `2et/review/`, `review2/`, `review3/`);
 the implementation sessions re-measure them on the built code.
 
@@ -241,9 +241,10 @@ a paid line on the invoice, order id mapped).
 ### 4.3 `unclassified`
 
 Per Thach's Q3, only for a line no rule places. Section 4.2 places every
-line, so today nothing is `unclassified` (on either demo file). The class
-exists, tested and isolated, for a shape a later decision chooses to REFUSE
-rather than place (question 2) - never as an answer a user gives (a "don't
+line, so nothing is `unclassified` (on either demo file). **No refusals in
+v1** (Thach, decision 2): the class stays the tested, empty class, isolated,
+for a shape a later decision may choose to refuse rather than place - never
+as an answer a user gives (a "don't
 know" that removed DOT's 36,905.40 from 2011-11's revenue would contradict
 Q3; review 2 #4).
 
@@ -259,7 +260,12 @@ where the re-issue is the sale that stands; 102 pairs match on a blank
 customer; 111 are pooled M lines; on a file with no customer column, 4,745
 of 19,493 credit lines would match. Even a matcher requiring the credit
 after the sale, a named customer, an identified product and exactly one
-candidate would class a real same-day return as a cancellation. Question 1.
+candidate would class a real same-day return as a cancellation.
+**Decided (Thach, decision 1): out of v1** - a same-day credit stays a
+return, and the return rate is labelled honestly wherever it is shown: it
+includes same-day cancellations, which the data cannot separate. metrics.json
+carries that sentence beside the rate (`return_rate_note`, 2E-t2); every
+surface that shows the rate (the report, the dashboard) reads it.
 
 ## 5. Guarantees (brief d)
 
@@ -292,7 +298,8 @@ candidate would class a real same-day return as a cancellation. Question 1.
 | 2E-d2 / 2E-l: charge, discount, pooled, cost, adjustment answers | the item question; `cost` -> `fee` | nothing |
 | 2E-g: the identity gap | the pooled item by rule | nothing (the `unidentified` term stays) |
 | 2E-n: the products' share on their sale lines | on the `sale` class | nothing |
-| 2C / 2E-g: the stock balance | the stock ledger of section 3, in magnitudes | a zero-amount line moves stock only once its direction is known; unknown, the product's history is incomplete (velocity null with a reason) - a SUPPRESS by design, where today a -20 line adds 20: on Online Retail II's shape, 857 of the 2,889 products sold in 2011-11 have such a line (832 with every word suggestion confirmed) - about 29% of days-to-stockout figures null on a file like it with stock-in lines (question 5); a return comes back only under a `return` signal (today it always does) |
+| 2C / 2E-g: the stock balance | the stock ledger of section 3, in magnitudes | a zero-amount line moves stock only once its direction is known - NO default (Thach, decision 5: "negative = out, positive with no customer = in" is Online Retail II's convention alone); unknown, the product's history is incomplete (velocity null with a reason) - a SUPPRESS by design, where today a -20 line adds 20: on Online Retail II's shape, 857 of the 2,889 products sold in 2011-11 have such a line (832 with every word suggestion confirmed) - about 29% of days-to-stockout figures null on a file like it with stock-in lines; neither demo file has one; a return comes back only under a `return` signal (today it always does - decision 3) |
+| 2E-c2: the return rate | the same figure | its label: metrics.json's `return_rate_note` says it includes same-day cancellations, which the data cannot separate (decision 1) |
 
 **Contract bumps.** `cleaned.csv` gains four columns; the stage 1
 contracts (`schema_inference.json`, `plan_*.json`, `cleaning_report.json`)
@@ -304,8 +311,15 @@ today ("re-upload the file" for stage 1, "re-analyse this run" for stages
 2-3): the user answers again in Review. Carrying answers across a major is
 not proposed (no reader of an older plan exists).
 
-**The demo files, on today's code** (the implementation sessions re-measure
-on the built code; each difference must be one of these):
+**NOT YET VALID as the anchor: the fourth review found it wrong (section 9,
+review 4 #1, #7, #8, #14); it is corrected with Thach's answers to review 4.**
+
+**The demo files, on today's code - THE REGRESSION ANCHOR** (Thach,
+2026-09-28): the implementation sessions 2E-t1..t3 re-measure on the built
+code, and every demo difference must be one listed here; a difference not
+listed stops the run. The new reported figures (`unmeasurable`, the
+outside-revenue totals, `return_rate_note`, the identity's terms) are
+additions, not differences:
 
 - *Online Retail II, Thach's classes, unmapped signals*: rules 7-9 reproduce
   today's sale and return lines and every month's net revenue (measured,
@@ -342,44 +356,41 @@ on the built code; each difference must be one of these):
    measurement of the classes.
 2. **2E-t2 - stages 2 and 3 read the class.** `shared/line_effects.py`
    (the matrix), `parse_transactions` reading `line_class`, the identity,
-   `unclassified` and `unmeasurable` in metrics.json, the stock ledger in
-   magnitudes, the lenses by class in diagnosis.json, every earlier test
-   retargeted by the migration table, both demo files measured against
-   section 6.
+   `unclassified` and `unmeasurable` in metrics.json (decision 7: the
+   unmeasurable lines reported here), the stock ledger in magnitudes
+   (decision 6: the ledger fix here), `return_rate_note` (decision 1), the
+   lenses by class in diagnosis.json, every earlier test retargeted by the
+   migration table, both demo files measured against section 6.
 3. **2E-t3 - Review.** The signal mappings (types, prefixes), the direction
    mapping of zero-amount (description, sign) pairs, the suggestions to
    confirm, the identity line and the unclassified share (frontend, by
    `docs/FIGMA_DESIGN_NOTES.md`).
 
-**Before 2E-t1:** a fresh-context review of this revision after Thach's
-answers (section 9: each of the three reviews found substantive issues, and
-the third revision's corrections are unreviewed). The Online Retail II demo
-build follows 2E-t2.
+**Before 2E-t1:** the fourth fresh-context review of this revision (section
+9). The Online Retail II demo build follows 2E-t3. **Not in this split**
+(Thach, decision 8): Kaggle's payment method mapped as `transaction_type` is
+a separate item - the schema prompt was fixed earlier, but the demo run
+holds the old inference; stage 1's schema inference is re-run on Kaggle when
+the demo is rebuilt (a real API call) to confirm the fix holds.
 
-## 8. Questions for Thach
+## 8. Decisions (Thach, 2026-09-28 - the eight questions answered)
 
-1. **Cancellations** (4.4): leave them out of v1 (a same-day credit stays a
-   return), or a suggestion the user confirms? Recommendation: out of v1.
-2. **`unclassified`**: no rule leaves a line unplaced; is there a shape the
-   engine should REFUSE rather than place (a positive credit, a sale at a
-   negative quantity - both `allowance` now)?
-3. **Returns back to stock**: only under a type mapped `return` (as
-   designed), or also a restock column? Returns on files without such a type
-   never restock.
-4. **Gift cards**: outside revenue and not counted (no order, not present)
-   once confirmed - agreed? `gift_card_redemption` for exports that book
-   redemptions as lines?
-5. **Zero-amount lines' direction**: unknown until mapped makes a product's
-   days-to-stockout null (about 29% of products on Online Retail II's shape,
-   if it had stock-in lines). Or a default - negative = out, positive with no
-   customer = in, as Online Retail II books them?
-6. **The stock ledger's sign today** (1.1 rule 7: 57 days instead of 17 on
-   files with stock-in lines): fix it in 2E-t2 with the magnitude ledger
-   (recommended), or earlier?
-7. **Unmeasurable lines reported nowhere** (1.1 rule 11: 9.6% of Kaggle):
-   report them in 2E-t2 (recommended), or earlier?
-8. **Kaggle's payment method mapped as `transaction_type`**: the schema step
-   should not propose a payment column for it - a separate item?
+1. **Cancellations**: out of v1; a same-day credit stays a return. The return
+   rate is labelled honestly wherever it is shown: it includes same-day
+   cancellations, which the data cannot separate (4.4; `return_rate_note`).
+2. **Refusals**: none in v1. `unclassified` stays the tested, empty class.
+3. **Returns to stock**: only under a type mapped `return`, as designed.
+4. **Gift cards**: agreed - outside revenue and not counted once the user
+   confirms; `gift_card_redemption` kept.
+5. **Zero-amount direction**: NO default. "Negative = out, positive with no
+   customer = in" is inferred from Online Retail II alone, and applying it to
+   every file is a guess. Unknown stays unknown: velocity null with its
+   reason. The cost falls only on files with stock-in lines; neither demo has
+   one.
+6. **The stock ledger fix**: in 2E-t2, as recommended.
+7. **Reporting unmeasurable lines**: in 2E-t2, as recommended.
+8. **Kaggle's payment method as `transaction_type`**: a separate item (section
+   7): re-run stage 1's schema inference on Kaggle when the demo is rebuilt.
 
 ## 9. Reviews (fresh context, 2026-09-27)
 
@@ -409,7 +420,95 @@ descriptions, the SUPPRESS was unsized and the ledger arithmetic unstated;
 the stock classes and gift cards changed `counted`'s readers; pooled
 returns left the first-day netting; signal precedence and the suggestion
 cell were undefined; overlapping counts; the gift-voucher difference
-incomplete; the totality test's inputs. Folded into this revision -
-**these corrections have not been reviewed** (the review bound is three
-cycles; a fourth follows Thach's answers). Reproductions: scratchpad
-`2et/review3/`.
+incomplete; the totality test's inputs. Folded into the third revision.
+Reproductions: scratchpad `2et/review3/`.
+
+**Review 4** (after Thach's answers, 2026-09-28; seventeen findings, every
+figure re-run on today's code - scratchpad `2et_rev/review4/`). **The run
+stopped here, by Thach's condition** (a finding that fabricates or needs his
+definition). The design's other figures re-ran as written (the class-table
+counts, the 1,710 active customers, 857 / 832 of 2,889 products, the
+gift-voucher headline, Kaggle's 1,213 = 604 + 609).
+
+- *Would FABRICATE, need his definition:* #4 the magnitude ledger turns a
+  receipt correction booked -30 under "in" into +30 (99 days to stockout,
+  the truth 39); #5 a customer return is "back in stock NOT known" in 2.1
+  but moves no stock in the ledger, days printed with no caveat (19 days) -
+  the guess decision 5 rejected; #6 SPECS' "in" means "stock received, e.g.
+  a purchase or a return" (the schema prompt), so a refund typed "in" never
+  reduces revenue (net 50 where it is 40); #9 unanswered, the identity's
+  "discounts" term is all bad debt (Online Retail II's B lines) while the
+  real Discount lines read as returns; #10 Q3's "marked unconfirmed" never
+  leaves cleaned.csv - unanswered, DOTCOM POSTAGE is the top product,
+  unmarked (older); #11 a C prefix mapped `return` restocks goods (decision 3
+  says a TYPE), and rule 5 flips a positive C line (-747.14 in 2010-02).
+- *Need his definition:* #2 SPECS' type "out" pre-mapped to `sale` sends a
+  zero-amount "out" write-off to `stock_count` (null) - the design's own
+  57-days example gives null, not 17 - and a (description, sign) pair's
+  "description" is the product name on the canonical schema (one question
+  per product); #7 a confirmed discount stops refusing B2 (the demo's B2
+  evidence changes; negative charges undefined); #12 `free_item` sets a
+  direction by rule (703 of 759 on customer-less invoices), against decision
+  5; #13 Kaggle's stored run is unreadable by today's code and decision 8
+  re-runs its inference - its baseline must be pinned; #16 the product
+  dimension's "(not a product)" bucket (charges and discounts keep the
+  dimension summing to the change) against the matrix's "no"; #17
+  unmeasurable lines' money (Kaggle's 609 unpriced lines carry Total Spent
+  79,072.50), their overlap with `undated_lines`, the return-rate note on a
+  file with no returns, a mapped direction outranking the `free_item` rule,
+  a type mapped "not a signal" against a prefix, reserved column names
+  already in a file, a gift-card line under a `return` type.
+- *The author's to correct (no definition needed), with the next revision:*
+  #1 the gift vouchers sit in 24 of 25 months, not six (2010-01 moves by
+  +1.48, not 69.56), and move ~107 output values; #3 rule 1's "non-finite
+  amount" sends an unpriced stock-in line to `unmeasurable` before rule 2
+  (2E-g F1 reopened); #8 the cancellations bullet must leave the anchor
+  (decision 1); #14 the anchor must list metrics.json's `non_product` block
+  changes; #15 "counted = today's counted" is false for a charge under "in"
+  and an overflowing amount.
+
+**Questions for Thach after review 4** (the author's recommendation after
+each; his answers become decisions 9 onwards, then a revision and a fifth
+review):
+
+9. *A stock line with the minority sign for its signal* (#4, a -30 under
+   "in"): recommended - magnitudes only for zero-amount lines whose direction
+   is mapped; such a line is counted, reported, and makes the product's days
+   to stockout null with its reason - never flipped.
+10. *Returns whose restocking the file does not say* (#5): recommended -
+    days to stockout as a lower bound, "at least N days - returns not counted
+    back into stock" (stock can only be higher); or null with its reason.
+11. *Money on a line typed "in"* (#6): recommended - two answers in Review,
+    "stock received from suppliers" (outside revenue) and "returns from
+    customers" (`return`); unanswered, the amount's sign decides the money;
+    SPECS and the schema prompt drop "e.g. a purchase or a return".
+12. *The identity's term for unconfirmed negative lines* (#9): recommended -
+    "other deductions (unconfirmed)"; only confirmed lines are "discounts".
+13. *The "unconfirmed" mark downstream* (#10): recommended - stages also read
+    the suggested class; a product carrying an unconfirmed suggestion is
+    marked in the product tables and in a headline naming it.
+14. *A credit prefix mapped `return`* (#11): recommended - never restocks,
+    never flips a sign; positive lines on credit notes keep their signs'
+    reading and are counted in a reported total.
+15. *The canonical type "out" and the direction question* (#2): recommended -
+    "out" gives a zero-amount line its direction (the file's own signal);
+    the direction is asked per sign, descriptions shown as examples, with a
+    per-description override.
+16. *`free_item`'s direction* (#12): recommended - unknown until mapped
+    (decision 5; 29% -> 34% null on Online Retail II's shape).
+17. *B2 and negative charges* (#7): recommended - B2 unchanged in 2E-t, its
+    relaxation for confirmed discounts to Phase 8; a negative charge is other
+    revenue, negative.
+18. *Kaggle's baseline* (#13): recommended - pinned before 2E-t1 as today's
+    code re-executing the stored run's approved plan (no AI call); decision
+    8's re-run after 2E-t3, compared on its own.
+19. *The product dimension* (#16): recommended - two matrix columns, the
+    product tables (no) and stage 3's product dimension (the "(not a
+    product)" bucket, as today).
+20. *The small ones* (#17): recommended - unmeasurable lines reported with
+    their count and the money they carry, never derived; a line both undated
+    and unmeasurable reported once, as unmeasurable; the return-rate note
+    only on a file with returns; a mapped direction outranks `free_item`; a
+    type mapped "not a signal" silences the type only; a file's own column
+    named like a new one is kept with a `_source` suffix, said in Review; a
+    gift-card line under a `return` type follows its item (outside revenue).

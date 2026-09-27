@@ -1,13 +1,18 @@
 # ADR-0008: One closed line taxonomy, decided once in stage 1
 
 ## Status
-PROPOSED - a draft for Thach's approval (session 2E-t, 2026-09-27). Nothing
-is implemented. The design it records: `docs/LINE_TAXONOMY.md`, revised
-after each of three fresh-context reviews; the third revision is unreviewed
-and a fourth review follows Thach's answers, before any implementation.
+APPROVED IN PRINCIPLE (Thach, 2026-09-28), subject to his eight answers
+(folded in: `docs/LINE_TAXONOMY.md` section 8) and a fourth fresh-context
+review of the revision. That review (2026-09-28) found issues that would
+fabricate and that need his definitions (`docs/LINE_TAXONOMY.md` section 9,
+questions 9-20), and demo figures to correct (the gift vouchers sit in 24
+months, not six); a revision and a fifth review follow his answers. Nothing
+is implemented yet (2E-t1..t3). The design it records:
+`docs/LINE_TAXONOMY.md`.
 
 ## Date
-2026-09-27 (fifth overnight run, session 2E-t - design only)
+2026-09-27 (fifth overnight run, session 2E-t - design only); revised
+2026-09-28 with Thach's answers (sixth overnight run)
 
 ## Context
 
@@ -81,8 +86,14 @@ because they share the code.
    and `suggestions` in `cleaned.csv`; stages 2 and 3 read `line_class`
    only.
 5. `unclassified` is only for a line no rule places (Thach, Q3); the rules
-   place every line today, so it exists, isolated and tested, for a shape a
-   later decision refuses rather than places - never as a user's answer.
+   place every line, and v1 refuses no shape (Thach, 2026-09-28), so it is
+   the tested, empty class - never a user's answer.
+6. **Cancellations are out of v1** (Thach, 2026-09-28): a same-day credit
+   stays a return, and the return rate says so wherever it is shown - it
+   includes same-day cancellations, which the data cannot separate.
+7. **A zero-amount line's stock direction has no default** (Thach,
+   2026-09-28): unknown until mapped; the product's days to stockout are null
+   with a reason.
 
 ## Alternatives considered
 
@@ -120,7 +131,8 @@ because they share the code.
   Online Retail II the credit comes BEFORE the "cancelled" sale in 439 of
   1,797 pairs, most of them a credit for an older invoice followed by a
   re-issue.
-- Deferred: question 1 of the design (a suggestion at most).
+- Rejected for v1 (Thach, 2026-09-28): a same-day credit stays a return;
+  the return rate is labelled as including same-day cancellations.
 
 ### Read a zero-amount line's stock direction from its sign
 - Pros: every line moves stock with no answer.
@@ -130,7 +142,9 @@ because they share the code.
   +20.
 - Rejected: an unknown direction makes the product's stock history
   incomplete (days to stockout null with a reason) until mapped - a
-  suppression, never a fabricated number (question 5 asks for a default).
+  suppression, never a fabricated number. No default either (Thach,
+  2026-09-28): "negative = out, positive with no customer = in" is Online
+  Retail II's convention alone.
 
 ## Consequences
 
@@ -151,4 +165,7 @@ because they share the code.
   a confirmed discount no longer refuses it.
 - Review gains the signal and direction mappings and shows the revenue
   identity and the unclassified share.
-- Open questions for Thach: `docs/LINE_TAXONOMY.md` section 8.
+- The return rate carries a note (it includes same-day cancellations);
+  unmeasurable lines are reported (2E-t2).
+- The migration table (`docs/LINE_TAXONOMY.md` section 6) is the regression
+  anchor: a demo difference it does not list stops the implementation.

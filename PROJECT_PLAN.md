@@ -2385,7 +2385,22 @@ dataclarity/
          is rebuilt (a real API call, a few cents) to confirm the fix holds.
       The revision folds these in and gets the fourth fresh-context review;
       if it finds anything that fabricates or needs a definition from him,
-      the run stops and reports. Then 2E-t1, 2E-t2, 2E-t3 as the design's
+      the run stops and reports.
+      **Revision done and fourth review run 2026-09-28 (sixth run, session
+      2): the answers are folded in (design sections 4.3, 4.4, 6, 7, 8;
+      ADR-0008). Review 4 found seventeen issues - six that would fabricate
+      (a -30 receipt correction read +30 by the magnitude ledger; a customer
+      return moving no stock with no caveat; a refund typed "in" never
+      leaving revenue; unanswered "discounts" that are all bad debt;
+      unconfirmed charges unmarked downstream; a C prefix mapped `return`
+      restocking and flipping a sign) and several that need his definition
+      (the "out" type and zero-amount write-offs; the "description" of a
+      direction pair; B2 and negative charges; `free_item`'s rule-set
+      direction; Kaggle's baseline; the "(not a product)" bucket;
+      unmeasurable money) - design section 9, with the questions and a
+      recommendation for each. THE RUN STOPPED HERE, by his condition.
+      2E-t1..t3, 2E-u and the freeze wait for his answers.** Then 2E-t1,
+      2E-t2, 2E-t3 as the design's
       section 7 splits them, the full process each; the migration table in
       the design's section 6 is the regression anchor, and any demo
       difference not listed there stops the run.
@@ -3037,8 +3052,12 @@ scoped review's blocker fixed (P3 signed, "among them"), rules 5 and 6 ranked
 together, a directional cause before the movements, a proven date order
 overridable in Review, month-end grain; metrics.json 15.0, diagnosis.json
 16.0. The demo month 2011-11 byte-identical; Kaggle T2 -> B1 as expected.
-Cycle 3's local fixes unreviewed. pytest 3198, Vitest 183. **Next: the 2E-t
-revision and its fourth review.**
+Cycle 3's local fixes unreviewed. pytest 3198, Vitest 183.
+**The sixth overnight run STOPPED after the 2E-t revision** (session 2): the
+fourth review of the design found findings that would fabricate and that need
+Thach's definitions (the 2E-t item, design section 9) - his stop condition.
+Not started: 2E-t1, 2E-t2, 2E-t3, 2E-u, the scope freeze. **Next: Thach's
+answers to review 4.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
