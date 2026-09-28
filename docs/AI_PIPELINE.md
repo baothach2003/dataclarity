@@ -1381,7 +1381,11 @@ engine works.
 
 ## 8. Strategy step (stage 4)
 
-Input: `metrics.json` + `diagnosis.json` + the computed `forecast` block.
+Input: the 4B fields of `metrics.json` and `diagnosis.json` (the consumer
+contract, `docs/CONTRACTS.md` section 11), never the whole files, each list
+capped (the dimensions' members to the largest movers), with every note
+worded from `contracts.lines.NOTE_TEXTS` by its code; plus the computed
+`forecast` block.
 Required output: 3 to 5 ranked recommendations, each with insight, cause, action,
 expected_impact (arithmetic shown from input numbers), how_to_measure,
 confidence; plus a `do_not_do` list.

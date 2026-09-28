@@ -1,6 +1,7 @@
 """The line taxonomy's contract blocks (session 2E-t2; review 1's findings
 #2, #5 and #7 - written before the fixes): the identity judged against the
-money moved, a note's fixed sentence and figures, one note per code, stock
+money moved, a note's fixed figures (its sentence the default rendering,
+3G0), one note per code, stock
 received by sign, and diagnosis.json's two fields required and its marks
 only on products it names."""
 
@@ -43,11 +44,14 @@ def _note(code: str, **changes: object) -> dict[str, object]:
     return {"code": code, "figures": NOTE_FIGURES[code], "text": NOTE_TEXTS[code], "measures": []} | changes
 
 
-def test_a_note_carries_its_codes_sentence_and_figures() -> None:
+def test_a_note_carries_its_codes_figures() -> None:
     assert FigureNote.model_validate(_note("returns_booked_as_in")).figures == [
         "revenue", "returns", "return_rate", "aov", "units", "customers", "products", "diagnosis"]
-    with pytest.raises(ValidationError, match="fixed sentence"):
-        FigureNote.model_validate(_note("discounts_in_prices", text="Discounts, roughly."))
+    # Retargeted in 3G0 (Thach's adjustment 2, 2026-09-29): the sentence is the
+    # default rendering, no longer refused when reworded - the code decides
+    # (tests/contracts/test_3g0_notes.py).
+    reworded = FigureNote.model_validate(_note("discounts_in_prices", text="Discounts, roughly."))
+    assert reworded.text == "Discounts, roughly."
     with pytest.raises(ValidationError, match="figures"):
         FigureNote.model_validate(_note("same_day_cancellations", figures=["units"]))
 

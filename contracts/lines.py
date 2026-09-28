@@ -2,14 +2,16 @@
 2E-t2; docs/LINE_TAXONOMY.md sections 3 and 5; docs/CONTRACTS.md sections 6
 and 7): the revenue identity, what stays outside revenue, the lines no rule
 placed or could measure, and the notes the standing rule puts beside a
-figure the data cannot fully tell apart (CLAUDE.md 3.3a). A note's sentence
-and the figures it qualifies are fixed per code, here, so a stage that
-writes a note cannot word it its own way."""
+figure the data cannot fully tell apart (CLAUDE.md 3.3a). The figures a note
+qualifies are fixed per code, here; its sentence is the default rendering,
+written by every stage from here, and a reader accepts it reworded - a
+consumer renders a note by its code, figures and measures (Thach, 3G0,
+adjustment 2)."""
 
 from math import isfinite
 from typing import Annotated, Literal, Self
 
-from pydantic import AfterValidator, Field, NonNegativeInt, model_validator
+from pydantic import AfterValidator, Field, NonNegativeInt, computed_field, model_validator
 
 from contracts._base import ContractModel, NonNegativeFloat
 from contracts.cleaning import CleanedLineClass
@@ -188,27 +190,69 @@ class NoteMeasure(ContractModel):
     keys: NonNegativeInt | None = None
 
 
+# The measures each note carries, by name - a closed vocabulary consumers
+# read by name (3G0 review 1 #2). None: `other_transaction_types` names its
+# measures after the file's own type values.
+NOTE_MEASURES: dict[str, tuple[str, ...] | None] = {
+    "same_day_cancellations": ("returns", "sales", "returns_unchecked"),
+    "returns_booked_as_in": ("positive", "negative", "zero", "unknown"),
+    "unconfirmed_suggestions": ("lines", "returns"),
+    "unconfirmed_deductions": ("lines",),
+    "discounts_in_prices": (),
+    "other_transaction_types": None,
+}
+
+
 class FigureNote(ContractModel):
     """The standing rule's note (CLAUDE.md 3.3a): beside every figure it
     names, wherever the figure is shown (an always-on note once -
-    docs/LINE_TAXONOMY.md section 3) - its code's fixed sentence and
-    figures, its numbers in its measures."""
+    docs/LINE_TAXONOMY.md section 3) - its code's fixed figures, its
+    default sentence (read by code: any non-empty sentence is accepted -
+    3G0), its numbers in its measures."""
 
     code: NoteCode
     figures: list[NoteFigure]
     text: str
     measures: list[NoteMeasure]
 
+    @computed_field  # type: ignore[prop-decorator]  # pydantic's documented form for a computed property
+    @property
+    def always_on(self) -> bool:
+        """Shown once, in "How to read these figures", never beside each
+        figure (adjustment 1): written into the file, so every consumer - the
+        frontend and the AI's input included - reads the flag rather than a
+        second definition (3G0 review 1 #10)."""
+        return is_always_on(self)
+
     @model_validator(mode="after")
     def _fixed_per_code(self) -> Self:
         named = [(m.name, m.scope) for m in self.measures]
         if len(set(named)) != len(named):
             raise ValueError(f"note {self.code!r} names a measure twice in one scope")
-        if self.text != NOTE_TEXTS[self.code]:
-            raise ValueError(f"note {self.code!r} carries its code's fixed sentence (contracts/lines.py)")
+        if not self.text.strip():
+            raise ValueError(f"note {self.code!r} carries a sentence, its default rendering")
+        allowed = NOTE_MEASURES[self.code]
+        if allowed is not None and not {name for name, _ in named} <= set(allowed):
+            raise ValueError(f"note {self.code!r} measures only {list(allowed)}")
         if self.figures != NOTE_FIGURES[self.code]:
             raise ValueError(f"note {self.code!r} names its code's figures: {NOTE_FIGURES[self.code]}")
         return self
+
+
+# Present by construction, not because of this file's data: shown once, in
+# "How to read these figures", never beside each figure (Thach, 2026-09-29,
+# adjustment 1; docs/LINE_TAXONOMY.md section 3).
+_ALWAYS_ON = "discounts_in_prices"
+_ON_EVERY_FILE_WITH_DATED_RETURNS = "same_day_cancellations"
+
+
+def is_always_on(note: FigureNote) -> bool:
+    """`discounts_in_prices`, or `same_day_cancellations` whose every
+    measure, in every scope, counts 0 lines - the one rule stage 5 and the
+    frontend read (3G0)."""
+    if note.code == _ALWAYS_ON:
+        return True
+    return note.code == _ON_EVERY_FILE_WITH_DATED_RETURNS and all(m.lines == 0 for m in note.measures)
 
 
 def _one_per_code(notes: list[FigureNote]) -> list[FigureNote]:

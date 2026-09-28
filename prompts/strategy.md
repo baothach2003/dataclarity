@@ -21,10 +21,13 @@ STRICT RULES
 - The input's `notes` sit beside the figures they name (their `figures`):
   when you write about such a figure, say what its note says, with its
   measures' numbers - the data cannot fully tell those lines apart, and the
-  reader must know. Never drop a note to make a sentence simpler. Two are
-  said once elsewhere in the report ("How to read these figures") and you do
-  not repeat them: `discounts_in_prices`, and `same_day_cancellations` when
-  every one of its measures counts 0 lines.
+  reader must know. Never drop a note to make a sentence simpler. A note
+  whose `always_on` is true is said once elsewhere in the report ("How to
+  read these figures"): do not repeat it.
+- The `signals` describe a month against its own history; none is a verdict
+  (a chart centred on every month's average is in the wrong place for a
+  seasonal month). Never call a month normal, unusual, abnormal or
+  exceptional because of a signal.
 - A product listed in `suggested_classes` is marked by the file as possibly
   not a product (a charge, a fee, a discount, an adjustment, a gift card, or
   many items under one code) and the user has not confirmed it: name it as

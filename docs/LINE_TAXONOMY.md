@@ -227,7 +227,8 @@ confirmed as discounts are "discounts").
   `gross_sales`, `returns`, `discounts`, `other_deductions`, `return_rate`,
   `orders`, `aov`, `units`, `customers`, `products` and `diagnosis` (the
   headline and the causes, which read the whole history window); `text` is
-  one fixed sentence per code, below; each measure is `{name, scope, lines,
+  the default sentence per code, below - a consumer renders by code, figures
+  and measures (adjustment 2); each measure is `{name, scope, lines,
   amount, orders, keys}` for the scopes `file` (every line), `current` and
   `previous` (the dated lines of the month) - `amount` the SIGNED sum of the
   lines' amounts (null where not finite), `orders` the distinct orders among
@@ -316,10 +317,13 @@ confirmed as discounts are "discounts").
     never a value.
 
   No note changes a figure. Every money figure and measure writes a zero as
-  0.0, never -0.0 (review 6b #12). A note's sentence and figures are fixed
-  per code in `contracts/lines.py`, which refuses any other: they are part
-  of the contract, so changing one is a major bump of metrics.json and
-  diagnosis.json (U12).
+  0.0, never -0.0 (review 6b #12). A note's figures are fixed per code in
+  `contracts/lines.py`, which refuses any other: with the code and the
+  measures they are the contract, so changing one is a major bump of
+  metrics.json and diagnosis.json. Its sentence is the default rendering
+  (Thach, 2026-09-29, adjustment 2, relaxing U12): the writers write it
+  from `NOTE_TEXTS`, a reader accepts any non-empty one, and rewording it is
+  not a major bump (CONTRACTS section 11).
 - **Stock**: no column in v1. `products.velocity` is null on every file with
   the reason that stock figures are not supported in v1, and stage 4's
   `products_at_stockout_risk` likewise (review 5 #3).

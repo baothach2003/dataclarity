@@ -2769,17 +2769,33 @@ dataclarity/
       Phase 6: the frontend's fixed EXPIRED copy ("files are deleted 24
       hours after upload") is wrong for `another_version` - 6D's copy must
       branch on `details.reason`.
-- [ ] 3G0 **The consumer contract** (Thach, 2026-09-29; ninth run, session
-      2). Document the exact fields of `metrics.json` and `diagnosis.json`
-      that stages 4 and 5 and the frontend may read (note codes, figures and
-      measures, never sentences - adjustment 2 below) in CONTRACTS section
-      11, and a test that fails if any of them is renamed, removed or
-      changes type. From then on those fields change only additively
-      (CLAUDE.md 3.7). **U12 relaxed (Thach, adjustment 2):** a note's CODE
-      and its figures and measures are the contract; its sentence is the
-      default rendering - rewording one is not a major bump, and consumers
-      render by code. Display/infrastructure depth: failing tests first plus
-      one review cycle.
+- [x] 3G0 **The consumer contract** (Thach, 2026-09-29; ninth run, session
+      2). **Done 2026-09-29** (method `C:\Users\Happy\3G0-method.txt`):
+      CONTRACTS section 11 lists 136 fields of metrics.json and 150 of
+      diagnosis.json, each with its type (constraints included: a range,
+      `YYYY-MM`, finite) and readers (4A, 4B, 5, FE), nine closed
+      vocabularies (segment names, hypothesis and not-testable ids, each
+      note's measure names), and how they are read: notes by code, figures,
+      measures and `always_on` - never their sentence; sentences written by
+      code shown as written; an incomplete previous month never compared;
+      no consumer computes a figure (another change is a stage 2 field
+      first); signals never verdicts; stock null; a null with its reason.
+      `tests/contracts/test_consumer_contract.py` reads the tables, resolves
+      every row on the models by its JSON key, compares the vocabularies
+      with the code, and holds the frozen v1 rows and vocabularies
+      (`consumer_fields_v1.json`): a rename, a removal, a retype, a new
+      scale or an alias fails; an enum may only grow, wherever it sits.
+      Adjustment 2 in code: a note's sentence is not checked on read
+      (non-empty only), its measure names are (`NOTE_MEASURES`), and every
+      note carries `always_on` (a computed field of `is_always_on`, so the
+      frontend and the AI read a flag, not a second rule). Retargeted by
+      the decision: `test_lines.test_a_note_carries_its_codes_figures` (a
+      reworded sentence is read). Depth: failing tests first, one review
+      cycle (12 findings, all folded in; it also reviewed 2E-v's cycle-3
+      fixes, no 500 left on any endpoint). Its fixes are reviewed in
+      3G-lite's first cycle. Recorded: 8D (a malformed or missing
+      `schema_version` is a 500; stage 3's history reads `data_start`, the
+      first row of any kind).
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2961,7 +2977,12 @@ dataclarity/
   and false-alarm count are printed by the tests and quoted in the README
 
 ### Phase 4 - Stage 4 Predict
-- [ ] 4A `forecast.py`: interpretable forecast (rolling/weighted trend +
+- [ ] 4A (3G0, the consumer contract: 4A reads only section 11's 4A rows;
+      `revenue_by_month` includes a partial first and last month and says
+      nothing of which are complete - 4A adds that to stage 2 as a new field
+      before forecasting from the series, and forecasts months up to
+      `period.current` only)
+      `forecast.py`: interpretable forecast (rolling/weighted trend +
       seasonality index) for revenue and per-product demand, with confidence
       intervals and an explicit "insufficient history" path. Tests
 - [ ] 4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
@@ -2982,7 +3003,11 @@ dataclarity/
       structure in CONTRACTS section 9 (today `dict[str, Any]`), including
       how a `null` AI block shows as "unavailable" (AI_PIPELINE section 9) and
       where `provenance.ai_calls` is traced from. Reads only the consumer
-      contract's fields (CONTRACTS section 11). **Always-on notes shown once
+      contract's fields (CONTRACTS section 11): notes worded by code from
+      `contracts.lines.NOTE_TEXTS` (never the file's sentence), no computed
+      delta (a change other than `revenue_change_pct` is a stage 2 field
+      first), no comparison when the previous month is incomplete, the
+      trust badge beside the KPIs. **Always-on notes shown once
       (Thach, 2026-09-29, adjustment 1):** a note present on every file by
       construction (S3's `discounts_in_prices`; U5's same-day note at zero)
       appears ONCE, in a "How to read these figures" section; beside a
@@ -3263,6 +3288,16 @@ dataclarity/
       - #12 a NUL inside a code: the CSV reader ends the cell there, so two
         codes differing after a NUL read as one (`pd.factorize` also stops
         at NUL); unreachable from a file.
+      From 3G0's review (2026-09-29; none fabricates on the demo files):
+      - a `schema_version` that is not MAJOR.MINOR, or none, is not read as
+        another version's file: a 500 (a hand-edited or corrupted file).
+      - stage 3's history window (and so D1's pattern and the signals'
+        baseline) counts the first month as complete from `data_start`, the
+        first row of ANY kind: a stock-in row on the 1st and the first sale
+        on the 25th make a 7-day month a history month. Both demo files'
+        first rows are sales on the 1st (Kaggle 2022-01-01, Online Retail II
+        2009-12-01) - by execution, not by reading. AI_PIPELINE 7.2 reads
+        the first SALE for `previous_leading_days_missing` only.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3453,7 +3488,12 @@ any number JSON cannot carry (ANALYSIS_FAILED, never an unreadable file); a
 run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
-pytest 3450, Vitest 200 (no frontend change). **Next: 3G0.**
+pytest 3450, Vitest 200 (no frontend change).
+Session **3G0** closed 2026-09-29 (ninth run, session 2; see its item): the
+consumer contract - CONTRACTS section 11 (136 + 150 fields, nine
+vocabularies, the reading rules) and its test; notes read by code, never
+their sentence, each carrying `always_on`; measure names closed per code.
+Its review's fixes are reviewed in 3G-lite's first cycle. **Next: 3G-lite.**
 Session **2E-n** closed 2026-09-27 (fifth overnight run, session 1; see its
 item): the products' share reads their sale lines (reading G), one fit for
 every cause, exact ties name every tied cause, the movements when nothing
