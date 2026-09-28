@@ -2446,6 +2446,25 @@ dataclarity/
       2E-t2, 2E-t3 as the revised design splits them, the full process each;
       the anchor is the regression reference, and any demo difference not
       listed there stops the run.
+      **Revision 2 done and fifth review run 2026-09-28 (seventh run, session
+      1):** the design rewritten as v1 (the money ledger; `no_money`; the
+      rules of 4.2; the identity with "other deductions (unconfirmed)";
+      `suggested_classes`; velocity "not supported in v1"), every figure
+      re-measured on today's code - a prototype of the v1 rules gives the
+      SAME lines as today's `parse_transactions` for every set its readers
+      use, on both demo files and both Online Retail II states - and the
+      baselines pinned (Kaggle by re-executing its stored plan: cleaned.csv
+      byte-identical, headline B1). Review 5 found sixteen issues; two would
+      fabricate and need his definition - Q15's sign rule turns a priced
+      receipt correction typed "in" into a customer return, and a customer
+      return booked the canonical way (+ typed "in") stays outside revenue
+      (net 50 where the truth is 40, as today) - and three more need his
+      definition (unconfirmed lines inside returns, 38% of unanswered
+      2011-11's returns on Amazon-fee keys; R3 under the cut; unmeasurable
+      lines by month). Eleven are the author's, queued for revision 3 (among
+      them stage 4's `products_at_stockout_risk`, which must read "not
+      supported in v1" too). Design section 9, questions 21-24. **THE RUN
+      STOPPED HERE, by his condition**; 2E-t1..t3 wait for his answers.
 - [x] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
       (Thach, 2026-09-28). **Done 2026-09-28** (sixth overnight run, session
       1; method `C:\Users\Happy\2Eo-method.txt`, five amendments):
@@ -3150,7 +3169,12 @@ regression reference; any demo difference not listed there stops the run).
 Stop after 2E-t3: Thach chooses between 2E-u with the scope freeze, and an
 end-to-end skeleton first. Same rules. Report in
 `C:\Users\Happy\overnight-report.txt` (the sixth run's kept as
-`overnight-report-run6.txt`). **Next: the 2E-t revision.**
+`overnight-report-run6.txt`).
+**The seventh overnight run STOPPED after the 2E-t revision 2** (session 1):
+the fifth review of the design found that Q15's reading of "in" lines
+fabricates on a priced stock ledger, and questions only Thach can answer (the
+2E-t item; design section 9, questions 21-24). Not started: 2E-t1, 2E-t2,
+2E-t3. **Next: Thach's answers to review 5.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
