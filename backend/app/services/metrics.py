@@ -64,15 +64,27 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             raise stage_errors.analysis_failed(str(error), {"line_classes": error.problem}) from error
         except ValidationError as error:
             # A figure whose amounts do not add up: metrics.json cannot carry
-            # it (2E-t3 review 3 #4). Any other refusal is a bug: a 500.
+            # it (2E-t3 review 3 #4; any month's, 2E-v #1). A run file another
+            # version wrote goes on to the app's handler
+            # (stage_errors.run_file_version_handler); any other refusal is a
+            # bug: a 500.
             if not all(TOO_LARGE_TO_ADD in str(problem["msg"]) for problem in error.errors()):
                 raise
-            raise stage_errors.analysis_failed(
-                "The file's amounts are too large to add up, so its metrics cannot be computed.",
-                {"reason": "amounts_too_large"}) from error
+            raise _too_large() from error
+        except OverflowError as error:
+            # Quantities too large to add: a product's units overflowed before
+            # any contract was built (2E-v review 2 #3).
+            raise _too_large() from error
 
     run_state.advance(session, run_id, RunStatus.ANALYZED, only_from=ANALYZABLE_STATUSES)
     return AnalyzeResponse(run_id=run_id, status="analyzed", metrics=metrics, notices=[])
+
+
+def _too_large() -> Exception:
+    return stage_errors.analysis_failed(
+        "The file's amounts or quantities are too large to add up, so its metrics cannot be computed. "
+        "Correct them in the file and upload it again.",
+        {"reason": "amounts_too_large"})
 
 
 def _require_cleaned_files(runs_root: Path, run_id: str) -> None:

@@ -69,7 +69,9 @@ NOTE_TEXTS: dict[str, str] = {
         "signs as sales or returns. The measures count them by value, the rarest values together."),
 }
 # Every figure the note's lines move (the standing rule: the note is shown
-# wherever the affected figure is - 2E-t2 reviews 1 #12 and 2 #4).
+# wherever the affected figure is - 2E-t2 reviews 1 #12 and 2 #4; an
+# always-on note once, in "How to read these figures" - docs/LINE_TAXONOMY.md
+# section 3).
 NOTE_FIGURES: dict[str, list[NoteFigure]] = {
     # A cancelled sale stays in its product's units sold.
     "same_day_cancellations": ["gross_sales", "returns", "return_rate", "orders", "aov", "customers", "products",
@@ -188,7 +190,8 @@ class NoteMeasure(ContractModel):
 
 class FigureNote(ContractModel):
     """The standing rule's note (CLAUDE.md 3.3a): beside every figure it
-    names, wherever the figure is shown - its code's fixed sentence and
+    names, wherever the figure is shown (an always-on note once -
+    docs/LINE_TAXONOMY.md section 3) - its code's fixed sentence and
     figures, its numbers in its measures."""
 
     code: NoteCode

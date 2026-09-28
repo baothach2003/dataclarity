@@ -815,8 +815,8 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   price or an amount too large to add, per scope and reason - their money is
   unknown, never derived; `undated_lines` no longer counts them (reported
   once). `core.notes` are the standing rule's notes (CLAUDE.md 3.3a): one
-  per code present - `same_day_cancellations` (every file with return
-  lines), `returns_booked_as_in`, `unconfirmed_suggestions`,
+  per code present - `same_day_cancellations` (every file with dated
+  return lines), `returns_booked_as_in`, `unconfirmed_suggestions`,
   `unconfirmed_deductions`, `discounts_in_prices` (every file),
   `other_transaction_types` - each with its code's fixed sentence and the
   figures it qualifies (`contracts/lines.py` holds both and refuses any
@@ -1012,7 +1012,8 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
 
 `notes` (17.0, 2E-t2) are metrics.json's, beside the figures they name - the
 `return_rate` signal and the headline's revenue among them; the narration
-states them with their measures (`prompts/root_cause.md`).
+states them with their measures (`prompts/root_cause.md`) - except an always-on note - present by construction, not because of this file's data (`discounts_in_prices`; `same_day_cancellations` whose every measure counts 0 lines),
+said once, in "How to read these figures" (docs/LINE_TAXONOMY.md section 3).
 `suggested_classes` (17.0) maps every product this file names - the product
 dimension's members, new and removed members, R1's top member, R3's products
 (`contracts.diagnosis.named_products`) - whose own key carries a line-class
@@ -1433,6 +1434,24 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 2E-v, the scoped review of 2E-t1-t3's last fixes.**
+  metrics.json refuses any number JSON cannot carry, anywhere in the file (a
+  model check, `numbers_json_cannot_carry`): a month outside the two
+  compared whose amounts overflow was written as null into a required float
+  after a 200 - now ANALYSIS_FAILED (`amounts_too_large`), nothing written;
+  a NaN is an overflow's trace too (+inf and -inf meeting in one segment),
+  and a product's units that overflow are refused the same way. No version
+  change: no readable file changes. A run file another version of the app
+  wrote (an older or newer major, or a 16.0 metrics.json from before the
+  line taxonomy's blocks) is never a 500, on any endpoint (one handler for
+  the app): a stage 1 file is EXPIRED (410, `details.reason`
+  `another_version`, `details.file` when one model reads one file) with the
+  re-upload hint; a later stage's output (metrics, diagnosis, forecast,
+  report) INVALID_STATE (409) "run that stage again". Each contract model
+  says its file (`filename`) and the stage that writes it
+  (`written_by_stage`). A file of another major is told its major before
+  anything else, with what to do: an older one per file (re-upload, or run
+  its stage again), a newer one "upload the file again".
 - 2026-09-28: **session 2E-t3, Review shows the line taxonomy (Thach).**
   `contracts/lines.py` gains `LineSummary` and `ReservedRename`, the payload
   of `POST /line-summary` (SPECS section 8) - never a stored file, so no

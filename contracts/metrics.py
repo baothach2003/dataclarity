@@ -11,8 +11,11 @@ from contracts._base import (
     NonNegativeFloat,
     Percent,
     YearMonth,
+    major_of,
+    numbers_json_cannot_carry,
 )
 from contracts.lines import (
+    TOO_LARGE_TO_ADD,
     Notes,
     OutsideRevenueLines,
     RevenueIdentity,
@@ -20,6 +23,10 @@ from contracts.lines import (
     UnmeasurableLines,
 )
 from contracts.profile import LineClass
+
+# The refusal of a 16.0 file written before the line taxonomy's blocks
+# (2E-t1, before 2E-t2): another version's file, as an older major is (2E-v).
+BEFORE_THE_LINE_TAXONOMY = "this metrics.json was written before the line taxonomy's blocks"
 
 # Only definitional bounds are enforced. Revenue, revenue shares and return
 # rates stay unbounded: refunds can make net revenue negative, and returns in a
@@ -332,6 +339,8 @@ class DimensionBreakdown(ContractModel):
 
 
 class MetricsContract(ContractFile):
+    filename: ClassVar[str | None] = "metrics.json"
+    written_by_stage: ClassVar[int] = 2
     # 5 since 2E-e: orders are order ids when order_id is mapped (and its
     # basis is a required field). 3 since 2E-c: a sale row needs a positive amount, new customers exclude
     # histories that open with a refund, RFM ties score alike - orders,
@@ -386,12 +395,25 @@ class MetricsContract(ContractFile):
     def _written_before_the_line_taxonomy(cls, data: Any) -> Any:
         """A 16.0 file written by 2E-t1, before the line taxonomy's blocks:
         told to re-analyse, not handed pydantic's "field required" (2E-t2
-        reviews 1 #13, 3 #5)."""
+        reviews 1 #13, 3 #5). Only a file of this major: any other is told its
+        major first (2E-v #8)."""
         core = data.get("core") if isinstance(data, dict) else None
+        if major_of(data) != cls.supported_major:
+            return data
         if isinstance(core, dict) and "revenue_current" in core and "identity" not in core:
-            raise ValueError("this metrics.json was written before the line taxonomy's blocks"
-                             + cls.stale_major_hint)
+            raise ValueError(BEFORE_THE_LINE_TAXONOMY + cls.stale_major_hint)
         return data
+
+    @model_validator(mode="after")
+    def _every_number_json_can_carry(self) -> Self:
+        """No figure anywhere in the file is infinite or not a number: JSON
+        writes it as null, and a required one makes a file no reader can load.
+        A month outside the two compared whose amounts overflow was written so,
+        after a 200 (2E-v #1). A NaN is an overflow's trace too - +inf and -inf
+        meeting in one segment's average (2E-v review 2 #2)."""
+        for path, value in numbers_json_cannot_carry(self.model_dump()):
+            raise ValueError(f"{path}: {TOO_LARGE_TO_ADD} ({value}): JSON cannot carry it")
+        return self
 
     @model_validator(mode="after")
     def _no_comparison_against_an_incomplete_month(self) -> Self:

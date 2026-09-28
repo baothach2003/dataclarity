@@ -51,7 +51,10 @@ note wherever the affected figure is shown. Its instances in this design:
 - lines typed "in" (Q25): a customer return booked as "in" cannot be told
   from stock received, nor a supplier's receipt correction from a customer's
   refund - every "in" line stays outside revenue, as 2A, its lines and money
-  are reported by sign, and revenue and the return rate carry a note;
+  are reported by sign, and revenue and the return rate carry a note (every
+  note of this section is shown as section 3 says: beside the figure, or
+  once when always-on - present by construction rather than because of the
+  file's data - Thach, 2026-09-29);
 - a same-day credit (decision 1): a cancellation cannot be told from a
   same-day return - it stays a return, and the return rate carries a note;
 - a line on a key the rules suggest is a cost, charge, discount, adjustment
@@ -234,11 +237,24 @@ confirmed as discounts are "discounts").
   `undated_lines`); the reports of lines outside revenue and of stock
   received count every such line, dated or not.
   Wherever stage 5 or the frontend shows a figure, it shows the notes that
-  name it, with their measures. A note is present when its file-scope
-  measure has lines, except two: `discounts_in_prices` always, and
-  `same_day_cancellations` on every file with return lines, its measures
-  zero where no return matches (decision 1: the return rate carries the
-  note wherever it is shown - 2E-t2 U5). Its codes:
+  name it, with their measures - except an ALWAYS-ON note, shown ONCE, in a
+  "How to read these figures" section (Thach, 2026-09-29, adjustment 1: a
+  note beside every figure trains readers to ignore them all). A note is
+  always-on when it is present by construction rather than because of this
+  file's data (Thach's words: "S3, and any note present on every file by
+  construction, such as U5 at zero"): `discounts_in_prices`, and
+  `same_day_cancellations` when every one of its measures, in every scope,
+  counts 0 lines (a file with no customer column
+  counts its returns in `returns_unchecked`: that note is the file's own,
+  and stands beside the figures it names). A consumer renders a note by its
+  code, figures and measures; its sentence is the default rendering
+  (adjustment 2). A note is present when its file-scope measure has lines,
+  except two: `discounts_in_prices` always, and `same_day_cancellations` on
+  every file with DATED return lines, its measures zero where no return
+  matches (decision 1: the note qualifies the return rate - beside it, or
+  once when always-on - 2E-t2 U5; a file whose every return is undated has
+  no return rate to qualify - 2E-t2 review 3 #6).
+  Its codes:
   - `same_day_cancellations` (gross_sales, returns, return_rate, orders,
     aov, customers, products, diagnosis; decision 1, widened by the
     standing rule - S2, U7): "Returns and the return rate include same-day

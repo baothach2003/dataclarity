@@ -1,6 +1,6 @@
 """report.json, the data layer of stage 5 (docs/CONTRACTS.md section 9)."""
 
-from typing import Any, Self
+from typing import Any, ClassVar, Self
 
 from pydantic import NonNegativeInt, model_validator
 
@@ -42,6 +42,9 @@ class Provenance(ContractModel):
 
 
 class ReportContract(ContractFile):
+    filename: ClassVar[str | None] = "report.json"
+    written_by_stage: ClassVar[int] = 5
+    stale_major_hint: ClassVar[str] = ": this file was written by an earlier stage 5; build the report again"
     run_id: str
     source_file: str
     data_quality: DataQuality

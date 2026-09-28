@@ -669,6 +669,8 @@ def named_products(localization: Localization | None, hypotheses: list[Hypothesi
 
 
 class DiagnosisContract(ContractFile):
+    filename: ClassVar[str | None] = "diagnosis.json"
+    written_by_stage: ClassVar[int] = 3
     # 2 since 2E-c: the returns lens gained deductions, and gross sales became
     # the sale rows only (Thach). 3 since 2E-c2: the bridge's `new` and
     # `resurrected` changed meaning (any return on a customer's first day),
@@ -731,7 +733,8 @@ class DiagnosisContract(ContractFile):
     not_testable: list[NotTestable]
     headline: Headline
     ai_findings: AiFindings | None
-    # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5): metrics.json's notes,
+    # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5; an always-on note is
+    # said once, section 3): metrics.json's notes,
     # beside the figures they qualify (the return-rate signal, the headline's
     # revenue); every product this file names whose key carries a line-class
     # suggestion nobody confirmed, by label, with that class. Required, so a

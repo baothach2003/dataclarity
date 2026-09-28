@@ -1,6 +1,6 @@
 """forecast.json (docs/CONTRACTS.md section 8)."""
 
-from typing import Self
+from typing import ClassVar, Self
 
 from pydantic import NonNegativeInt, PositiveInt, model_validator
 
@@ -75,6 +75,9 @@ class DoNotDo(ContractModel):
 
 
 class ForecastContract(ContractFile):
+    filename: ClassVar[str | None] = "forecast.json"
+    written_by_stage: ClassVar[int] = 4
+    stale_major_hint: ClassVar[str] = ": this file was written by an earlier stage 4; run the prediction again"
     # Required but nullable: null means the AI step was unavailable, and a
     # missing key must not be mistaken for that (CONTRACTS.md section 8).
     model_used: str | None

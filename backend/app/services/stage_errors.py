@@ -8,8 +8,14 @@ from typing import Any, cast
 
 from pydantic import ValidationError
 
-from app.errors import MAX_PROBLEMS, ApiError, ErrorCode, format_problems
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+import contracts
+from app.errors import MAX_PROBLEMS, ApiError, ErrorCode, api_error_handler, format_problems
 from contracts import CleaningPlanContract
+from contracts._base import UNSUPPORTED_MAJOR, ContractFile
+from contracts.metrics import BEFORE_THE_LINE_TAXONOMY
 from stages.ingest.cleaning import CleaningError
 from stages.ingest.plan_validation import InvalidPlanError
 from stages.ingest.profiling import ProfilingError
@@ -19,6 +25,53 @@ def files_gone() -> ApiError:
     """The run row exists but its directory (or raw.csv) does not: the retention
     cleanup removed it. Same answer as a run already marked expired."""
     return ApiError("EXPIRED", "The run's files are gone. Upload the file again.")
+
+
+# Every run file's model, by the name a refusal carries (its title).
+_RUN_FILES: dict[str, type[ContractFile]] = {
+    name: model for name in contracts.__all__
+    if isinstance(model := getattr(contracts, name), type) and issubclass(model, ContractFile)}
+# What rewrites a later stage's output: running that stage again (2E-v review
+# 2 #6, review 3 #2).
+_RERUN = {2: "Run the analysis again.", 3: "Run the diagnosis again.", 4: "Run the prediction again.",
+          5: "Build the report again."}
+
+
+def another_version(error: ValidationError) -> ApiError | None:
+    """A run file another version of the app wrote - an older or newer
+    major, or a metrics.json of this major from before the line taxonomy's
+    blocks - or None for any other refusal (SPECS section 10: never a 500 -
+    2E-v #2). A stage 1 file cannot be read again by this version: the file
+    is uploaded again, as for a run the retention cleanup removed (EXPIRED).
+    A later stage's output is rewritten by running that stage again
+    (INVALID_STATE). `details.file` names the file when one model reads one
+    file (the cleaning plan's model reads two)."""
+    if not any(UNSUPPORTED_MAJOR in str(problem["msg"]) or BEFORE_THE_LINE_TAXONOMY in str(problem["msg"])
+               for problem in error.errors()):
+        return None
+    model = _RUN_FILES.get(error.title)
+    details: dict[str, Any] = {"reason": "another_version"}
+    if model is not None and model.filename is not None:
+        details["file"] = model.filename
+    if model is not None and model.written_by_stage in _RERUN:
+        return ApiError("INVALID_STATE", f"This run's {model.filename} was written by another version of "
+                        f"DataClarity. {_RERUN[model.written_by_stage]}", details)
+    return ApiError("EXPIRED", "This run was prepared by another version of DataClarity. Upload the file again.",
+                    details)
+
+
+async def run_file_version_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Every endpoint's answer to a run file another version wrote (2E-v
+    review 3 #1: /plan, /execute and /profile gave a 500 while /analyze did
+    not). Any other refusal is a bug: re-raised, it becomes the 500 of
+    `unexpected_error_middleware`. The service has already released any
+    claim it held, as for every unexpected error."""
+    if not isinstance(exc, ValidationError):
+        raise exc
+    answer = another_version(exc)
+    if answer is None:
+        raise exc
+    return await api_error_handler(request, answer)
 
 
 def profiling_failed(error: ProfilingError) -> ApiError:
@@ -35,8 +88,9 @@ def invalid_plan(error: InvalidPlanError) -> ApiError:
 
 def analysis_failed(message: str, details: dict[str, Any] | None = None) -> ApiError:
     """Stage 2 cannot compute metrics for this run: a required canonical
-    field was never mapped, or the file was flagged NOT_INVENTORY at schema
-    inference. Unlike cleaning_failed, the caller does not fail the run -
+    field was never mapped, the file was flagged NOT_INVENTORY at schema
+    inference, cleaned.csv's line classes are not stage 1's, or its amounts
+    or quantities are too large to add up. Unlike cleaning_failed, the caller does not fail the run -
     cleaned.csv stays valid and downloadable, only the optional analysis is
     unavailable (Thach, 2D, mirrors how a NOT_INVENTORY run already keeps
     its cleaned status and downloads elsewhere)."""

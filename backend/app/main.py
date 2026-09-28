@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import ValidationError
 from sqlalchemy import Engine
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -17,6 +18,7 @@ from app.errors import (
 from app.routers import health, runs
 from app.services.analysis import AiClientFactory, default_ai_client_factory
 from app.services.run_memory import BYTES_PER_MB, FrameCache, RetryBudgets, RunWork
+from app.services.stage_errors import run_file_version_handler
 
 
 def create_app(
@@ -58,6 +60,9 @@ def create_app(
     app.add_exception_handler(ApiError, api_error_handler)
     app.add_exception_handler(RequestValidationError, validation_error_handler)
     app.add_exception_handler(StarletteHTTPException, http_error_handler)
+    # A run file another version wrote, read by any endpoint (2E-v); any other
+    # refusal is re-raised to the 500 above.
+    app.add_exception_handler(ValidationError, run_file_version_handler)
     app.include_router(health.router)
     app.include_router(runs.router)
     return app

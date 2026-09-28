@@ -21,7 +21,10 @@ STRICT RULES
 - The input's `notes` sit beside the figures they name (their `figures`):
   when you write about such a figure, say what its note says, with its
   measures' numbers - the data cannot fully tell those lines apart, and the
-  reader must know. Never drop a note to make a sentence simpler.
+  reader must know. Never drop a note to make a sentence simpler. Two are
+  said once elsewhere in the report ("How to read these figures") and you do
+  not repeat them: `discounts_in_prices`, and `same_day_cancellations` when
+  every one of its measures counts 0 lines.
 - A product listed in `suggested_classes` is marked by the file as possibly
   not a product (a charge, a fee, a discount, an adjustment, a gift card, or
   many items under one code) and the user has not confirmed it: name it as

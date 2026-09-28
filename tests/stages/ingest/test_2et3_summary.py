@@ -298,12 +298,16 @@ def test_an_all_empty_column_and_nothing_moved() -> None:
 
 
 def test_the_summary_equals_metrics_json_with_a_rename_and_a_transform(tmp_path) -> None:
-    # The flag-only plan's check, under a trim of the customer column and a
-    # source column named line_class the run renames (review 3 #5).
+    # The flag-only plan's check, under a trim of the customer column, rows
+    # missing a price dropped (lines 12 and 14: a figure changes) and a source
+    # column named line_class the run renames (review 3 #5). Every block
+    # compared: a summary read before the plan ran passed on the trim alone
+    # (2E-v #10).
     rows = [row[:2] + ((" " + row[2] + " ") if row[2] else row[2],) + row[3:] + ("mine",) for row in ROWS]
     names = [name for name, _, _ in COLUMNS] + ["line_class"]
     plan = _plan(COLUMNS + [("line_class", "text", "ignore")])
     plan.column_actions[2] = plan.column_actions[2].model_copy(update={"action": "trim_whitespace", "params": {}})
+    plan.column_actions[6] = plan.column_actions[6].model_copy(update={"action": "drop_rows_missing", "params": {}})
     run_id = "0a000000-0000-4000-8000-0000000000e5"
     (tmp_path / run_id).mkdir()
     (tmp_path / run_id / "raw.csv").write_bytes(_raw(rows, names))
@@ -311,9 +315,13 @@ def test_the_summary_equals_metrics_json_with_a_rename_and_a_transform(tmp_path)
     core = analyze_run(tmp_path, run_id, NOW).core
     found = line_summary(read_csv_text(_raw(rows, names)).frame, plan)
     assert found.summary is not None and [r.source for r in found.reserved_renames] == ["line_class"]
+    assert (found.summary.lines, found.summary.undated_lines) == (15, core.undated_lines)
     assert found.summary.outside_revenue == [r for r in core.outside_revenue if r.scope == "file"]
+    assert found.summary.unmeasurable == [r for r in core.unmeasurable if r.scope == "file"]
+    assert found.summary.unclassified == core.unclassified
     assert [n.model_copy(update={"measures": [m for m in n.measures if m.scope == "file"]}) for n in core.notes] \
         == found.summary.notes
+    assert sum(m.revenue for m in core.revenue_by_month) == pytest.approx(found.summary.identity.net_revenue)
 
 
 def test_metrics_json_says_what_the_whole_file_still_counts_of_an_undated_line() -> None:

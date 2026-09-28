@@ -2727,12 +2727,48 @@ dataclarity/
       conclusions (the rest of stage 3, stage 4); for display and
       infrastructure (stage 5's assembly, the frontend, deploy), failing
       tests first plus one review cycle, with mutation only on logic.
-- [ ] 2E-v **Scoped review of the unreviewed cycle-3 fixes of 2E-t1, 2E-t2
+- [x] 2E-v **Scoped review of the unreviewed cycle-3 fixes of 2E-t1, 2E-t2
       and 2E-t3** (Thach, 2026-09-29; ninth run, session 1). Every fix that
       landed after each session's last review cycle, reviewed by a fresh
       context against its finding and the anchor; full process for anything
       it finds (tests first, mutation, review), classified by the triage
-      rule and the freeze.
+      rule and the freeze. **Done 2026-09-29** (method
+      `C:\Users\Happy\2Ev-method.txt`): review 1 (12 findings; cross-model
+      skipped: non-interactive) confirmed A1-A4, B2, B6-B8 and C4 on the
+      demo files and fuzzed frames (the anchor unchanged); none fabricates.
+      Fixed, tests first: metrics.json refuses any number JSON cannot carry
+      (a month outside the two compared that overflows was a 200 with an
+      unreadable file - now ANALYSIS_FAILED; a NaN is an overflow's trace
+      too, and a product's units that overflow no longer crash stage 2); a
+      run file another version wrote is never a 500 - a stage 1 file EXPIRED
+      (410, `another_version`, re-upload; every read of the run inside the
+      mapping, so the stored Kaggle run, whose files are all 1.0, is
+      answered so), a metrics.json INVALID_STATE "run the analysis again"; a
+      file of another major told its major first, a newer one that a newer
+      version wrote it; "any other refusal is a 500" pinned; the
+      summary-vs-metrics test under a transform that changes a figure,
+      every block compared; the note display reconciled with adjustment 1
+      (always-on defined: `discounts_in_prices`, and `same_day_cancellations`
+      whose every measure counts 0 lines - CLAUDE.md 3.3a, the design's
+      sections 0 and 3); the same-day note's documented presence (dated
+      returns), SPECS 10's rows, the speed comment. Review 2 (8 findings) on
+      the fixes, all folded in; review 3 (8 findings, the bound): the
+      version answer was POST /analyze's only - now ONE app handler for a
+      pydantic refusal (`stage_errors.run_file_version_handler`), so /plan,
+      /execute, /profile and every later endpoint answer it; each contract
+      model says its file and the stage that writes it (`filename`,
+      `written_by_stage`), so diagnosis, forecast and report ask for their
+      stage again; every older major says what to do; -inf pinned; the
+      too-large message names quantities and the remedy; the always-on
+      wording one definition everywhere, the two prompts told not to repeat
+      an always-on note. Mutation 11 + 9 + 8 mutants on the fixes, all
+      killed. **Review 3's fixes are reviewed in 3G0's cycle** (the bound
+      reached here). Recorded in 8D: #3, #5, #9, #11, #12 (review 1); review
+      3 #7 (`contracts/metrics.py` 436 lines, the debt). 23 files (over the
+      ~20 guideline: the version answer touches every contract model). For
+      Phase 6: the frontend's fixed EXPIRED copy ("files are deleted 24
+      hours after upload") is wrong for `another_version` - 6D's copy must
+      branch on `details.reason`.
 - [ ] 3G0 **The consumer contract** (Thach, 2026-09-29; ninth run, session
       2). Document the exact fields of `metrics.json` and `diagnosis.json`
       that stages 4 and 5 and the frontend may read (note codes, figures and
@@ -2981,7 +3017,10 @@ dataclarity/
       of unknown shape (a real call returned the string "null"): render them
       as given, escaped, without assuming they are row references
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
-- [ ] 6D Results page: cleaning summary + downloads
+- [ ] 6D Results page: cleaning summary + downloads. The error copy for
+      EXPIRED and INVALID_STATE must branch on `details.reason`
+      `another_version` (2E-v): the fixed EXPIRED line "files are deleted 24
+      hours after upload" is false for a run another version wrote
 - [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
       text rendered escaped, SPECS SEC-3). Always-on notes once, in "How to
       read these figures", as stage 5 does (Thach, 2026-09-29, adjustment 1);
@@ -3196,10 +3235,34 @@ dataclarity/
       when Review opens and on request - SPECS 11 gives it no bound; a
       preview during one slows from 0.25 s to up to 1.6 s. A sum of
       finite amounts that overflows depends on the lines' order (the float
-      sum). A month outside the two compared whose revenue overflows is
-      written inf in `revenue_by_month` and the API answer fails (500) -
-      review 5 #13's limit, older. `ReviewPage.tsx` 384 lines (the debt
-      above).
+      sum). ~~A month outside the two compared whose revenue overflows is
+      written inf in `revenue_by_month` and the API answer fails (500)~~ -
+      FIXED in 2E-v (it was a 200 with an unreadable metrics.json; now
+      ANALYSIS_FAILED). `ReviewPage.tsx` 384 lines (the debt above).
+      From 2E-v (the scoped review, 2026-09-29; none fabricates, none on the
+      demo files; recorded under the scope freeze):
+      - #3 a same-day return rung by product name alone, whose name is sold
+        under two or more SKUs, stays keyed by its name: it is in neither
+        the same-day note's `returns` nor its `returns_unchecked` (read as
+        "not a cancellation"). The standing rule's shape (no match can tell
+        which product) - a note measure only, no figure; Online Retail II
+        has no blank StockCode, Kaggle no return. Fix when reopened: count
+        a return whose key did not resolve to a product as unchecked.
+      - #5 the 2E-t1 cycle-3 dict lookups did not fix the all-worded 50 MB
+        file's time (measured again: execute_run 49 s on 54 MB, 900,000
+        worded keys; the time is in `text_identity`/`product_text` and
+        `_commonest`). The results are the same; the comment now says so.
+      - #9 `Effect.reported` names a report, but the unclassified and
+        unmeasurable reports select their classes by name, not by that
+        label: a new class labelled so is in no report - only
+        `test_2et2_line_effects`'s set equality catches it (kept: a test
+        guards it).
+      - #11 a DATASET action's failure on a renamed reserved column still
+        names `<name>_source` (only a column action's failure is re-named);
+        no transform today can raise it.
+      - #12 a NUL inside a code: the CSV reader ends the cell there, so two
+        codes differing after a NUL read as one (`pd.factorize` also stops
+        at NUL); unreachable from a file.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3384,6 +3447,13 @@ sample, then the pipeline's time) -> **stage 4** (4A, 4B, 4C) -> **stage 5**
 any real AI API call. Same rules; the standing rule (CLAUDE.md 3.3a). Report
 in `C:\Users\Happy\overnight-report.txt` (the eighth run's kept as
 `overnight-report-run8.txt`).
+Session **2E-v** closed 2026-09-29 (ninth run, session 1; see its item): the
+reviewed fixes of 2E-t1-t3 hold (the anchor unchanged); metrics.json refuses
+any number JSON cannot carry (ANALYSIS_FAILED, never an unreadable file); a
+run file another version wrote is never a 500 on any endpoint (EXPIRED for
+a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
+always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
+pytest 3450, Vitest 200 (no frontend change). **Next: 3G0.**
 Session **2E-n** closed 2026-09-27 (fifth overnight run, session 1; see its
 item): the products' share reads their sale lines (reading G), one fit for
 every cause, exact ties name every tied cause, the movements when nothing

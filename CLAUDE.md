@@ -72,7 +72,10 @@ the change report records what actually ran.
 ### 3.3a When the data cannot tell two meanings apart (standing rule)
 Thach, 2026-09-28, permanent: when the data cannot tell two meanings apart,
 v1 NEVER guesses. It keeps the existing behaviour, reports the affected lines
-and money, and adds a visible note wherever the affected figure is shown.
+and money, and adds a visible note wherever the affected figure is shown
+(a note present by construction rather than because of the file's data -
+`discounts_in_prices`, the same-day note at zero - is shown once, in "How to
+read these figures": Thach, 2026-09-29; `docs/LINE_TAXONOMY.md` section 3).
 Instances: a zero-amount line's stock direction (the line taxonomy's decision
 5), and lines typed "in" (its Q25 - a customer return booked as "in" cannot be
 told from stock received). Claude applies this rule to any later finding of

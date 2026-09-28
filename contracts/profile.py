@@ -140,6 +140,8 @@ class ColumnProfile(ContractModel):
 
 
 class ProfileContract(ContractFile):
+    filename: ClassVar[str | None] = "profile.json"
+    stale_major_hint: ClassVar[str] = ": this file was written by an earlier stage 1; re-upload the file"
     dataset: DatasetStats
     columns: list[ColumnProfile]
 
@@ -216,6 +218,7 @@ class NonProductCandidate(ContractModel):
 
 
 class SchemaInferenceContract(ContractFile):
+    filename: ClassVar[str | None] = "schema_inference.json"
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump

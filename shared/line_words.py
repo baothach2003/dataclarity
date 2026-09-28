@@ -117,8 +117,10 @@ def non_product_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
     # Only the keys with a class word somewhere are read word by word.
     worded = texts.str.contains(_ANY_AT_AN_END) | names_read.fillna("").str.contains(_ANY_AT_AN_END)
     found = []
-    # Plain dicts: a Series lookup per key cost most of 28 s on a 50 MB file
-    # whose every line is a worded key of its own (2E-t1 review cycle 3 #1).
+    # Plain dicts, the same result as Series lookups (checked on the demo
+    # files and fuzzed frames). They did not fix the speed of a 50 MB file
+    # whose every line is a worded key of its own (2E-t1 review cycle 3 #1):
+    # its time is in reading the texts and the commonest names (2E-v #5, 8D).
     commonest = commonest_name.to_dict()
     for key, text, name_read in zip(keys[worded], texts[worded], names_read[worded], strict=True):
         name = commonest.get(key)

@@ -175,6 +175,7 @@ class CleaningWarning(ContractModel):
 
 
 class CleaningReportContract(ContractFile):
+    filename: ClassVar[str | None] = "cleaning_report.json"
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
