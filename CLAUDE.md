@@ -33,12 +33,23 @@ never silently pick one.
 
 ### 3.1 Stage isolation is the most important rule in this codebase
 Each stage package (`stages/ingest`, `analyze`, `diagnose`, `predict`, `report`)
-may import ONLY from: the standard library, third-party packages, and
-`contracts/`. **A stage must never import from another stage.** Data flows
-between stages exclusively through contract JSON files in `runs/<run_id>/`,
-whose schemas live in `docs/CONTRACTS.md` and whose Pydantic models live in
-`contracts/`. `tests/test_architecture.py` parses imports and fails the build on
-any violation - treat a failure there as a blocker, never as a test to relax.
+may import ONLY from: the standard library, third-party packages,
+`contracts/` and `shared/`. **A stage must never import from another stage.**
+Data flows between stages exclusively through contract JSON files in
+`runs/<run_id>/`, whose schemas live in `docs/CONTRACTS.md` and whose Pydantic
+models live in `contracts/`. `tests/test_architecture.py` parses imports and
+fails the build on any violation - treat a failure there as a blocker, never as
+a test to relax.
+
+`shared/` holds two things (Thach, 2026-09-29, Q30): infrastructure (the AI
+client, the run registry, atomic contract writes) AND every definition that
+two or more stages use - what a line, a line class, an order, a customer, a
+product and a date are, how text is read, what a period is, and the line
+report. Such a definition lives in `shared/` and nowhere else, so two stages
+cannot drift into two answers; logic used by one stage stays in that stage.
+What a figure MEANS is fixed by `contracts/` and the ADRs (the line taxonomy:
+`docs/adr/0008-line-taxonomy.md`), not by where its code lives. `shared/`
+never imports a stage, the backend or a web/DB framework.
 
 Why, the alternative considered (five separate repos) and the trade-offs
 accepted: `docs/adr/0001-stage-isolation-single-repo.md`.
@@ -78,6 +89,25 @@ FastAPI, no SQLAlchemy imports inside `stages/`.
 ### 3.5 Migrations from day one
 All schema changes go through Alembic. Never drop/recreate tables.
 
+### 3.6 Scope freeze for v1 (Thach, 2026-09-29, effective now)
+The foundational definitions - line classes, orders, customers, products,
+dates, text reading, periods - are FROZEN for v1. One is reopened only for a
+finding that fabricates a verdict, headline or KPI on a demo dataset (the
+Online Retail II sample or the Kaggle file). Everything else is recorded in
+`PROJECT_PLAN.md` item 8D as a known limit and listed in the README's "Known
+limitations". Review depth follows risk: the full process (method first,
+tests first, mutation, doubt-review cycles) for code that produces
+conclusions (the rest of stage 3, stage 4); for display and infrastructure
+(stage 5's assembly, the frontend, deploy), failing tests first plus one
+review cycle, with mutation only on logic.
+
+### 3.7 The consumer contract (Thach, 2026-09-29)
+Stages 4 and 5 and the frontend read only the fields of `metrics.json` and
+`diagnosis.json` listed in `docs/CONTRACTS.md` section 11 (written in the
+ninth run's consumer-contract session); a test fails if one is renamed,
+removed or changes type. Those fields change only additively from now on. A note is read by its CODE, figures and measures; its sentence
+is the default rendering, never parsed.
+
 ## 4. Folder structure (target)
 
 ```
@@ -96,7 +126,14 @@ dataclarity/
 │   │              across 3B-3G (docs/AI_PIPELINE.md 7)  __main__.py
 │   ├── predict/   forecast.py  ai_strategy.py  __main__.py
 │   └── report/    builder.py  html_report.py  __main__.py
-├── shared/        ai_client.py  run_registry.py   # infrastructure, not logic
+├── shared/        # infrastructure: ai_client.py  run_registry.py
+│                  #   contract_files.py
+│                  # definitions two or more stages use: transactions.py
+│                  #   line_taxonomy.py  line_classes.py  line_effects.py
+│                  #   line_words.py  line_numbers.py  line_report.py
+│                  #   orders.py  order_checks.py  products.py  dates.py
+│                  #   date_text.py  date_evidence.py  text.py  periods.py
+│                  #   numbers.py  first_purchase.py
 ├── backend/app/   main.py  config.py  routers/  services/  models/
 ├── frontend/src/  api/  pages/  components/  types/
 ├── runs/          # gitignored
@@ -104,7 +141,8 @@ dataclarity/
 ```
 
 Note: `shared/ai_client.py` is infrastructure (HTTP + validation + retry), not
-analysis logic. Stages may import it. It must contain zero business rules.
+analysis logic, and must contain zero business rules. The definitions in
+`shared/` are business rules on purpose - one copy for every stage (3.1).
 
 ## 5. Coding conventions
 

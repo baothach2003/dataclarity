@@ -2713,16 +2713,37 @@ dataclarity/
       explicit refusal, never a silent wrong figure. Existing tests are
       referenced, not duplicated; any mode with no test yet is listed. From
       then on a new finding enters as a catalog row plus a generator case.
-- [ ] **SCOPE FREEZE for v1** (Thach, 2026-09-28), recorded here and in
-      CLAUDE.md, effective after 2E-u: the foundational definitions (line
-      classes, orders, customers, products, dates, text reading, periods) are
-      frozen. One is reopened only for a finding that fabricates a verdict,
-      headline or KPI on either demo dataset. Everything else becomes a
-      catalog row marked "known limit", scheduled into Phase 8 and listed in
-      the README's Known limitations. Review depth by risk: the full process
-      for code that produces conclusions (the rest of stage 3, stage 4); for
-      display and infrastructure (stage 5's assembly, the frontend, deploy),
-      failing tests first plus one review cycle, with mutation only on logic.
+      **After the end-to-end skeleton** (Thach, 2026-09-29: the skeleton
+      first - 2E-v, the consumer contract, 3G-lite, the demo build, stages 4
+      and 5 - then 2E-u).
+- [x] **SCOPE FREEZE for v1** (Thach, 2026-09-28; **effective 2026-09-29,
+      now**, no longer after 2E-u), recorded here and in CLAUDE.md 3.6: the
+      foundational definitions (line classes, orders, customers, products,
+      dates, text reading, periods) are frozen. One is reopened only for a
+      finding that fabricates a verdict, headline or KPI on a demo dataset.
+      Everything else is recorded in 8D as a known limit and listed in the
+      README's "Known limitations" (2E-u later turns each into a catalog
+      row). Review depth by risk: the full process for code that produces
+      conclusions (the rest of stage 3, stage 4); for display and
+      infrastructure (stage 5's assembly, the frontend, deploy), failing
+      tests first plus one review cycle, with mutation only on logic.
+- [ ] 2E-v **Scoped review of the unreviewed cycle-3 fixes of 2E-t1, 2E-t2
+      and 2E-t3** (Thach, 2026-09-29; ninth run, session 1). Every fix that
+      landed after each session's last review cycle, reviewed by a fresh
+      context against its finding and the anchor; full process for anything
+      it finds (tests first, mutation, review), classified by the triage
+      rule and the freeze.
+- [ ] 3G0 **The consumer contract** (Thach, 2026-09-29; ninth run, session
+      2). Document the exact fields of `metrics.json` and `diagnosis.json`
+      that stages 4 and 5 and the frontend may read (note codes, figures and
+      measures, never sentences - adjustment 2 below) in CONTRACTS section
+      11, and a test that fails if any of them is renamed, removed or
+      changes type. From then on those fields change only additively
+      (CLAUDE.md 3.7). **U12 relaxed (Thach, adjustment 2):** a note's CODE
+      and its figures and measures are the contract; its sentence is the
+      default rendering - rewording one is not a major bump, and consumers
+      render by code. Display/infrastructure depth: failing tests first plus
+      one review cycle.
 - [ ] 2F **Usable base for stage 2's percentages** (Thach, 2E doubt-review
       cycle 3; **before Phase 5**). Whether a base is usable is a data
       judgement, not formatting, and stage 3 already makes it: 3D6's rule -
@@ -2871,6 +2892,24 @@ dataclarity/
       measured movements whatever their verdict (a ruled-out term against
       the change) - the prompt must let the explanation name them as
       movements, never as causes.
+- [ ] 3G-lite **diagnosis.json from steps 1-7 and the endpoint, degraded
+      mode** (Thach, 2026-09-29; ninth run, session 3; the end-to-end
+      skeleton, ahead of 3E1b-3F). Assemble `diagnosis.json` from steps 1-7
+      and expose `POST /api/runs/{id}/diagnose` in the designed degraded mode:
+      no AI narration, `ai_findings` and `model_used` null, the code-written
+      headline and verdicts stand (AI_PIPELINE 7.9 and 9). Written
+      atomically; the state machine and the `diagnosed` status question
+      below decided here. Full process. 3G proper (below) later adds only
+      3F's narration to it.
+- [ ] DEMO **The Online Retail II demo build** (as recorded in section 12's
+      "Second demo dataset" note; Thach, 2026-09-29; ninth run, session 4).
+      The sampling script, its seed, the source URL and the download's
+      checksum are committed; the CSV itself never is. Customer-sampled to
+      about 40 MB (every row of each selected customer), no-Customer-ID rows
+      invoice-sampled at the same rate, both entered-then-cancelled typo
+      invoice pairs kept whole (customers 16446 and 12346), the two sheets'
+      overlap dropped by date range. Then the whole pipeline's time measured
+      on it (adjustment 3) and reported.
 - [ ] 3G Assembly and endpoint: full `diagnosis.json` written atomically,
       `POST /api/runs/{id}/diagnose`, state machine. Decide then whether a
       `diagnosed` status is added (Alembic migration) or `analyzed` + the file's
@@ -2906,7 +2945,14 @@ dataclarity/
       actions) from all prior contracts. Tests. First define the layer
       structure in CONTRACTS section 9 (today `dict[str, Any]`), including
       how a `null` AI block shows as "unavailable" (AI_PIPELINE section 9) and
-      where `provenance.ai_calls` is traced from
+      where `provenance.ai_calls` is traced from. Reads only the consumer
+      contract's fields (CONTRACTS section 11). **Always-on notes shown once
+      (Thach, 2026-09-29, adjustment 1):** a note present on every file by
+      construction (S3's `discounts_in_prices`; U5's same-day note at zero)
+      appears ONCE, in a "How to read these figures" section; beside a
+      figure only the notes specific to this file's data. The engine is
+      unchanged - this is display: a note beside every figure trains readers
+      to ignore all of them
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
@@ -2937,7 +2983,9 @@ dataclarity/
 - [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
 - [ ] 6D Results page: cleaning summary + downloads
 - [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
-      text rendered escaped, SPECS SEC-3)
+      text rendered escaped, SPECS SEC-3). Always-on notes once, in "How to
+      read these figures", as stage 5 does (Thach, 2026-09-29, adjustment 1);
+      notes rendered by code (adjustment 2)
 - [ ] 6F Dashboard page: charts + low-stock table + report download
       **Stock assumption (Thach, 2E-g):** 2C derived stock on hand from the
       file's own stock-in lines ("net in minus out, floored at 0"), which
@@ -3156,6 +3204,12 @@ dataclarity/
 
 ### Phase 9 - Deploy and Documentation
 - [ ] Install skills Wave 4 (see docs/SKILLS.md)
+- [ ] **Before any deploy step (Thach, 2026-09-29, adjustment 3):** measure
+      the whole pipeline's time on the Online Retail II demo sample and report
+      it, so Thach decides whether to optimise first. A free hosting tier will
+      be slower than the development machine; no factor is assumed. (Stage 2
+      on Online Retail II went from ~35 s to ~41-44 s in 2E-t2; Review's
+      summary takes 16-20 s.) First measured in the ninth run's demo session.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -3174,6 +3228,11 @@ inventory: every stock KPI (days to stockout, velocity, any low-stock figure,
 6F's and 7C's low-stock table) reads "not supported in v1". v2 builds:
 - the stock ledger, and the no-money class split again into `free_item`,
   `stock_write_off`, `stock_found`, `stock_count`, `no_movement`;
+- a class `pass_through` (Thach, 2026-09-29, Q29): money the business
+  collects for someone else - sales tax, tips, deposits booked as lines -
+  outside revenue and reported, as a gift card is, with its words. In v1
+  such lines are sales unless answered, and the nearest answers misplace
+  them; neither demo file has them;
 - the source-signal mappings in Review: transaction-type values and invoice
   prefixes mapped to return / restock / stock in / stock out, and a
   zero-amount line's direction;
@@ -3307,6 +3366,24 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Ninth overnight run** approved by Thach (2026-09-29, after reading the
+eighth run's report; every decision made alone accepted - S1-S6, E1-E11,
+T1-T5, U1-U16, V1-V6, W1-W9 - with three adjustments: always-on notes shown
+once in "How to read these figures" (5A, 6E); U12 relaxed - a note's code,
+figures and measures are the contract, its sentence the default rendering
+(3G0); the whole pipeline measured on the demo sample before any deploy
+(Phase 9). Q29: a v2 class `pass_through` (Backlog). Q30: CLAUDE.md 3.1 and 4
+say what `shared/` holds). **NEXT: the end-to-end skeleton first; 2E-u after
+it.** Run order: **2E-v** (the scoped review of the cycle-3 fixes of 2E-t1-t3;
+full process for anything it finds) -> the **scope freeze**, effective now
+(CLAUDE.md 3.6) -> **3G0** (the consumer contract, CONTRACTS section 11 and
+its test) -> **3G-lite** (diagnosis.json from steps 1-7 and `POST
+/diagnose`, degraded mode; full process) -> **DEMO** (the Online Retail II
+sample, then the pipeline's time) -> **stage 4** (4A, 4B, 4C) -> **stage 5**
+(5A-5D). Stop before Phase 6 (Figma first), before any deploy step and before
+any real AI API call. Same rules; the standing rule (CLAUDE.md 3.3a). Report
+in `C:\Users\Happy\overnight-report.txt` (the eighth run's kept as
+`overnight-report-run8.txt`).
 Session **2E-n** closed 2026-09-27 (fifth overnight run, session 1; see its
 item): the products' share reads their sale lines (reading G), one fit for
 every cause, exact ties name every tied cause, the movements when nothing

@@ -74,6 +74,27 @@ The page shows `Backend: ok` when the two apps can reach each other. Checks:
 `pytest` from the repo root; `npm test`, `npm run lint` and `npx tsc -b` in
 `frontend/`.
 
+## Known limitations
+
+v1's foundational definitions - what a line, an order, a customer, a product,
+a date and a period are, and how text is read - are frozen (`CLAUDE.md` 3.6).
+A case they do not handle is recorded as a known limit rather than patched:
+the full list, with how each was found, is `PROJECT_PLAN.md` item 8D. The
+main ones:
+
+- **Stock figures are not supported.** v1 analyses sales, not inventory.
+- **When the data cannot tell two meanings apart, v1 does not guess.** It
+  keeps one reading, reports the lines and money involved, and shows a note
+  beside the figures they affect - for example, a return booked as stock
+  received, or a refund that cannot be told from a coupon at a negative
+  price (`docs/LINE_TAXONOMY.md` section 0).
+- **No verdict on whether a month was unusual.** A month is compared with
+  the same month a year earlier; the file rarely holds enough years for a
+  robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
+- **Speed.** Stage 2 takes about 40 seconds on the full Online Retail II
+  file (1 million lines), above the few seconds `docs/SPECS.md` section 11
+  aims for.
+
 ## Status
 
 See `PROJECT_PLAN.md` section 12.
