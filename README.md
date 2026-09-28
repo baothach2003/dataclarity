@@ -91,6 +91,12 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
+- **The forecast's season.** Stage 4 multiplies the forecast by a monthly
+  seasonality index only when two or more years agree on it. Some shapes
+  still read as a season: a change of level between the two years in a
+  noisy history, one big month at the peak of a mild season, or a real
+  season with a one-time step. On those the forecast and its band are
+  unreliable. None occurs on the demo files (`PROJECT_PLAN.md` 8D).
 - **Speed.** On the 39 MB demo sample (below) the analysis takes about 18
   seconds and the diagnosis about 24; at the 50 MB upload cap, 25 and 31 -
   55 of the 60 seconds `docs/SPECS.md` section 11 gives stages 2-5
@@ -128,6 +134,12 @@ pip install -r scripts/demo/requirements.txt    # openpyxl, to read the workbook
 python scripts/demo/online_retail_ii.py path/to/online+retail+ii.zip   # keep the download outside the repo
 # -> demo_data/online_retail_ii_sample.csv (git-ignored)
 ```
+
+The recorded sample comes from the library versions pinned in
+`backend/requirements.txt` (pandas, numpy) and `scripts/demo/requirements.txt`.
+With other versions the sample can differ: the command then writes it as
+`online_retail_ii_sample.not-recorded.csv` beside the path, never over a
+recorded sample, prints its checksum and exits with 1.
 
 ## Status
 

@@ -192,3 +192,24 @@ def test_too_large_to_add_needs_every_problem_to_be_the_marker() -> None:
     with pytest.raises(ValidationError) as caught:
         _TwoRefused(first=f"{TOO_LARGE_TO_ADD}: a sum", second="factor 'x' is unknown")
     assert not stage_errors.too_large_to_add(caught.value)
+
+
+def test_an_aside_file_that_cannot_be_deleted_after_the_rename_fails_nothing(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    # 4A review 1 #14: the new output is in place; the old ones, set aside,
+    # are hidden (nothing reads ".aside-") - a delete that fails must not
+    # turn the call into a 500.
+    run_id, path = _run_with(tmp_path, ["diagnosis.json", "forecast.json"])
+    real = Path.unlink
+
+    def locked(self: Path, missing_ok: bool = False) -> None:
+        if self.name.startswith(later_outputs.ASIDE):
+            raise PermissionError("held open by another program")
+        real(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", locked)
+    with later_outputs.set_aside(tmp_path, run_id, after_stage=2):
+        pass
+    assert sorted(p.name for p in path.iterdir()) == [".aside-diagnosis.json", ".aside-forecast.json"]
+    # Logged, never passed over in silence (CONSTRAINTS F8; 4A review 3 #14).
+    assert "set-aside file not removed: .aside-diagnosis.json (PermissionError)" in caplog.text

@@ -8,7 +8,11 @@ Keep the download outside the repository (the data is never committed). The
 workbook inside it is checked against its recorded checksum (the zip's own is
 reported: UCI has repackaged its files before); the sample is written with LF
 line endings on every platform, where git ignores it, and its checksum is
-printed, so the same seed gives a file anyone can verify.
+printed, so the same seed gives a file anyone can verify. With library
+versions other than the pinned ones (backend/requirements.txt,
+scripts/demo/requirements.txt) the sample can differ: it is then written
+as `<name>.not-recorded.csv` beside --out, never over it, and the command
+exits with 1.
 
 What it keeps (Thach's decisions, recorded in PROJECT_PLAN section 12):
 - the two sheets (2009-12-01..2010-12-09 and 2010-12-01..2011-12-09) as one
@@ -100,11 +104,17 @@ def main(argv: list[str]) -> int:
     text = demo.to_csv(index=False, lineterminator="\n").encode("utf-8")
     if len(text) > MAX_BYTES:
         raise SystemExit(f"the sample is {len(text):,} bytes, over {MAX_BYTES:,}: lower FRACTION")
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_bytes(text)
+    recorded = sha256(text) == SAMPLE_SHA256
+    # A sample that is not the recorded one never replaces it (4A review 3
+    # #13: the recorded sample, git-ignored, is rebuilt only with the
+    # recorded library versions); it is kept beside it, as it may still be
+    # useful, and the command fails (4A review 1 #16).
+    out = args.out if recorded else args.out.with_name(f"{args.out.stem}.not-recorded{args.out.suffix}")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_bytes(text)
     named = demo[CUSTOMER].notna()
     print(f"source rows (overlap dropped): {len(whole):,}")
-    print(f"sample rows: {len(demo):,} ({len(text) / MB:.1f} MB, {len(text):,} bytes) -> {args.out}")
+    print(f"sample rows: {len(demo):,} ({len(text) / MB:.1f} MB, {len(text):,} bytes) -> {out}")
     print(f"customers: {demo.loc[named, CUSTOMER].nunique():,} of {whole[CUSTOMER].nunique():,}; "
           f"no-customer invoices: {demo.loc[~named, INVOICE].nunique():,} of "
           f"{whole.loc[whole[CUSTOMER].isna(), INVOICE].nunique():,}")
@@ -112,8 +122,8 @@ def main(argv: list[str]) -> int:
     for invoice in ("581483", "C581484", "541431", "C541433"):
         lines = demo[demo[INVOICE].astype(str) == invoice]
         print(f"invoice {invoice}: {len(lines)} line(s), quantity {lines['Quantity'].sum():,}")
-    print(f"sample sha256: {sha256(text)} ({'the recorded sample' if sha256(text) == SAMPLE_SHA256 else 'NOT the recorded sample'})")
-    return 0
+    print(f"sample sha256: {sha256(text)} ({'the recorded sample' if recorded else 'NOT the recorded sample'})")
+    return 0 if recorded else 1
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ it went (SPECS section 3); if anything fails they are put back - all or
 nothing (DEMO review #2). The stages never edit a file they did not write.
 """
 
+import logging
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -24,6 +25,8 @@ _OUTPUTS += [(model.written_by_stage, model.filename) for model in (ReportContra
 
 
 ASIDE = ".aside-"  # nothing reads a file named so
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -45,4 +48,11 @@ def set_aside(runs_root: Path, run_id: str, *, after_stage: int) -> Iterator[Non
             os.replace(aside, path)
         raise
     for aside, _ in moved:
-        aside.unlink(missing_ok=True)
+        # The new output is in place; an old one set aside is hidden (nothing
+        # reads ".aside-"): a delete another program blocks fails nothing
+        # (4A review 1 #14), and is logged - the next re-run replaces it once
+        # the other program lets go, and fails until then (8D).
+        try:
+            aside.unlink(missing_ok=True)
+        except OSError as error:
+            logger.warning("set-aside file not removed: %s (%s)", aside.name, type(error).__name__)

@@ -299,6 +299,22 @@ again. This is why the product can claim AI assistance without AI opacity.
   seasonality index, with confidence bands. If history is shorter than 3 periods,
   return `insufficient_history: true` and skip the forecast rather than
   extrapolate from noise.
+- 7.4a As built (4A): revenue only; the history is the contiguous complete
+  months holding revenue, ending at the compared month; 3 months ahead; an
+  80% band from the method's own errors h months ahead (out of sample for a
+  season), which held the true month 76-98% of the time at every horizon
+  on flat, trending and seasonal swept series of 12 months or more (a jump
+  after the history is unforeseeable), 54-67% on a trend of 3-4 months;
+  CONTRACTS section 8 has the details. 7.5's "gap between the highest and
+  lowest period exceeds 40%" is read as (strongest calendar month's index -
+  weakest) / strongest, the most cautious of its readings - a reading for
+  Thach to confirm - measured against the business's own trend; and a
+  season must repeat from year to year and must not be a steady ramp
+  through the year, the shape a step between two years leaves (the
+  standing rule: the data cannot tell them apart, so none is claimed, and
+  the forecast says why). The method's known limits (a noisy step, a step
+  on top of a season, one big month at a mild season's peak) are
+  PROJECT_PLAN 8D's.
 - 7.5 Seasonality is only claimed when the gap between the highest and lowest
   period exceeds 40% AND at least two cycles of data exist.
 - 7.6 Every recommendation must name the metric to watch and the review window.

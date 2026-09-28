@@ -13,13 +13,21 @@ def forecast_payload() -> dict[str, Any]:
         "generated_at": "2026-09-18T04:17:00Z",
         "model_used": "claude-sonnet-5",
         "forecast": {
-            "method": "weighted moving average with monthly seasonality index",
+            "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3) "
+                      "with a monthly seasonality index",
+            # 4A: one point per month of the horizon, consecutive (the shape is enforced).
             "horizon_periods": 3,
             "revenue": [
                 {"period": "2011-12", "point": 1210000.0, "low": 1040000.0,
-                 "high": 1380000.0, "confidence": 0.8}
+                 "high": 1380000.0, "confidence": 0.8},
+                {"period": "2012-01", "point": 730000.0, "low": 560000.0,
+                 "high": 900000.0, "confidence": 0.8},
+                {"period": "2012-02", "point": 640000.0, "low": 420000.0,
+                 "high": 860000.0, "confidence": 0.8},
             ],
             "insufficient_history": False,
+            "months_used": 24,
+            "history_note": None, "season_note": None,
             # Null on every file since 2E-t2: stock figures are not supported in v1.
             "products_at_stockout_risk": None,
             "products_at_stockout_risk_reason": "stock figures are not supported in v1",
@@ -53,7 +61,7 @@ def test_accepts_documented_example() -> None:
 
 def test_accepts_insufficient_history_with_no_revenue_points() -> None:
     payload = forecast_payload()
-    payload["forecast"].update({"insufficient_history": True, "revenue": []})
+    payload["forecast"].update({"insufficient_history": True, "revenue": [], "horizon_periods": 0, "months_used": 2})
 
     contract = ForecastContract.model_validate(payload)
 

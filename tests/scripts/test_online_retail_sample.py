@@ -100,6 +100,10 @@ def recorded(tmp_path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(demo, "WORKBOOK_SHA256", demo.sha256(b"workbook bytes"))
     monkeypatch.setattr(demo.pd, "read_excel", _sheets)
     monkeypatch.setattr(demo, "FRACTION", 1.0)
+    sheets = list(_sheets().values())
+    lf = chr(10)  # the script writes LF on every platform
+    expected = demo.sample(demo.one_file(*sheets), 1.0, demo.SEED).to_csv(index=False, lineterminator=lf)
+    monkeypatch.setattr(demo, "SAMPLE_SHA256", demo.sha256(expected.encode("utf-8")))
     return path
 
 
@@ -136,3 +140,15 @@ def test_a_sample_over_the_upload_cap_is_refused_and_not_written(recorded, tmp_p
     with pytest.raises(SystemExit, match="lower FRACTION"):
         demo.main([str(recorded), "--out", str(tmp_path / "x.csv")])
     assert not (tmp_path / "x.csv").exists()
+
+
+def test_a_sample_that_is_not_the_recorded_one_exits_non_zero(recorded, tmp_path, capsys, monkeypatch) -> None:
+    # 4A review 1 #16: written (it may still be useful), but the command
+    # fails; review 3 #13: beside the recorded sample, never over it.
+    monkeypatch.setattr(demo, "SAMPLE_SHA256", "0" * 64)
+    out = tmp_path / "sample.csv"
+    out.write_bytes(b"the recorded sample")
+    assert demo.main([str(recorded), "--out", str(out)]) == 1
+    assert out.read_bytes() == b"the recorded sample"
+    assert (tmp_path / "sample.not-recorded.csv").exists()
+    assert "NOT the recorded sample" in capsys.readouterr().out

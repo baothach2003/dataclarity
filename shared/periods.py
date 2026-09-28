@@ -27,6 +27,7 @@ changes no result, so it is not written.) The caller passes SALE dates: neither 
 a refund line is a sale (3E1 doubt-review cycle 4; 2E doubt-review F3).
 """
 
+import calendar
 from dataclasses import dataclass
 from datetime import date
 
@@ -75,3 +76,45 @@ def previous_coverage(sale_dates: pd.Series, previous: str, *,
                   f"the file from {previous}-01; if the shop opened then, there is no "
                   "full month to compare with yet.")
     return PreviousCoverage(leading, has_rows, complete, first, reason)
+
+
+# Moved from stages/diagnose/inputs.py in session 4A: stage 4's forecast reads
+# the same complete months as stage 3's history (CLAUDE.md 3.1). Unlike
+# `previous_coverage` above, which reads the file's SALE dates and tolerates
+# a couple of missing leading days, a month here is complete by the file's
+# first and last row of any kind (`data_start`, `data_end`) - stage 3's rule,
+# kept as it is (the scope freeze; 8D records its limit).
+
+
+def complete_months(data_start: date, data_end: date, *, month_grain: bool = False) -> list[str]:
+    """Calendar months the file covers from their first day to their last,
+    ascending. In a month-grain file (2E-j) a line on the 1st - or on the
+    last day, 2E-o - stands for its month, so every month from the first to
+    the last is covered.
+
+    Deliberately stricter than 2A's `select_period`, which asks only whether a
+    month has *elapsed* by `data_end` (a shop whose first sale is on the 15th
+    did not have half a March, it just opened mid-March - so March is a fair
+    "current" period). A monthly baseline is a different question: a first
+    month holding 16 days of data is a low point that never happened, and
+    feeding it to an XmR chart widens the limits or fakes a signal. So a month
+    counts here only if the file covers all of it.
+
+    Session 3B's call, not written in DIAGNOSE_DESIGN; flagged for veto.
+    """
+    months: list[str] = []
+    year, month = data_start.year, data_start.month
+    while (year, month) <= (data_end.year, data_end.month):
+        first = date(year, month, 1)
+        last = date(year, month, calendar.monthrange(year, month)[1])
+        if month_grain or (first >= data_start and last <= data_end):
+            months.append(f"{year:04d}-{month:02d}")
+        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
+    return months
+
+
+def shift_month(year_month: str, months: int) -> str:
+    """"2011-11" shifted by a signed number of months."""
+    year, month = int(year_month[:4]), int(year_month[5:7])
+    index = year * 12 + (month - 1) + months
+    return f"{index // 12:04d}-{index % 12 + 1:02d}"

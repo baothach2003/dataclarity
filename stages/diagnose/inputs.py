@@ -20,6 +20,7 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import MetricsContract
+from shared.periods import complete_months, shift_month  # noqa: F401  # re-exported: stage 3's modules read them here
 from shared.run_registry import run_file
 from shared.transactions import ParsedTransactions, parse_transactions
 
@@ -111,33 +112,6 @@ MONTH_GRAIN_NOTE = ("the file records months, not days (every counted line is da
                     "or the last day, of its month)")
 
 
-def complete_months(data_start: date, data_end: date, *, month_grain: bool = False) -> list[str]:
-    """Calendar months the file covers from their first day to their last,
-    ascending. In a month-grain file (2E-j) a line on the 1st - or on the
-    last day, 2E-o - stands for its month, so every month from the first to
-    the last is covered.
-
-    Deliberately stricter than 2A's `select_period`, which asks only whether a
-    month has *elapsed* by `data_end` (a shop whose first sale is on the 15th
-    did not have half a March, it just opened mid-March - so March is a fair
-    "current" period). A monthly baseline is a different question: a first
-    month holding 16 days of data is a low point that never happened, and
-    feeding it to an XmR chart widens the limits or fakes a signal. So a month
-    counts here only if the file covers all of it.
-
-    Session 3B's call, not written in DIAGNOSE_DESIGN; flagged for veto.
-    """
-    months: list[str] = []
-    year, month = data_start.year, data_start.month
-    while (year, month) <= (data_end.year, data_end.month):
-        first = date(year, month, 1)
-        last = date(year, month, calendar.monthrange(year, month)[1])
-        if month_grain or (first >= data_start and last <= data_end):
-            months.append(f"{year:04d}-{month:02d}")
-        year, month = (year + 1, 1) if month == 12 else (year, month + 1)
-    return months
-
-
 def month_dates(year_month: str) -> pd.DatetimeIndex:
     """Every calendar date in a "YYYY-MM" month."""
     year, month = int(year_month[:4]), int(year_month[5:7])
@@ -149,10 +123,3 @@ def month_dates(year_month: str) -> pd.DatetimeIndex:
 def days_in_month(year_month: str) -> int:
     year, month = int(year_month[:4]), int(year_month[5:7])
     return calendar.monthrange(year, month)[1]
-
-
-def shift_month(year_month: str, months: int) -> str:
-    """"2011-11" shifted by a signed number of months."""
-    year, month = int(year_month[:4]), int(year_month[5:7])
-    index = year * 12 + (month - 1) + months
-    return f"{index // 12:04d}-{index % 12 + 1:02d}"

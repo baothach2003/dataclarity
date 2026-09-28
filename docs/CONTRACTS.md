@@ -1333,13 +1333,15 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
 {
   "schema_version": "1.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "forecast": {
-    "method": "weighted moving average with monthly seasonality index",
+    "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3) with a monthly seasonality index",
     "horizon_periods": 3,
     "revenue": [
-      {"period": "2011-12", "point": 1210000.0, "low": 1040000.0,
-       "high": 1380000.0, "confidence": 0.8}
+      {"period": "2011-12", "point": 401224.73, "low": 313360.52, "high": 513725.48, "confidence": 0.8},
+      {"period": "2012-01", "point": 319850.95, "low": 248535.58, "high": 411629.72, "confidence": 0.8},
+      {"period": "2012-02", "point": 257218.16, "low": 205095.21, "high": 322587.64, "confidence": 0.8}
     ],
     "insufficient_history": false,
+    "months_used": 24, "history_note": null, "season_note": null,
     "products_at_stockout_risk": null,
     "products_at_stockout_risk_reason": "stock figures are not supported in v1"
   },
@@ -1360,6 +1362,89 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
   ]
 }
 ```
+**The forecast as built (4A, `stages/predict/forecast.py` and
+`seasonality.py`; redesigned after each of its first two reviews, validated
+on swept series; its third review's limits are 8D's).** Revenue only
+(per-product demand served the stockout risk, not supported in v1). It reads
+metrics.json's `period` and `core.revenue_by_month` only (section 11).
+
+- **History.** The contiguous run of complete months holding revenue, ending
+  at `period.current` - complete as stage 3's history reads it
+  (`shared/periods.complete_months`: covered from the first day to the
+  last, every month in a month-grain file). A complete month with no
+  revenue ends the run - a closed month or missing data, which the file
+  cannot tell apart (the standing rule), never a zero. When months with
+  revenue lie before it, `history_note` says which month cut them off and
+  how many are not used; otherwise it is null. `months_used` counts the
+  run, the compared month included (diagnosis.json's
+  `frame.history_months` leaves it out and counts a different span: the
+  two are not the same figure).
+- **No forecast** under 3 months: `insufficient_history` true exactly when
+  `months_used` < 3 (enforced), `horizon_periods` 0, `revenue` [], and
+  `method` says no forecast was made.
+- **Otherwise 3 months ahead**, one point a month, consecutive (enforced): a
+  weighted level of the latest three months (weights 1, 2, 3), each over
+  its calendar month's index when a season is claimed, times the forecast
+  month's index. No trend term: a flat level is the interpretable reading
+  of a weighted moving average (a step between the years on top of a
+  season can still tilt the indices - 8D).
+- **A season is claimed only when every test holds** (SPECS 7.5 and 7.4a):
+  at least two full years, counted back from the current month, every
+  month of them positive; measured against the business's own trend - the
+  median change of the logarithms from a month to the same month a year
+  later, over twelve (the season cancels in a same-month change, and a
+  median ignores one big month); the gap (strongest index - weakest) /
+  strongest above 40%; the same pattern in every year (each year's months
+  against the other years' mean, a mean correlation of at least 0.6, so
+  noise or one big month is no season); and not a steady ramp through the
+  counted year (a straight line explaining 90% or more of the indices'
+  logarithms) - the shape a step between two years leaves, which two
+  years of data cannot tell from growth over a falling season (the
+  standing rule: no season is claimed, and `season_note` says why; null
+  otherwise - a season refused by another test is no ambiguity, so no
+  note; the gap is tested first). `history_note` and `season_note` are
+  sentences written by code, shown as written and never parsed, like a
+  `*_reason` - their presence is what a consumer decides on (`months_used`
+  carries the count); stage 4 never writes a season note beside a claimed
+  season (its tests pin it; the model does not check the method's
+  wording). Every index a positive number a float carries, or none is
+  measured.
+- **The band**, `confidence` 0.8, from the method's own errors h months
+  ahead over the history: the log of actual over forecast when the last
+  twelve months are all positive (windows holding a month not positive
+  left out; the band then stays above zero and a lag behind a trend grows
+  with h as it does in the data), in money otherwise; a seasonal year's
+  errors from the OTHER years' indices, a month older than the counted
+  years from all of them. Their root mean square times Student's t for as
+  many errors, around the point in logs or in money. With fewer than two
+  errors (3-6 months of history, the longer horizons first), the history's
+  own spread in money times sqrt(h) - which can put `low` under zero on a
+  positive history, and can make a later month's band narrower than an
+  earlier one's. The errors are pooled over the calendar months: 80% is
+  over the year, and a peak a season too mild to claim leaves unmodelled
+  is rarely inside its month's band (8D).
+- **Validated on swept series** (400 each, seeded, reproducible: flat,
+  trending, seasonal, seasonal and trending, steps, one big month; 3 to 36
+  months): at every horizon the band held the true month 73-94% of the
+  time on flat series, 78-98% on trends of 12 months or more (wider than
+  80% on steep ones) and 79-87% on seasons; a real season (the Online
+  Retail II shape) was claimed 84-100% of the time, and a false one at
+  most 2% on noise and 4.2% on one big month on a flat business. **Known
+  limits (8D; the third review, reproduced on the same sweep), where a
+  season is claimed that the data does not hold:** a step between the two
+  years at 10-20% noise, up to 59% of the time at 24 months (36-59% for a
+  step of x0.5 to x2, 0.8% for x3 at 10% noise; up to 29% at 36; at 5%
+  noise 0-1.2%); a step one month off the counted year's boundary,
+  10-15%; one big month at the peak of a season too mild to claim, nearly
+  always; and a real season with a step between the years is claimed with
+  its indices tilted by the step, the band then holding 0-28% at 24
+  months. Also: a trend with 3-4 months holds 54-67% (and 67% three
+  months ahead at 6 months); a jump after the
+  history is unforeseeable; a real season shaped as a ramp through the
+  year is refused.
+- **Figures** are finite, or the file refuses them as "too large" (the
+  user's amounts - months hundreds of orders of magnitude apart).
+
 Forecast numbers come from code; the AI writes only `recommendations` and
 `do_not_do`, and every `expected_impact` must show its arithmetic from input
 numbers.
@@ -1449,6 +1534,18 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 4A, the forecast (4A reviews 1 and 2).** Section 8's
+  `forecast` block gains `months_used` (the complete months the forecast
+  learned from), `history_note` (why they start where they do, or null) and
+  `season_note`, all required, and the block's shape is enforced: `insufficient_history`
+  exactly when `months_used` < 3, then no point and `horizon_periods` 0;
+  otherwise one point per month of the horizon, the months consecutive; every
+  figure finite, or "too large". Added in place at `1.0`, as 2E-t2's
+  forecast change was: no stage writes forecast.json yet (4C is the first).
+  `season_note` (third review, the standing rule) says why no season is
+  claimed when the months rise or fall steadily through the year - null
+  otherwise, and null with no forecast. Section 11 gains one rule: a note
+  naming revenue, and the forecast's own notes, stand beside the forecast.
 - 2026-09-29: **session 3G-lite, diagnosis.json written (Thach).** Stage 3
   writes the file for the first time (`stages/diagnose/assemble.py`, POST
   /diagnose), from steps 1-7, `ai_findings` and `model_used` null. No field
@@ -1768,9 +1865,18 @@ How the fields are read:
   new field first. Stage 5 shows stage 3's trust badge beside stage 2's
   period-over-period KPIs (CONTRACTS 6).
 - **Months**: `revenue_by_month` holds every month with a dated counted
-  line, a partial first and last month included; which of them are
-  complete is not in it - 4A adds that to stage 2 (a new field) before it
-  forecasts from the series (4A's session).
+  line, a partial first and last month included. Which are complete is
+  read from `period` (`data_start`, `data_end`, `month_grain`) by the one
+  definition stage 3's history uses, `shared/periods.complete_months` (4A:
+  no new stage 2 field - periods are frozen), and never past
+  `period.current`.
+- **A note that names revenue stands beside the forecast too** (4A review 2
+  #4, the standing rule): forecast.json carries no metrics notes - the
+  forecast is built from `core.revenue_by_month`, so wherever stage 5 or
+  the frontend shows the forecast, every metrics.json note whose `figures`
+  include `revenue` and is not `always_on` is shown beside it, as beside
+  the revenue it came from; and so are forecast.json's own `history_note`
+  and `season_note` when not null.
 - **Signals describe; none is a verdict in v1** (ADR-0006, ADR-0007): never
   word one as normal or unusual - the AI of 4B included - and read `mode`
   before comparing two rows (money or counts on a `level` row, percentage

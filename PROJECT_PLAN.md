@@ -3051,14 +3051,102 @@ dataclarity/
   and false-alarm count are printed by the tests and quoted in the README
 
 ### Phase 4 - Stage 4 Predict
-- [ ] 4A (3G0, the consumer contract: 4A reads only section 11's 4A rows;
-      `revenue_by_month` includes a partial first and last month and says
-      nothing of which are complete - 4A adds that to stage 2 as a new field
-      before forecasting from the series, and forecasts months up to
-      `period.current` only)
-      `forecast.py`: interpretable forecast (rolling/weighted trend +
-      seasonality index) for revenue and per-product demand, with confidence
-      intervals and an explicit "insufficient history" path. Tests
+- [x] 4A `forecast.py`: the interpretable revenue forecast (a weighted
+      level x a seasonality index, confidence bands, an explicit
+      "insufficient history" path). **Done 2026-09-29** (ninth run; method
+      `C:\Users\Happy\4A-method.txt`, then redesigned after review 1):
+      revenue only (F1: per-product demand served the stockout risk, not in
+      v1); reads only section 11's 4A rows. Complete months by the SAME
+      definition as stage 3's history - `complete_months`/`shift_month`
+      moved to `shared/periods.py` (F2; no new stage 2 field, periods are
+      frozen); the history the contiguous complete months with revenue
+      ending at `period.current`, `months_used` and `history_note` in the
+      block (a month with no revenue is a closed month or missing data -
+      the standing rule; the note only when months with revenue were cut
+      off). **Review 1 (16 findings) broke the first method**: a trend read
+      as a season (each year's mean the base), a band holding the next
+      month 58% of the time (in-sample indices, a normal z on 2-3 errors -
+      on the demo sample too), a season claimed from noise or one spike, a
+      zero index crashing, a lag invisible to a standard deviation.
+      **Review 2 (16 findings) broke the second**: a step between the two
+      years (or annual steps) claimed as a season 88-100% of the time - a
+      least-squares trend beside twelve month terms reads a step as growth
+      over a falling season, which two years cannot tell apart (the
+      standing rule); one old month at or under zero switched the whole
+      band to money and halved it; the band too narrow three months ahead
+      on a trend (a flat level lags more each month; sqrt(h) did not
+      follow); the notes naming revenue did not reach the forecast; a false
+      history note; a negative low on a positive history; the contract not
+      tying `insufficient_history` to the months; a sweep no one could
+      repeat (seeds from Python's per-process hash); crashes on amounts
+      hundreds of orders apart; numpy/scipy not pinned. **The method as
+      built (v3), validated on swept series before the tests pinned it**
+      (400 series a shape, seeded by CRC32 so it reproduces; flat, trends
+      +/-, Online Retail II's season at 5-20% noise, season + trend, a mild
+      season, steps at and off the year boundary, annual steps, one big
+      month at four positions; 3-36 months): the trend the MEDIAN
+      year-over-year change of the logs (a same-month change cancels the
+      season; a median ignores one big month); a season only with two full
+      years, every month positive, (strongest - weakest) / strongest above
+      40% (SPECS 7.5's most cautious reading: **for Thach to confirm**),
+      the years agreeing (mean correlation >= 0.6) and NOT a steady ramp
+      through the counted year (a line explaining >= 90% of the indices'
+      logs - a step's shape; refused, the standing rule); the band from the
+      method's own errors h months ahead (logs when the last twelve months
+      are positive, so it stays above zero; money otherwise), out of sample
+      for a season, root mean square with Student's t. Swept: at every
+      horizon the band held 73-94% on flat series, 78-98% on trends of 12+
+      months, 79-87% on seasons; false seasons <= 2% on noise, <= 4.2% on
+      one big month, <= 1.2% on a step; a real season claimed 84-100%.
+      Known limits in 8D. Fuzzed (6,000 series of absurd magnitudes, signs,
+      constant runs, extreme seasons): 1,059 crashes found and fixed (a
+      level summed past the largest float, the log of a ratio rounded to 0,
+      an index of 0.0 divided by, exp past e^709) - now every one a block
+      or "too large". Contract: `months_used` and `history_note` added in
+      place (no forecast.json written yet; CONTRACTS 10 entry), the block's
+      shape enforced (insufficient exactly under 3 months; consecutive
+      months), every figure finite or "too large". Section 11: a note
+      naming revenue stands beside the forecast too. Measured (v3): Kaggle
+      36 months, no season, 43,835.33 a month, January 2025 [38,893 ..
+      49,406]; Online Retail II in full, a season, December 2011 1,058,026
+      [829,977 .. 1,348,733]; the demo sample 24 months, a season (November
+      1.75, February 0.67), December 2011 401,225 [313,361 .. 513,725].
+      Tests first, then rewritten with each method: 61, every figure
+      hand-computed (`tests/stages/predict/`, split in two with a fixtures
+      module); the older forecast payloads retargeted to the enforced
+      shape. Review 1's Part B fixes too: an aside file that cannot be
+      deleted after the rename fails nothing; the demo script exits 1 when
+      its sample is not the recorded one. **Review 3 (the bound; 14
+      findings) broke the season claim on shapes the sweep had not drawn**
+      - reproduced on the same sweep: a step between the two years at
+      10-20% noise claimed as a season up to 59% of the time at 24 months (the
+      ramp test was calibrated at 5% noise); a step one month off the
+      boundary 10-15%; one big month at a mild season's peak; a real season
+      plus a step, its indices tilted (the band holding 0-28%). Triaged by
+      the blocking rule: they fabricate a forecast, but none occurs on the
+      demo files (the demo seasons' year-over-year changes are mixed,
+      median -0.005; Kaggle claims none) or on an export shape - **8D, and
+      the method's open question for Thach** (no fourth redesign alone:
+      the three-cycle bound). Fixed after it: a refused season is noted
+      (`season_note`, the standing rule; a contract field in place); a
+      compared month with no revenue names the months not used; the
+      fallback band's overflow is "too large", not a 500 (fuzz: 6,000
+      series, no crash); the demo script never overwrites the recorded
+      sample; an aside file not removed is logged (F8); the thresholds,
+      `RECENT` and the guards pinned by tests; `seasonality.py` split out.
+      A scoped review of these fixes (no bug; 8 findings): the season
+      note reworded to be true wherever it fires; three quoted ranges
+      corrected to the sweep; the thresholds pinned within 0.005 either
+      side, the gap tested before the ramp, the note's count of complete
+      months pinned; the notes documented as sentences shown as written;
+      the demo script's not-recorded file documented. Tests: 61 in
+      tests/stages/predict/ (three files and a fixtures module) and 16 on
+      the contract; mutation 64 of 64 (five equivalent set aside: the
+      24-month constant, which whole years of 13+ values imply; counting
+      years from the oldest month, when `_cycles` always receives whole
+      years; the band's `point > 0`, which holds whenever the errors are in
+      logs; `>=`/`>` and `<`/`<=` at the agreement and ramp thresholds,
+      which differ only at an exact float tie).
 - [ ] 4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
       recommendations, each with insight, cause, action, expected impact
       (arithmetic shown), how to measure. Validated. Decide whether stage 4
@@ -3392,9 +3480,75 @@ dataclarity/
         changed class column is ANALYSIS_FAILED "re-upload".
       - `contracts/diagnosis.py` 783 lines, `contracts/lines.py` ~340 (the
         debt above).
+      From 4A (2026-09-29; none fabricates on the demo files):
+      - a shop closed on 1 January (a first row on the 2nd) loses its first
+        month as history (`complete_months` reads `data_start`, as stage 3
+        does): from a two-year export no season is claimed and the forecast
+        is flat - a season suppressed, never invented (review 1 #7).
+      - the first forecast month is often the one the file ends in, partly
+        held (Online Retail II's December 2011: 9 days); the block does not
+        say so - 5A shows the partial month's actual beside it or says so
+        (review 1 #13).
+      - the band assumes the next months behave as the history's errors did:
+        on a trend of only 3-4 months it held 54-67% (too few errors to see
+        the lag); on a steep trend it is conservative (up to 98%); a jump
+        after the history (a step, a new year's price rise) is
+        unforeseeable - the band holds it 0% of the time (4A review 2 #3).
+      - with 3-6 months the band at the longer horizons is the history's
+        own spread in money (fewer than two errors), so `low` can be under
+        zero on a history of positive months (4A review 2 #6).
+      - a real season whose indices climb or fall steadily through the
+        counted year is refused as a ramp (a line explaining >= 90% of
+        their logs), with `season_note`: the price of never reading a clean
+        step between two years as a season. Read in the counted year's own
+        order, so it depends on the month the history ends in: a retail
+        year rising to December is refused only when the export ends in
+        December (0.97; 0.17-0.33 otherwise); the demo seasons read 0.30
+        (Online Retail II in full) and 0.47 (the sample) (4A review 3 #10).
+      - **the season claim, where it fabricates** (4A review 3; none on the
+        demo files; Thach to decide - options below). Reproduced on the
+        4A sweep: a step between the two years at 10-20% noise is claimed
+        as a season up to 59% of the time at 24 months (up to 29% at 36), the
+        band then holding 44-63% at h=1; a step one month off the counted
+        year's boundary, 10-15% at 5% noise; one big month at the peak of
+        a season under the 40% gap makes it claimed nearly always, with a
+        made-up peak (point 1.3-1.5x the truth at that month); a real
+        season with a one-time step between the years is claimed with its
+        indices tilted by the step (the next months 1.25-1.82x the
+        post-step level at 24 months; the band holds 0-28%), and at 36
+        months the median averages a half-step no year holds. Options: (a)
+        keep, as known limits; (b) a note on every season claimed from two
+        years (the step/season split is never certain then); (c) claim a
+        season only when its out-of-sample errors beat no season's; (d)
+        three years before a season (suppresses the demo sample's).
+      - one month at or under zero at the oldest end of a whole-year
+        history switches the season off (the counted years include it):
+        a season suppressed, never invented (4A review 3 #4).
+      - the band's errors are pooled over the calendar months: for a
+        season under the 40% gap (not claimed, SPECS 7.5), the peak month's
+        band rarely holds it (0-12% at a 25-35% season) while the other
+        months hold ~90% (4A review 3 #5).
+      - two errors take T(1) = 3.08, and the history's own spread serves
+        with fewer, so with 3-7 months a later month's band can be narrower
+        than an earlier one's (4A review 3 #11).
+      - errors in money past about 1e154 square past a float, so their band
+        is refused as "too large" though its width would fit one - amounts
+        no shop reports, never a crash (4A review 3b #7).
+      - forecast.json's model accepts a `season_note` beside a claimed
+        season (it does not read the method's wording); stage 4 never
+        writes one, and its tests pin that (4A review 3b #4).
+      - SPECS 7.5's 40% gap is read as (strongest - weakest) / strongest,
+        the most cautious reading (4A review 2 #9): Thach to confirm.
+      - forecast.json's `months_used` (the compared month included, cut at
+        a month with no revenue) and diagnosis.json's `frame.history_months`
+        (before the compared month) are different figures: a consumer never
+        shows one as the other (CONTRACTS 8).
       - a run file another program holds open (Windows) makes a re-run a
         500: nothing mismatched is left, but the user is told nothing
-        specific (SPECS 10 has no code for a busy file).
+        specific (SPECS 10 has no code for a busy file). The same for a
+        set-aside file still held after a re-run: it is left behind (the
+        re-run succeeds), and the NEXT re-run fails until it is let go
+        (4A review 2 #12).
       - ~~a NaN in a stage 3 figure with no infinity beside it is a 500~~ -
         superseded by the DEMO review: a NaN is an overflow's trace (inf -
         inf in the attribution on 1e306 prices), so any number JSON cannot
@@ -3604,6 +3758,15 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **4A** closed 2026-09-29 (ninth run, session 5; see its item):
+stage 4's revenue forecast - a weighted level, a season only when every
+test holds (refused with a note when it cannot be told from a step), an
+80% band from its own errors; three review cycles, each breaking a design,
+and a scoped review of the last fixes. The season claim's remaining
+fabrications (a noisy step, a step on top of a season, one big month at a
+mild peak) are 8D's - none on the demo files; **Thach decides among the
+four options there**, and confirms the 40% reading. pytest 3590, Vitest
+200. **Next: 4B.**
 Session **DEMO** closed 2026-09-29 (ninth run, session 4; see its item):
 the Online Retail II sample (460,859 lines, 39.1 MB) built by a committed
 script, never committed itself; the pipeline timed on it - 62-67 s without

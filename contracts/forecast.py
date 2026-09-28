@@ -11,6 +11,7 @@ from contracts._base import (
     UnitInterval,
     YearMonth,
 )
+from contracts.lines import refuse_non_finite
 
 
 class RevenuePoint(ContractModel):
@@ -22,6 +23,8 @@ class RevenuePoint(ContractModel):
 
     @model_validator(mode="after")
     def _point_inside_interval(self) -> Self:
+        # Amounts past a float (4A review 1 #6): the user's data, "too large".
+        refuse_non_finite("forecast figures", (self.point, self.low, self.high))
         if not self.low <= self.point <= self.high:
             raise ValueError(
                 f"expected low <= point <= high, got "
@@ -43,12 +46,47 @@ class ForecastBlock(ContractModel):
     horizon_periods: NonNegativeInt
     revenue: list[RevenuePoint]
     insufficient_history: bool
+    # 4A reviews 1 #10 and 2 #13 (the standing rule, CLAUDE.md 3.3a): the
+    # complete months the forecast learned from, the compared month included
+    # (not diagnosis.json's `frame.history_months`, which leaves it out),
+    # and why they start where they do when an earlier stretch with revenue
+    # was cut off by a month with none - a closed month or missing data,
+    # which the file cannot tell apart. Added in place: no forecast.json has
+    # been written yet (CONTRACTS section 10).
+    months_used: NonNegativeInt
+    history_note: str | None
+    # 4A review 3 #7 (the standing rule): why no season is claimed when the
+    # months rise or fall steadily through the year - the shape a one-time
+    # change of level between the years also leaves; null otherwise.
+    season_note: str | None
     # Null with its reason on every file since 2E-t2: stock figures are not
     # supported in v1 (Thach, the line taxonomy's scope cut - v1 analyses
     # sales, not inventory). Changed in place: no forecast.json has been
     # written (CONTRACTS section 10). The shape stays for v2.
     products_at_stockout_risk: list[StockoutRisk] | None
     products_at_stockout_risk_reason: str | None
+
+    @model_validator(mode="after")
+    def _a_forecast_or_none(self) -> Self:
+        """No forecast on too short a history; otherwise one point per month
+        of the horizon, the months consecutive (4A review 1 #12)."""
+        # SPECS 7.4: insufficient exactly when fewer than 3 months (4A review 2 #8).
+        if self.insufficient_history != (self.months_used < 3):
+            raise ValueError("insufficient history means fewer than 3 months used")
+        if self.insufficient_history:
+            if self.revenue or self.horizon_periods:
+                raise ValueError("insufficient history: no forecast, horizon 0")
+            if self.season_note is not None:
+                raise ValueError("insufficient history: no season was measured, so no season note")
+            return self
+        if not self.revenue or self.horizon_periods != len(self.revenue):
+            raise ValueError("one forecast point per month of the horizon")
+        for earlier, later in zip(self.revenue, self.revenue[1:]):
+            year, month = int(earlier.period[:4]), int(earlier.period[5:])
+            following = f"{year + month // 12:04d}-{month % 12 + 1:02d}"
+            if later.period != following:
+                raise ValueError(f"the forecast months follow each other: {earlier.period} then {later.period}")
+        return self
 
     @model_validator(mode="after")
     def _no_stock_figure_in_v1(self) -> Self:

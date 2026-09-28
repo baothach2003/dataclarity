@@ -11,6 +11,9 @@ pydantic-settings==2.15.0
 anthropic==1.6.0
 python-multipart==0.0.32
 statsmodels==0.15.0
+# Imported directly: numpy by stages 1 and 2 and shared/, scipy by stage 4's forecast (4A review 2 #15).
+numpy==2.5.3
+scipy==1.18.1
 plotly==7.1.0
 pytest==9.1.1
 httpx==0.28.1
