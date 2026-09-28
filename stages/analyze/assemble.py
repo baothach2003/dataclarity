@@ -5,6 +5,7 @@ writes it to runs/<run_id>/. Pure pandas; no AI call anywhere in this stage
 client involved, unlike stage 1.
 """
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -67,17 +68,20 @@ def assemble_metrics(
     )
 
 
-def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None) -> MetricsContract:
+def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None,
+                before_write: Callable[[], None] | None = None) -> MetricsContract:
     """Read runs/<run_id>/cleaned.csv and cleaning_report.json, assemble
     metrics.json and write it atomically. Re-running overwrites only this
     stage's own output (docs/CONTRACTS.md section 1: a stage never edits a
-    file it did not write)."""
+    file it did not write). `before_write` runs once the metrics are
+    computed, before the file is written - the backend removes the later
+    stages' outputs there, so a failure writes nothing (3G-lite review 2)."""
     report = CleaningReportContract.model_validate_json(
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     metrics = assemble_metrics(frame, report.column_mapping, now, report.applied_confirmations())
-    write_atomically(
-        run_file(runs_root, run_id, METRICS_FILENAME), metrics.model_dump_json(indent=2).encode("utf-8")
-    )
+    # Serialised and staged before `before_write` runs (3G-lite review 3 #2).
+    write_atomically(run_file(runs_root, run_id, METRICS_FILENAME),
+                     metrics.model_dump_json(indent=2).encode("utf-8"), before_replace=before_write)
     return metrics

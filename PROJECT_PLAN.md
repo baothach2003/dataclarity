@@ -2944,7 +2944,7 @@ dataclarity/
       measured movements whatever their verdict (a ruled-out term against
       the change) - the prompt must let the explanation name them as
       movements, never as causes.
-- [ ] 3G-lite **diagnosis.json from steps 1-7 and the endpoint, degraded
+- [x] 3G-lite **diagnosis.json from steps 1-7 and the endpoint, degraded
       mode** (Thach, 2026-09-29; ninth run, session 3; the end-to-end
       skeleton, ahead of 3E1b-3F). Assemble `diagnosis.json` from steps 1-7
       and expose `POST /api/runs/{id}/diagnose` in the designed degraded mode:
@@ -2952,7 +2952,55 @@ dataclarity/
       headline and verdicts stand (AI_PIPELINE 7.9 and 9). Written
       atomically; the state machine and the `diagnosed` status question
       below decided here. Full process. 3G proper (below) later adds only
-      3F's narration to it.
+      3F's narration to it. **Done 2026-09-29** (method
+      `C:\Users\Happy\3Glite-method.txt`): `stages/diagnose/assemble.py`
+      (`diagnose`, pure; `diagnose_run`, reads the run and writes
+      diagnosis.json atomically) composes steps 1-7 in AI_PIPELINE 7's order
+      - blocked: steps 3-6 null, rule 1 - with the notes, the marks and the
+      not-testable list; `ai_findings` and `model_used` null.
+      `backend/app/services/diagnosis.py` + `POST /api/runs/{id}/diagnose`:
+      from `analyzed` only, the run stays `analyzed` (G1: **no `diagnosed`
+      status, no migration** - SPECS 3 puts stages 2-4 in `analyzed`); one
+      at a time per run; files gone EXPIRED; another version's metrics.json
+      INVALID_STATE "run the analysis again" (the 2E-v handler); changed
+      classes ANALYSIS_FAILED. Measured: the three demo runs' diagnosis.json
+      blocks equal the anchor's pinned stage 3 blocks exactly (0
+      differences); stage 3 on Online Retail II ~57 s (stage 2 ~46 s on the
+      same run). Tests first; mutation 13 mutants, all killed; doubt-review
+      cycle 1 (10 findings; cross-model skipped: non-interactive): stage 3's
+      attribution multiplied lines of 1e155+ past a float - a 500 on a file
+      stage 2 accepted -> ANALYSIS_FAILED, and diagnosis.json refuses any
+      number JSON cannot carry; a re-analysis left a diagnosis of the old
+      metrics beside the new (a headline about another month, month-grain
+      files) -> the backend removes the later stages' outputs when a stage
+      runs again (CONTRACTS 1); the endpoint tests now see a full diagnosis
+      and diagnose-during-analyze; no field may have an alias (files and API
+      would carry two keys); a note carries EXACTLY its code's measures
+      (always-on could be vacuous); the harness compares serialised JSON.
+      Recorded: the -0.0 zeros (a consumer shows 0; the headline's "(-0.00)"
+      on a change of nothing is 8D); validator-held constraints are pinned by
+      the contracts' tests, not section 11's types; the time (8D, the
+      report). Cycle 2 (8 findings): the later outputs were removed AFTER
+      the new file was written (a removal that failed left the stale pair)
+      -> computed, removed newest first, then written (`before_write` in
+      both stage runners); the "too large" test matched "finite" in quoted
+      user text -> every such refusal starts with TOO_LARGE_TO_ADD and only
+      a leading marker counts; a note's measures exact PER SCOPE and no
+      extra name; a computed field may have no alias; unit tests for the
+      new service functions; an analysis that fails removes nothing; an
+      analysis during a diagnosis is refused; SPECS 8/10 and the messages
+      say which stage could not compute. Cycle 3 (8 findings, the bound):
+      stage 3's order was pinned by no test, and the removal still ran
+      before the new file was serialised -> `write_atomically(...,
+      before_replace=)`: the new bytes staged on disk, the later outputs
+      removed, then the rename - a failure before it removes nothing, one at
+      the rename leaves fewer outputs, never mismatched ones (pinned at both
+      stages); a NaN with no infinity is the code's, never the user's
+      amounts (`contracts.lines.refuse_non_finite`: only an infinity carries
+      the marker); CONTRACTS 6's example note complete; `validation_alias`
+      banned too; the -0.0 wording reconciled. Mutation over the session
+      13 + 8 + 8 + 6 mutants, all killed. **Cycle 3's fixes are reviewed in
+      the DEMO session's cycle** (the bound reached here).
 - [ ] DEMO **The Online Retail II demo build** (as recorded in section 12's
       "Second demo dataset" note; Thach, 2026-09-29; ninth run, session 4).
       The sampling script, its seed, the source URL and the download's
@@ -2962,12 +3010,9 @@ dataclarity/
       invoice pairs kept whole (customers 16446 and 12346), the two sheets'
       overlap dropped by date range. Then the whole pipeline's time measured
       on it (adjustment 3) and reported.
-- [ ] 3G Assembly and endpoint: full `diagnosis.json` written atomically,
-      `POST /api/runs/{id}/diagnose`, state machine. Decide then whether a
-      `diagnosed` status is added (Alembic migration) or `analyzed` + the file's
-      existence is enough - note `analyzed` needed no migration in 2D because
-      every status including `imported` was already in the first migration's
-      CHECK constraint, so check there before assuming one is needed.
+- [ ] 3G Assembly and endpoint: after 3F, the narration added to 3G-lite's
+      assembly and endpoint (the written file, the state machine and the
+      status question are 3G-lite's: no `diagnosed` status - decided there).
       Doubt-review: optional
 - **DoD:** the S0-S11 planted-cause suite passes its acceptance criteria - every
   scenario produces its expected headline or verdict, S0 produces zero
@@ -2993,7 +3038,13 @@ dataclarity/
       actions but has no rule for the "Returns only" segment (2E-b), whose
       share is usually negative - add one. Tests with
       mocked AI
-- [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests
+- [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests.
+      Refuses a diagnosis.json that does not describe metrics.json's months
+      (`frame.current`/`previous` against `period.current`/`previous`) - the
+      backend removes stale later outputs (3G-lite), a standalone run does
+      not; a run with no diagnosis.json (never diagnosed, or removed by a
+      re-analysis) is INVALID_STATE "run the diagnosis first", never
+      EXPIRED
 - **DoD:** every recommendation cites a number that exists in the inputs; a
   manual review finds no fabricated figures
 
@@ -3298,6 +3349,25 @@ dataclarity/
         first rows are sales on the 1st (Kaggle 2022-01-01, Online Retail II
         2009-12-01) - by execution, not by reading. AI_PIPELINE 7.2 reads
         the first SALE for `previous_leading_days_missing` only.
+      From 3G-lite (2026-09-29; none fabricates on the demo files):
+      - time: stages 2 and 3 take 23.7 s + 29.9 s = 53.6 s on the first
+        50 MB of Online Retail II (the review's measure), of the 60 s SPECS
+        11 gives stages 2-5 together; on the full 96 MB file 46 s + 57 s.
+        Thach decides whether to optimise before deploy (adjustment 3; the
+        demo sample's figures are in the ninth run's report).
+      - a change of nothing reads "Revenue went from 0.00 to 0.00 (-0.00)."
+        (the headline formats a -0.0); diagnosis.json carries -0.0 in some
+        terms (a consumer shows 0 - CONTRACTS 11).
+      - a hand-edited cleaned.csv that lost a mapped column is a 500 at
+        stages 2 and 3 (a KeyError in `shared/line_numbers.py`), where a
+        changed class column is ANALYSIS_FAILED "re-upload".
+      - `contracts/diagnosis.py` 783 lines, `contracts/lines.py` ~340 (the
+        debt above).
+      - a run file another program holds open (Windows) makes a re-run a
+        500: nothing mismatched is left, but the user is told nothing
+        specific (SPECS 10 has no code for a busy file).
+      - a NaN in a stage 3 figure with no infinity beside it is a 500 (a bug
+        of the code that made it - review 3 #3), never ANALYSIS_FAILED.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3489,11 +3559,17 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **3G-lite** closed 2026-09-29 (ninth run, session 3; see its
+item): stage 3 writes diagnosis.json from steps 1-7, POST /diagnose in the
+degraded mode (no AI; no `diagnosed` status); the demo runs equal the
+anchor's stage 3 pins exactly; a stage run again removes the later outputs
+(staged write, then removal, then rename); overflow ANALYSIS_FAILED at
+either stage. Cycle 3's fixes are reviewed in DEMO's cycle. **Next: DEMO.**
 Session **3G0** closed 2026-09-29 (ninth run, session 2; see its item): the
 consumer contract - CONTRACTS section 11 (136 + 150 fields, nine
 vocabularies, the reading rules) and its test; notes read by code, never
 their sentence, each carrying `always_on`; measure names closed per code.
-Its review's fixes are reviewed in 3G-lite's first cycle. **Next: 3G-lite.**
+Its review's fixes are reviewed in 3G-lite's first cycle.
 Session **2E-n** closed 2026-09-27 (fifth overnight run, session 1; see its
 item): the products' share reads their sale lines (reading G), one fit for
 every cause, exact ties name every tied cause, the movements when nothing

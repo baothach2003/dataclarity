@@ -28,7 +28,10 @@ runs/<run_id>/
 Rules:
 - A stage fails fast with a clear error if an input contract file is missing.
 - Contract files are append-only per run: a stage never edits a file it did not
-  write. Re-running a stage overwrites only its own outputs.
+  write. Re-running a stage overwrites only its own outputs. When a stage
+  runs again, the backend removes every LATER stage's output (3G-lite): a
+  diagnosis of metrics a re-analysis replaced would keep its headline about
+  another month. So which files a run holds says how far it went.
 - Every contract file carries `schema_version` (string, starts at `"1.0"`) and
   `generated_at` (ISO 8601). Readers reject unknown major versions.
 
@@ -447,7 +450,12 @@ Rules for the values (no field changed):
                    "diagnosis"],
        "text": "Returns and the return rate include same-day cancellations, which the data cannot separate: ...",
        "measures": [{"name": "returns", "scope": "current", "lines": 162, "amount": -7905.67,
-                     "orders": 69, "keys": null}]},
+                     "orders": 69, "keys": null},
+                    {"name": "sales", "scope": "current", "lines": 155, "amount": 7650.40,
+                     "orders": 66, "keys": null},
+                    {"name": "returns_unchecked", "scope": "current", "lines": 23, "amount": -18330.44,
+                     "orders": 12, "keys": null}],
+       "always_on": false},
       {"code": "discounts_in_prices", "figures": ["gross_sales", "discounts"], "text": "...", "measures": []}
     ]
   },
@@ -917,7 +925,10 @@ changed to match the other** - see the note in section 7.
 
 Produced by the 8-step diagnostic engine in `docs/AI_PIPELINE.md` section 7.
 Steps 1-7 are deterministic pandas and fill every block below except
-`ai_findings`; step 8 is the only AI call and writes only `ai_findings`. Why
+`ai_findings`; step 8 is the only AI call and writes only `ai_findings`.
+Written by `stages/diagnose/assemble.diagnose_run` (3G-lite), atomically;
+until 3F, in the designed degraded mode: `ai_findings` and `model_used`
+null. Why
 the attribution is Shapley and why the hypothesis catalog is fixed in advance:
 `docs/adr/0004-shapley-attribution.md` and
 `docs/adr/0005-pre-registered-hypothesis-catalog.md`. Why a `level`-mode
@@ -1436,6 +1447,16 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 3G-lite, diagnosis.json written (Thach).** Stage 3
+  writes the file for the first time (`stages/diagnose/assemble.py`, POST
+  /diagnose), from steps 1-7, `ai_findings` and `model_used` null. No field
+  changed: the three demo runs' blocks equal the regression anchor's pinned
+  stage 3 blocks exactly (as serialised JSON). The file refuses any number
+  JSON cannot carry, as metrics.json does; amounts stage 3's attribution
+  multiplies past a float are ANALYSIS_FAILED (`amounts_too_large`). A
+  note carries EXACTLY its code's measures (`NOTE_MEASURES`; every writer
+  already did). A re-run of stage 2 or 3 removes the later outputs
+  (section 1).
 - 2026-09-29: **session 3G0, the consumer contract (Thach).** Section 11
   lists the fields of metrics.json and diagnosis.json that stages 4 and 5
   and the frontend read; a test fails if one is renamed, removed or
@@ -1755,7 +1776,14 @@ How the fields are read:
 - **Stock is not supported in v1**: `products.velocity` is null and
   `velocity_reason` says why - show the reason, never a stock figure.
 - **A null figure is a value**: it carries its reason; show the reason,
-  never a zero.
+  never a zero. The line taxonomy's blocks write a zero as 0.0
+  (`docs/LINE_TAXONOMY.md` section 3); other figures - stage 3's
+  attribution terms - may carry `-0.0`: show it as 0.
+- **Constraints held by a model validator** (a figure must be finite; two
+  fields null together) are not in the types above: the contracts' and
+  the stages' tests pin them (`tests/contracts/`,
+  `tests/stages/diagnose/test_3glite_assemble.py` for diagnosis.json's
+  finite figures), not this table.
 - **The AI's text** (`ai_findings`, `model_used`) is null in degraded mode
   (`docs/AI_PIPELINE.md` section 9) and always rendered escaped (SPECS
   SEC-3).

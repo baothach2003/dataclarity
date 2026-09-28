@@ -222,7 +222,9 @@ allowed to mean anything (only year-over-year ones). Full derivation, worked num
 | 8 Narration | How is it said in words? | `ai_findings` |
 
 If step 2 returns `blocked`, steps 3-6 are skipped, their blocks are `null`, and
-the headline reports the data problem (rule 1).
+the headline reports the data problem (rule 1). One function composes them
+in this order and writes diagnosis.json: `stages/diagnose/assemble.py`
+(3G-lite, before step 8 exists - the degraded mode of section 9).
 
 ### 7.1 Inputs and degradation
 

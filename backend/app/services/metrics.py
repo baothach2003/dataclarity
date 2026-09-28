@@ -21,17 +21,16 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import RunStatus
 from app.schemas import AnalyzeResponse
-from app.services import run_state, stage_errors
+from app.services import later_outputs, run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import RunWork
-from contracts.lines import TOO_LARGE_TO_ADD
 from shared.run_registry import RunNotFoundError, run_file
 from shared.transactions import LineClassColumnsError, RequiredColumnMissingError
 from stages.analyze.assemble import analyze_run
 from stages.analyze.metrics_core import CLEANED_FILENAME, CLEANING_REPORT_FILENAME
 
-# `analyzed` is allowed too: re-running overwrites only this stage's own
-# output (docs/CONTRACTS.md section 1), same as re-profiling in 1B/1G.
+# `analyzed` is allowed too: re-running overwrites this stage's own output
+# and removes the later stages' (docs/CONTRACTS.md section 1).
 ANALYZABLE_STATUSES = (RunStatus.CLEANED, RunStatus.ANALYZED)
 
 
@@ -53,7 +52,11 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
 
     with work.execution(run_id):
         try:
-            metrics = analyze_run(runs_root, run_id)
+            # The later stages' outputs describe the metrics this run
+            # replaces: removed once the new ones are computed, before they
+            # are written (3G-lite reviews 1 #2 and 2 #1).
+            metrics = analyze_run(runs_root, run_id, before_write=lambda: later_outputs.discard(
+                runs_root, run_id, after_stage=2))
         except RequiredColumnMissingError as error:
             raise stage_errors.analysis_failed(
                 str(error), {"canonical_field": error.canonical_field}
@@ -68,23 +71,16 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             # version wrote goes on to the app's handler
             # (stage_errors.run_file_version_handler); any other refusal is a
             # bug: a 500.
-            if not all(TOO_LARGE_TO_ADD in str(problem["msg"]) for problem in error.errors()):
+            if not stage_errors.too_large_to_add(error):
                 raise
-            raise _too_large() from error
+            raise stage_errors.amounts_too_large(2) from error
         except OverflowError as error:
             # Quantities too large to add: a product's units overflowed before
             # any contract was built (2E-v review 2 #3).
-            raise _too_large() from error
+            raise stage_errors.amounts_too_large(2) from error
 
     run_state.advance(session, run_id, RunStatus.ANALYZED, only_from=ANALYZABLE_STATUSES)
     return AnalyzeResponse(run_id=run_id, status="analyzed", metrics=metrics, notices=[])
-
-
-def _too_large() -> Exception:
-    return stage_errors.analysis_failed(
-        "The file's amounts or quantities are too large to add up, so its metrics cannot be computed. "
-        "Correct them in the file and upload it again.",
-        {"reason": "amounts_too_large"})
 
 
 def _require_cleaned_files(runs_root: Path, run_id: str) -> None:

@@ -18,7 +18,7 @@ import pandas as pd
 from pydantic import ValidationError
 
 from contracts.cleaning import CleaningPlanContract
-from contracts.lines import TOO_LARGE_TO_ADD, LineSummary, ReservedRename
+from contracts.lines import LineSummary, ReservedRename, refused_as_too_large
 from shared import line_report
 from shared.transactions import parse_transactions
 from stages.ingest.cleaned_text import as_read
@@ -79,7 +79,7 @@ def line_summary(frame: pd.DataFrame, plan: CleaningPlanContract) -> ReviewLines
         # A whole-file figure that overflows, and only that: a sum of undated
         # or opposite lines that adds up is shown (review 2 #4). metrics.json
         # adds up the compared months apart too (review 3 #1).
-        if not all(TOO_LARGE_TO_ADD in str(problem["msg"]) for problem in error.errors()):
+        if not refused_as_too_large(error):
             raise
         return ReviewLines(renames, None, TOO_LARGE)
     return ReviewLines(renames, summary, None)

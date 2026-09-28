@@ -11,13 +11,13 @@ contract describes the file, not this session's progress, and writing them now
 means the sessions that produce them are validated from their first line.
 """
 
-from math import isclose, isfinite
+from math import isclose, isinf
 from typing import Any, ClassVar, Literal, Self
 
 from pydantic import NonNegativeInt, model_validator
 
-from contracts._base import ContractFile, ContractModel, UnitInterval, YearMonth
-from contracts.lines import Notes
+from contracts._base import ContractFile, ContractModel, UnitInterval, YearMonth, numbers_json_cannot_carry
+from contracts.lines import TOO_LARGE_TO_ADD, Notes, refuse_non_finite
 from contracts.profile import LineClass
 
 # --- Steps 1-4 (session 3B): frame, trust, calendar, signals ------------------
@@ -83,8 +83,7 @@ class Calendar(ContractModel):
             raise ValueError("the expected figures are null exactly when the calendar does not apply")
         values = [value for value in expected if value is not None] + [
             self.calendar_effect, self.calendar_adjusted_change]
-        if not all(isfinite(value) for value in values):
-            raise ValueError("calendar figures must be finite")
+        refuse_non_finite("calendar figures", values)
         if self.method == "not_applicable" and self.calendar_effect != 0:
             raise ValueError("a calendar that does not apply has no effect")
         return self
@@ -211,8 +210,7 @@ class Signal(ContractModel):
             )
         if self.signal == "within" and self.rule is not None:
             raise ValueError("rule is null when the series is within limits")
-        if any(value is not None and not isfinite(value) for value in numbers):
-            raise ValueError("value_cur, center, lower and upper must be finite")
+        refuse_non_finite("value_cur, center, lower and upper", numbers)
         return self
 
 
@@ -270,8 +268,7 @@ class LeverFactor(ContractModel):
 
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
-        if not all(isfinite(v) for v in (self.value_prev, self.value_cur, self.contribution)):
-            raise ValueError(f"factor {self.name!r} must carry finite figures")
+        refuse_non_finite(f"factor {self.name!r}'s figures", (self.value_prev, self.value_cur, self.contribution))
         return self
 
 
@@ -384,8 +381,7 @@ class Lever(ContractModel):
             raise ValueError("gross_to_net cannot be computed without level1")
         if self.level2 is not None and self.level1 is None:
             raise ValueError("level2 is expressed in level1's units and requires it")
-        if self.gross_to_net is not None and not isfinite(self.gross_to_net):
-            raise ValueError("gross_to_net must be finite or null")
+        refuse_non_finite("gross_to_net", (self.gross_to_net,))
         for field in ("level1", "level2", "gross_to_net"):
             if getattr(self, field) is None and field not in self.reasons:
                 raise ValueError(f"{field} is null and carries no reason")
@@ -417,8 +413,7 @@ class BridgeTerms(ContractModel):
     def _terms_are_finite(self) -> Self:
         values = (self.new, self.resurrected, self.expansion,
                   self.contraction, self.lapsed, self.unattributed)
-        if not all(isfinite(value) for value in values):
-            raise ValueError("bridge terms must be finite")
+        refuse_non_finite("bridge terms", values)
         return self
 
 
@@ -452,8 +447,7 @@ class ReturnsLens(ContractModel):
     def _figures_are_finite(self) -> Self:
         values = (self.gross_prev, self.gross_cur, self.returns_prev, self.returns_cur,
                   self.deductions_prev, self.deductions_cur, self.charges_prev, self.charges_cur)
-        if not all(isfinite(value) for value in values):
-            raise ValueError("returns lens figures must be finite")
+        refuse_non_finite("returns lens figures", values)
         return self
 
 
@@ -488,8 +482,7 @@ class ProductLens(ContractModel):
         the next one written inherits the habit."""
         values = (self.volume, self.mix, self.price,
                   self.new_products, self.discontinued_products, self.unidentified)
-        if not all(isfinite(value) for value in values):
-            raise ValueError("product lens figures must be finite")
+        refuse_non_finite("product lens figures", values)
         return self
 
 
@@ -527,8 +520,7 @@ class Member(ContractModel):
     @model_validator(mode="after")
     def _figures_are_finite(self) -> Self:
         values = (self.rev_prev, self.rev_cur, self.delta, self.share_of_change)
-        if not all(isfinite(value) for value in values):
-            raise ValueError(f"member {self.name!r} must carry finite figures")
+        refuse_non_finite(f"member {self.name!r}'s figures", values)
         if self.is_data_gap and self.is_not_a_product:
             raise ValueError(f"member {self.name!r} is a data gap or is_not_a_product, not both")
         return self
@@ -569,8 +561,7 @@ class MixRate(ContractModel):
         `null` into required float fields in 3C. `ProductLens` says the habit
         is "kept consistent across lenses so the next one written inherits
         it"; the next one written did not (3D doubt-review R7)."""
-        if not all(isfinite(value) for value in (self.mix, self.rate)):
-            raise ValueError("mix and rate must be finite")
+        refuse_non_finite("mix and rate", (self.mix, self.rate))
         return self
 
 
@@ -747,6 +738,21 @@ class DiagnosisContract(ContractFile):
         unnamed = sorted(set(self.suggested_classes) - named_products(self.localization, self.hypotheses))
         if unnamed:
             raise ValueError(f"suggested_classes marks products this file does not name: {unnamed[:5]}")
+        return self
+
+    @model_validator(mode="after")
+    def _every_number_json_can_carry(self) -> Self:
+        """No figure anywhere is infinite or not a number: JSON writes it as
+        null, and a required one makes a file no reader can load (as
+        metrics.json, 2E-v #1; 3G-lite review 1 #1)."""
+        found = list(numbers_json_cannot_carry(self.model_dump()))
+        # An infinity is the amounts past a float; a NaN alone, the code's
+        # (review 3 #3).
+        infinite = [(path, value) for path, value in found if isinf(value)]
+        if infinite:
+            raise ValueError(f"{infinite[0][0]}: {TOO_LARGE_TO_ADD} ({infinite[0][1]}): JSON cannot carry it")
+        if found:
+            raise ValueError(f"{found[0][0]}: not a number, from the code that made it: JSON cannot carry it")
         return self
 
     @model_validator(mode="after")

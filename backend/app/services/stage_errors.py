@@ -15,6 +15,7 @@ import contracts
 from app.errors import MAX_PROBLEMS, ApiError, ErrorCode, api_error_handler, format_problems
 from contracts import CleaningPlanContract
 from contracts._base import UNSUPPORTED_MAJOR, ContractFile
+from contracts.lines import refused_as_too_large
 from contracts.metrics import BEFORE_THE_LINE_TAXONOMY
 from stages.ingest.cleaning import CleaningError
 from stages.ingest.plan_validation import InvalidPlanError
@@ -95,6 +96,26 @@ def analysis_failed(message: str, details: dict[str, Any] | None = None) -> ApiE
     unavailable (Thach, 2D, mirrors how a NOT_INVENTORY run already keeps
     its cleaned status and downloads elsewhere)."""
     return ApiError("ANALYSIS_FAILED", message, details)
+
+
+_WHAT_FAILED = {2: "its metrics", 3: "its diagnosis"}
+
+
+def too_large_to_add(error: ValidationError) -> bool:
+    """Every problem is a number JSON cannot carry - a sum past a float in
+    stage 2, or a figure stage 3's attribution multiplied past one (3G-lite
+    review 1 #1): the contracts word both with TOO_LARGE_TO_ADD. Any other
+    refusal is a bug. The one test, `contracts.lines.refused_as_too_large`."""
+    return refused_as_too_large(error)
+
+
+def amounts_too_large(stage: int) -> ApiError:
+    """Stage 2 adds the amounts; stage 3 multiplies them in its attribution -
+    either can pass a float where the other did not."""
+    return analysis_failed(
+        f"The file's amounts or quantities are too large to work with, so {_WHAT_FAILED[stage]} cannot be "
+        "computed. Correct them in the file and upload it again.",
+        {"reason": "amounts_too_large"})
 
 
 def cleaning_failed(error: CleaningError) -> ApiError:

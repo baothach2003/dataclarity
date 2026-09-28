@@ -12,14 +12,20 @@ needed it too, rather than a third and fourth copy in stages 4 and 5.
 
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 
-def write_atomically(target: Path, data: bytes) -> None:
+def write_atomically(target: Path, data: bytes, before_replace: Callable[[], None] | None = None) -> None:
     """Write `data` to `target` via a temp file in the same directory, flushed
     and fsynced, then renamed into place. A later reader sees the previous file
     or the complete new one, never a partial write, and a crash mid-write
     leaves the previous file intact.
+
+    `before_replace` runs once the new bytes are safely on disk, just before
+    the rename: the backend removes the later stages' outputs there
+    (3G-lite review 3 #2), so a failure before it removes nothing and one
+    after it (the rename) leaves fewer outputs, never mismatched ones.
 
     Bytes, not text, so no newline is translated on Windows.
     """
@@ -32,6 +38,8 @@ def write_atomically(target: Path, data: bytes) -> None:
             # Without this a crash can leave an empty file behind a rename
             # that already reported success.
             os.fsync(out.fileno())
+        if before_replace is not None:
+            before_replace()
         os.replace(temp, target)
     except BaseException:
         temp.unlink(missing_ok=True)

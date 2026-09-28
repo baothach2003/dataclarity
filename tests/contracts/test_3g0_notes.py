@@ -22,8 +22,11 @@ from stages.analyze.assemble import assemble_metrics
 
 
 def _note(code: str, measures: list[dict] | None = None, **changes: object) -> FigureNote:
+    """`measures` None: every measure of the code, at zero, in the file scope."""
+    if measures is None:
+        measures = [_measure(name, "file", 0) for name in NOTE_MEASURES[code] or ()]
     return FigureNote.model_validate({"code": code, "figures": NOTE_FIGURES[code], "text": NOTE_TEXTS[code],
-                                      "measures": measures or []} | changes)
+                                      "measures": measures} | changes)
 
 
 def _measure(name: str, scope: str, lines: int, amount: float = 0.0) -> dict:
@@ -80,8 +83,8 @@ def test_the_same_day_note_with_lines_in_any_measure_or_scope_is_the_files_own()
 def test_every_other_note_is_the_files_own(code: str) -> None:
     # Present only when their measures have lines - and even at zero, never
     # always-on: nothing constructs them on every file.
-    first = (NOTE_MEASURES[code] or ("Cash",))[0]
-    assert not is_always_on(_note(code, [_measure(first, "file", 0)]))
+    measures = None if NOTE_MEASURES[code] else [_measure("Cash", "file", 0)]
+    assert not is_always_on(_note(code, measures))
 
 
 # --- 3G0 review 1 -------------------------------------------------------------------------------
@@ -91,8 +94,9 @@ def test_every_note_says_whether_it_is_always_on_in_the_file() -> None:
     # #10: the frontend and the AI's input read the flag, not a second rule.
     written = json.loads(_note("discounts_in_prices").model_dump_json())
     assert written["always_on"] is True
-    assert json.loads(_note("returns_booked_as_in", [_measure("positive", "file", 1, 5.0)])
-                      .model_dump_json())["always_on"] is False
+    positive = [_measure(name, "file", int(name == "positive"), 5.0 * (name == "positive"))
+                for name in NOTE_MEASURES["returns_booked_as_in"] or ()]
+    assert json.loads(_note("returns_booked_as_in", positive).model_dump_json())["always_on"] is False
     # Read back from a file that carries it, or one written before it: the same.
     assert FigureNote.model_validate(written).always_on is True
     assert FigureNote.model_validate({k: v for k, v in written.items() if k != "always_on"}).always_on is True
@@ -100,7 +104,22 @@ def test_every_note_says_whether_it_is_always_on_in_the_file() -> None:
 
 def test_a_notes_measures_are_its_codes() -> None:
     # #2: consumers read a measure by name; a renamed one is refused.
-    with pytest.raises(ValidationError, match="measures only"):
+    with pytest.raises(ValidationError, match="measures exactly"):
         _note("same_day_cancellations", [_measure("cancelled", "file", 1, -5.0)])
+    # 3G-lite review 1 #7: and every one of them is there - a same-day note
+    # with no measures, or without its unchecked returns, is no note.
+    with pytest.raises(ValidationError, match="measures exactly"):
+        _note("same_day_cancellations", [])
+    with pytest.raises(ValidationError, match="measures exactly"):
+        _note("same_day_cancellations", [_measure("returns", "file", 0), _measure("sales", "file", 0)])
+    # 3G-lite review 2 #6 and #7: no other name beside them, and every one in
+    # every scope the note measures.
+    every = [_measure(name, "file", 0) for name in ("returns", "sales", "returns_unchecked")]
+    with pytest.raises(ValidationError, match="measures exactly"):
+        _note("same_day_cancellations", every + [_measure("cancelled", "file", 0)])
+    with pytest.raises(ValidationError, match="measures exactly"):
+        _note("same_day_cancellations", every + [_measure("returns", "current", 0), _measure("sales", "current", 0)])
+    assert len(_note("same_day_cancellations", every + [_measure(m["name"], "current", 0) for m in every])
+               .measures) == 6
     # The file's own type values name other_transaction_types' measures.
     assert _note("other_transaction_types", [_measure("Cash", "file", 3, 30.0)]).measures[0].name == "Cash"

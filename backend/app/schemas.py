@@ -4,7 +4,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from contracts import CleaningPlanContract, CleaningReportContract, MetricsContract, SchemaInferenceContract
+from contracts import (
+    CleaningPlanContract,
+    CleaningReportContract,
+    DiagnosisContract,
+    MetricsContract,
+    SchemaInferenceContract,
+)
 from contracts.lines import LineSummary, ReservedRename
 from stages.ingest.preview import PreviewResult
 
@@ -58,6 +64,16 @@ class ExecuteResponse(BaseModel):
     run_id: str
     status: Literal["cleaned"]
     report: CleaningReportContract
+    notices: list[Notice] = Field(default_factory=list)
+
+
+class DiagnoseResponse(BaseModel):
+    run_id: str
+    status: Literal["analyzed"]
+    diagnosis: DiagnosisContract
+    # 3G-lite runs no AI step (the designed degraded mode: `ai_findings` and
+    # `model_used` null, docs/AI_PIPELINE.md section 9), so nothing is
+    # flagged; 3F adds AI_UNAVAILABLE when the narration is tried and fails.
     notices: list[Notice] = Field(default_factory=list)
 
 

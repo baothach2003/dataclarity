@@ -17,12 +17,13 @@ from app.dependencies import (
 from app.schemas import (
     AnalyzeResponse,
     AnalyzeSchemaResponse,
+    DiagnoseResponse,
     ExecuteResponse,
     LineSummaryResponse,
     PlanResponse,
     PreviewResponse,
 )
-from app.services import analysis, downloads, metrics, plan_execution
+from app.services import analysis, diagnosis, downloads, metrics, plan_execution
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
@@ -155,3 +156,8 @@ def execute_plan(
 @router.post("/{run_id}/analyze")
 def analyze(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> AnalyzeResponse:
     return metrics.analyze(session, run_id, settings=settings, work=work)
+
+
+@router.post("/{run_id}/diagnose")
+def diagnose(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> DiagnoseResponse:
+    return diagnosis.diagnose(session, run_id, settings=settings, work=work)

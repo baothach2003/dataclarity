@@ -9,7 +9,7 @@ import pytest
 from pydantic import ValidationError
 
 from contracts.diagnosis import DiagnosisContract
-from contracts.lines import NOTE_FIGURES, NOTE_TEXTS, FigureNote, IdentityTerms, OutsideRevenueLines
+from contracts.lines import NOTE_FIGURES, NOTE_MEASURES, NOTE_TEXTS, FigureNote, IdentityTerms, OutsideRevenueLines
 from contracts.metrics import MetricsContract
 from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.contracts.test_metrics import metrics_payload
@@ -41,7 +41,10 @@ def test_an_identity_that_does_not_add_up_is_refused() -> None:
 
 
 def _note(code: str, **changes: object) -> dict[str, object]:
-    return {"code": code, "figures": NOTE_FIGURES[code], "text": NOTE_TEXTS[code], "measures": []} | changes
+    # Every measure of its code, at zero (3G-lite review 1 #7: a note carries
+    # exactly its code's measures).
+    measures = [{"name": name, "scope": "file", "lines": 0, "amount": 0.0} for name in NOTE_MEASURES[code] or ()]
+    return {"code": code, "figures": NOTE_FIGURES[code], "text": NOTE_TEXTS[code], "measures": measures} | changes
 
 
 def test_a_note_carries_its_codes_figures() -> None:

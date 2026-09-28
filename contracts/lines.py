@@ -8,10 +8,12 @@ written by every stage from here, and a reader accepts it reworded - a
 consumer renders a note by its code, figures and measures (Thach, 3G0,
 adjustment 2)."""
 
-from math import isfinite
+import re
+from collections.abc import Iterable
+from math import isfinite, isinf, isnan
 from typing import Annotated, Literal, Self
 
-from pydantic import AfterValidator, Field, NonNegativeInt, computed_field, model_validator
+from pydantic import AfterValidator, Field, NonNegativeInt, ValidationError, computed_field, model_validator
 
 from contracts._base import ContractModel, NonNegativeFloat
 from contracts.cleaning import CleanedLineClass
@@ -27,6 +29,33 @@ UnmeasurableReason = Literal["no quantity", "no price", "amount too large to add
 # The words every refusal of a sum that overflows carries, so a caller can
 # tell it from any other refusal (Review's summary says so - 2E-t3).
 TOO_LARGE_TO_ADD = "a sum too large to add"
+
+
+# A refusal whose message STARTS with the marker - after a field path at most
+# ("core.revenue_by_month[0].revenue: ") - never one quoting it among user
+# text: a product named "Infinite Scarf" in another refusal is a bug, not the
+# user's amounts (3G-lite review 2 #5).
+_TOO_LARGE = re.compile(r"^Value error, (?:[\w.\[\]]+: )?" + re.escape(TOO_LARGE_TO_ADD))
+
+
+def refused_as_too_large(error: ValidationError) -> bool:
+    """Every problem of a refusal is a number JSON cannot carry: a sum past a
+    float (stage 2, Review's summary) or a figure stage 3's attribution
+    multiplied past one - every contract words both with TOO_LARGE_TO_ADD.
+    One test for every caller (3G-lite)."""
+    return all(_TOO_LARGE.match(str(problem["msg"])) for problem in error.errors())
+
+
+def refuse_non_finite(what: str, values: Iterable[float | None]) -> None:
+    """Stage 3's check of the figures it multiplies out: an infinity is the
+    file's amounts past a float - the user's data, marked TOO_LARGE_TO_ADD;
+    a NaN with no infinity beside it comes from the code (0/0, the spread of
+    one point) - a bug, unmarked, a 500 (3G-lite review 3 #3)."""
+    present = [value for value in values if value is not None]
+    if any(isinf(value) for value in present):
+        raise ValueError(f"{TOO_LARGE_TO_ADD}: {what} must be finite")
+    if any(isnan(value) for value in present):
+        raise ValueError(f"{what} must be finite: not a number, from the code that made it")
 
 
 def _finite(value: float) -> float:
@@ -120,7 +149,7 @@ class IdentityTerms(ContractModel):
         terms = (self.gross_sales, self.returns, self.discounts, self.other_deductions, self.other_revenue,
                  self.net_revenue, self.returns_on_suggested_keys, self.money_moved)
         if not all(isfinite(t) for t in terms):
-            raise ValueError(f"identity terms must be finite: {TOO_LARGE_TO_ADD}")
+            raise ValueError(f"{TOO_LARGE_TO_ADD}: identity terms must be finite")
         derived = self.gross_sales - self.returns - self.discounts - self.other_deductions + self.other_revenue
         scale = max(self.money_moved, sum(abs(t) for t in terms[:6]), 1.0)
         if abs(derived - self.net_revenue) > 1e-9 * scale:
@@ -232,8 +261,15 @@ class FigureNote(ContractModel):
         if not self.text.strip():
             raise ValueError(f"note {self.code!r} carries a sentence, its default rendering")
         allowed = NOTE_MEASURES[self.code]
-        if allowed is not None and not {name for name, _ in named} <= set(allowed):
-            raise ValueError(f"note {self.code!r} measures only {list(allowed)}")
+        by_scope: dict[str, set[str]] = {}
+        for name, scope in named:
+            by_scope.setdefault(scope, set()).add(name)
+        if allowed is not None and (any(names != set(allowed) for names in by_scope.values())
+                                    or (allowed and not by_scope)):
+            # Every one of them, no other, in every scope measured (3G-lite
+            # reviews 1 #7 and 2 #6-#7: a same-day note without its unchecked
+            # returns read as always-on).
+            raise ValueError(f"note {self.code!r} measures exactly {list(allowed)} in every scope")
         if self.figures != NOTE_FIGURES[self.code]:
             raise ValueError(f"note {self.code!r} names its code's figures: {NOTE_FIGURES[self.code]}")
         return self

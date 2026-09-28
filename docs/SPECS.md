@@ -64,7 +64,7 @@ State machine: `uploaded -> profiled -> planned -> cleaned -> analyzed ->
 imported`, plus `failed(reason)` from any state and `expired` after retention.
 Transitions enforced server-side; out-of-order calls return 409.
 
-How stage 1 moves through it (1G):
+How the steps move through it (stage 1 in 1G; stages 2-3 in 2D and 3G-lite):
 
 | Call | Allowed from | Moves the run to |
 |---|---|---|
@@ -73,6 +73,8 @@ How stage 1 moves through it (1G):
 | `POST /preview` | `profiled`, `planned` | no change |
 | `POST /line-summary` | `profiled`, `planned` | no change |
 | `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
+| `POST /analyze` | `cleaned`, `analyzed` | `analyzed` |
+| `POST /diagnose` | `analyzed` | stays `analyzed` (3G-lite: stages 2-4 all live in it; which of their files exist says how far the run went - a stage run again removes the later stages' outputs) |
 
 `cleaning` is not a step the user sees: it is the claim a run holds while its plan
 executes, taken by one atomic conditional UPDATE, so a second `execute` (or a
@@ -356,8 +358,9 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     `notices` is always `[]`: stage 2 has no AI and no degraded path
     (`docs/adr/0002`), so a run it cannot compute metrics for is
     ANALYSIS_FAILED (section 10), never a 200 with a flag. Allowed from
-    `cleaned` or `analyzed` (a re-run overwrites only metrics.json,
-    `docs/CONTRACTS.md` section 1); out of order is INVALID_STATE. No
+    `cleaned` or `analyzed` (a re-run overwrites metrics.json and removes
+    the later stages' outputs, before writing - `docs/CONTRACTS.md` section
+    1, 3G-lite); out of order is INVALID_STATE. No
     transient claim status the way `execute`'s `cleaning` is: the
     computation is pure and deterministic (no AI, docs/adr/0002) and
     metrics.json is written atomically, so a concurrent second call for the
@@ -366,6 +369,21 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     raced or claimed - there is no partial-write state a crash could leave
     the run stuck in.
 - `POST /api/runs/{id}/diagnose` -> `diagnosis.json`
+  - As built in 3G-lite (200): `{run_id, status: "analyzed", diagnosis,
+    notices}`. Steps 1-7 only, in the designed degraded mode: no AI call,
+    `ai_findings` and `model_used` null, the code-written headline and
+    verdicts stand (`docs/AI_PIPELINE.md` sections 7.9 and 9); `notices` is
+    `[]` (3F adds AI_UNAVAILABLE when the narration is tried and fails).
+    Allowed from `analyzed` only, which the run keeps; a re-run overwrites
+    diagnosis.json, written atomically, and removes the later stages'
+    outputs before writing it; one piece of work at a time
+    per run (INVALID_STATE, `step_in_progress`). Its files gone: EXPIRED; a
+    metrics.json another version wrote: INVALID_STATE "run the analysis
+    again"; cleaned.csv's classes changed: ANALYSIS_FAILED ("re-upload");
+    amounts stage 3's attribution multiplies past a float (stage 2 could
+    add them): ANALYSIS_FAILED (`amounts_too_large`).
+    Stage 3 on the full Online Retail II file takes about a minute
+    (synchronous, v1).
 - `POST /api/runs/{id}/predict` -> `forecast.json`
 - `POST /api/runs/{id}/report` -> `report.json` + html download url
 - `POST /api/runs/{id}/import` -> `{products_created, products_updated,
@@ -413,7 +431,7 @@ warning in the import summary when it would go negative).
 | Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
-| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts or quantities - any month's - are too large to add up (2E-t3, 2E-v) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable, nothing is written; the message names the missing field, the domain reasoning, or the class column and says to re-upload; or says the amounts are too large to add up (`details.reason` `amounts_too_large`: the file's own amounts, so re-uploading it would not help) | ANALYSIS_FAILED (422) |
+| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts or quantities - any month's - are too large to add up (2E-t3, 2E-v); or stage 3 cannot diagnose this data: its classes changed after the analysis, or its attribution multiplies the amounts past a float (3G-lite) | run stays as it was - `cleaned.csv` is still valid and downloadable (and, at stage 3, metrics.json), only the later stages are unavailable, nothing is written or removed; the message names the missing field, the domain reasoning, or the class column and says to re-upload; or says the amounts are too large to add up (`details.reason` `amounts_too_large`: the file's own amounts, so re-uploading it would not help) | ANALYSIS_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
 | Run expired by retention, or its files are gone, or a stage 1 file of it was written by another version of the app (an older or newer contract major - 2E-v; any endpoint) | rejected with re-upload hint; the last case names the file when one model reads one file (`details.reason` `another_version`, `details.file`) | EXPIRED (410) |

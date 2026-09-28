@@ -21,7 +21,7 @@ from pathlib import Path
 
 import annotated_types
 import pytest
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from contracts.diagnosis import DiagnosisContract
 from contracts.lines import NOTE_MEASURES
@@ -94,18 +94,17 @@ def _nested(tp: object, suffix: str = "") -> typing.Iterator[tuple[type[BaseMode
 
 
 def fields(model: type[BaseModel], prefix: str = "") -> dict[str, str]:
-    """Every field path of `model` as its JSON carries it, with its rendered
+    """Every field path of `model` as the files carry it, with its rendered
     type: `a.b`, `a[].b` for a list's items, `a{}.b` for a dict's values;
     a computed field too (it is written)."""
     found: dict[str, str] = {}
     for name, field in model.model_fields.items():
-        key = field.serialization_alias or field.alias or name
-        path = prefix + key
+        path = prefix + name
         found[path] = _with(render(field.annotation), list(field.metadata))
         for inner, suffix in _nested(field.annotation):
             found |= fields(inner, path + suffix + ".")
     for name, computed in model.model_computed_fields.items():
-        found[prefix + (computed.alias or name)] = render(computed.return_type)
+        found[prefix + name] = render(computed.return_type)
     return found
 
 
@@ -208,6 +207,26 @@ def test_every_vocabulary_is_the_codes_and_only_grows() -> None:
             if not set(values) <= documented.get(name, set())} == {}
 
 
+def _models(model: type[BaseModel]) -> typing.Iterator[type[BaseModel]]:
+    yield model
+    for field in model.model_fields.values():
+        for inner, _ in _nested(field.annotation):
+            yield from _models(inner)
+
+
+@pytest.mark.parametrize("name", sorted(MODELS))
+def test_no_field_has_an_alias(name: str) -> None:
+    # 3G-lite review 1 #3: the stages write the attribute name, the API the
+    # alias - a field with one would carry two keys, and a rename behind it
+    # would pass the check above.
+    assert [(model.__name__, field) for model in _models(MODELS[name])
+            for field, info in model.model_fields.items()
+            if info.alias or info.serialization_alias or info.validation_alias] == []
+    # A computed field (a note's always_on) too (3G-lite review 2 #3).
+    assert [(model.__name__, field) for model in _models(MODELS[name])
+            for field, info in model.model_computed_fields.items() if info.alias] == []
+
+
 def test_a_note_is_read_by_its_code_never_its_sentence() -> None:
     # Adjustment 2 (Thach): code, figures and measures; `always_on` says where
     # it is shown (adjustment 1). The sentence is no consumer's field.
@@ -244,12 +263,6 @@ class _Retyped(BaseModel):
     items: list[_Inner]
 
 
-class _Aliased(BaseModel):
-    total: float | None = Field(serialization_alias="sum")
-    share: typing.Annotated[float, annotated_types.Le(100)]
-    items: list[_Inner]
-
-
 class _InnerNarrowed(BaseModel):
     lines: int
     kind: typing.Literal["a"]
@@ -261,7 +274,7 @@ class _Narrowed(BaseModel):
     items: list[_InnerNarrowed]
 
 
-def test_the_checker_catches_a_rename_a_removal_a_retype_an_alias_and_a_new_scale() -> None:
+def test_the_checker_catches_a_rename_a_removal_a_retype_and_a_new_scale() -> None:
     rows = fields(_Shipped)
     assert rows == {"total": "float | None", "share": "float (le=100)", "items": "list[object]",
                     "items[].lines": "int", "items[].kind": "Literal['a', 'b']"}
@@ -269,7 +282,6 @@ def test_the_checker_catches_a_rename_a_removal_a_retype_an_alias_and_a_new_scal
     assert problems(_Renamed, rows) == ["total: no such field (renamed or removed)"]
     assert problems(_Retyped, rows) == ["total: float where the consumer reads float | None",
                                         "share: float (le=1) where the consumer reads float (le=100)"]
-    assert problems(_Aliased, rows) == ["total: no such field (renamed or removed)"]
     assert problems(_Narrowed, rows) == ["items[].kind: Literal['a'] where the consumer reads Literal['a', 'b']"]
 
 
