@@ -3001,7 +3001,7 @@ dataclarity/
       banned too; the -0.0 wording reconciled. Mutation over the session
       13 + 8 + 8 + 6 mutants, all killed. **Cycle 3's fixes are reviewed in
       the DEMO session's cycle** (the bound reached here).
-- [ ] DEMO **The Online Retail II demo build** (as recorded in section 12's
+- [x] DEMO **The Online Retail II demo build** (as recorded in section 12's
       "Second demo dataset" note; Thach, 2026-09-29; ninth run, session 4).
       The sampling script, its seed, the source URL and the download's
       checksum are committed; the CSV itself never is. Customer-sampled to
@@ -3009,7 +3009,36 @@ dataclarity/
       invoice-sampled at the same rate, both entered-then-cancelled typo
       invoice pairs kept whole (customers 16446 and 12346), the two sheets'
       overlap dropped by date range. Then the whole pipeline's time measured
-      on it (adjustment 3) and reported.
+      on it (adjustment 3) and reported. **Done 2026-09-29** (method
+      `C:\Users\Happy\DEMO-method.txt`): `scripts/demo/online_retail_ii.py`
+      (source URL, DOI, the download's and the workbook's SHA-256, seed 502,
+      fraction 0.44, the sample's SHA-256; the pure part tested in
+      `tests/scripts/`), `scripts/demo/requirements.txt` (openpyxl, build
+      only), `demo_data/` git-ignored, the README's "Demo data" (CC BY 4.0
+      credit and link, the changes made). The sample (after the review: LF
+      line endings, so its SHA-256 is the same on every platform; fraction
+      0.46): 460,859 lines, 39.1 MB (of 1,048,576 bytes); 2,659 of 5,942
+      customers; 4,001 of 8,752 no-customer invoices; both typo pairs whole.
+      **Measured** (the app in process through FastAPI's TestClient, SQLite,
+      one run each; the AI answers faked - their latency is not in it):
+      with Thach's line classes - upload 0.1 s, analyze-schema 8.9 s,
+      Review's summary 8.8 s, preview 0.2 s, execute 4.8 s, analyze 19.6 s,
+      diagnose 24.6 s: 67 s; unanswered 62 s. At the 50 MB cap (a 49.3 MB
+      build of the same data, fraction 0.575, not kept): analyze-schema
+      11.4 s, Review 10.8 s, execute 6.1 s, analyze 24.7 s, diagnose 30.6 s
+      - stages 2+3 = 55.3 s of the 60 s SPECS 11 gives stages 2-5, and
+      profiling over its 3 s. Stages 4-5 not built, so not timed. The
+      sample's headline: 2011-11 "consistent with seasonality ... 100% of
+      the change" (classed). One review cycle (12 findings; it also
+      reviewed 3G-lite's cycle-3 fixes): a NaN IS an overflow's trace in
+      stage 3 too (the attribution's inf - inf on 1e306 prices was a 500) -
+      one rule again, any non-finite figure is "too large", superseding
+      3G-lite review 3 #3; the later outputs are SET ASIDE around the
+      rename and put back on any failure (a failed rename had lost them);
+      the script's checksum platform-independent, a re-zipped download of
+      the same workbook accepted, the command's refusals tested, the
+      download files git-ignored, the licence link. Mutation 8 of 8. Its
+      fixes are reviewed in 4A's first cycle.
 - [ ] 3G Assembly and endpoint: after 3F, the narration added to 3G-lite's
       assembly and endpoint (the written file, the state machine and the
       status question are 3G-lite's: no `diagnosed` status - decided there).
@@ -3366,8 +3395,15 @@ dataclarity/
       - a run file another program holds open (Windows) makes a re-run a
         500: nothing mismatched is left, but the user is told nothing
         specific (SPECS 10 has no code for a busy file).
-      - a NaN in a stage 3 figure with no infinity beside it is a 500 (a bug
-        of the code that made it - review 3 #3), never ANALYSIS_FAILED.
+      - ~~a NaN in a stage 3 figure with no infinity beside it is a 500~~ -
+        superseded by the DEMO review: a NaN is an overflow's trace (inf -
+        inf in the attribution on 1e306 prices), so any number JSON cannot
+        carry is ANALYSIS_FAILED "too large", in stage 2 and stage 3 alike;
+        a NaN of a future bug would be told the same way (none found in
+        fuzzing).
+      - profiling (analyze-schema's deterministic part) takes 8.9 s on the
+        39 MB demo sample and 11.4 s at the 50 MB cap, where SPECS 11 asks
+        for 3 s (the DEMO measure).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3377,11 +3413,20 @@ dataclarity/
       it, so Thach decides whether to optimise first. A free hosting tier will
       be slower than the development machine; no factor is assumed. (Stage 2
       on Online Retail II went from ~35 s to ~41-44 s in 2E-t2; Review's
-      summary takes 16-20 s.) First measured in the ninth run's demo session.
+      summary takes 16-20 s.) **Measured in the ninth run's DEMO session** on
+      the 39 MB sample: 62-67 s end to end without the AI's own latency
+      (analyze ~18-20 s, diagnose ~24 s, analyze-schema ~9 s, Review ~8-9
+      s, execute ~4.5 s); at the 50 MB cap stages 2+3 = 55 s of SPECS 11's
+      60 s for stages 2-5, profiling 11 s of its 3 s; stages 4-5 not built
+      then - to be re-measured once they are. Thach decides whether to
+      optimise before deploy.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
-- [ ] 9C README: problem, architecture diagram, stage contracts, AI design
+- [ ] 9C (DEMO review #10: the public demo that serves the Online Retail II
+      sample credits it - Chen (2019), DOI 10.24432/C5CG6D, CC BY 4.0 with its
+      link, the changes made - on the page, not only in the README)
+      README: problem, architecture diagram, stage contracts, AI design
       decisions, local setup, demo link, screenshots
 - [ ] 9D "What I learned" section for interviews
 - **DoD:** public demo link works; README understandable in 2 minutes
@@ -3559,12 +3604,18 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **DEMO** closed 2026-09-29 (ninth run, session 4; see its item):
+the Online Retail II sample (460,859 lines, 39.1 MB) built by a committed
+script, never committed itself; the pipeline timed on it - 62-67 s without
+the AI's latency, stages 2+3 = 55 s of 60 at the cap (Thach decides on
+optimising). Its review's fixes are reviewed in 4A's first cycle. **Next:
+4A.**
 Session **3G-lite** closed 2026-09-29 (ninth run, session 3; see its
 item): stage 3 writes diagnosis.json from steps 1-7, POST /diagnose in the
 degraded mode (no AI; no `diagnosed` status); the demo runs equal the
 anchor's stage 3 pins exactly; a stage run again removes the later outputs
 (staged write, then removal, then rename); overflow ANALYSIS_FAILED at
-either stage. Cycle 3's fixes are reviewed in DEMO's cycle. **Next: DEMO.**
+either stage. Cycle 3's fixes are reviewed in DEMO's cycle.
 Session **3G0** closed 2026-09-29 (ninth run, session 2; see its item): the
 consumer contract - CONTRACTS section 11 (136 + 150 fields, nine
 vocabularies, the reading rules) and its test; notes read by code, never
@@ -4228,7 +4279,8 @@ still not started; its Insights frame now waits on 3E (see
    upload (see the Stage-1-frontend session's Notes paragraph below for what
    happened the one time this was missed). Phase 3 spends real credit only in
    session 3F.
-4. Second demo dataset (decided 3A, no work done yet): Online Retail II,
+4. Second demo dataset (decided 3A; BUILT in the ninth run's DEMO session -
+   see its item): Online Retail II,
    customer-sampled with a fixed seed to about 40MB, keeping every row of each
    selected customer, plus invoice-sampled no-Customer-ID rows at the same rate
    so the customer bridge's `unattributed` term has real data to exercise. The

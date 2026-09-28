@@ -91,9 +91,43 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
-- **Speed.** Stage 2 takes about 40 seconds on the full Online Retail II
-  file (1 million lines), above the few seconds `docs/SPECS.md` section 11
-  aims for.
+- **Speed.** On the 39 MB demo sample (below) the analysis takes about 18
+  seconds and the diagnosis about 24; at the 50 MB upload cap, 25 and 31 -
+  55 of the 60 seconds `docs/SPECS.md` section 11 gives stages 2-5
+  together, and profiling takes 11 seconds where it asks for 3. Stages 4
+  and 5 are not built yet, so the whole pipeline is not timed; these
+  figures leave out the AI's own response time.
+
+## Demo data
+
+The demo file is a sample of **Online Retail II** - two years (December 2009
+to December 2011) of a UK online gift retailer's invoice lines: Chen, D.
+(2019). *Online Retail II* [Dataset]. UCI Machine Learning Repository.
+https://doi.org/10.24432/C5CG6D - licensed under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). **Changes made:** the two
+yearly sheets joined into one CSV and sampled as described below; no line
+was edited. The data is not in this repository:
+`scripts/demo/online_retail_ii.py` builds the sample from the UCI download,
+checks the workbook inside against its recorded SHA-256, and prints the
+sample's own (the same on every platform).
+
+What it keeps (460,859 lines, 39.1 MB of 1,048,576 bytes - 40,972,029
+bytes - under the 50 MB upload cap):
+- the workbook's two sheets as one file, their nine overlapping days
+  (1-9 December 2010, in both) dropped by date - never as "duplicates",
+  since the file also holds genuine repeated lines;
+- every line of 2,659 of the 5,942 customers, drawn with a fixed seed (502)
+  at a fraction of 0.46; the lines with no customer, drawn by invoice at the
+  same fraction (4,001 of 8,752 invoices), so revenue from unidentified
+  buyers stays in the figures;
+- both entered-then-cancelled typing mistakes whole (80,995 and 74,215
+  units, sold and cancelled minutes apart), whatever the draw.
+
+```bash
+pip install -r scripts/demo/requirements.txt    # openpyxl, to read the workbook
+python scripts/demo/online_retail_ii.py path/to/online+retail+ii.zip   # keep the download outside the repo
+# -> demo_data/online_retail_ii_sample.csv (git-ignored)
+```
 
 ## Status
 

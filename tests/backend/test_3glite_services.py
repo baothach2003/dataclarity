@@ -4,7 +4,7 @@ files - written before the fixes.
 
 #1 the later outputs were removed AFTER the new file was written: a removal
    that failed left new metrics beside an old diagnosis, and a 500.
-#4 `too_large_to_add`, `amounts_too_large` and `later_outputs.discard` had
+#4 `too_large_to_add`, `amounts_too_large` and `later_outputs.set_aside` had
    no unit test; an analysis that fails must remove nothing; an analysis
    during a diagnosis is refused.
 #5 the "too large" test matched "finite" anywhere - a product called
@@ -68,30 +68,45 @@ def _run_with(tmp_path: Path, names: list[str]) -> tuple[str, Path]:
     return run.run_id, run.path
 
 
-def test_discard_removes_every_later_output_and_nothing_else(tmp_path: Path) -> None:
+def test_set_aside_removes_every_later_output_once_the_block_succeeds(tmp_path: Path) -> None:
     every = ["metrics.json", "diagnosis.json", "forecast.json", "report.json", "report.html", "cleaned.csv"]
     run_id, path = _run_with(tmp_path, every)
-    later_outputs.discard(tmp_path, run_id, after_stage=3)
+    with later_outputs.set_aside(tmp_path, run_id, after_stage=3):
+        # Moved aside, not yet gone: nothing reads a ".aside-" file.
+        assert sorted(p.name for p in path.iterdir() if not p.name.startswith(".aside-")) == [
+            "cleaned.csv", "diagnosis.json", "metrics.json"]
     assert sorted(p.name for p in path.iterdir()) == ["cleaned.csv", "diagnosis.json", "metrics.json"]
-    later_outputs.discard(tmp_path, run_id, after_stage=2)
+    with later_outputs.set_aside(tmp_path, run_id, after_stage=2):
+        pass
     assert sorted(p.name for p in path.iterdir()) == ["cleaned.csv", "metrics.json"]
-    later_outputs.discard(tmp_path, run_id, after_stage=2)  # nothing left to remove: no error
+    with later_outputs.set_aside(tmp_path, run_id, after_stage=2):  # nothing left to set aside: no error
+        pass
 
 
-def test_discard_removes_the_newest_first(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    # A removal that fails part way leaves the earlier files, which still
-    # describe each other (#1).
-    run_id, _ = _run_with(tmp_path, ["diagnosis.json", "forecast.json", "report.json", "report.html"])
-    removed: list[str] = []
-    real = Path.unlink
+def test_set_aside_puts_every_file_back_when_the_block_fails(tmp_path: Path) -> None:
+    # DEMO review #2: a failed rename must lose nothing.
+    names = ["metrics.json", "diagnosis.json", "forecast.json", "report.json", "report.html"]
+    run_id, path = _run_with(tmp_path, names)
+    with pytest.raises(PermissionError), later_outputs.set_aside(tmp_path, run_id, after_stage=2):
+        raise PermissionError("the rename failed")
+    assert sorted(p.name for p in path.iterdir()) == sorted(names)
 
-    def record(self: Path, missing_ok: bool = False) -> None:
-        removed.append(self.name)
-        real(self, missing_ok=missing_ok)
 
-    monkeypatch.setattr(Path, "unlink", record)
-    later_outputs.discard(tmp_path, run_id, after_stage=2)
-    assert removed == ["report.html", "report.json", "forecast.json", "diagnosis.json"]
+def test_set_aside_puts_back_what_it_moved_when_a_move_fails(tmp_path: Path,
+                                                              monkeypatch: pytest.MonkeyPatch) -> None:
+    names = ["diagnosis.json", "forecast.json", "report.json", "report.html"]
+    run_id, path = _run_with(tmp_path, names)
+    real = later_outputs.os.replace
+
+    def replace(source: object, destination: object) -> None:
+        if Path(str(source)).name == "forecast.json":
+            raise PermissionError("forecast.json is open in another program")
+        real(source, destination)
+
+    monkeypatch.setattr(later_outputs.os, "replace", replace)
+    with pytest.raises(PermissionError), later_outputs.set_aside(tmp_path, run_id, after_stage=2):
+        pass
+    assert sorted(p.name for p in path.iterdir()) == sorted(names)
 
 
 def _diagnosed_run(make_api: MakeApi) -> tuple[Any, str]:
@@ -110,7 +125,7 @@ def test_a_removal_that_fails_writes_no_new_metrics(make_api: MakeApi, monkeypat
     def locked(*_args: Any, **_kwargs: Any) -> None:
         raise PermissionError("diagnosis.json is open in another program")
 
-    monkeypatch.setattr(later_outputs, "discard", locked)
+    monkeypatch.setattr(later_outputs, "set_aside", locked)
     response = api.post(run_id, "analyze")
 
     assert response.status_code == 500

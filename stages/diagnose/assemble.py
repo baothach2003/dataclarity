@@ -10,6 +10,7 @@ skipped, their blocks are null, and the headline states the data problem.
 """
 
 from collections.abc import Callable
+from contextlib import AbstractContextManager
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -75,14 +76,13 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
 
 
 def diagnose_run(runs_root: Path, run_id: str, now: datetime | None = None,
-                 before_write: Callable[[], None] | None = None) -> DiagnosisContract:
+                 around_write: Callable[[], AbstractContextManager[object]] | None = None) -> DiagnosisContract:
     """Read runs/<run_id>/ (metrics.json, cleaned.csv, cleaning_report.json),
     diagnose it and write diagnosis.json atomically: a failed step leaves the
     previous file whole. Re-running overwrites only this stage's own output
-    (docs/CONTRACTS.md section 1). `before_write` runs once the diagnosis is
-    computed, before the file is written (as stage 2's)."""
+    (docs/CONTRACTS.md section 1). `around_write` wraps the rename of the
+    new file, once it is computed and staged (as stage 2's)."""
     diagnosis = diagnose(load_run(runs_root, run_id), now)
-    # Serialised and staged before `before_write` runs (review 3 #2).
     write_atomically(run_file(runs_root, run_id, DIAGNOSIS_FILENAME),
-                     diagnosis.model_dump_json(indent=2).encode("utf-8"), before_replace=before_write)
+                     diagnosis.model_dump_json(indent=2).encode("utf-8"), around_replace=around_write)
     return diagnosis

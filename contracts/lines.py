@@ -10,7 +10,7 @@ adjustment 2)."""
 
 import re
 from collections.abc import Iterable
-from math import isfinite, isinf, isnan
+from math import isfinite
 from typing import Annotated, Literal, Self
 
 from pydantic import AfterValidator, Field, NonNegativeInt, ValidationError, computed_field, model_validator
@@ -47,15 +47,14 @@ def refused_as_too_large(error: ValidationError) -> bool:
 
 
 def refuse_non_finite(what: str, values: Iterable[float | None]) -> None:
-    """Stage 3's check of the figures it multiplies out: an infinity is the
-    file's amounts past a float - the user's data, marked TOO_LARGE_TO_ADD;
-    a NaN with no infinity beside it comes from the code (0/0, the spread of
-    one point) - a bug, unmarked, a 500 (3G-lite review 3 #3)."""
-    present = [value for value in values if value is not None]
-    if any(isinf(value) for value in present):
+    """Stage 3's check of the figures it multiplies out. Any number JSON
+    cannot carry is the file's amounts past a float, a NaN included: the
+    attribution multiplies them past a float and subtracts inf from inf
+    (DEMO review #1, superseding 3G-lite review 3 #3) - one rule, as
+    metrics.json's (2E-v). A NaN of a bug would be told the same way; none
+    was found (8D)."""
+    if not all(isfinite(value) for value in values if value is not None):
         raise ValueError(f"{TOO_LARGE_TO_ADD}: {what} must be finite")
-    if any(isnan(value) for value in present):
-        raise ValueError(f"{what} must be finite: not a number, from the code that made it")
 
 
 def _finite(value: float) -> float:

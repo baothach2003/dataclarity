@@ -11,7 +11,7 @@ contract describes the file, not this session's progress, and writing them now
 means the sessions that produce them are validated from their first line.
 """
 
-from math import isclose, isinf
+from math import isclose
 from typing import Any, ClassVar, Literal, Self
 
 from pydantic import NonNegativeInt, model_validator
@@ -745,14 +745,9 @@ class DiagnosisContract(ContractFile):
         """No figure anywhere is infinite or not a number: JSON writes it as
         null, and a required one makes a file no reader can load (as
         metrics.json, 2E-v #1; 3G-lite review 1 #1)."""
-        found = list(numbers_json_cannot_carry(self.model_dump()))
-        # An infinity is the amounts past a float; a NaN alone, the code's
-        # (review 3 #3).
-        infinite = [(path, value) for path, value in found if isinf(value)]
-        if infinite:
-            raise ValueError(f"{infinite[0][0]}: {TOO_LARGE_TO_ADD} ({infinite[0][1]}): JSON cannot carry it")
-        if found:
-            raise ValueError(f"{found[0][0]}: not a number, from the code that made it: JSON cannot carry it")
+        # A NaN is an overflow's trace too (DEMO review #1): one rule.
+        for path, value in numbers_json_cannot_carry(self.model_dump()):
+            raise ValueError(f"{path}: {TOO_LARGE_TO_ADD} ({value}): JSON cannot carry it")
         return self
 
     @model_validator(mode="after")

@@ -47,8 +47,8 @@ def diagnose(session: Session, run_id: str, *, settings: Settings, work: RunWork
     with work.execution(run_id):
         try:
             # The forecast and the report describe the diagnosis this run
-            # replaces: removed before it is written (review 2 #1).
-            diagnosis = diagnose_run(runs_root, run_id, before_write=lambda: later_outputs.discard(
+            # replaces: set aside around its rename (as stage 2's).
+            diagnosis = diagnose_run(runs_root, run_id, around_write=lambda: later_outputs.set_aside(
                 runs_root, run_id, after_stage=3))
         except LineClassColumnsError as error:
             # cleaned.csv's classes changed after the analysis (2E-t2): re-upload.

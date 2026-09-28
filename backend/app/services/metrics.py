@@ -53,9 +53,9 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
     with work.execution(run_id):
         try:
             # The later stages' outputs describe the metrics this run
-            # replaces: removed once the new ones are computed, before they
-            # are written (3G-lite reviews 1 #2 and 2 #1).
-            metrics = analyze_run(runs_root, run_id, before_write=lambda: later_outputs.discard(
+            # replaces: set aside around the new file's rename, deleted once
+            # it succeeds (3G-lite reviews 1-3, DEMO review #2).
+            metrics = analyze_run(runs_root, run_id, around_write=lambda: later_outputs.set_aside(
                 runs_root, run_id, after_stage=2))
         except RequiredColumnMissingError as error:
             raise stage_errors.analysis_failed(

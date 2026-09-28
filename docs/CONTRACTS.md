@@ -31,7 +31,9 @@ Rules:
   write. Re-running a stage overwrites only its own outputs. When a stage
   runs again, the backend removes every LATER stage's output (3G-lite): a
   diagnosis of metrics a re-analysis replaced would keep its headline about
-  another month. So which files a run holds says how far it went.
+  another month. They are set aside around the new output's rename,
+  deleted once it succeeds and put back if anything fails - all or nothing
+  (3G-lite, DEMO review). So which files a run holds says how far it went.
 - Every contract file carries `schema_version` (string, starts at `"1.0"`) and
   `generated_at` (ISO 8601). Readers reject unknown major versions.
 

@@ -20,3 +20,9 @@ runs/
 .idea/
 Thumbs.db
 .DS_Store
+
+# The demo sample built by scripts/demo/online_retail_ii.py (never committed)
+demo_data/
+# The Online Retail II download, if kept in the repository by mistake
+online+retail+ii.zip
+online_retail_II.xlsx
