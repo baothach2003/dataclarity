@@ -2492,6 +2492,24 @@ dataclarity/
       standing rule, or that needs his definition), then 2E-t1, 2E-t2,
       2E-t3, the full process each, the anchor the regression reference.
       Stop after 2E-t3.
+      **Revision 3 done 2026-09-28 (eighth run, session 1; method
+      `C:\Users\Happy\2Et-revision3-method.txt`):** Q25 (every "in" line
+      `stock_in`, rule 1), Q26-Q28, the standing rule (design section 0 and
+      its instances), review 5's eleven fixes (the pooled twins, the
+      suggestions = the candidates, the notes, stage 4's stockout risk "not
+      supported in v1", the full pins...). Measured on today's code: a
+      prototype of the rules gives the same lines as today for every set, on
+      both demo files and both states, the receipt fill's lines read from
+      `line_class` alone; the three demo runs pinned THROUGH stage 1's real
+      path (execute_run), identical to revision 2's in-memory pins; the
+      confirmed gift change through the classes (113 leaves, no verdict).
+      Review 6 (fourteen findings) and its scoped second cycle 6b (fourteen,
+      on the notes and the anchor): every finding the standing rule's (S1-S6,
+      applied as decisions made alone) or the author's (E5-E11) - notes as
+      `{code, figures, text, measures}` with a fixed text per code and named
+      measures per scope, pinned in the anchor. **No finding needed the run
+      to stop.** One open question for Thach, not blocking: a v2 class for
+      pass-through money (sales tax, tips, deposits).
 - [x] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
       (Thach, 2026-09-28). **Done 2026-09-28** (sixth overnight run, session
       1; method `C:\Users\Happy\2Eo-method.txt`, five amendments):
@@ -3213,6 +3231,10 @@ reference; any demo difference not listed there stops the run). Stop after
 2E-t3. Same rules. Report in `C:\Users\Happy\overnight-report.txt` (the
 seventh run's kept as `overnight-report-run7.txt`). **Next: the 2E-t
 revision 3.**
+Session **2E-t revision 3** closed 2026-09-28 (eighth run, session 1; see the
+2E-t item): the design and ADR-0008 for v1 with Q25, Q26-Q28 and the standing
+rule; the anchor pinned through stage 1's real path; reviews 6 and 6b folded
+in, no stop. **Next: 2E-t1.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

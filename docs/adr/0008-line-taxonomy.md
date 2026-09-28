@@ -1,18 +1,16 @@
 # ADR-0008: One closed line taxonomy, decided once in stage 1 - v1 the money ledger
 
 ## Status
-APPROVED IN PRINCIPLE (Thach, 2026-09-28). Revision 2 folds in his v1 scope
-cut and his answers to review 4 (`docs/LINE_TAXONOMY.md` sections 0 and 8).
-The fifth review (2026-09-28) found that Q15's reading of "in" lines
-fabricates on a priced stock ledger and needs his definition (design section
-9, questions 21-24); revision 3 and a sixth review follow his answers.
-Nothing is implemented yet (2E-t1..t3).
+APPROVED IN PRINCIPLE (Thach, 2026-09-28). Revision 3 folds in his v1 scope
+cut, his answers to reviews 4 and 5 - Q25 superseding his Q15 - and his
+standing rule (`docs/LINE_TAXONOMY.md` sections 0 and 8), for a sixth
+fresh-context review. Nothing is implemented yet (2E-t1..t3).
 The design it records: `docs/LINE_TAXONOMY.md`.
 
 ## Date
 2026-09-27 (fifth overnight run, session 2E-t - design only); revised
-2026-09-28 with Thach's answers (sixth run) and his v1 scope cut (seventh
-run)
+2026-09-28 with Thach's answers (sixth run), his v1 scope cut (seventh
+run) and his answers to review 5 with the standing rule (eighth run)
 
 ## Context
 
@@ -51,15 +49,16 @@ means - each a way to print a wrong stock figure.
 2. **Two questions decide a line's class**: what the ITEM is (per key: a
    product, a pooled code - including lines with neither SKU nor name - a
    charge, a discount, a gift card, a cost, an adjustment) and what the LINE
-   does to money, read from the amount's sign. The canonical
-   `transaction_type`'s "in" keeps 2A's reading with Thach's Q15: the
-   amount's sign decides - negative is money back to a customer, in revenue
-   through the line's item; otherwise stock received, outside revenue,
-   reported.
+   does to money, read from the amount's sign. Every line typed "in" (the
+   canonical `transaction_type`) stays outside revenue, as 2A has always read
+   it, whatever its sign or item (Thach's Q25, superseding his Q15: the sign
+   cannot tell a supplier's receipt correction from a customer's return),
+   and is reported by sign with a note on revenue and the return rate.
 3. **A closed class list on accounting categories** results, one class per
    line, from ordered rules that place every line: `sale`, `pooled_sale`,
-   `customer_return`, `pooled_return`, `allowance` (unconfirmed),
-   `discount`, `charge`, `no_money` (counted); `gift_card_sale`,
+   `customer_return`, `pooled_return`, `allowance` and `pooled_allowance`
+   (unconfirmed), `discount`, `charge`, `no_money` and `pooled_no_money`
+   (counted); `gift_card_sale`,
    `gift_card_redemption`, `cost`, `adjustment`, `stock_in`,
    `unclassified`, `unmeasurable` (not counted, reported). The test for
    money: tied to the sale (revenue or contra-revenue) or to the cost of
@@ -72,9 +71,8 @@ means - each a way to print a wrong stock figure.
    stage 3's product dimension - is the single source of truth. Net revenue =
    gross sales - returns - discounts - other deductions + other revenue;
    everything outside revenue is reported, never dropped. On a file with no
-   negative "in" line, no amount too large to add and no confirmed gift card,
-   every set of lines today's readers use is unchanged (measured, both demo
-   files).
+   amount too large to add and no confirmed gift card, every set of lines
+   today's readers use is unchanged (measured, both demo files).
 5. **Classification happens once, in stage 1**: the user's answers, then the
    rules. Suggestions (class words, gift-card words) are recorded and never
    applied alone (2E-d2; Thach's Q3); stages 2 and 3 read `line_class` and
@@ -86,6 +84,12 @@ means - each a way to print a wrong stock figure.
    class.
 7. **Cancellations are out of v1**: a same-day credit stays a return, and
    the return rate says so where it is shown.
+8. **When the data cannot tell two meanings apart, v1 never guesses**
+   (Thach's standing rule, CLAUDE.md 3.3a): it keeps the existing behaviour,
+   reports the affected lines and money, and adds a visible note wherever the
+   affected figure is shown - one `notes` list in metrics.json and stage 3's
+   output. Instances: lines typed "in", same-day cancellations, unconfirmed
+   suggestions inside returns, a zero-amount line's direction (v2).
 
 ## Alternatives considered
 
@@ -104,6 +108,14 @@ means - each a way to print a wrong stock figure.
   carry no stock-in line at all.
 - Rejected for v1 (Thach, 2026-09-28): "not supported in v1" rather than a
   figure that can be wrong; the v2 item.
+
+### The amount's sign deciding a line typed "in" (Thach's Q15)
+- Pros: a refund booked at a negative amount under "in" would leave revenue.
+- Cons: a supplier's receipt correction (-30 @ 4.00, "in") became a
+  customer return, and a customer return booked the canonical way (+2 @ 5,
+  "in") stayed outside revenue anyway - review 5.
+- Rejected (Thach, 2026-09-28, Q25): every "in" line outside revenue, as 2A,
+  reported by sign, with a note.
 
 ### Source-signal mappings in Review (type values, invoice prefixes)
 - Pros: exports that book returns at positive signs under a "Return" type
@@ -145,15 +157,16 @@ means - each a way to print a wrong stock figure.
   Review.
 - On both demo files no revenue, product table, verdict or headline moves:
   the differences are the versions, the velocity reason, additions (the
-  identity, the outside-revenue totals, the unmeasurable report, the
-  return-rate note, the suggested classes) and 7 gift-voucher candidates in
-  Review (the regression anchor, `docs/LINE_TAXONOMY.md` section 6). A
+  identity, the outside-revenue totals, the unmeasurable report, the notes,
+  the suggested classes) and 7 gift-voucher candidates in Review (the regression anchor, `docs/LINE_TAXONOMY.md` section 6). A
   confirmed gift-voucher class would move 24 months of Online Retail II
   (2011-11's headline figures, not its rule or its 86%).
 - 2C's stock derivation and its sign defect are removed; the Dashboard's
   low-stock table (6F, 7C) is out of v1.
-- An "in" line with a negative amount is counted by its item (Q15); an
-  amount too large to add is unmeasurable instead of counted.
+- Every "in" line stays outside revenue, as today, now reported by sign
+  with a note on revenue and the return rate; an amount too large to add is
+  unmeasurable instead of counted.
+- Stage 4's products at stockout risk read "not supported in v1" too.
 - B2's refusal is unchanged (Q21); its relaxation for confirmed discounts is
   Phase 8.
 - Review gains the gift-card answer, the identity for the whole file and the
