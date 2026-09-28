@@ -40,7 +40,7 @@ def test_every_class_counted_nowhere_is_reported_somewhere() -> None:
     # Review 3 #9: a new class written `Effect(False, None)` would have been
     # in no report of metrics.json.
     from shared.line_effects import OUTSIDE_REVENUE, Effect
-    from stages.analyze.metrics_lines import _OUTSIDE_ORDER
+    from shared.line_report import _OUTSIDE_ORDER
 
     uncounted = {c for c, e in EFFECTS.items() if not e.counted}
     assert uncounted == OUTSIDE_REVENUE | {"unclassified", "unmeasurable"}

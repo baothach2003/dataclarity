@@ -19,6 +19,8 @@ vi.mock('./api/runs.ts', () => ({
   previewPlan: vi.fn(),
   executePlan: vi.fn(),
   downloadCleanedCsv: vi.fn(),
+  // Review asks for the whole file when it opens (2E-t3): not what these tests follow.
+  lineSummary: vi.fn(() => new Promise(() => undefined)),
 }))
 
 function upload(run: RunCreated): RunUpload {

@@ -5,6 +5,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 from contracts import CleaningPlanContract, CleaningReportContract, MetricsContract, SchemaInferenceContract
+from contracts.lines import LineSummary, ReservedRename
 from stages.ingest.preview import PreviewResult
 
 
@@ -38,6 +39,19 @@ class PlanResponse(BaseModel):
 class PreviewResponse(BaseModel):
     run_id: str
     preview: PreviewResult
+
+
+class LineSummaryResponse(BaseModel):
+    """Review's whole-file view of the line taxonomy (2E-t3). `summary` is
+    None, with `summary_unavailable_reason`, while the plan does not map and
+    keep a date, a quantity and a unit price, while the date question is
+    open, or when a figure's amounts are too large to add up;
+    `reserved_renames` stands either way."""
+
+    run_id: str
+    reserved_renames: list[ReservedRename]
+    summary: LineSummary | None
+    summary_unavailable_reason: str | None
 
 
 class ExecuteResponse(BaseModel):

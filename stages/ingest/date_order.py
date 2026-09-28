@@ -27,6 +27,12 @@ from stages.ingest.plan_validation import InvalidPlanError
 _WORDS: dict[DateOrder, str] = {"day_first": "day first", "month_first": "month first"}
 
 
+class DateQuestionUnanswered(InvalidPlanError):
+    """The date column reads either way and nobody has said which: Review's
+    question is open (2E-j). A plan in that state is not executed; Review's
+    whole-file summary waits for the answer (2E-t3 review 1 #2)."""
+
+
 def execution_order(plan: CleaningPlanContract, frame: pd.DataFrame) -> DateOrder | None:
     """The order the plan's date column is read in, on the raw `frame`: the
     user's answer, else the cells' proof; None when no cell needs one.
@@ -44,7 +50,7 @@ def execution_order(plan: CleaningPlanContract, frame: pd.DataFrame) -> DateOrde
         # recorded (CONTRACTS section 5; 2E-j review cycle 1 #9).
         return None
     if answer is None and evidence.decision == "ask":
-        raise InvalidPlanError([_unanswered(column, evidence)])
+        raise DateQuestionUnanswered([_unanswered(column, evidence)])
     order = applied_order(evidence, answer)
     if order is None:
         return None

@@ -27,8 +27,9 @@ def reserved_renames(columns: list[str], dropped: set[str] = frozenset()) -> dic
     return renames
 
 
-# What each of stage 1's three columns holds, for the rename's warning.
-_HOLDS = {
+# What each of stage 1's three columns holds, for the rename's warning and
+# Review's notice (2E-t3).
+HOLDS = {
     "line_class": "each line's class",
     "class_source": "whether the user's answer or a rule decided each line's class",
     "suggested_class": "the class suggested for each line's key and not confirmed",
@@ -61,5 +62,5 @@ def renamed_plan(plan: CleaningPlanContract, renames: dict[str, str]) -> Cleanin
 def rename_warnings(renames: dict[str, str]) -> list[CleaningWarning]:
     return [CleaningWarning(code="reserved_column_renamed",
                             detail=f"the source column {old!r} is written as {new!r}: cleaned.csv's "
-                                   f"{old!r} holds {_HOLDS[old]}")
+                                   f"{old!r} holds {HOLDS[old]}")
             for old, new in renames.items()]

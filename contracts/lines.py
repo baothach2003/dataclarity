@@ -22,6 +22,20 @@ NoteCode = Literal["same_day_cancellations", "returns_booked_as_in", "unconfirme
 NoteFigure = Literal["revenue", "gross_sales", "returns", "discounts", "other_deductions", "return_rate",
                      "orders", "aov", "units", "customers", "products", "diagnosis"]
 UnmeasurableReason = Literal["no quantity", "no price", "amount too large to add"]
+# The words every refusal of a sum that overflows carries, so a caller can
+# tell it from any other refusal (Review's summary says so - 2E-t3).
+TOO_LARGE_TO_ADD = "a sum too large to add"
+
+
+def _finite(value: float) -> float:
+    if not isfinite(value):
+        raise ValueError(f"{TOO_LARGE_TO_ADD}: JSON cannot carry it, and no reader could load it back")
+    return value
+
+
+# A money figure JSON can carry (3C doubt-review C2: an infinite sum was
+# written as null into a required float; 2E-t3 review 1 #3).
+Finite = Annotated[float, AfterValidator(_finite)]
 # A stock-in line's amount by its sign; `no_money` an amount of zero or none
 # (`lines_without_amount` counts the latter - their money is unknown).
 StockInSign = Literal["positive", "negative", "no_money"]
@@ -102,7 +116,7 @@ class IdentityTerms(ContractModel):
         terms = (self.gross_sales, self.returns, self.discounts, self.other_deductions, self.other_revenue,
                  self.net_revenue, self.returns_on_suggested_keys, self.money_moved)
         if not all(isfinite(t) for t in terms):
-            raise ValueError("identity terms must be finite")
+            raise ValueError(f"identity terms must be finite: {TOO_LARGE_TO_ADD}")
         derived = self.gross_sales - self.returns - self.discounts - self.other_deductions + self.other_revenue
         scale = max(self.money_moved, sum(abs(t) for t in terms[:6]), 1.0)
         if abs(derived - self.net_revenue) > 1e-9 * scale:
@@ -127,7 +141,7 @@ class OutsideRevenueLines(ContractModel):
     scope: Scope
     sign: StockInSign | None
     lines: int = Field(gt=0)
-    amount: float
+    amount: Finite
     lines_without_amount: NonNegativeInt
 
     @model_validator(mode="after")
@@ -145,8 +159,8 @@ class UnclassifiedLines(ContractModel):
     the counted lines moved in the file; null when nothing moved."""
 
     lines: NonNegativeInt
-    amount: float
-    share_of_money_moved: float | None
+    amount: Finite
+    share_of_money_moved: Finite | None
 
 
 class UnmeasurableLines(ContractModel):
@@ -167,7 +181,7 @@ class NoteMeasure(ContractModel):
     name: str = Field(min_length=1)
     scope: Scope
     lines: NonNegativeInt
-    amount: float | None
+    amount: Finite | None
     orders: NonNegativeInt | None = None
     keys: NonNegativeInt | None = None
 
@@ -202,3 +216,40 @@ def _one_per_code(notes: list[FigureNote]) -> list[FigureNote]:
 
 
 Notes = Annotated[list[FigureNote], AfterValidator(_one_per_code)]
+
+
+class ReservedRename(ContractModel):
+    """A source column named like one of cleaned.csv's three class columns,
+    and the name execute writes it under (Thach's Q24): Review says so before
+    the plan runs (2E-t3)."""
+
+    source: str
+    written_as: str
+    holds: str  # what cleaned.csv's own column of that name holds
+
+
+class LineSummary(ContractModel):
+    """Review's view of the whole file (2E-t3; docs/LINE_TAXONOMY.md section
+    5): stage 1 computes it for the plan and the answers as they stand, with
+    the functions metrics.json's blocks come from (`shared/line_report.py`),
+    on the lines execute would write. `identity` is over every counted line
+    - dated, as every revenue figure is; `undated_lines` counts the lines
+    with no date, as metrics.json does: in no month, left out of the
+    identity; one outside revenue is still in the whole file's report of
+    such lines, whose scope is every line. An API payload, never a stored file."""
+
+    lines: NonNegativeInt
+    undated_lines: NonNegativeInt
+    identity: IdentityTerms
+    outside_revenue: list[OutsideRevenueLines]
+    unclassified: UnclassifiedLines
+    unmeasurable: list[UnmeasurableLines]
+    notes: Notes
+
+    @model_validator(mode="after")
+    def _the_whole_file(self) -> Self:
+        scopes = ({row.scope for row in self.outside_revenue} | {row.scope for row in self.unmeasurable}
+                  | {m.scope for note in self.notes for m in note.measures})
+        if scopes - {"file"}:
+            raise ValueError("Review's summary is the whole file's: every scope is `file`")
+        return self

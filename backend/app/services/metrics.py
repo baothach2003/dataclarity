@@ -15,6 +15,7 @@ the way a run could get stuck in `cleaning`.
 
 from pathlib import Path
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 from app.config import Settings
@@ -23,6 +24,7 @@ from app.schemas import AnalyzeResponse
 from app.services import run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import RunWork
+from contracts.lines import TOO_LARGE_TO_ADD
 from shared.run_registry import RunNotFoundError, run_file
 from shared.transactions import LineClassColumnsError, RequiredColumnMissingError
 from stages.analyze.assemble import analyze_run
@@ -60,6 +62,14 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             # A cleaned.csv changed after cleaning (2E-t2): the user is told
             # to re-upload, not shown a generic 500.
             raise stage_errors.analysis_failed(str(error), {"line_classes": error.problem}) from error
+        except ValidationError as error:
+            # A figure whose amounts do not add up: metrics.json cannot carry
+            # it (2E-t3 review 3 #4). Any other refusal is a bug: a 500.
+            if not all(TOO_LARGE_TO_ADD in str(problem["msg"]) for problem in error.errors()):
+                raise
+            raise stage_errors.analysis_failed(
+                "The file's amounts are too large to add up, so its metrics cannot be computed.",
+                {"reason": "amounts_too_large"}) from error
 
     run_state.advance(session, run_id, RunStatus.ANALYZED, only_from=ANALYZABLE_STATUSES)
     return AnalyzeResponse(run_id=run_id, status="analyzed", metrics=metrics, notices=[])

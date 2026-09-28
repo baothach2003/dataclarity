@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import RunStatus
-from app.schemas import ExecuteResponse, PreviewResponse
+from app.schemas import ExecuteResponse, LineSummaryResponse, PreviewResponse
 from app.services import run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
@@ -26,6 +26,7 @@ from contracts.cleaning import PlanSource
 from shared.run_registry import RunNotFoundError, run_file
 from stages.ingest.ai_plan import OUTPUT_FILENAME as PROPOSAL_FILENAME
 from stages.ingest.cleaning import CleaningError, execute_run
+from stages.ingest.line_summary import line_summary
 from stages.ingest.plan_validation import InvalidPlanError, validate_final_plan
 from stages.ingest.preview import preview_frame
 from stages.ingest.profiling import RAW_FILENAME, ProfilingError, read_csv_text
@@ -65,6 +66,40 @@ def preview_plan(
     except ProfilingError as error:
         raise stage_errors.profiling_failed(error) from error
     return PreviewResponse(run_id=run_id, preview=result)
+
+
+def summarise_lines(
+    session: Session,
+    run_id: str,
+    body: dict[str, Any],
+    *,
+    settings: Settings,
+    cache: FrameCache,
+    work: RunWork,
+) -> LineSummaryResponse:
+    """Review's whole-file view of the line taxonomy for the plan and the
+    answers as they stand (2E-t3): the preview's rules - read only, nothing
+    written, a plan that does not work is an error the user fixes by editing -
+    on the whole file rather than a sample."""
+    run = run_state.load_live_run(session, run_id, runs_root=settings.runs_dir, work=work)
+    run_state.require_status(run, *run_state.PLANNING_STATUSES, step="summarise the lines")
+    plan = stage_errors.parse_plan(body)
+    session.commit()  # the read transaction ends here: the whole file takes seconds
+    try:
+        _require_raw(settings.runs_dir, run_id)
+        with work.summary(run_id):
+            frame = cache.get_or_load(run_id, lambda: _read_frame(settings.runs_dir, run_id))
+            found = line_summary(frame, plan)
+    except InvalidPlanError as error:
+        raise stage_errors.invalid_plan(error) from error
+    except CleaningError as error:
+        raise stage_errors.cleaning_failed(error) from error
+    except RunNotFoundError:
+        raise stage_errors.files_gone() from None
+    except ProfilingError as error:
+        raise stage_errors.profiling_failed(error) from error
+    return LineSummaryResponse(run_id=run_id, reserved_renames=found.reserved_renames, summary=found.summary,
+                               summary_unavailable_reason=found.unavailable)
 
 
 def execute_plan(

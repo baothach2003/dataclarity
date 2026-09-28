@@ -12,10 +12,9 @@ proposed, or still valid. It runs exactly that plan and builds the report from
 what actually ran; the AI is not consulted again (CLAUDE.md 3.3).
 """
 
-import io
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import pandas as pd
 
@@ -31,6 +30,7 @@ from contracts.cleaning import (
 from shared.run_registry import run_file
 from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
+from stages.ingest.cleaned_text import as_read, cleaned_csv_text
 from stages.ingest.contract_files import write_files_atomically
 from stages.ingest.date_order import execution_order
 from shared.line_taxonomy import classify_lines
@@ -119,9 +119,7 @@ def _with_line_classes(cleaned: pd.DataFrame, mapping: dict[str, str],
     `suggested_class` (2E-t1). The classes are read from the file as stages 2
     and 3 will read it - the text cleaned.csv holds - so the two cannot
     differ."""
-    read = [source for source in mapping if source in cleaned.columns]
-    as_read = pd.read_csv(io.StringIO(cleaned_csv_text(cleaned[read])), dtype=str)
-    classes = classify_lines(as_read, mapping, applied)
+    classes = classify_lines(as_read(cleaned, mapping), mapping, applied)
     cleaned = cleaned.copy(deep=False)
     for name in TAXONOMY_COLUMNS:
         cleaned[name] = classes[name].to_numpy()
@@ -160,28 +158,65 @@ def _text_that_reads_back_as_missing(frame: pd.DataFrame) -> dict[str, int]:
     return found
 
 
-def cleaned_csv_text(frame: pd.DataFrame) -> str:
-    """The frame as the text of `cleaned.csv`: UTF-8 friendly, "\\n" line ends,
-    the source column names, and dates in ISO 8601 (a date with no time as
-    2024-01-05, otherwise 2024-01-05T10:30:00). Written here rather than left to
-    pandas so the format is fixed and a test can check it by eye."""
-    out = frame.copy(deep=False)  # only whole columns are replaced below
-    for name in out.columns:
-        if pd.api.types.is_datetime64_any_dtype(out[name]):
-            out[name] = iso_dates(out[name])
-    return out.to_csv(index=False, lineterminator="\n")
+class Cleaned(NamedTuple):
+    """What a plan makes of the whole file, before anything is written:
+    execute's cleaned frame (the classes not yet added) and what its report
+    records. Review's whole-file summary reads the same (2E-t3)."""
+
+    frame: pd.DataFrame
+    changes: list[ChangeLogEntry]
+    renames: dict[str, str]  # a source column named like a class column -> its name in cleaned.csv
+    mapping: dict[str, str]  # the columns later stages look up -> their canonical field
+    applied: OrderConfirmations  # the answers, with the date order applied
+    date_order: str | None
 
 
-def iso_dates(values: pd.Series) -> pd.Series:
-    """A datetime column as ISO 8601 text; the preview shows dates the same way."""
-    present = values.dropna()
-    if not present.empty and present.dt.microsecond.any():
-        pattern = "%Y-%m-%dT%H:%M:%S.%f"
-    elif not present.empty and (present.dt.hour | present.dt.minute | present.dt.second).any():
-        pattern = "%Y-%m-%dT%H:%M:%S"
-    else:
-        pattern = "%Y-%m-%d"
-    return values.dt.strftime(pattern)  # a missing date stays missing
+def planned_renames(frame: pd.DataFrame, plan: CleaningPlanContract) -> dict[str, str]:
+    """A source column named like one of the three columns stage 1 adds is
+    kept under another name - before the plan runs, so its flags, the change
+    log and the mapping carry that name by themselves (Thach's Q24; 2E-t1
+    review cycle 2 #2-#4). `plan_final.json` keeps the plan as submitted."""
+    if not is_classed(plan):
+        return {}
+    dropped_raw = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
+    return reserved_renames([str(name) for name in frame.columns], dropped_raw)
+
+
+def clean_frame(frame: pd.DataFrame, plan: CleaningPlanContract, *, for_execution: bool) -> Cleaned:
+    """The plan checked against the file and run on it, as `execute_run`
+    runs it. `for_execution` switches on the required-field rules and nothing
+    else. Raises InvalidPlanError, or CleaningError (an action failed, or no
+    row is left)."""
+    validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=for_execution)
+    # On the raw file, before anything runs: a plan dropping the rows that
+    # prove the order must not lose the proof (2E-j).
+    date_order = execution_order(plan, frame)
+    renames = planned_renames(frame, plan)
+    run_plan = renamed_plan(plan, renames)
+
+    try:
+        cleaned, changes = apply_plan(frame.rename(columns=renames), run_plan)
+    except CleaningError as error:
+        # The failure names the column as the user wrote it (review cycle 3 #7).
+        written = {new: old for old, new in renames.items()}.get(error.column or "")
+        if written is None:
+            raise
+        raise CleaningError(str(error).replace(repr(error.column), repr(written)), error.action,
+                            written) from error
+    if cleaned.empty:
+        raise CleaningError(
+            "The plan removes every row, so there is nothing left to write. "
+            "Check the drop_rows_missing and duplicate actions.")
+
+    dropped = {a.source_name for a in run_plan.column_actions if a.action == "drop_column"}
+    # The columns later stages look up: not an ignored one, and not one that
+    # is no longer in cleaned.csv.
+    mapping = {a.source_name: a.canonical_field for a in run_plan.column_actions
+               if a.canonical_field != "ignore" and a.source_name not in dropped}
+    # Each line's class is decided in the date order that was applied.
+    applied = plan.confirmations.model_copy(
+        update={"dates_day_first": None if date_order is None else date_order == "day_first"})
+    return Cleaned(cleaned, changes, renames, mapping, applied, date_order)
 
 
 def execute_run(
@@ -219,43 +254,10 @@ def execute_run(
         raise FileNotFoundError(f"{RAW_FILENAME} is missing for run {run_id}")
     parsed = read_csv_text(raw_path.read_bytes())
     frame = parsed.frame
-    # `for_execution` switches on the required-field rules and nothing else.
-    validate_final_plan(
-        plan, [str(name) for name in frame.columns], for_execution=require_required_fields)
-    # On the raw file, before anything runs: a plan dropping the rows that
-    # prove the order must not lose the proof (2E-j).
-    date_order = execution_order(plan, frame)
-    # A source column named like one of the three columns stage 1 adds is
-    # kept under another name - before the plan runs, so its flags, the change
-    # log and the mapping carry that name by themselves (Thach's Q24; 2E-t1
-    # review cycle 2 #2-#4). `plan_final.json` keeps the plan as submitted.
-    dropped_raw = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
-    renames = reserved_renames([str(name) for name in frame.columns], dropped_raw) if is_classed(plan) else {}
-    run_plan = renamed_plan(plan, renames)
-
-    try:
-        cleaned, changes = apply_plan(frame.rename(columns=renames), run_plan)
-    except CleaningError as error:
-        # The failure names the column as the user wrote it (review cycle 3 #7).
-        written = {new: old for old, new in renames.items()}.get(error.column or "")
-        if written is None:
-            raise
-        raise CleaningError(str(error).replace(repr(error.column), repr(written)), error.action,
-                            written) from error
-    if cleaned.empty:
-        raise CleaningError(
-            "The plan removes every row, so there is nothing left to write. "
-            "Check the drop_rows_missing and duplicate actions.")
-
-    dropped = {a.source_name for a in run_plan.column_actions if a.action == "drop_column"}
-    # The columns later stages look up: not an ignored one, and not one that
-    # is no longer in cleaned.csv.
-    mapping = {a.source_name: a.canonical_field for a in run_plan.column_actions
-               if a.canonical_field != "ignore" and a.source_name not in dropped}
+    cleaned, changes, renames, mapping, applied, date_order = clean_frame(
+        frame, plan, for_execution=require_required_fields)
     # Each line's class, decided once, here (2E-t1; docs/LINE_TAXONOMY.md
-    # section 4), in the date order that was applied.
-    applied = plan.confirmations.model_copy(
-        update={"dates_day_first": None if date_order is None else date_order == "day_first"})
+    # section 4).
     if is_classed(plan):
         cleaned = _with_line_classes(cleaned, mapping, applied)
     report = CleaningReportContract(

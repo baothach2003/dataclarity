@@ -2662,9 +2662,45 @@ dataclarity/
         (U14's pooled returns, U16's product key, the dates read once, the
         told-apart names, the stale 16.0 message, the matrix's reports) are
         UNREVIEWED; tested and mutation-checked.
-- [ ] 2E-t3 **Line taxonomy: Review** (the revised design's section 7).
+- [x] 2E-t3 **Line taxonomy: Review** (the revised design's section 7).
       **The seventh run stops after 2E-t3**: Thach then chooses between 2E-u
-      with the scope freeze, and an end-to-end skeleton first.
+      with the scope freeze, and an end-to-end skeleton first. **Done
+      2026-09-28** (eighth run, session 4; method
+      `C:\Users\Happy\2Et3-method.txt`):
+      - Review shows the whole file as the answers stand: the revenue
+        identity (gross - returns - discounts - other deductions
+        (unconfirmed) + other revenue = net), the returns on codes nobody
+        confirmed, the undated lines, what is outside revenue (stock received
+        by sign), the unmeasurable lines per reason, the unclassified lines
+        with their share of the money moved, and the notes with their
+        measures; and the source columns the run writes under another name
+        (Q24), with what cleaned.csv's own column holds.
+      - Stage 1's `line_summary` (`POST /api/runs/{id}/line-summary`, the
+        preview's rules, nothing written) computes it on the lines execute
+        would write - execute's pure part is now `clean_frame`, shared by
+        both - with metrics.json's own functions: stage 2's report moved to
+        `shared/line_report.py`, parameterised by scopes (ADR-0008 records
+        where it lives). Asked when Review opens, then on the user's request
+        ("Add up again"; never on every edit - review 1 #1), one at a time
+        per run (409 `summary_in_progress`), never holding off a preview or
+        an execution. It says why when it cannot add up: a quantity, price or
+        date not mapped and kept, the date question open, a whole-file
+        figure too large to add.
+      - The line blocks' money figures must be finite (an overflowing sum is
+        refused, never written as an unreadable null); stage 2's refusal is
+        ANALYSIS_FAILED (`amounts_too_large`). An older pandas 3 crash in
+        the receipt fill (an empty day mapper, `shared/orders.py`) fixed -
+        Review had made it reachable.
+      - Measured: on the three demo runs the summary equals metrics.json's
+        file-scope blocks and its net the sum of the months' revenue; the
+        anchor is byte-identical after the move (only the listed
+        differences). Kaggle 0.2 s; Online Retail II 16-20 s (8D).
+      - Tests first; mutation 24 mutants, 23 killed, 1 equivalent.
+        Doubt-review 3 cycles (11, 11, 6+4 findings; cross-model skipped:
+        non-interactive), none blocking; decisions made alone V1-V6, W1-W9
+        (the report). Cycle 3's fixes (the too-large wording, the undated
+        wording, stage 2's refusal as ANALYSIS_FAILED, their tests) are
+        UNREVIEWED; tested.
 - [ ] 2E-u **The data failure-mode catalog** (Thach, 2026-09-28). Method
       before code. Consolidate every known input-data failure mode (the 2E
       series' fixes, the 8D list, Online Retail II's quirks, the line
@@ -3107,6 +3143,15 @@ dataclarity/
       debt above). Stages 2 and 3 classify a frame without stage 1's
       columns (tests, harnesses): a real cleaned.csv always has them (stage
       1 4.0), an older one is refused by its report's major.
+      From 2E-t3: Review's whole-file summary takes ~10 s on a 50 MB file
+      and 16-20 s on Online Retail II (parse_transactions ~7 s of it), once
+      when Review opens and on request - SPECS 11 gives it no bound; a
+      preview during one slows from 0.25 s to up to 1.6 s. A sum of
+      finite amounts that overflows depends on the lines' order (the float
+      sum). A month outside the two compared whose revenue overflows is
+      written inf in `revenue_by_month` and the API answer fails (500) -
+      review 5 #13's limit, older. `ReviewPage.tsx` 384 lines (the debt
+      above).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3346,7 +3391,13 @@ identity, the lines outside revenue, the unclassified and unmeasurable
 lines, the notes and the marks (`undated_lines` leaves the unmeasurable
 out; `velocity` null on every file - meanings changed, CONTRACTS 10);
 diagnosis.json 17.0; the demo runs differ only as the anchor lists. Cycle
-3's fixes unreviewed. pytest 3377, Vitest 187. **Next: 2E-t3.**
+3's fixes unreviewed. pytest 3377, Vitest 187. Session **2E-t3** closed
+2026-09-28 (session 4; see its item): Review shows the whole file as the
+answers stand, computed by stage 1 with metrics.json's own functions
+(`POST /line-summary`); the demo runs unchanged. Cycle 3's fixes unreviewed.
+pytest 3420, Vitest 200. **The eighth overnight run is complete - stopped
+as planned after 2E-t3.** Thach chooses next: 2E-u with the scope freeze, or
+an end-to-end skeleton first.
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

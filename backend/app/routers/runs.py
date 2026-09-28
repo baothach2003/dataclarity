@@ -14,7 +14,14 @@ from app.dependencies import (
     get_retry_budgets,
     get_run_work,
 )
-from app.schemas import AnalyzeResponse, AnalyzeSchemaResponse, ExecuteResponse, PlanResponse, PreviewResponse
+from app.schemas import (
+    AnalyzeResponse,
+    AnalyzeSchemaResponse,
+    ExecuteResponse,
+    LineSummaryResponse,
+    PlanResponse,
+    PreviewResponse,
+)
 from app.services import analysis, downloads, metrics, plan_execution
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
@@ -115,6 +122,19 @@ def preview_plan(
     work: WorkDep,
 ) -> PreviewResponse:
     return plan_execution.preview_plan(
+        session, run_id, body, settings=settings, cache=cache, work=work)
+
+
+@router.post("/{run_id}/line-summary")
+def summarise_lines(
+    run_id: str,
+    body: PlanBody,
+    settings: SettingsDep,
+    session: SessionDep,
+    cache: Annotated[FrameCache, Depends(get_frame_cache)],
+    work: WorkDep,
+) -> LineSummaryResponse:
+    return plan_execution.summarise_lines(
         session, run_id, body, settings=settings, cache=cache, work=work)
 
 

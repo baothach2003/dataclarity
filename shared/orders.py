@@ -200,7 +200,7 @@ def order_basis(ids: pd.Series | None, days: pd.Series, customers: pd.Series,
     # from an id that is itself one receipt. The key keeps the fill either
     # way, so orders count exactly as 2E-e defined them (2E-f doubt-review
     # cycle 2, F1: the exclusion had split receipts into two orders).
-    receipt_day = ids.map(_receipt_days(ids, days, customers, sale, moved, counted))
+    receipt_day = _day_of(ids, _receipt_days(ids, days, customers, sale, moved, counted))
     fillable = counted & customers.isna() & filled.notna() & days.eq(receipt_day)
     # Not when the user answered No (Thach, 2E-e2; 2E-f known limit L1): a
     # daily batch code with one named line and walk-ins looks exactly like a
@@ -247,10 +247,19 @@ def _receipt_days(ids: pd.Series, days: pd.Series, customers: pd.Series,
     one_receipt = (per_id["day"].nunique() == 1) & (per_id["customer"].nunique() <= 1)
     receipt_day = per_id["day"].first()[one_receipt]
     moved_lines = frame[frame["moved"] & has_sale]
-    earlier = moved_lines.loc[moved_lines["day"] < moved_lines["id"].map(receipt_day), "id"]
+    earlier = moved_lines.loc[moved_lines["day"] < _day_of(moved_lines["id"], receipt_day), "id"]
     names = moved_lines.groupby("id")["customer"].nunique()
     refused = set(earlier) | set(names[names > 1].index)
     return receipt_day[~receipt_day.index.isin(refused)]
+
+
+def _day_of(keys: pd.Series, by_key: pd.Series) -> pd.Series:
+    """Each key's day; NaT for a key with none. pandas 3 casts an empty
+    datetime mapper to float and raises: a file whose every id was refused
+    as a receipt stopped the parse (2E-t3 review 2 #2)."""
+    if by_key.empty:
+        return pd.Series(pd.NaT, index=keys.index, dtype=by_key.dtype)
+    return keys.map(by_key)
 
 
 def _one_customer_per_order(ids: pd.Series, days: pd.Series, customers: pd.Series,

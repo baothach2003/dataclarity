@@ -8,6 +8,7 @@ import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
 import { DateOrderNotice } from '../components/DateOrderNotice.tsx'
+import { LineSummaryNotice } from '../components/LineSummaryNotice.tsx'
 import { Notice } from '../components/Notice.tsx'
 import { NonProductNotice } from '../components/NonProductNotice.tsx'
 import { OrderNotices } from '../components/OrderNotices.tsx'
@@ -20,6 +21,7 @@ import { describeError } from '../domain/errorCopy.ts'
 import { mappingConflict, missingRequiredFields } from '../domain/planRules.ts'
 import { buildManualPlan, reconcileAction, withMappingDisabled } from '../domain/reviewPlan.ts'
 import { defaultParams } from '../domain/transformParams.ts'
+import { useLineSummary } from './useLineSummary.ts'
 import { useOrderAnswers } from './useOrderAnswers.ts'
 import type {
   CanonicalField,
@@ -92,6 +94,8 @@ export function ReviewPage({
   )
 
   const previewLoading = previewedPlan !== planToSubmit
+  // The whole file for the answers as they stand (2E-t3): what execute would run.
+  const lineSummary = useLineSummary(baseUrl, runId, orderAnswers.confirmed(planToSubmit), !isNotInventory)
 
   // Preview refreshes 400ms after the last edit (SPECS 4.2 C), cancelling a
   // request superseded by a newer edit before it answers.
@@ -294,6 +298,7 @@ export function ReviewPage({
               answers={orderAnswers.lineAnswers}
               onAnswer={orderAnswers.answerLine}
             />
+            <LineSummaryNotice state={lineSummary} />
             <DateOrderNotice
               plan={plan}
               profile={profile}

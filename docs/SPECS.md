@@ -71,6 +71,7 @@ How stage 1 moves through it (1G):
 | `POST /analyze-schema` | `uploaded`, `profiled` | `profiled` (profiling happens here when the run is `uploaded`; the run stays `profiled` whatever the AI does; an answer already given is final, INVALID_STATE; a call that got no answer may be repeated, up to 3 attempts a step, then RATE_LIMITED) |
 | `POST /plan` | `profiled`, and `schema_inference.json` must exist | `planned`; stays `profiled` when the AI is unavailable |
 | `POST /preview` | `profiled`, `planned` | no change |
+| `POST /line-summary` | `profiled`, `planned` | no change |
 | `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
 
 `cleaning` is not a step the user sees: it is the claim a run holds while its plan
@@ -85,7 +86,9 @@ does running out of memory or disk (`MemoryError` / `OSError` are not a verdict 
 data, so they are not CLEANING_FAILED).
 
 One piece of work runs at a time per run (an AI step or an execution): a second one gets
-INVALID_STATE (409, `details.reason: "step_in_progress"`). A run left in `cleaning` that
+INVALID_STATE (409, `details.reason: "step_in_progress"`). Review's whole-file summary
+(`POST /line-summary`, 2E-t3) has its own rule: one at a time per run
+(`details.reason: "summary_in_progress"`), never holding off a preview or an execution. A run left in `cleaning` that
 nothing in the server is executing (the process died, or the write of its final status
 failed) is freed by the next call that reaches it: `cleaned` when its report exists,
 otherwise `planned`. One process only (v1).
@@ -171,6 +174,29 @@ remap the question is asked again.
   is sold under exactly one classed SKU: it takes that SKU's class unless its
   name is answered, "a product" included (2E-l). Every class leaves the
   product tables.
+- **The whole file, as your answers stand** (2E-t3; docs/LINE_TAXONOMY.md
+  section 5). Below the line-class question, one notice gives the revenue
+  identity of the whole file - gross sales - returns - discounts - other
+  deductions (unconfirmed) + other revenue = net revenue - for the plan and
+  the answers as they stand, and the lines the plan keeps; below it, the
+  returns on codes nobody confirmed and the undated lines when there are
+  some, what is outside revenue (fees and costs, adjustments, gift cards,
+  stock received by the sign of its amount), the lines that cannot be
+  measured by reason (their money unknown), the lines no rule placed, and
+  the notes with their measures. Stage 1 computes it on the lines execute
+  would write, with the functions metrics.json's blocks come from
+  (`POST /line-summary`): once when Review opens, then when the user asks
+  again - never on every edit, as the whole file takes seconds and a
+  started computation cannot be stopped (2E-t3 review 1 #1). After an edit
+  the figures shown are marked "before your latest changes", with "Add up
+  again"; an error offers "Try again". Until the plan maps and keeps a
+  date, a quantity and a unit price, while the date question is open, or
+  when the file's amounts are too large to add up, it says so instead. Not
+  asked for a file that is not inventory data.
+- **Columns the cleaned file writes under another name** (Q24): a source
+  column named `line_class`, `class_source` or `suggested_class` and kept by
+  the plan is written as `<name>_source` (numbered while taken), and Review
+  says so before the run, with what cleaned.csv's own column holds.
 - **Is the customer written on a receipt's first line only?** Asked when the
   customer fill would happen (`receipt_fill_lines` above 0), or without a
   count when that was not measured for the current columns (stage 1 could not
@@ -284,6 +310,8 @@ again. This is why the product can claim AI assistance without AI opacity.
 - `POST /api/runs/{id}/plan` -> `plan_proposed.json`
 - `POST /api/runs/{id}/preview` (body: final plan) -> before/after sample +
   column deltas (sample execution, max 500 rows)
+- `POST /api/runs/{id}/line-summary` (body: final plan, answers included) ->
+  Review's whole-file view of the line taxonomy (2E-t3): nothing written
 - `POST /api/runs/{id}/execute` (body: final plan) -> `cleaning_report.json` +
   download urls
 
@@ -292,6 +320,18 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 - `plan` -> `{run_id, status: "profiled" | "planned", plan | null, notices}`
 - `preview` -> `{run_id, preview: {rows_in_file, sample_rows, sampled, rows_after,
   columns_after, rows, deltas}}`
+- `line-summary` -> `{run_id, reserved_renames: [{source, written_as, holds}], summary
+  | null, summary_unavailable_reason}`; `summary` is `contracts/lines.py`'s
+  `LineSummary` - `{lines, undated_lines, identity, outside_revenue,
+  unclassified, unmeasurable, notes}`, every scope `file` - and null, with the
+  reason, until the plan maps and keeps a date, a quantity and a unit
+  price, while the date question is open, or when a whole-file figure's
+  amounts are too large to add up (metrics.json refuses such a figure too,
+  and adds up the compared months apart - either can overflow where the
+  other does not). The plan is checked first, as the preview checks it:
+  INVALID_PLAN, CLEANING_FAILED (422), EXPIRED (410); one summary at a time
+  per run, a second while one runs INVALID_STATE (409, `details.reason`
+  `summary_in_progress`) - it never holds off a preview or an execution.
 - `execute` -> `{run_id, status: "cleaned", report, notices}`
 - `notices` holds the section 10 cases that are a 200 with a flag, each as
   `{code, message, details?}` like an error: `AI_UNAVAILABLE` (`details.reason`
@@ -373,7 +413,7 @@ warning in the import summary when it would go negative).
 | Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
-| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable; the message names the missing field, the domain reasoning, or the class column and says to re-upload | ANALYSIS_FAILED (422) |
+| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts are too large to add up (2E-t3) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable; the message names the missing field, the domain reasoning, or the class column and says to re-upload | ANALYSIS_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
 | Run expired by retention, or its files are gone | rejected with re-upload hint | EXPIRED (410) |

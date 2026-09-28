@@ -497,8 +497,10 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   current month, the sign of its change and its closed weekday all moved.
   Every day and month of stages 2 and 3, and stage 1's order_id check, derive
   from this one reading. **`undated_lines`** counts the lines with no
-  readable date (blank, or no date) - in no month and so in no figure - and
-  `undated_lines_reason` says so; it is null exactly when the count is 0.
+  readable date (blank, or no date) - in no month and so in no month's
+  figure; one outside revenue is still in the whole file's report of such
+  lines (2E-t2) - and `undated_lines_reason` says so; it is null exactly
+  when the count is 0.
 - **The date order** (Thach, 2E-j): a cell written day-month-year or
   month-day-year is read in the order stage 1 recorded (section 5,
   `date_order`) - only such a cell; ISO, a month name or a time is read as
@@ -1431,6 +1433,17 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-28: **session 2E-t3, Review shows the line taxonomy (Thach).**
+  `contracts/lines.py` gains `LineSummary` and `ReservedRename`, the payload
+  of `POST /line-summary` (SPECS section 8) - never a stored file, so no
+  version. The line blocks' money figures must be finite: a sum too large
+  to add is refused rather than written as the null no reader could load
+  (3C C2), so stage 2 stops on such a file instead of writing it (8D).
+  metrics.json and diagnosis.json are otherwise unchanged but for
+  `undated_lines_reason`'s wording (what the whole file's reports still
+  count): stage 2's report moved to `shared/line_report.py`, every demo
+  figure identical. A stage 2 refusal of a sum too large to add is
+  ANALYSIS_FAILED (422, `details.reason` `amounts_too_large`).
 - 2026-09-28: **session 2E-t2, stages 2 and 3 read the class (Thach).**
   `diagnosis.json` went to `17.0` (`notes` and `suggested_classes`; stages
   read each line's class from cleaned.csv); `metrics.json` stays `16.0` (the

@@ -177,3 +177,27 @@ def test_a_second_analyze_during_the_first_is_refused_not_raced(
     assert second.json()["error"]["details"]["reason"] == "step_in_progress"
     assert first["response"].status_code == 200
     assert api.status(run_id) is RunStatus.ANALYZED
+
+
+@pytest.mark.filterwarnings("ignore:overflow encountered:RuntimeWarning")  # the overflow is the case
+def test_amounts_too_large_to_add_up_are_analysis_failed_not_a_500(make_api: MakeApi) -> None:
+    # 2E-t3 review 3 #4: each amount is finite, their month's sum is not; the
+    # line taxonomy's figures refuse it, and the user is told why.
+    import pandas as pd
+
+    api, run_id = _cleaned_run(make_api)
+    cleaned = api.file(run_id, "cleaned.csv")
+    frame = pd.read_csv(cleaned, dtype=str)
+    sales = frame.index[frame["line_class"].eq("sale")][:2]
+    assert len(sales) == 2
+    frame.loc[sales, "day"] = "2023-12-05"  # the current month compared (the file ends mid-January)
+    frame.loc[sales, "qty"] = "1"
+    frame.loc[sales, "price"] = "1e308"
+    frame.to_csv(cleaned, index=False)
+
+    response = api.post(run_id, "analyze")
+
+    assert response.status_code == 422, response.text
+    error = response.json()["error"]
+    assert (error["code"], error["details"]) == ("ANALYSIS_FAILED", {"reason": "amounts_too_large"})
+    assert api.status(run_id) is RunStatus.CLEANED

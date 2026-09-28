@@ -126,3 +126,12 @@ def test_a_metrics_json_written_before_the_line_taxonomy_is_told_to_re_analyse()
         del payload["core"][block]
     with pytest.raises(ValidationError, match="before the line taxonomy.*re-analyse"):
         MetricsContract.model_validate(payload)
+
+
+def test_a_sum_json_cannot_carry_is_refused() -> None:
+    # 2E-t3 review 1 #3: an overflowing sum was written as null into a float.
+    with pytest.raises(ValidationError, match="too large"):
+        OutsideRevenueLines.model_validate(_outside(line_class="cost", sign=None, amount=float("-inf")))
+    with pytest.raises(ValidationError, match="too large"):
+        FigureNote.model_validate(_note("unconfirmed_deductions", measures=[
+            {"name": "lines", "scope": "file", "lines": 2, "amount": float("-inf")}]))

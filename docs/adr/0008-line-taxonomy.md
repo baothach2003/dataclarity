@@ -148,6 +148,19 @@ means - each a way to print a wrong stock figure.
 - Rejected for v1 (Thach, 2026-09-28): a same-day credit stays a return; the
   return rate is labelled as including same-day cancellations.
 
+## Where the report lives (2E-t3)
+
+The line taxonomy's report - the identity, what is outside revenue, the
+unclassified and unmeasurable lines, the notes - is `shared/line_report.py`,
+parameterised by the scopes its caller names: stage 2 writes it into
+metrics.json for the file and the two compared months, and stage 1 computes
+it for the whole file in Review, on the lines execute would write
+(`POST /line-summary`). Two copies would tell the user two stories about one
+file; stage isolation allows `shared/`, and `shared/transactions.py`,
+`shared/products.py` and `shared/orders.py` are the precedent for "one
+definition every stage reads". What a figure MEANS in the report is fixed
+by `contracts/lines.py` (the notes' sentences and figures) and this ADR.
+
 ## Consequences
 
 - `cleaned.csv` gains `line_class`, `class_source` and `suggested_class`;

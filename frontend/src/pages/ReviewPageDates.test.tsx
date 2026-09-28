@@ -24,6 +24,9 @@ vi.mock('../api/runs.ts', () => ({
   previewPlan: vi.fn(),
   executePlan: vi.fn(),
   proposePlan: vi.fn(),
+  // Review asks for the whole file when it opens (2E-t3); these tests are about
+  // other parts of it, so the answer never comes.
+  lineSummary: vi.fn(() => new Promise(() => undefined)),
 }))
 
 const MAPPED: [string, CanonicalField][] = [

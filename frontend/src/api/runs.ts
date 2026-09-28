@@ -11,6 +11,7 @@ import type {
   ProfileContract,
   RunCreated,
 } from '../types/contracts.ts'
+import type { LineSummaryResponse } from '../types/lineSummary.ts'
 import { errorFromBody, throwApiError, UnreachableError } from './errors.ts'
 
 function trimSlash(baseUrl: string): string {
@@ -129,6 +130,17 @@ export function previewPlan(
   signal?: AbortSignal,
 ): Promise<PreviewResponse> {
   return postJson<PreviewResponse>(baseUrl, `/api/runs/${runId}/preview`, plan, signal)
+}
+
+/** POST /api/runs/{id}/line-summary: Review's whole-file view of the line
+ * taxonomy for the plan and the answers as they stand (2E-t3). */
+export function lineSummary(
+  baseUrl: string,
+  runId: string,
+  plan: CleaningPlan,
+  signal?: AbortSignal,
+): Promise<LineSummaryResponse> {
+  return postJson<LineSummaryResponse>(baseUrl, `/api/runs/${runId}/line-summary`, plan, signal)
 }
 
 /** GET /api/runs/{id}/download/cleaned.csv, as a Blob the caller turns into a

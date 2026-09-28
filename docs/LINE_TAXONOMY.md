@@ -683,6 +683,13 @@ report's `confirmations` gain 7 answers.
    the identity line for the whole file (stage 1 computes it for the answers
    as they stand), the notes, the unclassified and unmeasurable counts, the
    reserved-name notice (frontend, by `docs/FIGMA_DESIGN_NOTES.md`).
+   **Built (2E-t3):** stage 1's `line_summary` (`POST /line-summary`) on
+   the lines execute would write (`clean_frame`, read back as cleaned.csv's
+   text), with metrics.json's own functions (`shared/line_report.py`, the
+   scope `file`); asked when Review opens and again on the user's request,
+   marked "before your latest changes" after an edit. On the three demo
+   runs it equals metrics.json's file-scope blocks, and its net revenue the
+   sum of `revenue_by_month`.
 
 The Online Retail II demo build follows 2E-t3. **Not in this split**
 (decision 8): Kaggle's payment method mapped as `transaction_type` - stage

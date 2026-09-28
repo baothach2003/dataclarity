@@ -28,7 +28,8 @@ from contracts.cleaning import CleaningPlanContract
 from shared.run_registry import run_file
 from stages.ingest import problem_rows
 from stages.ingest.ai_input import TRUNCATION_MARK
-from stages.ingest.cleaning import apply_plan, iso_dates
+from stages.ingest.cleaned_text import iso_dates
+from stages.ingest.cleaning import apply_plan
 from stages.ingest.plan_validation import validate_final_plan
 from stages.ingest.profiling import RAW_FILENAME, read_csv_text
 

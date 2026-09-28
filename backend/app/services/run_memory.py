@@ -222,6 +222,7 @@ class RunWork:
     def __init__(self, max_ai_attempts: int = MAX_AI_ATTEMPTS_PER_STEP) -> None:
         self._max_attempts = max_ai_attempts
         self._active: set[str] = set()
+        self._summaries: set[str] = set()
         self._attempts: dict[tuple[str, str], int] = {}
         self._lock = threading.Lock()
 
@@ -254,6 +255,27 @@ class RunWork:
             yield
         finally:
             self._end(run_id)
+
+    @contextmanager
+    def summary(self, run_id: str) -> Iterator[None]:
+        """One whole-file line summary at a time per run (2E-t3 review 1 #1):
+        a summary reads the whole file for seconds and nothing stops it once
+        started, so a second one would only pile the work up. It does not
+        hold off an execution: Confirm is never kept waiting by Review's
+        figures."""
+        with self._lock:
+            if run_id in self._summaries:
+                raise ApiError(
+                    "INVALID_STATE",
+                    "The whole file is already being added up for this run. Wait for it to finish.",
+                    {"reason": "summary_in_progress"},
+                )
+            self._summaries.add(run_id)
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._summaries.discard(run_id)
 
     def is_active(self, run_id: str) -> bool:
         with self._lock:

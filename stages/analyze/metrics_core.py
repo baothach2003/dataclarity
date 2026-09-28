@@ -36,6 +36,7 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import CoreMetrics, MonthlyRevenue, NonProductLines, Period
+from shared import line_report
 from shared.date_evidence import month_grain
 from shared.numbers import pct_change
 from shared.orders import count_orders
@@ -132,7 +133,7 @@ def compute_core_metrics(
         non_product=_non_product(parsed, months, period),
         identity=metrics_lines.revenue_identity(parsed, months, period),
         outside_revenue=metrics_lines.outside_revenue(parsed, months, period),
-        unclassified=metrics_lines.unclassified(parsed),
+        unclassified=line_report.unclassified(parsed),
         unmeasurable=metrics_lines.unmeasurable(parsed, months, period),
         notes=metrics_lines.notes(df, parsed, months, period),
     )
@@ -233,7 +234,7 @@ def _undated(parsed: ParsedTransactions) -> dict:
     Since 2E-j a placeholder date and a day and month the file's date order
     cannot hold are no date too, and the reason names them."""
     # An unmeasurable line is reported once, there (Thach's Q24, 2E-t2).
-    count = int((parsed.dates.isna() & ~parsed.classes.eq("unmeasurable")).sum())
+    count = line_report.undated_lines(parsed)
     if count == 0:
         return {"undated_lines": 0, "undated_lines_reason": None}
     lines, rest = (("1 line has", "it belongs to no month and is") if count == 1 else
@@ -243,7 +244,8 @@ def _undated(parsed: ParsedTransactions) -> dict:
                 f"{lines} no readable date - blank, or no date (such as \"now\", a time with "
                 "no date, a year outside 1900-2100, a placeholder date such as 1900-01-01 or "
                 "1970-01-01, a day and month the file's date order cannot hold, or text that "
-                f"does not parse) - so {rest} left out of every figure")}
+                f"does not parse) - so {rest} left out of every month's figures (one outside revenue "
+                "is still in the whole file's report of such lines)")}
 
 
 def _revenue_by_month(months: pd.Series, amounts: pd.Series) -> list[MonthlyRevenue]:

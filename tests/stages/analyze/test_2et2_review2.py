@@ -16,7 +16,7 @@ import pandas as pd
 
 from contracts.cleaning import LineClassAnswer, OrderConfirmations
 from stages.analyze.assemble import assemble_metrics
-from stages.analyze.metrics_lines import OTHER_TYPE_NAME_CHARS, OTHER_TYPES_NAMED
+from shared.line_report import OTHER_TYPE_NAME_CHARS, OTHER_TYPES_NAMED
 
 NOW = datetime(2026, 9, 26, tzinfo=UTC)
 MAPPING = {"Day": "transaction_date", "Sku": "sku", "Name": "product_name", "Qty": "quantity",
