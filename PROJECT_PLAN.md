@@ -2399,11 +2399,53 @@ dataclarity/
       direction; Kaggle's baseline; the "(not a product)" bucket;
       unmeasurable money) - design section 9, with the questions and a
       recommendation for each. THE RUN STOPPED HERE, by his condition.
-      2E-t1..t3, 2E-u and the freeze wait for his answers.** Then 2E-t1,
-      2E-t2, 2E-t3 as the design's
-      section 7 splits them, the full process each; the migration table in
-      the design's section 6 is the regression anchor, and any demo
-      difference not listed there stops the run.
+      2E-t1..t3, 2E-u and the freeze wait for his answers.**
+      **Thach, after the sixth run (2026-09-28): SCOPE CUT - v1 is the MONEY
+      ledger only.**
+      - Out of v1, into the v2 item (Backlog, "Stock ledger and source
+        signals"): the stock ledger, and every source-signal mapping
+        (transaction-type values and invoice prefixes mapped to return /
+        restock / stock in / stock out). In v1 every stock KPI (days to
+        stockout, velocity, any low-stock figure) reports "not supported in
+        v1" with that reason on EVERY file, rather than a figure that can be
+        wrong; this also retires 2C's sign defect (a -20 line adding 20).
+        6F's and 7C's low-stock table is out of v1; the README says v1
+        analyses sales, not inventory.
+      - Review 4's questions 9, 10, 14, 15, 16 (the report's Q13, Q14, Q18,
+        Q19, Q20) are moot; they go to the v2 item with their findings (#4,
+        #5, #11, #2, #12).
+      - The five no-money classes (`free_item`, `stock_write_off`,
+        `stock_found`, `stock_count`, `no_movement`) become ONE v1 class:
+        without a stock ledger their direction does not matter - counted, no
+        money, present in the product dimension as today. v2 splits them.
+      Answers:
+      - Q15 (design question 11): a line typed "in" - the amount's sign
+        decides the money. Negative = a customer return, in revenue;
+        otherwise stock received, outside revenue, reported with its lines
+        and money. No Review question in v1. SPECS and the schema prompt drop
+        "e.g. a purchase or a return".
+      - Q16 (12): as recommended - "other deductions (unconfirmed)" until
+        confirmed; only confirmed discount lines are "discounts".
+      - Q17 (13): as recommended - the stages also read the suggested class;
+        the product tables and any headline naming such a product show
+        "suggested: <class>, not confirmed".
+      - Q21, Q22, Q23 (17, 18, 19): as recommended - B2 unchanged, its
+        relaxation for confirmed discounts to Phase 8, a negative charge is
+        other revenue, negative; Kaggle's baseline pinned before 2E-t1 as
+        today's code re-executing the stored run's approved plan (no AI
+        call); two matrix columns, the product tables (no) and stage 3's
+        product dimension (the "(not a product)" bucket, as today).
+      - Q24 (20): as recommended, except the items about signal mappings,
+        which leave with the scope cut.
+      - D1-D6 of the sixth run accepted.
+      **Run (seventh):** the 2E-t revision folds in the scope cut, these
+      answers and the author's corrections (#1, #3, #8, #14, #15), rebuilds
+      the anchor (section 6) and re-measures every figure on today's code;
+      then the fifth fresh-context review - if it finds anything that
+      fabricates or needs his definition, stop and report. Then 2E-t1,
+      2E-t2, 2E-t3 as the revised design splits them, the full process each;
+      the anchor is the regression reference, and any demo difference not
+      listed there stops the run.
 - [x] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
       (Thach, 2026-09-28). **Done 2026-09-28** (sixth overnight run, session
       1; method `C:\Users\Happy\2Eo-method.txt`, five amendments):
@@ -2459,12 +2501,21 @@ dataclarity/
       an offset lens, not an explanation); Q6 to Phase 8; Q9 kept (the
       month-grain last month waits until it is over on every clock); D1-D10
       accepted.
+      **Thach, after the sixth run (2026-09-28):** Q11 - keep rule 2 (D1,
+      missing days) FIRST; do not rank it with rules 5 and 6. Unlike
+      seasonality, missing days change the measurement itself: a business
+      cause such as B1 can be a consequence of the missing days, and a
+      measurement problem must be stated before any business reading. Q12
+      ("10.05.30 2026" read as 2030) - Phase 8 (8D). D1-D4 accepted.
 - [ ] 2E-t1 **Line taxonomy: the classifier and stage 1's contracts** (the
-      design's section 7). After the 2E-t revision and its fourth review.
-- [ ] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the design's
-      section 7), with the stock ledger fix and the report of unmeasurable
-      lines (Thach's answers 6 and 7).
-- [ ] 2E-t3 **Line taxonomy: Review** (the design's section 7).
+      revised design's section 7). After the 2E-t revision and its fifth
+      review.
+- [ ] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the revised
+      design's section 7), with every stock KPI "not supported in v1" and
+      the report of unmeasurable lines (Thach's answer 7).
+- [ ] 2E-t3 **Line taxonomy: Review** (the revised design's section 7).
+      **The seventh run stops after 2E-t3**: Thach then chooses between 2E-u
+      with the scope freeze, and an end-to-end skeleton first.
 - [ ] 2E-u **The data failure-mode catalog** (Thach, 2026-09-28). Method
       before code. Consolidate every known input-data failure mode (the 2E
       series' fixes, the 8D list, Online Retail II's quirks, the line
@@ -2718,6 +2769,9 @@ dataclarity/
       leaving it - and 2C's "every counted line subtracts" adds both back.
       Moot on both demo files (no stock-in line, so no velocity); it must be
       settled before any stock figure is shown on a file with inbound lines.
+      **Out of v1 (Thach, 2026-09-28, the scope cut):** v1 analyses sales,
+      not inventory - the low-stock table is not built in v1; every stock
+      KPI reads "not supported in v1" (the v2 item in the Backlog).
 - **DoD:** a non-technical user completes upload -> report without instructions
 
 ### Phase 7 - Import and Persistence
@@ -2729,6 +2783,8 @@ dataclarity/
       **Same stock assumption as 6F's note (Thach, 2E-g):** SPECS section 9's
       "net in minus out, floored at 0" for the Dashboard's low-stock table
       needs inbound movements; with none imported, stock is unknown, not 0.
+      **Out of v1 (Thach, 2026-09-28):** no low-stock endpoint in v1 (the
+      v2 item in the Backlog).
 - **DoD:** dashboard numbers match the source file, hand-checked
 
 ### Phase 8 - Hardening
@@ -2877,11 +2933,13 @@ dataclarity/
       answer; the month-grain last month waits until 12:00 UTC on the 1st;
       profiling costs ~1 s more on a 50 MB file with timestamp columns;
       Vietnamese "SA"/"CH" AM/PM markers read as no date (older).
-      From 2E-t (older, found while measuring; Thach to place, design
-      questions 6-7): the stock ledger reads a zero-amount -20 line as +20
-      stock (days to stockout 57 instead of 17, files with stock-in lines);
-      lines with no parseable quantity or price are reported nowhere
-      (Kaggle: 1,213, 9.6% of the file).
+      From 2E-t (older, found while measuring; placed by Thach): the stock
+      ledger's -20 line read as +20 is retired by the v1 scope cut (every
+      stock KPI "not supported in v1"); lines with no parseable quantity or
+      price are reported in 2E-t2.
+      From the sixth run (Thach's Q12): "10.05.30 2026" (a dotted time, then
+      a year) reads as 2030; refusing a dotted candidate beside a year would
+      also refuse "05.03.26 2045" (a German date and an HHMM time).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -2897,6 +2955,29 @@ dataclarity/
 ### Backlog (never start without explicit approval)
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
+
+**v2: the stock ledger and source signals** (Thach, 2026-09-28, the v1 scope
+cut of the line taxonomy - `docs/LINE_TAXONOMY.md`). v1 analyses sales, not
+inventory: every stock KPI (days to stockout, velocity, any low-stock figure,
+6F's and 7C's low-stock table) reads "not supported in v1". v2 builds:
+- the stock ledger, and the no-money class split again into `free_item`,
+  `stock_write_off`, `stock_found`, `stock_count`, `no_movement`;
+- the source-signal mappings in Review: transaction-type values and invoice
+  prefixes mapped to return / restock / stock in / stock out, and a
+  zero-amount line's direction;
+- the questions review 4 of the design left open, with their findings:
+  #4 a stock line with the minority sign for its signal (a receipt
+  correction booked -30 under "in" read +30 by a magnitude ledger: 99 days
+  to stockout, the truth 39); #5 returns whose restocking the file does not
+  say (days printed with no caveat - a lower bound "at least N days", or
+  null with its reason); #11 a credit prefix mapped `return` (restocks, and
+  flips a positive C line: -747.14 in Online Retail II's 2010-02 - never
+  restock, never flip, was recommended); #2 the canonical type "out" and
+  the direction question (a zero-amount "out" write-off read `stock_count`;
+  the (description, sign) unit is one question per product on the canonical
+  schema); #12 `free_item` setting a direction by rule (703 of its 759
+  lines on customer-less invoices; unknown until mapped was recommended -
+  29% -> 34% of products with a null days to stockout on that shape).
 
 **Period-anchored customer segments, for C4** (3E1 doubt-review cycle 3).
 C4 is `inconclusive` in v1 behind `SEGMENTS_ANCHORED_TO_THE_PERIOD` in
@@ -3056,8 +3137,20 @@ Cycle 3's local fixes unreviewed. pytest 3198, Vitest 183.
 **The sixth overnight run STOPPED after the 2E-t revision** (session 2): the
 fourth review of the design found findings that would fabricate and that need
 Thach's definitions (the 2E-t item, design section 9) - his stop condition.
-Not started: 2E-t1, 2E-t2, 2E-t3, 2E-u, the scope freeze. **Next: Thach's
-answers to review 4.**
+Not started: 2E-t1, 2E-t2, 2E-t3, 2E-u, the scope freeze.
+**Seventh overnight run** approved by Thach (2026-09-28, after reading the
+sixth run's report; his decisions are in the 2E-t and 2E-o items, the v2 item
+in the Backlog): the **v1 scope cut** (the line taxonomy is the money ledger
+only; every stock KPI "not supported in v1"; the stock ledger and the source
+signals to v2) -> **2E-t revision** (the cut, his answers and the author's
+corrections folded in, the anchor rebuilt and re-measured, then the fifth
+fresh-context review; stop and report if it finds anything that fabricates
+or needs his definition) -> **2E-t1 -> 2E-t2 -> 2E-t3** (the anchor the
+regression reference; any demo difference not listed there stops the run).
+Stop after 2E-t3: Thach chooses between 2E-u with the scope freeze, and an
+end-to-end skeleton first. Same rules. Report in
+`C:\Users\Happy\overnight-report.txt` (the sixth run's kept as
+`overnight-report-run6.txt`). **Next: the 2E-t revision.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

@@ -8,6 +8,14 @@ user reviews and edits it with a before/after preview, then approves. Stages 2-5
 run on the approved clean data and produce KPIs, a root-cause diagnosis, an
 interpretable forecast with ranked recommendations, and an HTML report.
 
+## Scope of v1
+
+v1 analyses sales, not inventory. Revenue, orders, customers, products and
+their diagnosis come from the file's sale, return and discount lines; stock
+figures (velocity, days to stockout, low stock) read "not supported in v1"
+on every file, because a stock balance needs a stock ledger the export rarely
+carries and a figure that can be wrong is worse than none.
+
 ## Design principle
 
 **pandas computes, AI interprets.** Every number in the final report comes from a
