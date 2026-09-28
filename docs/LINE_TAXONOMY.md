@@ -180,7 +180,9 @@ other deductions are REPORTED as what they took away - minus their signed sum
 (returns = -(sum of return amounts)), so a positive discount line (a reversal)
 reduces the discounts term - as the returns lens stores them today.
 **The identity: net revenue = gross sales - returns - discounts - other
-deductions (unconfirmed) + other revenue**, to float residue (Thach's Q16:
+deductions (unconfirmed) + other revenue**, to float residue - judged
+against the money the month's counted lines moved (`money_moved`), since a
+charge and its reversal cancel inside one term (2E-t2 U8) - (Thach's Q16:
 "other deductions (unconfirmed)" until confirmed; only lines the user
 confirmed as discounts are "discounts").
 
@@ -226,23 +228,36 @@ confirmed as discounts are "discounts").
   amount, orders, keys}` for the scopes `file` (every line), `current` and
   `previous` (the dated lines of the month) - `amount` the SIGNED sum of the
   lines' amounts (null where not finite), `orders` the distinct orders among
-  the lines or as defined below, `keys` where defined, the rest null.
+  the lines or as defined below, `keys` where defined, the rest null. The
+  `file` scope is every line the measure is about: a note over counted
+  lines counts the dated ones (an undated line is in no figure, and in
+  `undated_lines`); the reports of lines outside revenue and of stock
+  received count every such line, dated or not.
   Wherever stage 5 or the frontend shows a figure, it shows the notes that
   name it, with their measures. A note is present when its file-scope
-  measure has lines (`discounts_in_prices` always). Its codes:
+  measure has lines, except two: `discounts_in_prices` always, and
+  `same_day_cancellations` on every file with return lines, its measures
+  zero where no return matches (decision 1: the return rate carries the
+  note wherever it is shown - 2E-t2 U5). Its codes:
   - `same_day_cancellations` (gross_sales, returns, return_rate, orders,
-    aov, customers, diagnosis; decision 1, widened by the standing rule -
-    S2): "Returns and the return rate include same-day cancellations, which
-    the data cannot separate: the measures count the return lines rung the
-    day their customer bought the same product, and those sale lines."
-    Measures `returns` - `customer_return` lines (products only: a pooled
-    code is many items, not the same product - E11) whose named customer has
-    a `sale` line of the same product key (the line key: SKU, else name) on
-    the same calendar day; `sales` - those sale lines; `orders` the orders
-    among each.
-  - `returns_booked_as_in` (revenue, returns, return_rate, customers,
-    diagnosis; Q25, S6): "Lines typed "in" are outside revenue as stock
-    received. A customer return booked as "in" cannot be told from stock
+    aov, customers, products, diagnosis; decision 1, widened by the
+    standing rule - S2, U7): "Returns and the return rate include same-day
+    cancellations, which the data cannot separate: the measures count the
+    return lines rung the day their customer bought the same product, those
+    sale lines, and the return lines no match can check: with no named
+    customer, or on a pooled code." Present on every file with a dated
+    return line (decision 1). Measures `returns` - `customer_return` lines
+    (products only: a pooled code is many items, not the same product -
+    E11) whose named customer has a `sale` line of the same product on the
+    same calendar day, the product read as the first-day netting reads it
+    (`shared/products.netting_keys`: SKU, else name, a name-only line on
+    its one SKU - U16); `sales` - those sale lines; `returns_unchecked` -
+    the dated return lines no match can reach, with no named customer or
+    `pooled_return` (U14: with no customer column every return is one,
+    never "no cancellation"); `orders` the orders among each.
+  - `returns_booked_as_in` (revenue, returns, return_rate, aov, units,
+    customers, products, diagnosis; Q25, S6, U7): "Lines typed "in" are
+    outside revenue as stock received. A customer return booked as "in" cannot be told from stock
     received, so returns, the return rate and the customer figures leave it
     out, and revenue is not reduced by it." Measures `positive`, `negative`,
     `zero` (by the sign of a finite amount) and `unknown` (no finite
@@ -253,7 +268,8 @@ confirmed as discounts are "discounts").
     discounts, adjustments or gift cards were not confirmed in Review: their
     lines stay what their signs say, in every figure. The measures count
     them, their returns, and the orders holding only such lines." Measures
-    `lines` - the counted lines on unconfirmed candidate keys suggested cost,
+    (`keys` the distinct products they are on, read as the same-day match
+    reads them - U16) `lines` - the counted lines on unconfirmed candidate keys suggested cost,
     charge, discount, adjustment or gift card (E2: not `pooled`, whose lines
     stay sales and returns once confirmed), with `keys` and `orders` = the
     orders holding a sale line and only such sale lines; `returns` - their
@@ -261,7 +277,7 @@ confirmed as discounts are "discounts").
     return lines (Q26's share for the return rate). The identity's returns
     term carries minus the `returns` amount as `returns_on_suggested_keys`.
   - `unconfirmed_deductions` (revenue, other_deductions, returns,
-    return_rate, diagnosis; S4): "Lines at a negative price are other
+    return_rate, aov, customers, products, diagnosis; S4, U7): "Lines at a negative price are other
     deductions: refunds, coupons and write-offs the data cannot tell apart. A
     refund among them is not in returns or the return rate, and a write-off
     among them keeps revenue lower than it may be." Measure `lines` - the
@@ -270,15 +286,24 @@ confirmed as discounts are "discounts").
     "Discounts count only lines classed as discounts; a discount already
     taken off a line's price is not visible, and that line's gross sales are
     at the reduced price." No measure.
-  - `other_transaction_types` (revenue, returns, return_rate, diagnosis;
-    S5): "Lines carry transaction types other than in or out; v1 reads only
-    "in", so these are read by their signs as sales or returns. The measures
-    count them by value." One measure per value, over COUNTED lines: the
-    value read as "in" is (`identifier_text`, case-folded), named by its
-    commonest spelling.
+  - `other_transaction_types` (revenue, gross_sales, returns,
+    other_deductions, return_rate, orders, aov, units, customers, products,
+    diagnosis - every figure a counted line is in; S5, U7): "Lines carry
+    transaction types other than in or out; v1 reads only "in", so these
+    are read by their signs as sales or returns. The measures count them by
+    value, the rarest values together." Over COUNTED lines, per value as
+    "in" is read (`identifier_text`, case-folded): the five values with the
+    most lines, each named by its commonest spelling cut to 40 characters,
+    then one `(other values)` measure whose `keys` counts its values (U15:
+    the names are the file's own text and reach the AI, so they are
+    bounded); a cell with nothing visible is blank, read as "out" (2E-i),
+    never a value.
 
   No note changes a figure. Every money figure and measure writes a zero as
-  0.0, never -0.0 (review 6b #12).
+  0.0, never -0.0 (review 6b #12). A note's sentence and figures are fixed
+  per code in `contracts/lines.py`, which refuses any other: they are part
+  of the contract, so changing one is a major bump of metrics.json and
+  diagnosis.json (U12).
 - **Stock**: no column in v1. `products.velocity` is null on every file with
   the reason that stock figures are not supported in v1, and stage 4's
   `products_at_stockout_risk` likewise (review 5 #3).
@@ -403,7 +428,10 @@ v1** - a same-day credit stays a return, and the return rate carries the
 ### 4.5 The suggestions downstream (Thach's Q17)
 
 Stages 2 and 3 read `suggested_class` beside `line_class`: a product's
-suggestion is its key's. Each contract that names products carries ONE map,
+suggestion is its key's - the one its OWN key's lines carry; a name-only
+line resolved to a SKU keeps its own name key's suggestion, which marks no
+product (its lines are in the `unconfirmed_suggestions` note), so the mark
+never depends on which line came first (2E-t2 U6). Each contract that names products carries ONE map,
 `suggested_classes`: every product it names - by its label, which is unique
 (`shared/products.py`) - whose key carries an unconfirmed suggestion, with
 that class. metrics.json names products in `top_products` and
@@ -532,7 +560,9 @@ tree, localization, hypotheses, the catalog's not_testable, the headline)
    (with `returns_on_suggested_keys`), the outside-revenue totals for the
    file and the compared months (with `stock_in` by sign), the `unclassified`
    report (0 lines, 0.0, a share of 0.0 on all three runs), the unmeasurable
-   report (file and compared months), `notes`, `suggested_classes`; the same
+   report (file and compared months), `notes`, `suggested_classes` - and
+   `money_moved` in each month's identity (U8), outside revenue's `sign`
+   (U9); the same
    `notes` and diagnosis.json's `suggested_classes` in stage 3's output. No
    new cleaning warning.
 4. **Stage 1's line-class candidates** on Online Retail II gain the 7
@@ -549,8 +579,8 @@ tree, localization, hypotheses, the catalog's not_testable, the headline)
 
 - *Online Retail II classed*: identity 2011-11 1,460,682.95 / 28,259.70 /
   474.85 / 0 / 47,935.73 = 1,479,884.13; 2011-10 1,128,115.16 / 66,602.40 /
-  56.08 / 0 / 26,311.91 = 1,087,768.59; `returns_on_suggested_keys` 0.0 in
-  both months (the one return on an unconfirmed key, `gift_0001_80`'s
+  56.08 / 0 / 26,311.91 = 1,087,768.59 (money moved 1,539,048.53 and
+  1,222,063.91); `returns_on_suggested_keys` 0.0 in both months (the one return on an unconfirmed key, `gift_0001_80`'s
   -69.56, is in 2010-01). Outside revenue: the file cost 265 lines,
   -310,325.44 and adjustment 76, -140,047.79; 2011-11 cost 13, -18,127.88;
   2011-10 cost 18, -17,063.92; no stock_in. Unmeasurable 0; undated 0.
@@ -560,14 +590,18 @@ tree, localization, hypotheses, the catalog's not_testable, the headline)
   `same_day_cancellations` - returns: the file 2,630 / -416,673.77 / 1,108,
   2011-11 162 / -7,905.67 / 69, 2011-10 166 / -25,970.12 / 46; sales: the
   file 3,028 / +515,973.87 / 1,174, 2011-11 202 / +12,734.24 / 72, 2011-10
-  198 / +30,873.44 / 53. `unconfirmed_suggestions` (the 7 gift-voucher
+  198 / +30,873.44 / 53; returns no match can check (U14, measured at
+  2E-t2 - 353 with no named customer and M's 537 pooled returns): the file
+  890 / -430,822.14 / 617, 2011-11 28 / -4,808.72 / 18, 2011-10 60 /
+  -22,939.20 / 37. `unconfirmed_suggestions` (the 7 gift-voucher
   keys) - lines: the file 96 / +1,686.61 / 0 orders / 7 keys, 2011-11 0,
   2011-10 1 / +16.67 / 0 / 1 key; returns: the file 1 / -69.56 / 1, the
   months 0. `discounts_in_prices`.
 - *Online Retail II unanswered*: identity 2011-11 1,509,496.33 / 47,740.08 /
   0 / 0 / 0 = 1,461,756.25, `returns_on_suggested_keys` 19,480.38; 2011-10
   1,154,979.30 / 84,274.63 / 0 / 0 / 0 = 1,070,704.67,
-  `returns_on_suggested_keys` 17,672.23 (the 5 B lines, the file's only
+  `returns_on_suggested_keys` 17,672.23 (money moved 1,557,236.41 and
+  1,239,253.93; the 5 B lines, the file's only
   other deductions, fall in neither month). Nothing outside revenue;
   unmeasurable 0; undated 0. `suggested_classes`: metrics.json `DOTCOM
   POSTAGE` charge; diagnosis.json that and the voucher. `non_product` empty,
@@ -575,7 +609,9 @@ tree, localization, hypotheses, the catalog's not_testable, the headline)
   its lines count) - returns: the file 2,813 / -551,654.16 / 1,270, 2011-11
   177 / -9,473.48 / 82, 2011-10 179 / -41,958.84 / 55; sales: the file
   3,210 / +638,534.57 / 1,335, 2011-11 222 / +15,262.51 / 88, 2011-10 213 /
-  +50,060.59 / 64. `unconfirmed_suggestions` - lines: the file 4,545 /
+  +50,060.59 / 64; returns no match can check (U14; no pooled code
+  unanswered): the file 749 / -431,904.64 / 390, 2011-11 23 / -18,330.44 /
+  13, 2011-10 62 / -19,559.43 / 28. `unconfirmed_suggestions` - lines: the file 4,545 /
   -12,611.69 / 241 orders / 19 keys, 2011-11 308 / +29,333.00 / 10 / 9,
   2011-10 232 / +9,208.58 / 20 / 10; returns: the file 667 / -376,591.77 /
   439, 2011-11 45 / -19,480.38 / 34, 2011-10 37 / -17,672.23 / 21.

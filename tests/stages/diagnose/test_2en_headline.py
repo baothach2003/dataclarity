@@ -427,8 +427,8 @@ def test_diagnosis_json_is_major_13_or_the_current_one_and_refuses_a_12_file() -
     # name another cause, and rule 6 may name none or two (CONTRACTS 10).
     # 13.0 in 2E-n; 14.0 in 2E-i; 15.0 since 2E-j.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 16
-    assert DiagnosisContract.model_validate(payload).schema_version == "16.0"
+    assert DiagnosisContract.supported_major == 17  # 17 since 2E-t2 (the line taxonomy)
+    assert DiagnosisContract.model_validate(payload).schema_version == "17.0"
 
     payload["schema_version"] = "12.0"
     with pytest.raises(ValidationError, match="re-analyse"):

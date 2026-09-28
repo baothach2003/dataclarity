@@ -28,7 +28,7 @@ from contracts.profile import SchemaInferenceContract
 from stages.analyze import assemble
 from stages.ingest import ai_plan, ai_schema, cleaning
 from stages.ingest.cleaning import execute_run
-from stages.ingest.non_product_lines import CLASS_WORDS
+from shared.line_words import CLASS_WORDS
 from tests.stages.ingest.cleaning_fixtures import NOW, make_plan, raw_run
 
 PROMPT = Path(__file__).resolve().parents[3] / "prompts" / "schema_inference.md"

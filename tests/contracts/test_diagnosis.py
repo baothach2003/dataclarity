@@ -15,13 +15,14 @@ import pytest
 from pydantic import ValidationError
 
 from contracts.diagnosis import DiagnosisContract, Lever, LeverFactor, LeverLevel, Signal
+from contracts.lines import NOTE_FIGURES, NOTE_TEXTS
 
 
 def diagnosis_payload() -> dict[str, Any]:
     # The example from docs/CONTRACTS.md section 7, with the arrays that the
     # documentation shows one element of filled in completely.
     return {
-        "schema_version": "16.0",  # 2E-c: deductions; 2E-c2: the bridge's new; 2E-e: orders by basis; 2E-f: customers; 2E-g: products; 2E-h: dates; 2E-e2: answers; 2E-k: placeholders; 2E-d2: non-product lines; 2E-l: charges, P4, P5, breadth; 2E-m: the ranking; 2E-n: sale lines, one fit; 2E-i: one text reading; 2E-j: month grain; 2E-o: rules 5 and 6 ranked together
+        "schema_version": "17.0",  # 2E-t2: the line taxonomy; 2E-c: deductions; 2E-c2: the bridge's new; 2E-e: orders by basis; 2E-f: customers; 2E-g: products; 2E-h: dates; 2E-e2: answers; 2E-k: placeholders; 2E-d2: non-product lines; 2E-l: charges, P4, P5, breadth; 2E-m: the ranking; 2E-n: sale lines, one fit; 2E-i: one text reading; 2E-j: month grain; 2E-o: rules 5 and 6 ranked together
         "generated_at": "2026-09-18T04:16:00Z",
         "model_used": "claude-sonnet-5",
         "frame": {
@@ -123,6 +124,10 @@ def diagnosis_payload() -> dict[str, Any]:
             "hypothesis_notes": [{"id": "P2", "text": "Shoppers bought more of the cheaper lines..."}],
             "not_tested_note": "This data cannot test marketing, competitors, weather or footfall.",
         },
+        # 2E-t2: metrics.json's notes; no product named here carries a suggestion.
+        "notes": [{"code": "discounts_in_prices", "figures": NOTE_FIGURES["discounts_in_prices"],
+                   "text": NOTE_TEXTS["discounts_in_prices"], "measures": []}],
+        "suggested_classes": {},
     }
 
 

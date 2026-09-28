@@ -2607,9 +2607,61 @@ dataclarity/
         flags, performance, stale texts. Cycle 3's fixes (a dropped column
         not renamed, the failure naming the written column, dict lookups)
         are UNREVIEWED; tested and mutation-checked.
-- [ ] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the revised
+- [x] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the revised
       design's section 7), with every stock KPI "not supported in v1" and
-      the report of unmeasurable lines (Thach's answer 7).
+      the report of unmeasurable lines (Thach's answer 7). **Done
+      2026-09-28** (eighth run, session 3; method
+      `C:\Users\Happy\2Et2-method.txt`):
+      - The classifier and the candidate words moved to `shared/` (U1) so
+        `parse_transactions` reads cleaned.csv's `line_class`,
+        `class_source` and `suggested_class` - each checked against its
+        closed list, a partial set refused (`LineClassColumnsError`,
+        ANALYSIS_FAILED 422 "re-upload the file") - and classifies an
+        in-memory frame by the same function; stage 1's order checks
+        classify the raw file (`raw=True`: a column of the user's named
+        `line_class` is theirs; no suggestions searched, the dates read
+        once). Every set the readers use derives from the class through the
+        effects matrix `shared/line_effects.py` (every class counted
+        nowhere has its report); `line_class` stays the user's item, from
+        Review's answers, on every line of the key.
+      - metrics.json 16.0 (the migration's one major, taken in 2E-t1; a
+        16.0 file without the new blocks is refused as stale) gains
+        `core.identity` (the compared months: gross - returns - discounts -
+        other deductions (unconfirmed) + other revenue = net, residue judged
+        against `money_moved`; `returns_on_suggested_keys`),
+        `core.outside_revenue` (gift cards, costs, adjustments, stock
+        received by `sign`; file and compared months), `core.unclassified`,
+        `core.unmeasurable` (per scope and reason; `undated_lines` leaves
+        them out), `core.notes` (the six codes; a fixed sentence and figures
+        per code in `contracts/lines.py`, checked; one note per code) and
+        `products.suggested_classes` (a product's own key's suggestion);
+        `velocity` null on every file. diagnosis.json 17.0: `notes`
+        (metrics.json's) and `suggested_classes` (every product it names,
+        `contracts.diagnosis.named_products`), both required.
+        forecast.json's stockout risk null in v1 (in place at 1.0). The
+        prompts read the notes and the marks; strategy.md recommends no
+        reorder. Review's stock-in notice says "the report of stock
+        received".
+      - Measured against the anchor: the three demo runs differ from the
+        pins in exactly the listed ways (columns_out, the versions, the
+        velocity reason); the notes equal `notes5.json`; the identities,
+        outside-revenue totals, unmeasurable counts and marks are the
+        design's; the headlines unchanged. The same-day note's new measure
+        of returns no match can check (U14), recorded in the anchor: Online
+        Retail II unanswered 749 lines / -431,904.64 in the file, 23 /
+        -18,330.44 in 2011-11; classed 890 / -430,822.14 (M's pooled returns
+        with them).
+      - Tests first; mutation 63 mutants, 62 killed, 1 equivalent (a pooled
+        return and a sale never share a key). Doubt-review 3 cycles (16,
+        11, 13 findings; cross-model skipped: non-interactive), none
+        blocking: the standing rule applied to the notes' figures, the
+        unchecked returns and stock received; a product's mark its own
+        key's; the identity's scale; the bounded, told-apart type values
+        (their names reach the AI); a charge's "in" line no longer a
+        product. Decisions made alone U1-U16 (the report). Cycle 3's fixes
+        (U14's pooled returns, U16's product key, the dates read once, the
+        told-apart names, the stale 16.0 message, the matrix's reports) are
+        UNREVIEWED; tested and mutation-checked.
 - [ ] 2E-t3 **Line taxonomy: Review** (the revised design's section 7).
       **The seventh run stops after 2E-t3**: Thach then chooses between 2E-u
       with the scope freeze, and an end-to-end skeleton first.
@@ -3043,6 +3095,18 @@ dataclarity/
       13-14 s; the schema step's candidate list costs the same on such a file
       (older), and Review would list every one. Finite lines whose month sum
       passes a float stay counted (review 5 #13).
+      From 2E-t2: stage 2 on Online Retail II (1,067,371 lines) takes ~41-44
+      s against ~35-37 s before (the notes ~2.5 s, outside revenue 0.7 s,
+      the marks 0.7 s), and stage 3's marks ~5 s more - it recomputes the
+      product keys and labels, as its other steps do (SPECS 11 wants
+      seconds; the older entry above). A month whose finite lines sum past
+      a float (two lines of 1e308): stage 2 now stops with a 500 - the
+      identity's terms must be finite - where it wrote a revenue of null
+      that no reader could load (review 5 #13's limit, older). File size:
+      `contracts/metrics.py` 416 lines, `contracts/diagnosis.py` 771 (the
+      debt above). Stages 2 and 3 classify a frame without stage 1's
+      columns (tests, harnesses): a real cleaned.csv always has them (stage
+      1 4.0), an older one is refused by its report's major.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3276,7 +3340,13 @@ rule; the anchor pinned through stage 1's real path; reviews 6 and 6b folded
 in, no stop. Session **2E-t1** closed 2026-09-28 (session 2; see its item):
 the classifier writes each line's class into cleaned.csv; `gift_card`; stage 1
 4.0, metrics.json 16.0; the demo runs differ only as the anchor lists. pytest
-3281, Vitest 187. **Next: 2E-t2.**
+3281, Vitest 187. Session **2E-t2** closed 2026-09-28 (session 3; see its
+item): stages 2 and 3 read each line's class; metrics.json 16.0 gains the
+identity, the lines outside revenue, the unclassified and unmeasurable
+lines, the notes and the marks (`undated_lines` leaves the unmeasurable
+out; `velocity` null on every file - meanings changed, CONTRACTS 10);
+diagnosis.json 17.0; the demo runs differ only as the anchor lists. Cycle
+3's fixes unreviewed. pytest 3377, Vitest 187. **Next: 2E-t3.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

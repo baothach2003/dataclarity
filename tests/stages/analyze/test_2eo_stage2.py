@@ -124,7 +124,7 @@ def test_metrics_json_is_15_and_diagnosis_json_16() -> None:
     from contracts.metrics import MetricsContract
     from stages.analyze.assemble import SCHEMA_VERSION
 
-    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("16.0", 16, 16)  # metrics 16.0 since 2E-t1 (the line taxonomy)
+    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("16.0", 16, 17)  # metrics 16.0 since 2E-t1, diagnosis 17.0 since 2E-t2 (the line taxonomy)
 
 
 def test_complete_months_end_at_the_last_counted_month() -> None:

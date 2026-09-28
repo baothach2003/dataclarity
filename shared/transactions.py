@@ -70,26 +70,17 @@ from contracts.cleaning import OrderConfirmations
 from shared.date_evidence import answered_order, month_grain
 from shared.dates import as_dates
 from shared.line_classes import line_classes
+from shared.line_effects import COUNTED, DEDUCTIONS, GROSS, LEFT_OUT, RETURNS
+from shared.line_numbers import (  # noqa: F401  # one definition, read here as it always was
+    LineClassColumnsError,
+    RequiredColumnMissingError,
+    is_stock_in,
+    line_numbers,
+    require_column,
+)
+from shared.line_taxonomy import read_classes
 from shared.orders import OrdersBasis, order_basis
 from shared.text import customer_identity, identifier_text, is_blank
-
-
-class RequiredColumnMissingError(ValueError):
-    """cleaned.csv has no column mapped to a canonical field a stage needs.
-    transaction_date and quantity are stage 1 required fields, so raising for
-    them is defensive; unit_price is not required by stage 1
-    (docs/AI_PIPELINE.md section 11), so it is the realistic case.
-
-    `canonical_field` is structured (not just the message text) so a caller
-    outside the stage - the API endpoints - can report which field is missing
-    without parsing a sentence."""
-
-    def __init__(self, canonical_field: str) -> None:
-        self.canonical_field = canonical_field
-        super().__init__(
-            f"cleaned.csv has no column mapped to '{canonical_field}'; "
-            "metrics cannot be computed without it"
-        )
 
 
 @dataclass(frozen=True)
@@ -103,7 +94,15 @@ class ParsedTransactions:
     revenue_amounts: pd.Series  # quantities * prices
     # date/quantity/price all present, regardless of transaction_type.
     valid: pd.Series
-    # `valid` AND counts towards revenue: not "in", not `left_out` (2E-d2).
+    # Each line's class of the line taxonomy (2E-t2, docs/LINE_TAXONOMY.md):
+    # stage 1's `line_class`, `class_source` and `suggested_class`, read from
+    # cleaned.csv - or, for a frame without them, classified here by the same
+    # function (`shared/line_taxonomy.py`). Every set below derives from the
+    # class through `shared/line_effects.py`.
+    classes: pd.Series
+    class_source: pd.Series
+    suggested: pd.Series
+    # A counted class, dated (docs/LINE_TAXONOMY.md section 3).
     counted: pd.Series
     # `counted` AND quantity > 0 AND a positive amount, not a discount or a
     # charge: an order (module docstring, 2E and 2E-c; 2E-l).
@@ -118,9 +117,10 @@ class ParsedTransactions:
     # `counted` and none of the three: a coupon, a discount, a write-off, a
     # free item, a zero-amount stock write-off (module docstring, 2E-c, 2E-c2).
     deduction: pd.Series
-    # The class the user gave each line in Review, NaN for a product (2E-d2,
-    # shared/line_classes.py; contracts.profile.LineClass). A pooled line is
-    # an ordinary sale or return line, ranked as no product (2E-l).
+    # The ITEM the user gave each line's key in Review, NaN for a product
+    # (`shared/line_classes.line_classes`; contracts.profile.LineClass), on
+    # every line of the key. A pooled line is an ordinary sale or return
+    # line, ranked as no product (2E-l).
     line_class: pd.Series
     # `valid`, not "in", and classed a fee or cost, an adjustment or a gift
     # card: out of revenue and every figure, as an "in" row is, but reported.
@@ -152,11 +152,15 @@ class ParsedTransactions:
 
 
 def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
-                       confirmations: OrderConfirmations | None = None) -> ParsedTransactions:
+                       confirmations: OrderConfirmations | None = None, *, raw: bool = False
+                       ) -> ParsedTransactions:
     """`column_mapping` is cleaning_report.json's mapping of source column
     name -> canonical field, `confirmations` its answers as applied (with
-    stage 1's date order; None: nothing). Raises RequiredColumnMissingError
-    if transaction_date, quantity or unit_price has no mapped column."""
+    stage 1's date order; None: nothing). `raw`: the file as uploaded (stage
+    1's order checks), classified here, never read for stage 1's columns.
+    Raises RequiredColumnMissingError if transaction_date, quantity or
+    unit_price has no mapped column, LineClassColumnsError if cleaned.csv's
+    line classes are not stage 1's."""
     reverse = {field: source for source, field in column_mapping.items()}
     answers = confirmations or OrderConfirmations()
 
@@ -173,39 +177,31 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # cell, or a report from before 2E-j): as before.
     dates = as_dates(df[date_col], offsets="wall_clock", order=answered_order(answers.dates_day_first))
     quantities, prices, counts_as_sale = line_numbers(df, reverse, quantity_col, price_col)
+    classes, class_source, suggested = read_classes(df, column_mapping, answers, raw=raw, dated=dates.notna())
 
     # A row with no parseable date, quantity or price cannot be measured or
-    # placed in a period; it is left out rather than guessed at.
-    #
-    # np.isfinite, not notna: `pd.to_numeric` parses the strings "inf",
-    # "-inf" and "Infinity" into real floats, which are not missing and so
-    # passed a notna() check. One such cell then propagated through every sum
-    # that touched it, and because JSON cannot represent infinity, pydantic
-    # serialised the result as `null` in contract fields typed as a required
-    # float - a metrics.json or diagnosis.json that will not validate when read
-    # back (3C doubt-review C2). An unrepresentable number is not a measurement,
-    # so it is excluded here exactly like an unparseable one.
+    # placed in a period; it is left out rather than guessed at. np.isfinite,
+    # not notna: "inf" parses into a real float that no sum survives (3C
+    # doubt-review C2). The class says the rest (2E-t2): an amount too large
+    # to add is unmeasurable too, and "in" lines are stock received.
     valid = dates.notna() & np.isfinite(quantities) & np.isfinite(prices)
-    # The user's classes (Thach, 2E-d2). A fee or cost and an accounting
-    # adjustment leave revenue as an "in" row does - excluded, never
-    # subtracted - and are reported. A discount is 2E-c's deduction whatever
-    # its signs: a -1 @ +price discount read as a return line (2E-c2 item f).
-    # A charge the customer paid is revenue but no order and no return line
-    # (Thach, 2E-l, superseding 2E-d2's "stays a sale line"): an invoice of
-    # postage alone made an order, and a postage refund a return.
-    amounts = quantities * prices
-    # The lines that would be sales if nothing were classed: the name-only
-    # vote (shared/line_classes.name_only_sku) reads those.
-    would_sell = valid & counts_as_sale & (quantities > 0) & (amounts > 0)
-    line_class = line_classes(df, reverse, answers.line_classes, would_sell)
-    # A gift card the user confirmed is outside revenue as a fee is (Thach,
-    # the line taxonomy's decision 4; 2E-t1): a liability until redeemed.
-    left_out = valid & counts_as_sale & line_class.isin(("cost", "adjustment", "gift_card"))
-    counted = valid & counts_as_sale & ~left_out
-    charge = counted & line_class.eq("charge")
-    priced = counted & ~line_class.isin(("discount", "charge"))
-    sale = priced & (quantities > 0) & (amounts > 0)
-    returned = priced & (quantities < 0) & (amounts < 0)
+    dated = dates.notna()
+    with np.errstate(over="ignore", invalid="ignore"):
+        amounts = quantities * prices
+    counted = classes.isin(COUNTED) & dated
+    sale = classes.isin(GROSS) & dated
+    returned = classes.isin(RETURNS) & dated
+    charge = classes.eq("charge") & dated
+    # Outside revenue by the user's answer - a fee or cost, an adjustment, a
+    # gift card (2E-d2, 2E-t1): excluded, never subtracted, and reported.
+    left_out = classes.isin(LEFT_OUT) & dated
+    # The item the user gave the line's key in Review, on EVERY line of the
+    # key: read from the class, a charge's "in" or unpriced line lost its item
+    # and became a product that renamed a real one (2E-t2 review 2 #1). The
+    # name-only vote reads the lines that would be sales if nothing were
+    # classed, as stage 1's classifier does (E7).
+    line_class = line_classes(df, reverse, answers.line_classes,
+                              valid & counts_as_sale & (quantities > 0) & (amounts > 0))
     customers = customers_of(df, reverse.get("customer"))
     # A value the user confirmed as a placeholder for walk-ins ("Guest",
     # "Walk-in", "0") names no one (Thach, 2E-k): compared by identity.
@@ -221,7 +217,7 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # lines either (2E-d2 doubt-review F9: a bad debt under Dee named a
     # receipt's walk-in line).
     orders = order_basis(order_ids(df, reverse.get("order_id")), dates.dt.normalize(),
-                         customers, sale, returned, counted, ~counts_as_sale | left_out,
+                         customers, sale, returned, counted, classes.eq("stock_in") | left_out,
                          receipt_answer=answers.order_id_is_receipt,
                          customer_column="customer" in reverse,
                          fill=answers.customer_on_first_line_only is not False,
@@ -233,11 +229,14 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
         prices=prices,
         revenue_amounts=amounts,
         valid=valid,
+        classes=classes,
+        class_source=class_source,
+        suggested=suggested,
         counted=counted,
         sale=sale,
         returned=returned,
         charge=charge,
-        deduction=counted & ~sale & ~returned & ~charge,
+        deduction=classes.isin(DEDUCTIONS) & dated,
         line_class=line_class,
         left_out=left_out,
         units=quantities.where(sale | returned, 0.0),
@@ -249,25 +248,6 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
         placeholder=placeholder,
         order_id_date_only=orders.date_only,
     )
-
-
-def line_numbers(df: pd.DataFrame, reverse: dict[str, str], quantity_col: str,
-             price_col: str) -> tuple[pd.Series, pd.Series, pd.Series]:
-    """Quantities, prices, and whether each row counts towards revenue by its
-    transaction type (not an explicit "in") - read by `parse_transactions`
-    and, without dates, by stage 1's walk-in placeholder search (2E-k)."""
-    quantities = pd.to_numeric(df[quantity_col], errors="coerce")
-    prices = pd.to_numeric(df[price_col], errors="coerce")
-    type_col = reverse.get("transaction_type")
-    if type_col is None:
-        counts_as_sale = pd.Series(True, index=df.index)
-    else:
-        # astype(object): an empty or all-missing column can read back as
-        # float64, and .str only works on an object/string dtype. NaN (a
-        # per-row missing type) compares False to "in", so it also defaults
-        # to "out", matching the column-level default.
-        counts_as_sale = ~is_stock_in(df[type_col])
-    return quantities, prices, counts_as_sale
 
 
 def order_ids(df: pd.DataFrame, column: str | None) -> pd.Series | None:
@@ -283,18 +263,3 @@ def customers_of(df: pd.DataFrame, column: str | None) -> pd.Series:
     if column is None:
         return pd.Series(float("nan"), index=df.index, dtype=object)
     return customer_identity(df[column]).where(~is_blank(df[column]))
-
-
-def require_column(reverse: dict[str, str], canonical_field: str) -> str:
-    column = reverse.get(canonical_field)
-    if column is None:
-        raise RequiredColumnMissingError(canonical_field)
-    return column
-
-
-def is_stock_in(values: pd.Series) -> pd.Series:
-    """Where a transaction_type cell says "in", read as revenue scope has
-    always read it (2A) - one reading for revenue scope and stage 2's
-    stock-in lines (2E-g) - through `identifier_text` (2E-i: "IN" with a
-    zero-width space was a sale). NaN is not "in"."""
-    return identifier_text(values).str.lower().eq("in")

@@ -24,7 +24,7 @@ import pytest
 from contracts.cleaning import CleaningPlanContract, LineClassAnswer, OrderConfirmations
 from contracts.profile import NonProductCandidate, SchemaInferenceContract
 from stages.ingest import ai_plan, ai_schema, cleaning
-from stages.ingest.non_product_lines import non_product_candidates
+from shared.line_words import non_product_candidates
 from tests.ai_fakes import FakeMessages
 from tests.stages.ingest.cleaning_fixtures import NOW
 from tests.stages.ingest.schema_answers import answer, column, profiled_run, run

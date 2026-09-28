@@ -130,6 +130,22 @@ def product_labels(df: pd.DataFrame, parsed: ParsedTransactions, keys: pd.Series
     return pd.Series(unique, index=products, dtype=object)
 
 
+def product_suggestions(df: pd.DataFrame, parsed: ParsedTransactions, keys: pd.Series) -> dict[str, str]:
+    """Per product key, the line-class suggestion nobody confirmed that its
+    OWN key carries (docs/LINE_TAXONOMY.md 4.5: a product's suggestion is its
+    key's). A name-only line resolved to a SKU keeps its own name key's
+    suggestion, which marks no product - its lines are in the
+    unconfirmed-suggestions note: taken from any of a product's lines, two
+    suggestions made the mark depend on which line came first (2E-t2 review
+    1 #4). Read by value, so repeated row labels cannot misalign it (#15)."""
+    own = keyed(text_identity(df, parsed.reverse.get("product_name")),
+                text_identity(df, parsed.reverse.get("sku")))
+    lines = pd.DataFrame({"key": keys.to_numpy(), "own": own.to_numpy(), "suggested": parsed.suggested.to_numpy()})
+    lines = lines[lines["key"].eq(lines["own"])].dropna(subset=["key", "suggested"])
+    # Every line of one key carries the key's suggestion, so `first` is no choice.
+    return {str(key): str(line_class) for key, line_class in lines.groupby("key")["suggested"].first().items()}
+
+
 def _fold(label: str) -> str:
     """A label as a reader compares it. Labels are built from `product_text`
     - already composed, free of invisible characters, spaces as one - so

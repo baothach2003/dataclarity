@@ -27,7 +27,7 @@ from stages.diagnose.frame import history_window
 from stages.diagnose.hypotheses import evaluate_hypotheses
 from stages.diagnose.inputs import build_run_data
 from stages.diagnose.tree import compute_tree
-from stages.ingest.non_product_lines import non_product_candidates
+from shared.line_words import non_product_candidates
 from tests.stages.diagnose.test_hypotheses import by_id, step7
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)

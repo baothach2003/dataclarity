@@ -98,16 +98,15 @@ def _velocity_scenario() -> pd.DataFrame:
     )
 
 
-def test_velocity_hand_calculated_and_excludes_non_positive_velocity_products() -> None:
+def test_velocity_is_not_supported_in_v1() -> None:
+    """2C's hand-calculated scenario (100 in, 20 + 30 out: 50 left at 30/31 a
+    day) - since 2E-t2 no stock figure is written, on any file (Thach, the
+    line taxonomy's v1 scope cut)."""
     df = _velocity_scenario()
     period = period_for(df, MAPPING_WITH_TYPE)
     assert period.current == "2020-01"
 
     products = compute_product_metrics(df, MAPPING_WITH_TYPE, period)
 
-    assert len(products.velocity) == 1  # NeverSold and ReturnHeavy both excluded
-    v = products.velocity[0]
-    assert v.product == "V"
-    assert v.units_per_day == pytest.approx(30 / 31)  # 30 units sold in January (31 days)
-    # implied stock: 100 in - (20 previous-period out + 30 current-period out) = 50
-    assert v.days_to_stockout == pytest.approx(50 / (30 / 31))
+    assert products.velocity is None
+    assert products.velocity_reason.startswith("stock figures are not supported in v1")

@@ -16,7 +16,17 @@ STRICT RULES
   - Champions -> loyalty or early access, never discounts
   - revenue concentrated in few products (Pareto) -> focus budget there, bundle
     weak products with strong ones
-  - stockout risk in the forecast -> reorder recommendation with a unit figure
+- Stock figures are not supported in v1: never recommend a reorder or a stock
+  level; the forecast carries no stockout risk.
+- The input's `notes` sit beside the figures they name (their `figures`):
+  when you write about such a figure, say what its note says, with its
+  measures' numbers - the data cannot fully tell those lines apart, and the
+  reader must know. Never drop a note to make a sentence simpler.
+- A product listed in `suggested_classes` is marked by the file as possibly
+  not a product (a charge, a fee, a discount, an adjustment, a gift card, or
+  many items under one code) and the user has not confirmed it: name it as
+  "<name> (suggested: <class>, not confirmed)", and never make it the subject
+  of a product recommendation.
 - expected_impact must show its arithmetic using input numbers.
 - 3 to 5 recommendations maximum, ranked by expected impact.
 - Include a do_not_do list of tempting actions the data does not support.

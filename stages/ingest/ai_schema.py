@@ -26,7 +26,7 @@ from stages.ingest.ai_input import MAX_AI_COLUMNS, build_prompt_variables
 from stages.ingest.contract_files import StaleInputError, write_contract
 from stages.ingest.customer_placeholders import placeholder_candidates
 from stages.ingest.issue_recount import recount_issues
-from stages.ingest.non_product_lines import non_product_candidates
+from shared.line_words import non_product_candidates
 from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
 # A pct the AI copied from the profile may be rounded to one decimal.

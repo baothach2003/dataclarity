@@ -33,8 +33,8 @@ from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.contract_files import write_files_atomically
 from stages.ingest.date_order import execution_order
+from shared.line_taxonomy import classify_lines
 from stages.ingest.line_taxonomy import (
-    classify_lines,
     is_classed,
     rename_warnings,
     renamed_plan,

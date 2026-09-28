@@ -22,7 +22,7 @@ from stages.diagnose.inputs import build_run_data
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.localization import compute_localization
 from stages.ingest.cleaning import execute_run
-from stages.ingest.line_taxonomy import classify_lines
+from shared.line_taxonomy import classify_lines
 from tests.stages.ingest.cleaning_fixtures import NOW, raw_run
 
 BASE = [("sku", "identifier", "sku"), ("name", "text", "product_name"), ("qty", "numeric_discrete", "quantity"),

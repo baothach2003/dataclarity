@@ -426,6 +426,29 @@ Rules for the values (no field changed):
       {"line_class": "charge", "lines": 3931, "amount": 449559.47,
        "amount_current": 47935.73, "amount_previous": 26311.91,
        "reason": "3,931 lines classed in Review as charges paid by the customer stay in revenue and are in no product table"}
+    ],
+    "identity": {
+      "current": {"gross_sales": 1460682.95, "returns": 28259.70, "discounts": 474.85,
+                  "other_deductions": 0.0, "other_revenue": 47935.73, "net_revenue": 1479884.13,
+                  "returns_on_suggested_keys": 0.0, "money_moved": 1539048.53},
+      "previous": {"gross_sales": 1128115.16, "returns": 66602.40, "discounts": 56.08,
+                   "other_deductions": 0.0, "other_revenue": 26311.91, "net_revenue": 1087768.59,
+                   "returns_on_suggested_keys": 0.0, "money_moved": 1222063.91}
+    },
+    "outside_revenue": [
+      {"line_class": "cost", "scope": "file", "sign": null, "lines": 265, "amount": -310325.44,
+       "lines_without_amount": 0}
+    ],
+    "unclassified": {"lines": 0, "amount": 0.0, "share_of_money_moved": 0.0},
+    "unmeasurable": [],
+    "notes": [
+      {"code": "same_day_cancellations",
+       "figures": ["gross_sales", "returns", "return_rate", "orders", "aov", "customers", "products",
+                   "diagnosis"],
+       "text": "Returns and the return rate include same-day cancellations, which the data cannot separate: ...",
+       "measures": [{"name": "returns", "scope": "current", "lines": 162, "amount": -7905.67,
+                     "orders": 69, "keys": null}]},
+      {"code": "discounts_in_prices", "figures": ["gross_sales", "discounts"], "text": "...", "measures": []}
     ]
   },
   "customers": {
@@ -449,9 +472,9 @@ Rules for the values (no field changed):
                            "revenue_change_pct": -41.2,
                            "revenue_change_pct_reason": null}],
     "biggest_decliners_reason": null,
-    "velocity": [{"product": "...", "units_per_day": 12.4,
-                  "days_to_stockout": 8.6, "days_to_stockout_reason": null}],
-    "velocity_reason": null
+    "velocity": null,
+    "velocity_reason": "stock figures are not supported in v1: ...",
+    "suggested_classes": {"DOTCOM POSTAGE": "charge"}
   },
   "by_dimension": {
     "country": [{"name": "United Kingdom", "revenue_current": 940000.0,
@@ -756,16 +779,55 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   sale, so it reads the same in both months; with no named sale line, the
   commonest name on any line, else the SKU; a name several products share
   shows each one's SKU ("BATHROOM METAL SIGN (21171)"). `top_products.units`
-  and velocity's `units_per_day` count sale lines. **Velocity needs stock on
-  hand**, derived from stock-in lines (transaction type "in", 2C) - which
-  most POS exports do not have: floored at 0, both demo files read "0 days
-  to stockout" for every product. A file with no stock-in line has
-  `velocity` null with `velocity_reason`; in a file that has some, a product
-  with none has `days_to_stockout` null with `days_to_stockout_reason`, and
-  so does a product whose running balance (stock-in minus every counted
-  line, day by day from the file's start) ever falls below zero: stock left
-  before the file started is unknown. A stock-in line needs a date and a
-  quantity, not a price.
+  count sale lines. **Stock figures are not supported in v1** (Thach, the
+  line taxonomy's scope cut, 16.0): `velocity` is null on every file with
+  `velocity_reason` saying so, and the contract refuses a velocity list - 2C
+  derived stock on hand from stock-in lines, which most POS exports do not
+  have, and read a zero-amount -20 write-off as 20 back in stock. The
+  `ProductVelocity` shape stays for v2.
+- **The line taxonomy** (16.0, 2E-t2; `docs/LINE_TAXONOMY.md` sections 3
+  and 5): stages 2 and 3 read each line's class from cleaned.csv
+  (`line_class`, `class_source`, `suggested_class`) through
+  `shared/transactions.py` and the effects matrix `shared/line_effects.py`.
+  A value outside a column's closed list, or some of the three columns
+  without the others, is refused - ANALYSIS_FAILED, "re-upload the file";
+  a raw file's own columns of those names are the user's and are never read
+  (stage 1's order checks classify the raw file). `core.identity` holds the
+  compared months' revenue identity - net revenue = gross sales - returns -
+  discounts - other deductions (unconfirmed) + other revenue, to float
+  residue judged against `money_moved` (the month's counted amounts summed
+  as sizes: a charge and its reversal cancel inside one term), refused
+  otherwise - with `returns_on_suggested_keys`, the returns on keys the file
+  suggests are costs, charges, discounts, adjustments or gift cards and
+  nobody confirmed (Thach's Q26). `core.outside_revenue` lists each class
+  outside revenue (gift cards, costs, adjustments, stock received) per scope
+  (`file` - every line, the undated too - `current`, `previous`), only where
+  it has lines, with the sum of its finite amounts and how many carry none;
+  stock received is split by `sign` (`positive`, `negative`, `no_money` - an
+  amount of zero or none), the other classes carry `sign` null. It is not
+  `non_product` (the classed lines of the dated months, 2E-d2), and an
+  undated line outside revenue is also in `undated_lines` - two questions,
+  its class and its date. `core.unclassified` is the tested, empty class (0
+  lines while v1 refuses no shape; its share null when nothing moved).
+  `core.unmeasurable` counts the lines with no finite quantity, no finite
+  price or an amount too large to add, per scope and reason - their money is
+  unknown, never derived; `undated_lines` no longer counts them (reported
+  once). `core.notes` are the standing rule's notes (CLAUDE.md 3.3a): one
+  per code present - `same_day_cancellations` (every file with return
+  lines), `returns_booked_as_in`, `unconfirmed_suggestions`,
+  `unconfirmed_deductions`, `discounts_in_prices` (every file),
+  `other_transaction_types` - each with its code's fixed sentence and the
+  figures it qualifies (`contracts/lines.py` holds both and refuses any
+  other; one note per code), and named measures per scope (lines, the
+  signed sum of their amounts, orders and keys where defined -
+  `other_transaction_types` names the five commonest values, cut to 40
+  characters, and measures the rest together; `same_day_cancellations`
+  counts apart the returns no match can check - no named customer, or a
+  pooled code); no note changes a figure. `products.suggested_classes` maps every product the
+  block names (top products, biggest decliners) whose own key carries an
+  unconfirmed suggestion, by label, to that class - shown "(suggested:
+  <class>, not confirmed)" (Thach's Q17); a name-only line resolved to a
+  SKU keeps its own name's suggestion, which marks no product.
   **This supersedes 2A's decision that a zero denominator reports
   0.0**, which Thach approved in 2A because the 1.0 contract required a
   number there; 2.0 allows null, and 0.0 was a false statement ("AOV 0",
@@ -939,9 +1001,23 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
     "headline_explanation": "The mix effect accounts for 15% of the drop in gross sales...",
     "hypothesis_notes": [{"id": "P2", "text": "Shoppers bought more of the cheaper lines..."}],
     "not_tested_note": "This data cannot test marketing, competitors, weather or footfall."
-  }
+  },
+  "notes": [{"code": "discounts_in_prices", "figures": ["gross_sales", "discounts"], "text": "...",
+             "measures": []}],
+  "suggested_classes": {"DOTCOM POSTAGE": "charge"}
 }
 ```
+
+`notes` (17.0, 2E-t2) are metrics.json's, beside the figures they name - the
+`return_rate` signal and the headline's revenue among them; the narration
+states them with their measures (`prompts/root_cause.md`).
+`suggested_classes` (17.0) maps every product this file names - the product
+dimension's members, new and removed members, R1's top member, R3's products
+(`contracts.diagnosis.named_products`) - whose own key carries a line-class
+suggestion nobody confirmed, by label, to that class; the narration names
+such a product with its mark and never makes it a product recommendation.
+Both fields are required: a file without them is refused, never read as "no
+note", and so is a mark on a product the file does not name.
 
 **Types.** `frame.current`/`previous`/`year_ago_*`/`history_start`/`history_end`
 are `YYYY-MM` strings; `year_ago_current` and `year_ago_previous` are `null`
@@ -1214,14 +1290,13 @@ validator, `docs/AI_PIPELINE.md` section 7.9, not by this schema).
 - When `trust.verdict` is `blocked`, `calendar`, `signals`, `tree` and
   `localization` are all `null`, every hypothesis outside the D family is
   `inconclusive`, and `headline.rule` is `1`.
-- Stage 2 also reports stockout risk (`metrics.json` `products.velocity`,
-  section 6), by a different method: an inventory balance projected forward
-  from net in-minus-out, and only when the file has stock-in lines (2E-g).
-  Hypothesis R3 here is a *sales-gap* signal - it reads the sales pattern,
-  never stock, so a sales-only file does not touch it - a product
-  that sold on most days and then stopped while the store kept trading. The two
-  can legitimately disagree about the same product, and stage 5 must label
-  which is which rather than merge them.
+- Stage 2 reports no stockout risk in v1 (`metrics.json` `products.velocity`
+  is null on every file, section 6: stock figures are not supported in v1 -
+  the line taxonomy's scope cut, 2E-t2). Hypothesis R3 here is a *sales-gap*
+  signal - it reads the sales pattern, never stock, so it stays (Thach's
+  Q27) - a product that sold on most days and then stopped while the store
+  kept trading; stage 5 words it "consistent with a stockout, verify on the
+  shelf", never as a stock figure.
 
 When the AI step is unavailable, meaning no AI output was accepted after the
 shared retry (`docs/AI_PIPELINE.md` section 9), stage 3 still writes this file:
@@ -1247,9 +1322,8 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
        "high": 1380000.0, "confidence": 0.8}
     ],
     "insufficient_history": false,
-    "products_at_stockout_risk": [
-      {"product": "...", "days_to_stockout": 8.6, "suggested_reorder_units": 420}
-    ]
+    "products_at_stockout_risk": null,
+    "products_at_stockout_risk_reason": "stock figures are not supported in v1"
   },
   "recommendations": [
     {
@@ -1357,6 +1431,23 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-28: **session 2E-t2, stages 2 and 3 read the class (Thach).**
+  `diagnosis.json` went to `17.0` (`notes` and `suggested_classes`; stages
+  read each line's class from cleaned.csv); `metrics.json` stays `16.0` (the
+  migration's one major, taken in 2E-t1) and gains `core.identity`,
+  `core.outside_revenue`, `core.unclassified`, `core.unmeasurable`,
+  `core.notes` and `products.suggested_classes`; `undated_lines` leaves out
+  the unmeasurable lines; `velocity` is null on every file (stock figures are
+  not supported in v1). `forecast.json`'s `products_at_stockout_risk` became
+  nullable with `products_at_stockout_risk_reason`, null in v1 - in place at
+  `1.0`: no stage writes forecast.json yet. On the demo files every figure is
+  identical; the differences are the ones the line taxonomy's anchor lists.
+  Both of diagnosis.json's new fields are required. A note's sentence and
+  figures are part of both contracts (`contracts/lines.py` refuses any
+  other): changing one is a major bump. A metrics.json written
+  between 2E-t1 and 2E-t2 (16.0 without the new blocks) is refused as
+  stale ("re-analyse this run"): the migration's one major per contract
+  (2E-t1's T1).
 - 2026-09-28: **session 2E-t1, the line taxonomy's classifier (Thach).** The
   line-class enum gained `gift_card` (closed enums: a major bump), so the
   stage 1 contracts went to `4.0` and `metrics.json`, whose `non_product`

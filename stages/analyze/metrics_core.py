@@ -40,7 +40,6 @@ from shared.date_evidence import month_grain
 from shared.numbers import pct_change
 from shared.orders import count_orders
 from shared.run_registry import run_file
-from stages.analyze.period_selection import select_period
 from shared.transactions import (
     # Re-exported deliberately: this error is part of what calling stage 2
     # can raise, and both the backend and this stage's tests catch it here.
@@ -48,6 +47,8 @@ from shared.transactions import (
     RequiredColumnMissingError,
     parse_transactions,
 )
+from stages.analyze import metrics_lines
+from stages.analyze.period_selection import select_period
 
 __all__ = [
     "CLEANED_FILENAME",
@@ -129,6 +130,11 @@ def compute_core_metrics(
         revenue_by_month=_revenue_by_month(months[parsed.counted], parsed.revenue_amounts[parsed.counted]),
         **_undated(parsed),
         non_product=_non_product(parsed, months, period),
+        identity=metrics_lines.revenue_identity(parsed, months, period),
+        outside_revenue=metrics_lines.outside_revenue(parsed, months, period),
+        unclassified=metrics_lines.unclassified(parsed),
+        unmeasurable=metrics_lines.unmeasurable(parsed, months, period),
+        notes=metrics_lines.notes(df, parsed, months, period),
     )
     return period, core
 
@@ -226,7 +232,8 @@ def _undated(parsed: ParsedTransactions) -> dict:
     blank, so a split between the two was wrong there (2E-h review F5).
     Since 2E-j a placeholder date and a day and month the file's date order
     cannot hold are no date too, and the reason names them."""
-    count = int(parsed.dates.isna().sum())
+    # An unmeasurable line is reported once, there (Thach's Q24, 2E-t2).
+    count = int((parsed.dates.isna() & ~parsed.classes.eq("unmeasurable")).sum())
     if count == 0:
         return {"undated_lines": 0, "undated_lines_reason": None}
     lines, rest = (("1 line has", "it belongs to no month and is") if count == 1 else

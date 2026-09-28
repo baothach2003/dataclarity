@@ -24,8 +24,8 @@ from app.services import run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import RunWork
 from shared.run_registry import RunNotFoundError, run_file
+from shared.transactions import LineClassColumnsError, RequiredColumnMissingError
 from stages.analyze.assemble import analyze_run
-from shared.transactions import RequiredColumnMissingError
 from stages.analyze.metrics_core import CLEANED_FILENAME, CLEANING_REPORT_FILENAME
 
 # `analyzed` is allowed too: re-running overwrites only this stage's own
@@ -56,6 +56,10 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             raise stage_errors.analysis_failed(
                 str(error), {"canonical_field": error.canonical_field}
             ) from error
+        except LineClassColumnsError as error:
+            # A cleaned.csv changed after cleaning (2E-t2): the user is told
+            # to re-upload, not shown a generic 500.
+            raise stage_errors.analysis_failed(str(error), {"line_classes": error.problem}) from error
 
     run_state.advance(session, run_id, RunStatus.ANALYZED, only_from=ANALYZABLE_STATUSES)
     return AnalyzeResponse(run_id=run_id, status="analyzed", metrics=metrics, notices=[])

@@ -25,7 +25,7 @@ import pandas as pd
 import pytest
 
 from contracts.cleaning import CLEANED_LINE_CLASSES, LineClassAnswer, OrderConfirmations
-from stages.ingest.line_taxonomy import classify_lines
+from shared.line_taxonomy import classify_lines
 
 MAPPING = {"Day": "transaction_date", "Qty": "quantity", "Price": "unit_price", "Sku": "sku",
            "Name": "product_name", "Type": "transaction_type"}

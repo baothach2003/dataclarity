@@ -17,6 +17,8 @@ from typing import Any, ClassVar, Literal, Self
 from pydantic import NonNegativeInt, model_validator
 
 from contracts._base import ContractFile, ContractModel, UnitInterval, YearMonth
+from contracts.lines import Notes
+from contracts.profile import LineClass
 
 # --- Steps 1-4 (session 3B): frame, trust, calendar, signals ------------------
 
@@ -647,6 +649,25 @@ class AiFindings(ContractModel):
     not_tested_note: str
 
 
+def named_products(localization: Localization | None, hypotheses: list[Hypothesis]) -> set[str]:
+    """Every product a diagnosis.json names, by label (docs/LINE_TAXONOMY.md
+    4.5): the product dimension's members, new and removed members, R1's top
+    member and R3's products. The headline names causes and lenses, never a
+    product. One definition: stage 3 marks these, and the contract refuses a
+    mark on any other."""
+    named: set[str] = set()
+    for dimension in localization.dimensions if localization is not None else []:
+        if dimension.name == "product":
+            named |= {m.name for m in dimension.members} | set(dimension.new_members) | set(dimension.removed_members)
+    for hypothesis in hypotheses:
+        if hypothesis.id == "R1" and isinstance(hypothesis.evidence.get("top_member"), str):
+            named.add(hypothesis.evidence["top_member"])
+        if hypothesis.id == "R3":
+            named |= {p["product"] for p in hypothesis.evidence.get("products", [])
+                      if isinstance(p, dict) and isinstance(p.get("product"), str)}
+    return named
+
+
 class DiagnosisContract(ContractFile):
     # 2 since 2E-c: the returns lens gained deductions, and gross sales became
     # the sale rows only (Thach). 3 since 2E-c2: the bridge's `new` and
@@ -685,8 +706,10 @@ class DiagnosisContract(ContractFile):
     # the months), and a date column can be read day first. 16 since 2E-o: rules 5 and 6 are ranked together (the
     # same data can name another cause - Kaggle 2024-12 T2 -> B1), a
     # directional cause comes before the movements, P3 reads signed, and a
-    # month-end file's D1, T1 and R3 do not apply.
-    supported_major: ClassVar[int] = 16
+    # month-end file's D1, T1 and R3 do not apply. 17 since 2E-t2: the line
+    # taxonomy - stages read each line's class from cleaned.csv, the notes
+    # and the suggested classes join the output.
+    supported_major: ClassVar[int] = 17
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "
@@ -708,6 +731,20 @@ class DiagnosisContract(ContractFile):
     not_testable: list[NotTestable]
     headline: Headline
     ai_findings: AiFindings | None
+    # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5): metrics.json's notes,
+    # beside the figures they qualify (the return-rate signal, the headline's
+    # revenue); every product this file names whose key carries a line-class
+    # suggestion nobody confirmed, by label, with that class. Required, so a
+    # writer that forgot them is refused, not read as "no note".
+    notes: Notes
+    suggested_classes: dict[str, LineClass]
+
+    @model_validator(mode="after")
+    def _marks_only_named_products(self) -> Self:
+        unnamed = sorted(set(self.suggested_classes) - named_products(self.localization, self.hypotheses))
+        if unnamed:
+            raise ValueError(f"suggested_classes marks products this file does not name: {unnamed[:5]}")
+        return self
 
     @model_validator(mode="after")
     def _ai_blocks_all_or_nothing(self) -> Self:

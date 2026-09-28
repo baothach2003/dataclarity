@@ -1,47 +1,30 @@
 """Stage 2 Analyze - the `products` block of metrics.json
 (docs/CONTRACTS.md section 6): Pareto concentration, top products, biggest
-decliners, velocity + stockout projection. Pure pandas; no AI call in this
-stage (docs/adr/0002-pandas-computes-ai-interprets.md). Reuses
+decliners, the suggested classes of the products named. Pure pandas; no AI
+call in this stage (docs/adr/0002-pandas-computes-ai-interprets.md). Reuses
 `stages.analyze.metrics_core`'s row parsing, revenue-scope and
 zero-denominator conventions (2A) instead of redefining them - same stage
 package, so the import is not a cross-stage dependency (CLAUDE.md 3.1).
 
-Design decisions (Thach, Phase 2C):
-- Stockout: Stage 2 has no "current stock" field at all (no canonical field
-  for it, and docs/SPECS.md section 9's "net in minus out, floored at 0"
-  formula is textually scoped to Phase 7's DB import). This module derives
-  the same balance from cleaned.csv's own whole-file history instead: every
-  "in" row (stock coming back, e.g. a supplier restock) adds, every
-  counted/"out" row subtracts (a return's negative quantity nets back in
-  automatically, the same sign logic as 2A's revenue), floored at 0.
-- Velocity window: `period.current` (the same calendar month every other
-  block already uses), not the Dashboard's own fixed 14-day window
-  (docs/SPECS.md section 4.5) - that number is for a live, DB-backed surface
-  querying real "now"; a static file upload has no "now" to anchor a rolling
-  window to.
-- A product that sold no units this period (sale lines, 2E-g) is omitted
-  from `velocity` entirely: an undefined days_to_stockout is neither
-  meaningful nor valid. A product only ever "in" never enters the list.
-- SUPERSEDED in part (Thach, 2E-g): the stock derivation assumed files with
-  inbound movements, while most POS exports are sales only. A file with no
-  stock-in line has no `velocity` (null, `velocity_reason`); in a file that
-  has some, a product with none has a null `days_to_stockout` with a
-  reason. Floored at 0, both demo files read "0 days to stockout" for every
-  product. Phase 7's Dashboard low-stock table rests on the same assumption.
+Design decisions (Thach, Phase 2C onwards):
+- Stock (Thach, the line taxonomy's v1 scope cut, 2E-t2): `velocity` is null
+  on every file with the reason that stock figures are not supported in v1.
+  2C derived stock on hand from the file's stock-in lines against every
+  counted line; most POS exports carry none (both demo files read "0 days to
+  stockout" for every product before 2E-g made it null), and the formula
+  read a zero-amount -20 write-off as 20 back in stock (57 days where 17 was
+  true). The stock ledger is a v2 item (PROJECT_PLAN's Backlog).
 - `top_products` and `biggest_decliners` are each capped at the 10
   highest-ranked entries (revenue descending / revenue_change ascending
   respectively), ties broken by product name for a deterministic,
-  hand-checkable order. `velocity` is unbounded and sorted soonest-to-run-out
-  first: it is a stockout-risk inventory, not a leaderboard, so every
-  product with measurable velocity appears.
+  hand-checkable order.
 - Product identity and the displayed name come from shared/products.py
   (Thach, 2E-g), so stage 3 names every product as this block does: the SKU
   when a line has one, else the name (a name-only line takes the one SKU
   its name is sold under); the label is the name the product's sale lines
   carry most over the whole file. A line with neither SKU nor name is the
   "(no product name)" data gap: in no table (it was ranked as a product).
-- Units sold (`top_products.units`, velocity's units a day) count sale
-  lines only (2E-g).
+- Units sold (`top_products.units`) count sale lines only (2E-g).
 - `top_products` excludes a net-negative-revenue product (returns
   outweighing sales for that product this period): it is not a "top"
   performer.
@@ -56,20 +39,18 @@ Design decisions (Thach, Phase 2C):
   reason, when the previous month is incomplete: every entry compares it.
 """
 
-import calendar
 from datetime import UTC, datetime
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
-from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, ProductVelocity, TopProduct
+from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, TopProduct
 from shared.numbers import is_negligible, pct_change
-from shared.products import product_keys, product_labels
+from shared.products import product_keys, product_labels, product_suggestions
 from shared.run_registry import run_file
 from shared.date_evidence import month_grain
-from shared.transactions import ParsedTransactions, is_stock_in, parse_transactions, require_column
+from shared.transactions import parse_transactions, require_column
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
@@ -127,52 +108,37 @@ def compute_product_metrics(
 
     current = table[parsed.counted & product & (months == period.current)]
     previous = table[parsed.counted & product & (months == period.previous)]
-    stock_in = _stock_in(df, parsed)
-    all_in = table[stock_in & product]
-    all_out = table[parsed.counted & product]
 
     if period.previous_complete:
         decliners, decliners_reason = _biggest_decliners(current, previous, names), None
     else:
         decliners, decliners_reason = None, period.previous_incomplete_reason
-    # Stock on hand is derived from stock-in lines (2C), which most POS
-    # exports do not have: floored at 0, every product of both demo files read
-    # "0 days to stockout" (2,832 of 2,858 on Online Retail II). No stock-in
-    # line in the file, no velocity at all, with one reason (Thach, 2E-g).
-    if stock_in.any():
-        velocity = _velocity(current, all_in, all_out, names, _days_in_month(period.current))
-        velocity_reason = None
-    else:
-        velocity, velocity_reason = None, NO_STOCK_IN_FILE
+    top = _top_products(current, names)
+    # Stock figures are not supported in v1 (Thach, the line taxonomy's scope
+    # cut, 2E-t2): a stock balance needs a stock ledger the export rarely
+    # carries, and a figure that can be wrong is worse than none - 2C's
+    # derivation read a -20 write-off as 20 back in stock.
     return ProductMetrics(
         pareto=_pareto(current, period.current),
-        top_products=_top_products(current, names),
+        top_products=top,
         biggest_decliners=decliners,
         biggest_decliners_reason=decliners_reason,
-        velocity=velocity,
-        velocity_reason=velocity_reason,
+        velocity=None,
+        velocity_reason=NOT_SUPPORTED_IN_V1,
+        suggested_classes=_suggested(product_suggestions(df, parsed, identity), names,
+                                     [p.product for p in top] + [d.product for d in decliners or []]),
     )
 
 
-def _stock_in(df: pd.DataFrame, parsed: ParsedTransactions) -> pd.Series:
-    """Stock-in lines: transaction type "in" (read as `parse_transactions`
-    reads it) with a date and a quantity. No price is needed - goods received
-    are often written without a sale price, and requiring one (a counted
-    line's rule) made such a file read as having no stock-in line at all
-    (2E-g doubt-review F1)."""
-    column = parsed.reverse.get("transaction_type")
-    if column is None:
-        return pd.Series(False, index=df.index)
-    # The one reading of "in" revenue scope uses too (cycle 2, F4).
-    return is_stock_in(df[column]) & parsed.dates.notna() & np.isfinite(parsed.quantities)
+NOT_SUPPORTED_IN_V1 = ("stock figures are not supported in v1: DataClarity v1 analyses sales, not "
+                       "inventory, so no product has a units-a-day or days-to-stockout figure")
 
 
-NO_STOCK_IN_FILE = ("the file has no stock-in lines (transaction type \"in\"), so stock on hand "
-                    "cannot be derived and no product has a days-to-stockout figure")
-NO_STOCK_IN_PRODUCT = ("the file records no stock-in line for this product, so its stock on "
-                       "hand is unknown")
-INCOMPLETE_STOCK_HISTORY = ("more of this product went out than the file records coming in, so "
-                            "its stock history is incomplete and its stock on hand is unknown")
+def _suggested(by_key: dict[str, str], names: pd.Series, named: list[str]) -> dict[str, str]:
+    """The products this block names whose own key carries a line-class
+    suggestion nobody confirmed, by label, with that class (Thach's Q17)."""
+    by_label = {names[key]: line_class for key, line_class in by_key.items()}
+    return {label: by_label[label] for label in named if label in by_label}
 
 
 def _pareto(current: pd.DataFrame, month: str) -> Pareto:
@@ -249,63 +215,3 @@ def _biggest_decliners(current: pd.DataFrame, previous: pd.DataFrame, names: pd.
                                      revenue_change_pct=pct.value,
                                      revenue_change_pct_reason=pct.reason))
     return ranked
-
-
-def _velocity(
-    current: pd.DataFrame,
-    all_in: pd.DataFrame,
-    all_out: pd.DataFrame,
-    names: pd.Series,
-    days_in_period: int,
-) -> list[ProductVelocity]:
-    # Units sold a day: sale lines (2E-g). The stock balance stays every
-    # counted line against every stock-in line (2C).
-    units_current = current.groupby("identity")["sold"].sum()
-    units_current = units_current[units_current > 0]
-    if units_current.empty:
-        return []
-
-    stock_in = all_in.groupby("identity")["quantity"].sum()
-    stock_out = all_out.groupby("identity")["quantity"].sum()
-    lowest = _lowest_balance(all_in, all_out)
-
-    rows: list[tuple[str, float, float | None, str | None]] = []
-    for identity, units in units_current.items():
-        units_per_day = float(units) / days_in_period
-        if identity not in stock_in.index:
-            rows.append((str(identity), units_per_day, None, NO_STOCK_IN_PRODUCT))
-            continue
-        received, left = float(stock_in[identity]), float(stock_out.get(identity, 0.0))
-        # More went out than had come in, at any point of the file: the
-        # history began with stock on hand, so the balance is unknown. Judged
-        # at the end only, 50 sold before the first delivery and a later
-        # delivery of 60 read "5 left, 31 days" - at least 55 were (2E-g
-        # doubt-review cycle 3 F1); floored at 0, "0 days" (cycle 2 F2).
-        low = float(lowest.get(identity, 0.0))
-        if low < 0 and not is_negligible(low, received, left):
-            rows.append((str(identity), units_per_day, None, INCOMPLETE_STOCK_HISTORY))
-            continue
-        rows.append((str(identity), units_per_day, max(0.0, received - left) / units_per_day, None))
-
-    # Soonest stockout first; unknown stock last.
-    rows.sort(key=lambda item: (item[2] is None, item[2] or 0.0, names.get(item[0], "")))
-    return [
-        ProductVelocity(product=names[identity], units_per_day=units_per_day,
-                        days_to_stockout=days_to_stockout, days_to_stockout_reason=reason)
-        for identity, units_per_day, days_to_stockout, reason in rows
-    ]
-
-
-def _lowest_balance(all_in: pd.DataFrame, all_out: pd.DataFrame) -> pd.Series:
-    """Per product, the lowest its stock balance went through the file,
-    starting from 0 and taken at the end of each day - so a delivery and a
-    sale on one day are not ordered by the row they happen to sit on."""
-    moves = pd.concat([all_in.assign(delta=all_in["quantity"]),
-                       all_out.assign(delta=-all_out["quantity"])])
-    daily = moves.groupby(["identity", "day"])["delta"].sum()
-    return daily.groupby(level="identity").cumsum().groupby(level="identity").min()
-
-
-def _days_in_month(year_month: str) -> int:
-    year, month = int(year_month[:4]), int(year_month[5:7])
-    return calendar.monthrange(year, month)[1]

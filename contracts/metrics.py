@@ -1,7 +1,7 @@
 """metrics.json (docs/CONTRACTS.md section 6). Stage 2 never calls the AI."""
 
 from datetime import date
-from typing import Annotated, ClassVar, Literal, Self
+from typing import Annotated, Any, ClassVar, Literal, Self
 
 from pydantic import Field, NonNegativeInt, model_validator
 
@@ -11,6 +11,13 @@ from contracts._base import (
     NonNegativeFloat,
     Percent,
     YearMonth,
+)
+from contracts.lines import (
+    Notes,
+    OutsideRevenueLines,
+    RevenueIdentity,
+    UnclassifiedLines,
+    UnmeasurableLines,
 )
 from contracts.profile import LineClass
 
@@ -130,13 +137,24 @@ class CoreMetrics(ContractModel):
     # Lines whose date is blank or no date - "now", a bare time, a year outside
     # 1900-2100, text that does not parse - belong to no month and are in no
     # figure; counted here with the reason, never dropped silently (Thach,
-    # 2E-h). The reason is null exactly when the count is 0.
+    # 2E-h). The reason is null exactly when the count is 0. An unmeasurable
+    # line is reported once, in `unmeasurable` (Thach's Q24, 2E-t2).
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
     # One row per class present, in the order charge, discount, pooled,
     # cost, adjustment, gift_card; empty when no line is classed (2E-d2, 2E-l,
     # 2E-t1).
     non_product: list[NonProductLines]
+    # The line taxonomy (2E-t2; docs/LINE_TAXONOMY.md sections 3 and 5): the
+    # compared months' revenue identity; the classes outside revenue per
+    # scope; the lines no rule placed; the lines that could not be measured,
+    # per scope and reason; the notes beside the figures the data cannot
+    # fully tell apart (the standing rule, CLAUDE.md 3.3a).
+    identity: RevenueIdentity
+    outside_revenue: list[OutsideRevenueLines]
+    unclassified: UnclassifiedLines
+    unmeasurable: list[UnmeasurableLines]
+    notes: Notes
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
@@ -268,16 +286,26 @@ class ProductMetrics(ContractModel):
     top_products: list[TopProduct]
     biggest_decliners: list[ProductDecline] | None
     biggest_decliners_reason: str | None
-    # Null when the file has no stock-in line at all (2E-g) - most POS
-    # exports: stock on hand cannot be derived for any product.
+    # Null on EVERY file since 2E-t2, with its reason: stock figures are not
+    # supported in v1 (Thach, the line taxonomy's scope cut - v1 analyses
+    # sales, not inventory). The shape stays for v2.
     velocity: list[ProductVelocity] | None
     velocity_reason: str | None
+    # Every product this block names whose key carries a line-class
+    # suggestion nobody confirmed, by its label (unique), with that class -
+    # shown as "(suggested: <class>, not confirmed)" (Thach's Q17, 2E-t2).
+    suggested_classes: dict[str, LineClass]
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
         _paired(self.biggest_decliners is None, self.biggest_decliners_reason,
                 "biggest_decliners")
         _paired(self.velocity is None, self.velocity_reason, "velocity")
+        if self.velocity is not None:
+            raise ValueError("stock figures are not supported in v1: velocity is null on every file")
+        named = {p.product for p in self.top_products} | {d.product for d in self.biggest_decliners or []}
+        if not set(self.suggested_classes) <= named:
+            raise ValueError("suggested_classes names a product this block does not name")
         return self
 
 
@@ -338,7 +366,9 @@ class MetricsContract(ContractFile):
     # file is month grain too (another month compared), and a day-month-year
     # date is found beside a dotted time or before its time. 16 since 2E-t1:
     # the line taxonomy (docs/LINE_TAXONOMY.md) - `non_product` can carry
-    # "gift_card" (a closed enum widened), the one major of the migration.
+    # "gift_card" (a closed enum widened), the one major of the migration;
+    # 2E-t2 added its blocks inside it (T1), and a 16.0 file without them is
+    # refused as stale.
     supported_major: ClassVar[int] = 16
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
@@ -350,6 +380,18 @@ class MetricsContract(ContractFile):
     customers: CustomerMetrics
     products: ProductMetrics
     by_dimension: DimensionBreakdown
+
+    @model_validator(mode="before")
+    @classmethod
+    def _written_before_the_line_taxonomy(cls, data: Any) -> Any:
+        """A 16.0 file written by 2E-t1, before the line taxonomy's blocks:
+        told to re-analyse, not handed pydantic's "field required" (2E-t2
+        reviews 1 #13, 3 #5)."""
+        core = data.get("core") if isinstance(data, dict) else None
+        if isinstance(core, dict) and "revenue_current" in core and "identity" not in core:
+            raise ValueError("this metrics.json was written before the line taxonomy's blocks"
+                             + cls.stale_major_hint)
+        return data
 
     @model_validator(mode="after")
     def _no_comparison_against_an_incomplete_month(self) -> Self:

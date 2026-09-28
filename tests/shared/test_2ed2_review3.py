@@ -23,7 +23,7 @@ import pytest
 
 from contracts.cleaning import LineClassAnswer, OrderConfirmations
 from stages.analyze.assemble import assemble_metrics
-from stages.ingest.non_product_lines import non_product_candidates
+from shared.line_words import non_product_candidates
 
 NOW = datetime(2026, 9, 26, 12, 0, tzinfo=UTC)
 MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price", "Cust": "customer",

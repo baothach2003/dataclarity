@@ -13,7 +13,7 @@ import pandas as pd
 from contracts.cleaning import CleaningPlanContract, CleaningReportContract, LineClassAnswer
 from contracts.profile import SchemaInferenceContract
 from stages.ingest import ai_plan, ai_schema, cleaning
-from stages.ingest.non_product_lines import non_product_candidates
+from shared.line_words import non_product_candidates
 
 MAPPING = {"Day": "transaction_date", "Qty": "quantity", "Price": "unit_price", "Sku": "sku", "Name": "product_name"}
 

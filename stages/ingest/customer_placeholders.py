@@ -29,7 +29,7 @@ import pandas as pd
 
 from contracts.profile import CustomerPlaceholder
 from shared.transactions import RequiredColumnMissingError, customer_identity, is_blank
-from stages.ingest.line_reading import undated_lines
+from shared.line_numbers import undated_lines
 
 PLACEHOLDER_SHARE = 0.10
 PLACEHOLDER_RATIO = 4

@@ -3,7 +3,10 @@ commissions, bank charges, discounts and accounting adjustments that a POS
 export books as product lines - DOTCOM POSTAGE was Online Retail II's top
 "product" of 2011-11. Stage 1 PROPOSES them, measured on the raw file by
 pandas (the AI's 30-row sample cannot see a file's codes); the user classes
-each in Review, and a suggestion never applies by itself.
+each in Review, and a suggestion never applies by itself. In shared/ since
+2E-t2: the line taxonomy's classifier reads the same candidates as each
+line's pending suggestion, in stage 1 and for a frame without stage 1's
+columns.
 
 A product key (shared/line_classes.py: the SKU, else the name) is asked about
 when its SKU text, or the name its lines carry most often, has a class word as
@@ -24,8 +27,7 @@ import pandas as pd
 
 from contracts.profile import LineClass, NonProductCandidate
 from shared.line_classes import keyed, text_identity
-from shared.transactions import RequiredColumnMissingError
-from stages.ingest.line_reading import undated_lines
+from shared.line_numbers import RequiredColumnMissingError, undated_lines
 
 _LETTER = r"[^\W\d_]"
 # First match wins, in this order: "Adjust bad debt" is an adjustment, and
@@ -79,6 +81,10 @@ def non_product_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
     """The candidates, the commonest key first. [] with no product column;
     None when not measured - quantity or price not mapped, or no line counts
     before the plan's cleaning - so Review reads the profile instead."""
+    # The candidates read no row's label, and lines are picked by label below:
+    # a frame put together from others (repeated labels) broke the picking
+    # (2E-t2).
+    df = df.reset_index(drop=True)
     reverse = {field: source for source, field in column_mapping.items()}
     name_col, sku_col = reverse.get("product_name"), reverse.get("sku")
     if name_col is None and sku_col is None:

@@ -29,7 +29,7 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 |---|---|---|---|---|---|---|
 | 1 | ingest | schema inference | `prompts/schema_inference.md` | `claude-sonnet-5` | profile + sample rows | `schema_inference.json` |
 | 2 | ingest | cleaning plan | `prompts/cleaning_plan.md` | `claude-sonnet-5` | profile + schema inference | `plan_proposed.json` |
-| 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output | `diagnosis.ai_findings` |
+| 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output, with the notes and the suggested classes (2E-t2) | `diagnosis.ai_findings` |
 | 4 | predict | strategy | `prompts/strategy.md` | `claude-sonnet-5` | metrics + diagnosis + forecast | `forecast.recommendations` |
 
 Shared retry budget: 1 per run. Max tokens 3000 per call. JSON only; the
@@ -1012,8 +1012,9 @@ C4 everywhere); decide its place when C4 is switched on (Backlog).
 R3's wording is fixed: **"consistent with a stockout, verify on the shelf"**,
 never "caused by". Point-of-sale data cannot confirm a stockout; published
 POS-only detectors catch roughly 63% of stockouts with about 15% false alerts.
-This is a different signal from stage 2's `products.velocity` projection - see
-`docs/CONTRACTS.md` section 7.
+It reads the sales pattern, never a stock figure, so it stays in v1 (Thach's
+Q27), while stage 2's `products.velocity` is null on every file: stock
+figures are not supported in v1 (the line taxonomy's scope cut, 2E-t2).
 
 **Verdicts.** `share = contribution / D`, signed. `D` is the absolute total
 of the hypothesis's own lens - the change in revenue, or for the product lens
@@ -1248,7 +1249,10 @@ what could not be tested is part of the answer, not an omission.
 
 ### 7.9 Step 8: AI narration (the only AI call in stage 3)
 
-- Input: the complete deterministic output of steps 1-7 as JSON. Never raw rows.
+- Input: the complete deterministic output of steps 1-7 as JSON, with the
+  `notes` and `suggested_classes` diagnosis.json carries (2E-t2: the line
+  taxonomy's notes, computed by stage 2, and the marks of products whose
+  key carries an unconfirmed suggestion). Never raw rows.
 - Output: a plain-language summary, an explanation of the headline, a short
   paragraph per `supported` or `partial` hypothesis, and one sentence naming
   what could not be tested.
@@ -1257,7 +1261,8 @@ what could not be tested is part of the answer, not an omission.
   cause. This is the ADR-0002 line applied to stage 3: the engine decides what
   is true, the AI only says it in words.
 - Validator (code): every number in the AI's text must match a number in the
-  evidence within `AI_NUMBER_TOLERANCE` (exact for counts), every hypothesis id
+  evidence - the input above, the notes' measures among it (the prompt asks
+  for them) - within `AI_NUMBER_TOLERANCE` (exact for counts), every hypothesis id
   referenced must exist, and the not-testable sentence must be present. Failure
   spends the run's single shared retry, then degraded mode.
 - **The number match is on magnitude, not on sign** (Thach, 3C; build this in
@@ -1388,7 +1393,9 @@ Mapping logic the prompt enforces:
 - Champions -> loyalty and early access, never discounts
 - Revenue concentrated in few products (Pareto) -> focus budget there; bundle
   weak products with strong ones
-- Stockout risk from the forecast -> reorder recommendation with units
+- Stock figures are not supported in v1 (the line taxonomy's scope cut,
+  2E-t2): no reorder recommendation and no stock level - the forecast's
+  stockout risk is null; `prompts/strategy.md` says so
 
 ## 9. Failure handling
 

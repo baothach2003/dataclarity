@@ -40,7 +40,7 @@ def parse_for_checks(df: pd.DataFrame, column_mapping: dict[str, str]
     if "order_id" not in column_mapping.values():
         return None
     try:
-        return transactions.parse_transactions(df, column_mapping)
+        return transactions.parse_transactions(df, column_mapping, raw=True)
     except transactions.RequiredColumnMissingError:
         return None
 

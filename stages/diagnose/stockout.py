@@ -51,7 +51,7 @@ def detect_stockouts(data: RunData) -> list[Stockout]:
     # Stage 2's keys (shared/products.py, 2E-g): the data gap's key is NaN, so
     # it never becomes a candidate - unnamed lines that stopped read as a
     # stockout of a product "   ". R3 reads the sales pattern, never stock,
-    # so the stock-in question of stage 2's velocity does not touch it.
+    # so it stays in v1 (Thach's Q27), where no stage has a stock figure.
     keys = product_keys(data.df, data.parsed)
     days = data.parsed.dates.dt.normalize()
     labels = product_totals(data).labels

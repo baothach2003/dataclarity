@@ -5,12 +5,8 @@
   in the totals, never ranked (top products, decliners, velocity, Pareto).
 - Labels come from shared/products.py: the name sale lines carry most,
   whole file, so a product reads the same in both months.
-- Velocity needs stock on hand, derived from stock-in lines (2C). A file
-  with no stock-in line at all - most POS exports, both demo files - has no
-  velocity block, with one reason (it read "0 days to stockout" for 2,832 of
-  2,858 Online Retail II products and all 150 Kaggle ones). In a file that
-  has stock-in lines, a product with none has a null days_to_stockout with
-  a reason.
+- Velocity needed stock on hand, derived from stock-in lines (2C); since
+  2E-t2 (the line taxonomy's v1 scope cut) no file has a stock figure.
 - metrics.json 7.0.
 """
 
@@ -64,117 +60,54 @@ def test_the_gap_bucket_is_never_ranked() -> None:
     assert "(no product name)" not in [d.product for d in products.biggest_decliners or []]
 
 
-def test_a_file_with_no_stock_in_line_has_no_velocity_block() -> None:
-    products = _products(_base())
+# --- stock: not supported in v1 (2E-t2) ---------------------------------------------------
+# 2E-g derived stock on hand from stock-in lines; the line taxonomy's v1 scope
+# cut (Thach, 2026-09-28) retired it: every stock KPI reads "not supported in
+# v1" on every file, a file with stock-in lines included. The inputs of the
+# 2E-g tests stay here as that file's cases.
+
+def _typed(rows: list[dict]) -> list[dict]:
+    return [{**r, "Type": "out"} for r in _base()] + rows
+
+
+STOCK_FILES = {
+    "no stock-in line": (_base(), MAPPING),
+    "stock in for one product only": (_typed([
+        {**row(date(2026, 7, 1), qty=100.0, product="Mug"), "Type": "in"},
+        {**row(date(2026, 8, 10), qty=30.0, product="Mug"), "Type": "out"}]), WITH_TYPE),
+    "a write-off beside the sales": (_typed([
+        {**row(date(2026, 7, 1), qty=100.0, product="Mug"), "Type": "in"},
+        {**row(date(2026, 8, 10), qty=30.0, product="Mug"), "Type": "out"},
+        {**row(date(2026, 8, 11), qty=-10.0, price=0.0, product="Mug"), "Type": "out"}]), WITH_TYPE),
+    "stock in with no price": (_typed([
+        {**row(date(2026, 7, 1), qty=500.0, product="Mug"), "Type": "in", "Price": ""},
+        {**row(date(2026, 7, 1), qty=50.0, product="Widget"), "Type": "in", "Price": None}]), WITH_TYPE),
+    "a sale before any stock in": (_typed([
+        {**row(date(2026, 7, 3), qty=50.0, product="Mug"), "Type": "out"},
+        {**row(date(2026, 7, 20), qty=60.0, product="Mug"), "Type": "in", "Price": ""},
+        {**row(date(2026, 8, 10), qty=5.0, product="Mug"), "Type": "out"}]), WITH_TYPE),
+}
+
+
+@pytest.mark.parametrize("name", list(STOCK_FILES))
+def test_no_file_has_a_stock_figure_in_v1(name: str) -> None:
+    rows, mapping = STOCK_FILES[name]
+    products = _products(rows, mapping)
 
     assert products.velocity is None
-    assert "stock-in" in products.velocity_reason
+    assert products.velocity_reason.startswith("stock figures are not supported in v1")
 
 
-def test_a_product_with_no_stock_in_line_has_no_days_to_stockout() -> None:
-    """The file records stock in for Mug only: 100 in on 1 July; August sells
-    30 Mugs (sale lines). Mug: stock 100 - 30 = 70, 30/31 a day, 70 / (30/31)
-    = 72.33 days. Widget has no stock-in line: null, with a reason."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, 7, 1), qty=100.0, product="Mug"), "Type": "in"},
-             {**row(date(2026, 8, 10), qty=30.0, product="Mug"), "Type": "out"}]
-
-    velocity = {v.product: v for v in _products(rows, WITH_TYPE).velocity}
-
-    assert velocity["Mug"].days_to_stockout == pytest.approx(70 / (30 / 31))
-    assert velocity["Mug"].units_per_day == pytest.approx(30 / 31)
-    assert velocity["Widget"].days_to_stockout is None
-    assert "stock-in" in velocity["Widget"].days_to_stockout_reason
-
-
-def test_velocity_units_a_day_are_sale_lines_only() -> None:
-    """Mutation check (2E-g, S2): 100 Mugs in on 1 July; August sells 30 and
-    writes 10 off (-10 at 0). Units sold a day are 30/31, not (30 - 10)/31."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, 7, 1), qty=100.0, product="Mug"), "Type": "in"},
-             {**row(date(2026, 8, 10), qty=30.0, product="Mug"), "Type": "out"},
-             {**row(date(2026, 8, 11), qty=-10.0, price=0.0, product="Mug"), "Type": "out"}]
-
-    mug = next(v for v in _products(rows, WITH_TYPE).velocity if v.product == "Mug")
-
-    assert mug.units_per_day == pytest.approx(30 / 31)
-
-
-def test_a_stock_in_line_needs_no_price() -> None:
-    """2E-g doubt-review F1: goods received are often written with no sale
-    price. Such an "in" line was invalid (a price is needed to be a counted
-    line) and the file read as having no stock-in line at all. Mug: 500 in,
-    31 sold in August (1 a day): 469 days. Widget: 50 in, 2 sold in August
-    and 2 in July: 46 / (2/31) = 713."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, 7, 1), qty=500.0, product="Mug"), "Type": "in", "Price": ""},
-             {**row(date(2026, 7, 1), qty=50.0, product="Widget"), "Type": "in", "Price": None}]
-    rows += [{**row(day, product="Mug"), "Type": "out"}
-             for day in (date(2026, 8, d) for d in range(1, 32))]
-
-    velocity = {v.product: v for v in _products(rows, WITH_TYPE).velocity}
-
-    assert velocity["Mug"].days_to_stockout == pytest.approx(469.0)
-    assert velocity["Widget"].days_to_stockout == pytest.approx(46 / (2 / 31))
-
-
-def test_stock_in_that_covers_less_than_was_sold_is_no_stock_figure() -> None:
-    """2E-g doubt-review cycle 2, F2: Mug sells 40 in July and 40 in August;
-    one "in" line of 50 on 20 August. In minus out is -30: the file's stock
-    history is incomplete (it began with stock on hand), so there is no
-    days-to-stockout figure - not "0 days"."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, month, day), qty=10.0, product="Mug"), "Type": "out"}
-             for month in (7, 8) for day in (3, 10, 17, 24)]
-    rows.append({**row(date(2026, 8, 20), qty=50.0, product="Mug"), "Type": "in", "Price": ""})
-
-    mug = next(v for v in _products(rows, WITH_TYPE).velocity if v.product == "Mug")
-
-    assert mug.days_to_stockout is None
-    assert "incomplete" in mug.days_to_stockout_reason
-
-
-def test_a_sale_before_any_stock_in_makes_the_history_incomplete() -> None:
-    """2E-g doubt-review cycle 3 F1: Mug sells 50 on 3 July before any stock
-    comes in, 60 arrive on 20 July, 5 sell on 10 August. The end balance is
-    60 - 55 = 5 (31 days), but the 50 sold first prove stock on hand before
-    the file: the running balance fell to -50, so the history is incomplete
-    and there is no figure."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, 7, 3), qty=50.0, product="Mug"), "Type": "out"},
-             {**row(date(2026, 7, 20), qty=60.0, product="Mug"), "Type": "in", "Price": ""},
-             {**row(date(2026, 8, 10), qty=5.0, product="Mug"), "Type": "out"}]
-
-    mug = next(v for v in _products(rows, WITH_TYPE).velocity if v.product == "Mug")
-
-    assert mug.days_to_stockout is None
-    assert "incomplete" in mug.days_to_stockout_reason
-
-
-def test_stock_in_on_the_day_of_a_sale_counts_first() -> None:
-    """Same-day ordering: 10 arrive and 10 sell on 1 July - no dip below
-    zero. Then 20 arrive on 2 July and 5 sell on 10 August: 25 / (5/31)."""
-    rows = [{**r, "Type": "out"} for r in _base()]
-    rows += [{**row(date(2026, 7, 1), qty=10.0, product="Mug"), "Type": "out"},
-             {**row(date(2026, 7, 1), qty=10.0, product="Mug"), "Type": "in", "Price": ""},
-             {**row(date(2026, 7, 2), qty=20.0, product="Mug"), "Type": "in", "Price": ""},
-             {**row(date(2026, 8, 10), qty=5.0, product="Mug"), "Type": "out"}]
-
-    mug = next(v for v in _products(rows, WITH_TYPE).velocity if v.product == "Mug")
-
-    assert mug.days_to_stockout == pytest.approx(15 / (5 / 31))
-
-
-def test_revenue_scope_and_stock_in_read_in_alike() -> None:
-    """One reading of "in" (2E-g cycle 2 F4), HEAD's: " IN " is a stock-in line
-    for velocity and out of revenue alike (August revenue stays 20)."""
+def test_revenue_scope_reads_in_as_it_always_has() -> None:
+    """One reading of "in" (2E-g cycle 2 F4): " IN " is out of revenue
+    (August revenue stays 20), and no stock figure is written from it."""
     rows = [{**r, "Type": "out"} for r in _base()]
     rows.append({**row(date(2026, 8, 10), qty=100.0, price=5.0), "Type": " IN "})
 
     metrics = assemble_metrics(pd.DataFrame(rows), WITH_TYPE, now=NOW)
 
     assert metrics.core.revenue_current == pytest.approx(20.0)
-    assert metrics.products.velocity is not None
+    assert metrics.products.velocity is None
 
 
 def test_stage_2_and_stage_3_read_categories_alike() -> None:
@@ -229,7 +162,8 @@ def test_a_missing_velocity_or_days_to_stockout_must_say_why() -> None:
 
     from tests.contracts.test_metrics import metrics_payload
 
-    for change in ({"velocity": None},
+    # Since 2E-t2 any velocity list is refused too (not supported in v1).
+    for change in ({"velocity": None, "velocity_reason": None},
                    {"velocity": [{"product": "P", "units_per_day": 1.0, "days_to_stockout": None,
                                   "days_to_stockout_reason": None}]},
                    {"velocity": [{"product": "P", "units_per_day": 1.0, "days_to_stockout": 3.0,

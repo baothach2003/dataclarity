@@ -78,7 +78,7 @@ export function OrderNotices({
       {blank !== null && dropping && (
         <Notice tone="info" title={`Up to ${lines(blank.count, 'line', 'lines')} with no order id will be dropped`}>
           Those lines are removed, and their revenue leaves every figure.
-          {stockLines && ' Stock-in lines with no order id are dropped too, and leave the stock figures.'}
+          {stockLines && ' Stock-in lines with no order id are dropped too, and leave the report of stock received.'}
         </Notice>
       )}
       {blank !== null && !dropping && keptBlankIdsOf !== blank.column && (
@@ -102,7 +102,7 @@ export function OrderNotices({
           While any sale or return line has no order id, the whole file counts lines, not orders, and
           average order value reads as average line value. Ids cannot be filled in: one made-up id
           would merge every blank line into a single order.
-          {stockLines && ' If you drop these lines, stock-in lines with no order id are dropped too, and leave the stock figures.'}
+          {stockLines && ' If you drop these lines, stock-in lines with no order id are dropped too, and leave the report of stock received.'}
         </Notice>
       )}
 

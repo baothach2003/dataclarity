@@ -107,6 +107,27 @@ def test_missing_unit_price_mapping_is_analysis_failed_without_failing_the_run(
     assert api.status(run_id) is RunStatus.CLEANED
 
 
+def test_a_cleaned_file_whose_line_classes_were_changed_is_analysis_failed(make_api: MakeApi) -> None:
+    # 2E-t2 review 1 #10: a value outside the closed list reached the user as
+    # a generic 500; the message now names the column and says to re-upload.
+    import pandas as pd
+
+    api, run_id = _cleaned_run(make_api)
+    cleaned = api.file(run_id, "cleaned.csv")
+    frame = pd.read_csv(cleaned, dtype=str)
+    frame.loc[0, "line_class"] = "fee"
+    frame.to_csv(cleaned, index=False)
+
+    response = api.post(run_id, "analyze")
+
+    assert response.status_code == 422
+    error = response.json()["error"]
+    assert error["code"] == "ANALYSIS_FAILED"
+    assert "re-upload" in error["message"]
+    assert "fee" in error["details"]["line_classes"]
+    assert api.status(run_id) is RunStatus.CLEANED
+
+
 def test_not_inventory_run_is_analysis_failed(make_api: MakeApi) -> None:
     api = make_api(schema_reply(domain_confidence=0.2), plan_reply())
     run_id, plan = planned(api)

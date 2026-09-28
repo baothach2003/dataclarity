@@ -211,6 +211,9 @@ describe('ReviewPage: blank order ids', () => {
     renderReview([...MAPPED, ['Type', 'transaction_type']], { blankIds: 7 })
 
     expect(screen.getByText(/stock-in lines with no order id are dropped too/)).toBeDefined()
+    // v1 has no stock figure (2E-t2): the lines leave the report of stock received.
+    expect(screen.getByText(/leave the report of stock received/)).toBeDefined()
+    expect(screen.queryByText(/stock figures/)).toBeNull()
   })
 
   it('asks again about blank ids after the order id moves to another column (cycle 2 F8)', () => {

@@ -4,6 +4,7 @@ from typing import Any
 import pytest
 from pydantic import ValidationError
 
+from contracts.lines import NOTE_FIGURES, NOTE_TEXTS
 from contracts.metrics import MetricsContract
 
 
@@ -46,6 +47,21 @@ def metrics_payload() -> dict[str, Any]:
             "undated_lines": 0,  # 2E-h
             "undated_lines_reason": None,
             "non_product": [],  # 2E-d2
+            # 2E-t2, the line taxonomy: 1,178,000 - 25,000 - 3,000 - 0 + 0 = 1,150,000.
+            "identity": {
+                "current": {"gross_sales": 1178000.0, "returns": 25000.0, "discounts": 3000.0,
+                            "other_deductions": 0.0, "other_revenue": 0.0, "net_revenue": 1150000.0,
+                            "returns_on_suggested_keys": 0.0, "money_moved": 1206000.0},
+                "previous": {"gross_sales": 1318000.0, "returns": 26000.0, "discounts": 2000.0,
+                             "other_deductions": 0.0, "other_revenue": 0.0, "net_revenue": 1290000.0,
+                             "returns_on_suggested_keys": 0.0, "money_moved": 1346000.0},
+            },
+            "outside_revenue": [{"line_class": "cost", "scope": "file", "sign": None, "lines": 265,
+                                 "amount": -310325.44, "lines_without_amount": 0}],
+            "unclassified": {"lines": 0, "amount": 0.0, "share_of_money_moved": 0.0},
+            "unmeasurable": [],
+            "notes": [{"code": "discounts_in_prices", "figures": NOTE_FIGURES["discounts_in_prices"],
+                       "text": NOTE_TEXTS["discounts_in_prices"], "measures": []}],
         },
         "customers": {
             "rfm_reference_date": "2011-12-10",
@@ -90,15 +106,10 @@ def metrics_payload() -> dict[str, Any]:
                  "revenue_change_pct": -41.2, "revenue_change_pct_reason": None}
             ],
             "biggest_decliners_reason": None,
-            "velocity": [
-                {
-                    "product": "JUMBO BAG RED RETROSPOT",
-                    "units_per_day": 12.4,
-                    "days_to_stockout": 8.6,
-                    "days_to_stockout_reason": None,  # 2E-g
-                }
-            ],
-            "velocity_reason": None,  # 2E-g
+            # Null on every file since 2E-t2: stock figures are not supported in v1.
+            "velocity": None,
+            "velocity_reason": "stock figures are not supported in v1",
+            "suggested_classes": {},  # 2E-t2
         },
         "by_dimension": {
             "country": [
@@ -146,14 +157,12 @@ def test_accepts_empty_lists() -> None:
     payload = metrics_payload()
     payload["core"]["revenue_by_month"] = []
     payload["customers"]["segments"] = []
-    payload["products"].update(
-        {"top_products": [], "biggest_decliners": [], "velocity": []}
-    )
+    payload["products"].update({"top_products": [], "biggest_decliners": []})
     payload["by_dimension"] = {"country": [], "category": [], "contribution_reason": None}
 
     metrics = MetricsContract.model_validate(payload)
 
-    assert metrics.products.velocity == []
+    assert metrics.products.top_products == []
 
 
 def test_rejects_missing_core_block() -> None:
@@ -214,10 +223,22 @@ def test_rejects_concentration_pct_above_100() -> None:
 
 
 def test_rejects_negative_days_to_stockout() -> None:
-    payload = metrics_payload()
-    payload["products"]["velocity"][0]["days_to_stockout"] = -0.1
+    # The shape kept for v2 keeps its bound.
+    from contracts.metrics import ProductVelocity
 
     with pytest.raises(ValidationError, match="days_to_stockout"):
+        ProductVelocity(product="JUMBO BAG RED RETROSPOT", units_per_day=12.4, days_to_stockout=-0.1,
+                        days_to_stockout_reason=None)
+
+
+def test_rejects_any_stock_figure_in_v1() -> None:
+    # 2E-t2 (Thach, the line taxonomy's scope cut): velocity is null on every file.
+    payload = metrics_payload()
+    payload["products"]["velocity"] = [{"product": "JUMBO BAG RED RETROSPOT", "units_per_day": 12.4,
+                                        "days_to_stockout": 8.6, "days_to_stockout_reason": None}]
+    payload["products"]["velocity_reason"] = None
+
+    with pytest.raises(ValidationError, match="not supported in v1"):
         MetricsContract.model_validate(payload)
 
 

@@ -20,10 +20,9 @@ def forecast_payload() -> dict[str, Any]:
                  "high": 1380000.0, "confidence": 0.8}
             ],
             "insufficient_history": False,
-            "products_at_stockout_risk": [
-                {"product": "JUMBO BAG RED RETROSPOT", "days_to_stockout": 8.6,
-                 "suggested_reorder_units": 420}
-            ],
+            # Null on every file since 2E-t2: stock figures are not supported in v1.
+            "products_at_stockout_risk": None,
+            "products_at_stockout_risk_reason": "stock figures are not supported in v1",
         },
         "recommendations": [
             {
@@ -47,7 +46,7 @@ def test_accepts_documented_example() -> None:
     contract = ForecastContract.model_validate(forecast_payload())
 
     assert contract.forecast.revenue[0].point == 1210000.0
-    assert contract.forecast.products_at_stockout_risk[0].suggested_reorder_units == 420
+    assert contract.forecast.products_at_stockout_risk is None
     assert contract.recommendations is not None
     assert contract.recommendations[0].priority == 1
 
@@ -122,11 +121,11 @@ def test_rejects_recommendation_missing_expected_impact() -> None:
 
 
 def test_rejects_negative_reorder_units() -> None:
-    payload = forecast_payload()
-    payload["forecast"]["products_at_stockout_risk"][0]["suggested_reorder_units"] = -5
+    # The shape kept for v2 keeps its bound.
+    from contracts.forecast import StockoutRisk
 
     with pytest.raises(ValidationError, match="suggested_reorder_units"):
-        ForecastContract.model_validate(payload)
+        StockoutRisk(product="JUMBO BAG RED RETROSPOT", days_to_stockout=8.6, suggested_reorder_units=-5)
 
 
 # --- degraded mode (CONTRACTS.md section 8, AI_PIPELINE.md section 9) --------

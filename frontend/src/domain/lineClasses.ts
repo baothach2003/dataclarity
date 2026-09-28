@@ -1,7 +1,7 @@
 // Lines that may not be products (session 2E-d2, Thach): postage, fees,
 // discounts and accounting adjustments booked as product lines. Stage 1
 // measures the candidates on the raw file for the product columns it mapped
-// (stages/ingest/non_product_lines.py); after a remap they are read here from
+// (shared/line_words.py since 2E-t2); after a remap they are read here from
 // profile.json's top values - the same words and the same first-or-last-word
 // rule, money not measured - so the question is not lost. The user classes
 // each; unanswered, or "a product", its lines stay products - except that a

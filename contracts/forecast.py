@@ -43,7 +43,20 @@ class ForecastBlock(ContractModel):
     horizon_periods: NonNegativeInt
     revenue: list[RevenuePoint]
     insufficient_history: bool
-    products_at_stockout_risk: list[StockoutRisk]
+    # Null with its reason on every file since 2E-t2: stock figures are not
+    # supported in v1 (Thach, the line taxonomy's scope cut - v1 analyses
+    # sales, not inventory). Changed in place: no forecast.json has been
+    # written (CONTRACTS section 10). The shape stays for v2.
+    products_at_stockout_risk: list[StockoutRisk] | None
+    products_at_stockout_risk_reason: str | None
+
+    @model_validator(mode="after")
+    def _no_stock_figure_in_v1(self) -> Self:
+        if self.products_at_stockout_risk is not None:
+            raise ValueError("stock figures are not supported in v1: products_at_stockout_risk is null")
+        if not self.products_at_stockout_risk_reason:
+            raise ValueError("products_at_stockout_risk is null, so its reason must say why")
+        return self
 
 
 class Recommendation(ContractModel):

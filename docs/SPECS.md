@@ -11,7 +11,8 @@ wins until Thach approves a change.
 - Stage 1 Collect: profiling, AI schema inference, AI cleaning plan, user review
   and editing with before/after preview, deterministic execution, clean CSV +
   change report
-- Stage 2 Analyze: KPIs, RFM segments, product Pareto, velocity
+- Stage 2 Analyze: KPIs, RFM segments, product Pareto, the revenue identity and the
+  lines outside revenue (stock figures are not supported in v1)
 - Stage 3 Diagnose: an 8-step diagnostic engine (data-trust gate, calendar
   adjustment, signal-vs-noise, Shapley metric tree, localization, a fixed
   hypothesis catalog with verdicts) whose conclusions the AI only narrates
@@ -179,7 +180,7 @@ remap the question is asked again.
   without a customer.
 - With a column mapped to `transaction_type`, the blank-id notice also says
   that dropping the blank-id lines drops stock-in lines with no id, which
-  leave the stock figures.
+  leave the report of stock received (v1 has no stock figure - 2E-t2).
 - An answered notice never promises what stage 2 will not do: a receipt
   number whose ids stage 1 found spanning days, or blank ids kept, still
   count lines, and a fill waits for every line to have an id. A plan that
@@ -219,7 +220,9 @@ dashboard.
 Cards (total products, low-stock count, inventory value), 30-day trend line with
 product selector, top-5 bar chart, low-stock table sorted by predicted stockout
 date. Velocity math: average daily units over the last N=14 days, guarded against
-zero velocity.
+zero velocity. **Out of v1** (Thach, 2026-09-28, the line taxonomy's scope cut):
+v1 analyses sales, not inventory - no low-stock count, inventory value or
+low-stock table; the stock ledger is a v2 item (PROJECT_PLAN's Backlog).
 
 ## 5. The Confirmation Contract (stage 1)
 
@@ -370,7 +373,7 @@ warning in the import summary when it would go negative).
 | Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
-| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable; the message names the missing field or the domain reasoning | ANALYSIS_FAILED (422) |
+| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2) | run stays as it was - `cleaned.csv` is still valid and downloadable, only stages 2-5 are unavailable; the message names the missing field, the domain reasoning, or the class column and says to re-upload | ANALYSIS_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
 | Run expired by retention, or its files are gone | rejected with re-upload hint | EXPIRED (410) |
