@@ -2465,6 +2465,33 @@ dataclarity/
       them stage 4's `products_at_stockout_risk`, which must read "not
       supported in v1" too). Design section 9, questions 21-24. **THE RUN
       STOPPED HERE, by his condition**; 2E-t1..t3 wait for his answers.
+      **Thach, after the seventh run (2026-09-28):**
+      - Q25 (design question 21): his recommendation taken - every line typed
+        "in" stays outside revenue, as 2A has always done; its lines and
+        money are reported by sign; on a file with "in" lines, revenue and the
+        return rate carry a visible note that customer returns booked as "in"
+        cannot be separated. **This SUPERSEDES Q15**: his sign rule was wrong
+        - review 5 showed the sign cannot tell a supplier's receipt correction
+        from a customer's return.
+      - Q26 (22): as recommended - the identity and the return-rate note state
+        the share of returns on keys with an unconfirmed suggestion; no figure
+        changes. Q27 (23): R3 stays. Q28 (24): as recommended - unmeasurable
+        lines per compared month; the trust check to Phase 8.
+      - A1-A6 accepted; the eleven author's fixes of review 5 go into
+        revision 3.
+      - **A standing rule** (recorded in CLAUDE.md 3.3a and the design's
+        section 0): when the data cannot tell two meanings apart, v1 never
+        guesses - it keeps the existing behaviour, reports the affected lines
+        and money, and adds a visible note wherever the affected figure is
+        shown. Decision 5 and Q25 are instances. Claude applies it to any
+        later finding of that shape as a decision made alone, without
+        stopping the run.
+      **Run (eighth):** revision 3 (these answers and the eleven fixes; the
+      anchor rebuilt and re-measured; the sixth fresh-context review - stop
+      only for a finding that fabricates AND cannot be settled by the
+      standing rule, or that needs his definition), then 2E-t1, 2E-t2,
+      2E-t3, the full process each, the anchor the regression reference.
+      Stop after 2E-t3.
 - [x] 2E-o **The fifth run's answers: a scoped review, then Q1, Q4, Q8, Q10**
       (Thach, 2026-09-28). **Done 2026-09-28** (sixth overnight run, session
       1; method `C:\Users\Happy\2Eo-method.txt`, five amendments):
@@ -3174,7 +3201,18 @@ end-to-end skeleton first. Same rules. Report in
 the fifth review of the design found that Q15's reading of "in" lines
 fabricates on a priced stock ledger, and questions only Thach can answer (the
 2E-t item; design section 9, questions 21-24). Not started: 2E-t1, 2E-t2,
-2E-t3. **Next: Thach's answers to review 5.**
+2E-t3.
+**Eighth overnight run** approved by Thach (2026-09-28, after reading the
+seventh run's report; his decisions are in the 2E-t item, and the standing
+rule in CLAUDE.md 3.3a): **2E-t revision 3** (Q25 superseding Q15, Q26-Q28,
+the eleven author's fixes, the standing rule; the anchor rebuilt and
+re-measured; the sixth fresh-context review - stop only for a finding that
+fabricates and cannot be settled by the standing rule, or that needs his
+definition) -> **2E-t1 -> 2E-t2 -> 2E-t3** (the anchor the regression
+reference; any demo difference not listed there stops the run). Stop after
+2E-t3. Same rules. Report in `C:\Users\Happy\overnight-report.txt` (the
+seventh run's kept as `overnight-report-run7.txt`). **Next: the 2E-t
+revision 3.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the
