@@ -82,10 +82,11 @@ class NonProductLines(ContractModel):
     """The lines of one class the user gave in Review (Thach, 2E-d2, 2E-l),
     dated and counted over the whole file: a charge the customer paid stays
     in revenue but is no order; a discount stays in revenue as a deduction;
-    pooled items are sales and returns in every figure; a fee or cost and an
-    accounting adjustment are left out of revenue - an adjustment's amount is
-    reported as a reconciling amount. None of them is ranked in a product
-    table. The reason says where the money went."""
+    pooled items are sales and returns in every figure; a fee or cost, an
+    accounting adjustment and (2E-t1) a gift card are left out of revenue - an
+    adjustment's amount is reported as a reconciling amount, and a gift card
+    sold is owed until redeemed. None of them is ranked in a product table.
+    The reason says where the money went."""
 
     line_class: LineClass
     lines: Annotated[int, Field(gt=0)]
@@ -133,7 +134,8 @@ class CoreMetrics(ContractModel):
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
     # One row per class present, in the order charge, discount, pooled,
-    # cost, adjustment; empty when no line is classed (2E-d2, 2E-l).
+    # cost, adjustment, gift_card; empty when no line is classed (2E-d2, 2E-l,
+    # 2E-t1).
     non_product: list[NonProductLines]
 
     @model_validator(mode="after")
@@ -334,8 +336,10 @@ class MetricsContract(ContractFile):
     # days the order cannot hold are undated, and a month-grain file compares
     # its last month (`period.month_grain`). 15 since 2E-o: a month-end dated
     # file is month grain too (another month compared), and a day-month-year
-    # date is found beside a dotted time or before its time.
-    supported_major: ClassVar[int] = 15
+    # date is found beside a dotted time or before its time. 16 since 2E-t1:
+    # the line taxonomy (docs/LINE_TAXONOMY.md) - `non_product` can carry
+    # "gift_card" (a closed enum widened), the one major of the migration.
+    supported_major: ClassVar[int] = 16
     stale_major_hint: ClassVar[str] = (
         ": this metrics.json was written by an earlier stage 2 with different "
         "definitions (orders, buyers, AOV, return rate, new customers, RFM "

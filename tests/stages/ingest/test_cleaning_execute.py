@@ -45,11 +45,14 @@ def test_writes_the_cleaned_file_the_plan_and_the_report(tmp_path: Path) -> None
     files = written(tmp_path, run_id)
     assert sorted(files) == sorted(OUTPUTS)
     assert files["cleaned.csv"].decode() == (
-        "sku,name,qty,price,day,__flag_invalid_date__day,__flag_negative__qty\n"
-        "A1,Mug,3,9.99,2024-01-05,False,False\n"
-        "B2,Cup,-1,9.99,2024-01-15,False,True\n"
-        "C3,,5,12.50,2024-01-07,False,False\n"
-        "D4,Plate,4,7.00,,True,False\n")
+        # Since 2E-t1 each line's class, its source and its suggestion (none
+        # here: a blank cell) follow the plan's columns (docs/LINE_TAXONOMY.md).
+        "sku,name,qty,price,day,__flag_invalid_date__day,__flag_negative__qty,"
+        "line_class,class_source,suggested_class\n"
+        "A1,Mug,3,9.99,2024-01-05,False,False,sale,rule,\n"
+        "B2,Cup,-1,9.99,2024-01-15,False,True,customer_return,rule,\n"
+        "C3,,5,12.50,2024-01-07,False,False,sale,rule,\n"
+        "D4,Plate,4,7.00,,True,False,sale,rule,\n")
     assert CleaningReportContract.model_validate_json(files["cleaning_report.json"]) == report
 
 
@@ -58,10 +61,11 @@ def test_the_report_holds_what_ran_in_the_order_it_ran(tmp_path: Path) -> None:
 
     report = execute_run(tmp_path, run_id, DEDUPLICATING, now=NOW)
 
-    assert (report.schema_version, report.generated_at) == ("3.1", NOW)  # 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
+    assert (report.schema_version, report.generated_at) == ("4.0", NOW)  # 4.0 since 2E-t1 ("gift_card": major); 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
     assert (report.rows_in, report.rows_out) == (5, 4)
-    # 5 source columns, plus the two flag columns the run added.
-    assert (report.columns_in, report.columns_out) == (5, 7)
+    # 5 source columns, plus the two flag columns the run added, plus the
+    # three line-taxonomy columns (2E-t1).
+    assert (report.columns_in, report.columns_out) == (5, 10)
     assert [(c.action, c.column) for c in report.changes] == [
         ("remove_exact_duplicates", None), ("trim_whitespace", "sku"), ("trim_whitespace", "name"),
         ("parse_datetime", "day"), ("impute_median", "price"), ("fix_negative", "qty")]
@@ -303,8 +307,8 @@ def test_execute_keeps_the_names_when_every_row_ends_with_a_delimiter(tmp_path: 
     report = execute_run(tmp_path, run_id, make_plan(), now=NOW)
 
     lines = (tmp_path / run_id / "cleaned.csv").read_text(encoding="utf-8").splitlines()
-    assert lines[0] == "sku,name,qty,price,day"
-    assert lines[1] == "A0,Mug0,0,1.00,2024-01-05"
+    assert lines[0] == "sku,name,qty,price,day,line_class,class_source,suggested_class"  # 2E-t1
+    assert lines[1] == "A0,Mug0,0,1.00,2024-01-05,no_money,rule,"
     assert (report.rows_in, report.columns_in) == (40, 5)
 
 

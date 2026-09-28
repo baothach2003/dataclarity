@@ -227,10 +227,31 @@ describe('ReviewPage: lines that may not be products (2E-d2)', () => {
     expect(screen.getByText(/unanswered, its lines stay products - except lines with no code/)).toBeDefined()
   })
 
-  it('sends no class for "a product", or with no answer', async () => {
+  // 2E-t1 (Thach, the line taxonomy's decision 4): a voucher sold is a
+  // liability until redeemed - a class the user can confirm.
+  it('offers a gift card and sends it (2E-t1)', async () => {
+    const executePlan = renderReview()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'What is "M"?' }), { target: { value: 'gift_card' } })
+
+    expect(screen.getByRole('option', { name: 'A gift card sold (owed until redeemed: leaves revenue)' })).toBeDefined()
+    const sent = await sentPlan(executePlan)
+    expect(sent.confirmations?.line_classes).toEqual([{ value: 'M', field: 'sku', line_class: 'gift_card' }])
+  })
+
+  // 2E-t1 review cycle 1 #2: "a product" said for a SKU is an answer too - it
+  // clears the key's pending suggestion in cleaned.csv.
+  it('sends "a product" for a SKU', async () => {
     const executePlan = renderReview()
 
     fireEvent.change(screen.getByRole('combobox', { name: 'What is "M"?' }), { target: { value: 'product' } })
+
+    const sent = await sentPlan(executePlan)
+    expect(sent.confirmations?.line_classes).toEqual([{ value: 'M', field: 'sku', line_class: 'product' }])
+  })
+
+  it('sends no class with no answer', async () => {
+    const executePlan = renderReview()
 
     const sent = await sentPlan(executePlan)
     expect(sent.confirmations?.line_classes).toBeUndefined()

@@ -159,6 +159,12 @@ _NON_PRODUCT_REASONS = {
                    "of every figure, and reported here as a reconciling amount",
                    "{n} lines classed in Review as accounting adjustments are left out of revenue and "
                    "of every figure, and reported here as a reconciling amount"),
+    # Thach, the line taxonomy's decision 4 (2E-t1): a voucher sold is a
+    # liability until redeemed, so neither revenue nor a sale.
+    "gift_card": ("1 line classed in Review as a gift card is left out of revenue and of every figure: "
+                  "a voucher sold is owed to the customer until it is redeemed",
+                  "{n} lines classed in Review as gift cards are left out of revenue and of every "
+                  "figure: a voucher sold is owed to the customer until it is redeemed"),
 }
 
 

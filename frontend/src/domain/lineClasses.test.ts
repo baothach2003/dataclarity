@@ -172,6 +172,26 @@ describe('nonProductCandidates', () => {
     ])
   })
 
+  // 2E-t1: stage 1's gift-card words, mirrored - after the discount words,
+  // and neither "voucher" nor "gift" alone (review 5 #12).
+  it('suggests a gift card for the gift-card words, as stage 1 does (2E-t1)', () => {
+    const top = {
+      Other: [
+        { value: 'gift_0001_10', count: 16 },
+        { value: 'Gift card 25', count: 12 },
+        { value: 'Discount voucher', count: 9 },
+        { value: 'Promo voucher', count: 8 },
+        { value: 'GIFT BAG BIRTHDAY', count: 7 },
+      ],
+    }
+
+    expect(nonProductCandidates(plan(remapped), profile(top), schema()).map((c) => [c.value, c.suggested])).toEqual([
+      ['gift_0001_10', 'gift_card'],
+      ['Gift card 25', 'gift_card'],
+      ['Discount voucher', 'discount'],
+    ])
+  })
+
   it('does not read roses as a commission (review F7)', () => {
     const top = { Other: [{ value: 'Hoa hồng đỏ', count: 30 }, { value: 'Bó hoa hồng', count: 20 }] }
 
@@ -221,11 +241,19 @@ describe('answeredLineClasses', () => {
     ])
   })
 
-  it('sends nothing for "a product", for no answer, or for an answer given for another column', () => {
+  // 2E-t1 review cycle 1 #2: "a product" for a SKU is sent - an answered key
+  // carries no pending suggestion.
+  it('sends "a product" answered for a SKU', () => {
     const product: StoredLineClasses = { 'sku:post': { value: 'product', column: 'Code' } }
+
+    expect(answeredLineClasses(plan(), profile(), schema(), product)).toEqual([
+      { value: 'POST', field: 'sku', line_class: 'product' },
+    ])
+  })
+
+  it('sends nothing for no answer, or for an answer given for another column', () => {
     const other: StoredLineClasses = { 'sku:post': { value: 'charge', column: 'Other' } }
 
-    expect(answeredLineClasses(plan(), profile(), schema(), product)).toEqual([])
     expect(answeredLineClasses(plan(), profile(), schema(), {})).toEqual([])
     expect(answeredLineClasses(plan(), profile(), schema(), other)).toEqual([])
   })

@@ -196,7 +196,10 @@ SKU text, or the name its lines carry most often, has a class word as its
 FIRST or LAST word - letter-bounded, plural "s"; in order, adjustment
 (adjust, adjustment, bad debt, write-off, "dieu chinh"), pooled ("manual",
 since 2E-l: Online Retail II's M is manually priced sales), discount
-(discount, coupon, "giam gia", "chiet khau"), charge (postage, shipping,
+(discount, coupon, "giam gia", "chiet khau"), gift card (gift card, gift
+voucher, gift certificate, "gift_" - since `4.0`, 2E-t1: a voucher sold is a
+liability; after the discount words, so "Discount voucher" is a discount, and
+no bare "voucher" or "gift"), charge (postage, shipping,
 delivery, carriage, freight, p&p, "phi van chuyen", "phi ship"), cost (fee,
 bank charge, commission, and "sample" since 2E-l; not the Vietnamese "hoa
 hong", which is also roses) - and
@@ -204,7 +207,9 @@ its counted lines move money. Measured on Online Retail II: "carriage"
 inside a name was four real products (FRENCH CARRIAGE LANTERN, BAROQUE
 CARRIAGE CLOCK), so first-or-last; 13 keys are asked, among them C2
 "CARRIAGE" and 23444 "Next Day Carriage", which a scan of digit-free codes
-had missed. `positive` and `negative` sum the counted lines' amounts by sign
+had missed - 20 since 2E-t1, with the seven gift-voucher codes that move
+money (`gift_0001_10`, `_20`, `_30`, `_40`, `_50`, `_70` and `_80`; `_60` and
+`_90` move none). `positive` and `negative` sum the counted lines' amounts by sign
 (M "Manual": +341,104.90 and -423,886.17). `suggested` never applies by
 itself. `null` when not measured (quantity or price not mapped, nothing
 counted); Review then reads profile.json.
@@ -275,15 +280,18 @@ object reads as no answers); `null` is "not asked or not answered":
 - `line_classes` (`2.3`, 2E-d2): the product keys the user classed in Review
   as not products - `{"value", "field": "sku" | "product_name",
   "line_class": "charge" | "discount" | "pooled" | "cost" | "adjustment" |
-  "product"}` (`pooled` and `product` since 3.0, 2E-l), the value as
+  "gift_card" | "product"}` (`pooled` and `product` since 3.0, 2E-l;
+  `gift_card` since 4.0, 2E-t1 - outside revenue, the line taxonomy's
+  decision 4), the value as
   written (stages compare it as they compare products; a `sku` answer does
   not class a line without a SKU - except that such a line whose name is sold
   under exactly one SKU takes that SKU's class while the name itself is
   unanswered, section 6). Unanswered, a key is not listed and its lines stay
   products. `product` is sent for a NAME the user called "a product": it is an
   answer, so those lines keep no class and do not take their SKU's (2E-l
-  review cycle 1; the user is the final authority). For a SKU "a product" is
-  the same as no answer and is not sent. Sent only when there are some; an
+  review cycle 1; the user is the final authority). For a SKU "a product"
+  changes no figure, and since `4.0` (2E-t1) it is sent too: an answered key
+  carries no pending suggestion into cleaned.csv (section 5). Sent only when there are some; an
   answer applies only to the product column it was given for. What each
   class does: section 6.
 The AI's proposal never carries an answer (stage 1 builds it field by field),
@@ -367,6 +375,31 @@ Rules for the values (no field changed):
   overwrites a source column of the same name (it takes `_2`, `_3`...).
 - `cleaned.csv` keeps the source column names, writes dates as ISO 8601 and holds the
   flag columns (`__flag_<kind>__<column>`, `__flag_duplicate_key`).
+- **Each line's class** (`4.0`, 2E-t1; `docs/LINE_TAXONOMY.md` section 4):
+  `cleaned.csv` ends with three columns stage 1 adds after the plan -
+  `line_class`, one of the closed list (`contracts.cleaning.
+  CLEANED_LINE_CLASSES`: sale, pooled_sale, customer_return, pooled_return,
+  allowance, pooled_allowance, discount, charge, no_money, pooled_no_money,
+  gift_card_sale, gift_card_redemption, cost, adjustment, stock_in,
+  unclassified, unmeasurable); `class_source`, `user` when the user's answer
+  about the item decided it, `rule` otherwise; `suggested_class`, the
+  line-class candidate (section 3's words, found on the cleaned file) pending
+  on the line's key when nobody answered it, else a blank cell - a missing
+  value, never an empty text. They are read from the file as later stages
+  read it (the text cleaned.csv holds), in the date order that was applied,
+  and `columns_out` counts them. A file whose quantity or unit price is not
+  mapped gets none, and keeps every source name - generic cleaning, or a file
+  without a price, which stages 2 and 3 cannot read (unit_price is required
+  from stage 2 on).
+- The one exception to keeping the source names: a source column named
+  exactly `line_class`, `class_source` or `suggested_class`, and not dropped
+  by the plan, is kept and written as `<name>_source` (`<name>_source_2`,
+  `_3`... while any source column has that name),
+  `column_mapping` follows the new name, and the warning
+  `reserved_column_renamed` says which (Thach's Q24 for the line taxonomy).
+  The rename happens before the plan runs, so the run's flags on that column,
+  `changes[].column` and the details name it as cleaned.csv holds it;
+  `plan_final.json` keeps the plan as submitted (2E-t1 review cycle 2).
 
 ## 6. `metrics.json` (stage 2 output)
 
@@ -491,7 +524,8 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   unchanged at 191). A customer present in a month only through a charge
   still counts among that month's customers, as returning - as a
   refund-only customer does (2E-c; review cycle 3, Phase 8). **`core.non_product`** lists one row per class present
-  (order charge, discount, pooled, cost, adjustment): its dated counted lines, their amount
+  (order charge, discount, pooled, cost, adjustment, gift_card - 2E-t1: a
+  confirmed gift card is left out as a fee is): its dated counted lines, their amount
   over the file and in the current and previous month, and a reason saying
   where the money went - an adjustment's amount is reported as a separate
   reconciling amount (Thach; not "the file's total minus the revenue shown",
@@ -1323,6 +1357,16 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-28: **session 2E-t1, the line taxonomy's classifier (Thach).** The
+  line-class enum gained `gift_card` (closed enums: a major bump), so the
+  stage 1 contracts went to `4.0` and `metrics.json`, whose `non_product`
+  rows carry it, to `16.0` - the one major of the line-taxonomy migration,
+  held through 2E-t3 (no build between them is released). `cleaned.csv`
+  gained `line_class`, `class_source` and `suggested_class` (section 5).
+  Stages 2 and 3 do not read them yet (2E-t2); a confirmed gift card is left
+  out of revenue as a fee is. The three demo runs, through the built stage 1:
+  every figure identical, `columns_out` +3. Readers refuse `3.x` stage 1
+  files and `15.x` metrics files ("re-upload the file", "re-analyse").
 - 2026-09-28: **session 2E-o, the fifth run's answers (Thach).** `metrics.json`
   went to `15.0` (a file dated on each month's last day is month grain too, so
   another month is compared; a day-month-year date is found beside a dotted

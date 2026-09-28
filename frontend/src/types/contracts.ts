@@ -235,13 +235,15 @@ export interface OrderConfirmations {
 // customer paid stays in revenue but is no order, a discount stays as a
 // deduction, pooled items (many under one code) are sales never ranked, a fee
 // or cost and an accounting adjustment leave revenue.
-export type LineClass = 'charge' | 'discount' | 'pooled' | 'cost' | 'adjustment'
+// 'gift_card' since 2E-t1 (the line taxonomy's decision 4).
+export type LineClass = 'charge' | 'discount' | 'pooled' | 'cost' | 'adjustment' | 'gift_card'
 
 export interface LineClassAnswer {
   value: string
   field: 'sku' | 'product_name'
-  // 'product' is sent for a name (2E-l review cycle 1): unanswered, a line
-  // with no SKU takes the class of the one SKU its name is sold under.
+  // 'product' is sent for a name (2E-l review cycle 1: unanswered, a line
+  // with no SKU takes the class of the one SKU its name is sold under), and
+  // for a SKU since 4.0 (2E-t1: it clears the key's pending suggestion).
   line_class: LineClass | 'product'
 }
 

@@ -48,9 +48,10 @@ export function buildManualPlan(profile: ProfileContract, schema: SchemaInferenc
   return {
     // The plan contract's major (2.0 since 2E-e: order_id widened the canonical
     // enum; 2.1 in 2E-e2, 2.2 in 2E-k: confirmations; 3.0 since 2E-l: the
-    // line-class enum gained "pooled"). A stale major is refused, so the no-AI
-    // path could not clean.
-    schema_version: '3.1',
+    // line-class enum gained "pooled"; 4.0 since 2E-t1: it gained "gift_card").
+    // A stale major is refused, so the no-AI path could not clean (2E-t1
+    // review cycle 1 #1).
+    schema_version: '4.0',
     generated_at: new Date().toISOString(),
     source: 'manual',
     dataset_actions: [],

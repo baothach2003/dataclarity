@@ -56,8 +56,9 @@ unchanged in Phase 3 session 3B:
   revenue but is no order, no return and no product (`charge`; Thach, 2E-l:
   an invoice holding only charges is no purchase). A discount is a
   deduction, whatever its signs. Pooled items (many under one code) are sale
-  and return lines ranked as no product. A fee or cost and an accounting
-  adjustment are left out as "in" rows are (`left_out`), reported by stage 2.
+  and return lines ranked as no product. A fee or cost, an accounting
+  adjustment and a gift card (2E-t1) are left out as "in" rows are
+  (`left_out`), reported by stage 2.
 """
 
 from dataclasses import dataclass
@@ -102,9 +103,7 @@ class ParsedTransactions:
     revenue_amounts: pd.Series  # quantities * prices
     # date/quantity/price all present, regardless of transaction_type.
     valid: pd.Series
-    # `valid` AND counts towards revenue per the module docstring: excludes
-    # rows explicitly "in", and lines the user classed as a fee or cost or an
-    # accounting adjustment (`left_out`, 2E-d2).
+    # `valid` AND counts towards revenue: not "in", not `left_out` (2E-d2).
     counted: pd.Series
     # `counted` AND quantity > 0 AND a positive amount, not a discount or a
     # charge: an order (module docstring, 2E and 2E-c; 2E-l).
@@ -120,12 +119,11 @@ class ParsedTransactions:
     # free item, a zero-amount stock write-off (module docstring, 2E-c, 2E-c2).
     deduction: pd.Series
     # The class the user gave each line in Review, NaN for a product (2E-d2,
-    # shared/line_classes.py): "charge", "discount", "pooled", "cost" or
-    # "adjustment". A pooled line (many items under one code) is an ordinary
-    # sale or return line, ranked as no product (shared/products.py, 2E-l).
+    # shared/line_classes.py; contracts.profile.LineClass). A pooled line is
+    # an ordinary sale or return line, ranked as no product (2E-l).
     line_class: pd.Series
-    # `valid`, not "in", and classed a fee or cost or an adjustment: out of
-    # revenue and of every figure, as an "in" row is, but reported (2E-d2).
+    # `valid`, not "in", and classed a fee or cost, an adjustment or a gift
+    # card: out of revenue and every figure, as an "in" row is, but reported.
     left_out: pd.Series
     # Net units: the quantity of sale and return lines, 0 elsewhere (2E-c).
     units: pd.Series
@@ -200,7 +198,9 @@ def parse_transactions(df: pd.DataFrame, column_mapping: dict[str, str],
     # vote (shared/line_classes.name_only_sku) reads those.
     would_sell = valid & counts_as_sale & (quantities > 0) & (amounts > 0)
     line_class = line_classes(df, reverse, answers.line_classes, would_sell)
-    left_out = valid & counts_as_sale & line_class.isin(("cost", "adjustment"))
+    # A gift card the user confirmed is outside revenue as a fee is (Thach,
+    # the line taxonomy's decision 4; 2E-t1): a liability until redeemed.
+    left_out = valid & counts_as_sale & line_class.isin(("cost", "adjustment", "gift_card"))
     counted = valid & counts_as_sale & ~left_out
     charge = counted & line_class.eq("charge")
     priced = counted & ~line_class.isin(("discount", "charge"))

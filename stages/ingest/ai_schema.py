@@ -34,7 +34,7 @@ PCT_TOLERANCE = 0.1
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "schema_inference"  # prompts/schema_inference.md
 OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "3.1"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates; 2E-l: "pooled" (enum, major); 2E-j: no change, kept in step with the plan and the report
+SCHEMA_VERSION = "4.0"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates; 2E-l: "pooled" (enum, major); 2E-j: no change, kept in step with the plan and the report; 2E-t1: "gift_card" (enum, major) and the line taxonomy
 
 
 class SchemaInferenceAnswer(BaseModel):

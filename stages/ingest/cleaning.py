@@ -12,6 +12,7 @@ proposed, or still valid. It runs exactly that plan and builds the report from
 what actually ran; the AI is not consulted again (CLAUDE.md 3.3).
 """
 
+import io
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,10 +20,12 @@ from typing import Any
 import pandas as pd
 
 from contracts.cleaning import (
+    TAXONOMY_COLUMNS,
     ChangeLogEntry,
     CleaningPlanContract,
     CleaningReportContract,
     CleaningWarning,
+    OrderConfirmations,
     TransformAction,
 )
 from shared.run_registry import run_file
@@ -30,6 +33,13 @@ from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.contract_files import write_files_atomically
 from stages.ingest.date_order import execution_order
+from stages.ingest.line_taxonomy import (
+    classify_lines,
+    is_classed,
+    rename_warnings,
+    renamed_plan,
+    reserved_renames,
+)
 from stages.ingest.plan_validation import validate_final_plan
 from stages.ingest.profiling import NA_TOKENS, RAW_FILENAME, read_csv_text
 from stages.ingest.transform_catalog import execution_rank
@@ -37,7 +47,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "3.1"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order
+SCHEMA_VERSION = "4.0"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 
@@ -101,6 +111,21 @@ def _without_empty_flags(current: pd.DataFrame, original: pd.DataFrame) -> pd.Da
         and not bool(current[name].any())
     ]
     return current.drop(columns=empty) if empty else current
+
+
+def _with_line_classes(cleaned: pd.DataFrame, mapping: dict[str, str],
+                       applied: OrderConfirmations) -> pd.DataFrame:
+    """cleaned.csv with each line's `line_class`, `class_source` and
+    `suggested_class` (2E-t1). The classes are read from the file as stages 2
+    and 3 will read it - the text cleaned.csv holds - so the two cannot
+    differ."""
+    read = [source for source in mapping if source in cleaned.columns]
+    as_read = pd.read_csv(io.StringIO(cleaned_csv_text(cleaned[read])), dtype=str)
+    classes = classify_lines(as_read, mapping, applied)
+    cleaned = cleaned.copy(deep=False)
+    for name in TAXONOMY_COLUMNS:
+        cleaned[name] = classes[name].to_numpy()
+    return cleaned
 
 
 def _warnings(encoding: str, cleaned: pd.DataFrame) -> list[CleaningWarning]:
@@ -200,14 +225,39 @@ def execute_run(
     # On the raw file, before anything runs: a plan dropping the rows that
     # prove the order must not lose the proof (2E-j).
     date_order = execution_order(plan, frame)
+    # A source column named like one of the three columns stage 1 adds is
+    # kept under another name - before the plan runs, so its flags, the change
+    # log and the mapping carry that name by themselves (Thach's Q24; 2E-t1
+    # review cycle 2 #2-#4). `plan_final.json` keeps the plan as submitted.
+    dropped_raw = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
+    renames = reserved_renames([str(name) for name in frame.columns], dropped_raw) if is_classed(plan) else {}
+    run_plan = renamed_plan(plan, renames)
 
-    cleaned, changes = apply_plan(frame, plan)
+    try:
+        cleaned, changes = apply_plan(frame.rename(columns=renames), run_plan)
+    except CleaningError as error:
+        # The failure names the column as the user wrote it (review cycle 3 #7).
+        written = {new: old for old, new in renames.items()}.get(error.column or "")
+        if written is None:
+            raise
+        raise CleaningError(str(error).replace(repr(error.column), repr(written)), error.action,
+                            written) from error
     if cleaned.empty:
         raise CleaningError(
             "The plan removes every row, so there is nothing left to write. "
             "Check the drop_rows_missing and duplicate actions.")
 
-    dropped = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
+    dropped = {a.source_name for a in run_plan.column_actions if a.action == "drop_column"}
+    # The columns later stages look up: not an ignored one, and not one that
+    # is no longer in cleaned.csv.
+    mapping = {a.source_name: a.canonical_field for a in run_plan.column_actions
+               if a.canonical_field != "ignore" and a.source_name not in dropped}
+    # Each line's class, decided once, here (2E-t1; docs/LINE_TAXONOMY.md
+    # section 4), in the date order that was applied.
+    applied = plan.confirmations.model_copy(
+        update={"dates_day_first": None if date_order is None else date_order == "day_first"})
+    if is_classed(plan):
+        cleaned = _with_line_classes(cleaned, mapping, applied)
     report = CleaningReportContract(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
@@ -216,14 +266,8 @@ def execute_run(
         columns_in=frame.shape[1],
         columns_out=cleaned.shape[1],  # includes the flag columns the run added
         changes=changes,
-        warnings=_warnings(parsed.encoding, cleaned),
-        # The columns later stages look up: not an ignored one, and not one that
-        # is no longer in cleaned.csv.
-        column_mapping={
-            a.source_name: a.canonical_field
-            for a in plan.column_actions
-            if a.canonical_field != "ignore" and a.source_name not in dropped
-        },
+        warnings=_warnings(parsed.encoding, cleaned) + rename_warnings(renames),
+        column_mapping=mapping,
         # The user's answers from Review, exactly as submitted: stages 2 and 3
         # read them here (2E-e2), and unanswered stays unconfirmed.
         confirmations=plan.confirmations,

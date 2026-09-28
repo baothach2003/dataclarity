@@ -40,6 +40,12 @@ CLASS_WORDS: tuple[tuple[LineClass | None, tuple[str, ...]], ...] = (
     ("pooled", ("manual",)),
     ("discount", ("discount", "coupon", "giảm giá", "giam gia", "chiết khấu",
                   "chiet khau")),
+    # Thach, 2E-t1 (the line taxonomy's decision 4): a voucher sold is a
+    # liability until redeemed. After the discount words, so "Discount
+    # voucher" is a discount; no bare "voucher" ("Promo voucher"), and no bare
+    # "gift" ("GIFT BAG") - review 5 #12. "gift_": Online Retail II's
+    # gift_0001_10 to _90, whose names end in a price.
+    ("gift_card", ("gift card", "gift voucher", "gift certificate", "gift_")),
     ("charge", ("postage", "shipping", "delivery", "carriage", "freight", r"p\s?&\s?p",
                 "phí vận chuyển", "phi van chuyen", "phí ship", "phi ship")),
     # Not the Vietnamese "hoa hồng" (commission): it is also roses, and a
@@ -50,6 +56,11 @@ CLASS_WORDS: tuple[tuple[LineClass | None, tuple[str, ...]], ...] = (
 _AT_AN_END = [(line_class, re.compile(rf"^(?:{'|'.join(words)})s?(?!{_LETTER})"),
                re.compile(rf"(?<!{_LETTER})(?:{'|'.join(words)})s?$"))
               for line_class, words in CLASS_WORDS]
+# Any class word at either end, in one pattern: whether `class_word` finds
+# anything, over a column at once. One regex per key and class made a 50 MB
+# file of unique codes take 29 s (2E-t1 review cycle 1 #4).
+_ALL_WORDS = "|".join(word for _, words in CLASS_WORDS for word in words)
+_ANY_AT_AN_END = re.compile(rf"^(?:{_ALL_WORDS})s?(?!{_LETTER})|(?<!{_LETTER})(?:{_ALL_WORDS})s?$")
 
 
 def class_word(text: str) -> tuple[LineClass | None, str] | None:
@@ -84,18 +95,41 @@ def non_product_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
         "name": _raw(df, name_col).where(names.notna()),
         "sku": _raw(df, sku_col).where(skus.notna()),
     }).dropna(subset=["key"])
+    # A candidate's SKU text or commonest name has a class word, so one of its
+    # lines does: only those keys are read further - over a 50 MB file of
+    # unique codes, every key's commonest name took most of 16 s (2E-t1
+    # review cycle 1 #4).
+    worded_line = _worded(frame["key"].str.split(":", n=1).str[1]) | _worded(names[frame.index])
+    frame = frame[frame["key"].isin(set(frame["key"][worded_line]))]
     commonest_name = _commonest(frame, "name")
     # Each commonest name read as a key reads it, in one pass (5,131 keys on
     # Online Retail II).
     name_text = text_identity(commonest_name.to_frame("name"), "name")
+    keys = pd.Series(frame["key"].unique(), dtype=object)
+    texts = keys.str.split(":", n=1).str[1]
+    names_read = keys.map(name_text).astype(object)
+    # Only the keys with a class word somewhere are read word by word.
+    worded = texts.str.contains(_ANY_AT_AN_END) | names_read.fillna("").str.contains(_ANY_AT_AN_END)
     found = []
-    for key in frame["key"].unique():
-        field, text = key.split(":", 1)
-        name = commonest_name.get(key)
-        hit = class_word(text) or (class_word(name_text[key]) if name is not None else None)
+    # Plain dicts: a Series lookup per key cost most of 28 s on a 50 MB file
+    # whose every line is a worded key of its own (2E-t1 review cycle 3 #1).
+    commonest = commonest_name.to_dict()
+    for key, text, name_read in zip(keys[worded], texts[worded], names_read[worded], strict=True):
+        name = commonest.get(key)
+        hit = class_word(text) or (class_word(name_read) if name is not None else None)
         if hit is not None:
-            found.append((key, field, name, *hit))
+            found.append((key, key.split(":", 1)[0], name, *hit))
     return _measured(found, frame, lines_read)
+
+
+def _worded(texts: pd.Series) -> np.ndarray:
+    """Whether each text has a class word at an end, read once per distinct
+    text (a file repeats its codes and names); False for a missing one."""
+    codes, uniques = pd.factorize(texts)
+    if len(uniques) == 0:
+        return np.zeros(len(texts), dtype=bool)
+    found = pd.Series(uniques, dtype=object).str.contains(_ANY_AT_AN_END).to_numpy(dtype=bool)
+    return np.where(codes >= 0, found[codes], False)
 
 
 def _measured(found: list[tuple], frame: pd.DataFrame, lines_read) -> list[NonProductCandidate]:
@@ -108,10 +142,10 @@ def _measured(found: list[tuple], frame: pd.DataFrame, lines_read) -> list[NonPr
     table = pd.DataFrame({"key": frame.loc[counted, "key"], "amount": lines_read.amounts[counted]})
     table = table[table["key"].isin({key for key, *_ in found})]
     by_key = table.groupby("key")["amount"]
-    lines = by_key.size()
-    positive = table["amount"].clip(lower=0).groupby(table["key"]).sum()
-    negative = table["amount"].clip(upper=0).groupby(table["key"]).sum()
-    spelled = {"sku": _commonest(frame, "sku"), "product_name": _commonest(frame, "name")}
+    lines = by_key.size().to_dict()
+    positive = table["amount"].clip(lower=0).groupby(table["key"]).sum().to_dict()
+    negative = table["amount"].clip(upper=0).groupby(table["key"]).sum().to_dict()
+    spelled = {"sku": _commonest(frame, "sku").to_dict(), "product_name": _commonest(frame, "name").to_dict()}
     candidates = []
     for key, field, name, line_class, word in found:
         up, down = float(positive.get(key, 0.0)), float(negative.get(key, 0.0))
@@ -136,7 +170,7 @@ def _commonest(frame: pd.DataFrame, column: str) -> pd.Series:
         return pd.Series(dtype=object)
     counted = pairs.value_counts().reset_index()
     read = text_identity(counted, column)
-    counted["worded"] = [class_word(text) is not None for text in read]
+    counted["worded"] = read.fillna("").str.contains(_ANY_AT_AN_END).to_numpy()
     counted = counted.sort_values(["key", "count", "worded", column], ascending=[True, False, False, True])
     return counted.drop_duplicates("key").set_index("key")[column]
 

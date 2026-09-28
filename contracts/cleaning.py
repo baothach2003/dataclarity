@@ -1,7 +1,7 @@
 """plan_proposed.json, plan_final.json and cleaning_report.json
 (docs/CONTRACTS.md sections 4 and 5)."""
 
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, get_args
 
 from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
@@ -31,6 +31,26 @@ TransformAction = Literal[
 ]
 PlanSource = Literal["ai", "user_edited", "manual"]
 
+# The line taxonomy (session 2E-t1; docs/LINE_TAXONOMY.md section 2.1): the
+# closed list of classes stage 1 writes into cleaned.csv's `line_class`, one per
+# line. The first ten are counted (a counted line also needs a date to be in a
+# month); the rest are outside revenue and reported. `unclassified` is the
+# tested, empty class (Thach: no refusals in v1).
+CleanedLineClass = Literal[
+    "sale", "pooled_sale", "customer_return", "pooled_return", "allowance", "pooled_allowance",
+    "discount", "charge", "no_money", "pooled_no_money",
+    "gift_card_sale", "gift_card_redemption", "cost", "adjustment", "stock_in", "unclassified",
+    "unmeasurable",
+]
+CLEANED_LINE_CLASSES: tuple[str, ...] = get_args(CleanedLineClass)
+# cleaned.csv's three columns stage 1 adds (section 4): the class; "user" when
+# the item answer decided it, "rule" otherwise; the suggestion pending on the
+# line's key, a missing cell when there is none.
+LINE_CLASS_COLUMN = "line_class"
+CLASS_SOURCE_COLUMN = "class_source"
+SUGGESTED_CLASS_COLUMN = "suggested_class"
+TAXONOMY_COLUMNS = (LINE_CLASS_COLUMN, CLASS_SOURCE_COLUMN, SUGGESTED_CLASS_COLUMN)
+
 
 class LineClassAnswer(ContractModel):
     """One product key the user classed in Review (2E-d2): its SKU - or, for
@@ -40,7 +60,9 @@ class LineClassAnswer(ContractModel):
     "product" is an answer too, sent for a name (2E-l review cycle 1): a
     line with no SKU takes the class of the one SKU its name is sold under
     only while the name is unanswered, and "a product" said for the name
-    must hold (CLAUDE.md 3.3). For a SKU it is the same as no answer."""
+    must hold (CLAUDE.md 3.3). For a SKU it changes no figure, but since 2E-t1
+    it is an answer too: the key carries no pending suggestion into
+    cleaned.csv (2E-t1 review cycle 1 #2)."""
 
     value: str
     field: Literal["sku", "product_name"]
@@ -72,8 +94,9 @@ class OrderConfirmations(ContractModel):
     customer_placeholders: list[str] = Field(default_factory=list)
     # 2.3 (2E-d2): what the user said a product key's lines are when they are
     # not products. Unanswered, a key is not listed and its lines stay
-    # products; "a product" is listed for a name only (3.0, 2E-l review
-    # cycle 1: it stops the name's lines taking their SKU's class).
+    # products; "a product" is listed for a name (3.0, 2E-l review cycle 1:
+    # it stops the name's lines taking their SKU's class), and for a SKU since
+    # 4.0 (2E-t1: it clears the key's pending suggestion).
     line_classes: list[LineClassAnswer] = Field(default_factory=list)
     # 3.1 (2E-j): the user's answer to Review's date question - True: the
     # date column's day-month-year cells are written day first; False: month
@@ -110,11 +133,13 @@ class CleaningPlanContract(ContractFile):
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
     # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
-    # "pooled" (many items under one code).
-    supported_major: ClassVar[int] = 3
+    # "pooled" (many items under one code). 4 since 2E-t1: it gained
+    # "gift_card", and cleaned.csv carries each line's class (the line
+    # taxonomy).
+    supported_major: ClassVar[int] = 4
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 with fewer line classes or "
-        "without the order_id field; re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes, "
+        "without the line taxonomy or without the order_id field; re-upload the file")
 
     source: PlanSource
     dataset_actions: list[DatasetAction]
@@ -154,11 +179,13 @@ class CleaningReportContract(ContractFile):
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
     # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
-    # "pooled" (many items under one code).
-    supported_major: ClassVar[int] = 3
+    # "pooled" (many items under one code). 4 since 2E-t1: it gained
+    # "gift_card", and cleaned.csv carries each line's class (the line
+    # taxonomy).
+    supported_major: ClassVar[int] = 4
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 with fewer line classes or "
-        "without the order_id field; re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes, "
+        "without the line taxonomy or without the order_id field; re-upload the file")
     rows_in: NonNegativeInt
     rows_out: NonNegativeInt
     columns_in: NonNegativeInt

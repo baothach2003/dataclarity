@@ -33,8 +33,8 @@ duplicate_business_key | non_numeric_in_numeric
 severity: low | medium | high
 
 CANONICAL FIELD NOTES
-- transaction_type means the stock movement direction ONLY: "in" (stock received,
-  e.g. a purchase or a return) or "out" (stock sold or shipped). It is never a
+- transaction_type means the stock movement direction ONLY: "in" (stock received)
+  or "out" (stock sold or shipped). It is never a
   payment method, a sales channel, or an order/shipping status, even when a
   column's own name contains the word "type" or "transaction". A column that
   means one of those does not belong here: map it to "ignore" instead of

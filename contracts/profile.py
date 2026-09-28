@@ -191,7 +191,9 @@ class CustomerPlaceholder(ContractModel):
 # no order; a discount stays in revenue as a deduction (2E-c); pooled items
 # (many items under one code, Online Retail II's M "Manual") are sales ranked
 # as no product; a fee or cost, and an accounting adjustment, leave revenue.
-LineClass = Literal["charge", "discount", "pooled", "cost", "adjustment"]
+# "gift_card" since 2E-t1 (Thach, decision 4 of the line taxonomy): a voucher
+# sold is a liability, outside revenue once the user confirms it.
+LineClass = Literal["charge", "discount", "pooled", "cost", "adjustment", "gift_card"]
 
 
 class NonProductCandidate(ContractModel):
@@ -218,11 +220,12 @@ class SchemaInferenceContract(ContractFile):
     # "order_id_not_one_order"). A reader validating these as closed enums
     # rejects the new values, so widening is breaking - a major bump
     # (CONTRACTS section 10, Thach). 3 since 2E-l: the line-class enum gained
-    # "pooled" (many items under one code).
-    supported_major: ClassVar[int] = 3
+    # "pooled" (many items under one code). 4 since 2E-t1: it gained
+    # "gift_card" (the line taxonomy).
+    supported_major: ClassVar[int] = 4
     stale_major_hint: ClassVar[str] = (
-        ": this file was written by an earlier stage 1 with fewer line classes or "
-        "without the order_id field; re-upload the file")
+        ": this file was written by an earlier stage 1 with fewer line classes, "
+        "without the line taxonomy or without the order_id field; re-upload the file")
     model_used: str
     domain_confidence: UnitInterval
     domain_reasoning: str

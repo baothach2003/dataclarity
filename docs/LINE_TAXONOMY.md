@@ -313,15 +313,17 @@ Stage 1 writes three columns into `cleaned.csv`:
   key the rules suggest that Review did not ask stays unconfirmed, and is
   marked so (E6).
 
-A source column already named exactly like one of them (as written, after
-the plan's drops) is kept, renamed `<name>_source`, then `<name>_source_2`,
-`_3`... while that name is taken; the report's
+A source column named exactly like one of them (as written), and not
+dropped by the plan, is kept, renamed `<name>_source`, then
+`<name>_source_2`, `_3`... while any source column has that name; the report's
 `column_mapping` follows the rename (review 5 #15), cleaning_report.json
 records it as a warning (`reserved_column_renamed`), and Review says so
 (Q24). This amends CONTRACTS
 section 5's "cleaned.csv keeps the source column names" for these three
-names only; `changes[].column` keeps the plan's names, as the plan is written
-in them (E8). `columns_out` counts the three new columns, as it counts every
+names only. The rename happens before the plan runs, so the run's flags on
+that column, `changes[].column` and the details name it as cleaned.csv holds
+it; `plan_final.json` keeps the plan as submitted (E8, as corrected by 2E-t1's
+review cycle 2). `columns_out` counts the three new columns, as it counts every
 column a run adds. Stages 2 and 3 read
 `line_class` and `suggested_class` only, through `shared/transactions.py`,
 which refuses a value outside the closed list.
@@ -474,7 +476,7 @@ it is no candidate and carries no suggestion.
 | 2E-d2 / 2E-l: charge, discount, pooled, cost, adjustment answers | the item question, plus `gift_card` | a confirmed gift card leaves revenue; `non_product` gains a `gift_card` row then |
 | 2E-g: the identity gap | the pooled item by rule | nothing (`unidentified` stays) |
 | 2E-h: undated lines | the class is decided without the date | `undated_lines` no longer counts a line that is unmeasurable (reported once, there) |
-| CONTRACTS section 5: cleaned.csv keeps the source column names | kept, except a source column named `line_class`, `class_source` or `suggested_class`, renamed `<name>_source` (Q24) | `column_mapping` follows the rename; `changes[].column` keeps the plan's names |
+| CONTRACTS section 5: cleaned.csv keeps the source column names | kept, except a source column named `line_class`, `class_source` or `suggested_class`, renamed `<name>_source` (Q24) | `column_mapping`, the run's flags on it and `changes[].column` follow the rename |
 | 3C doubt-review C2: a non-finite quantity or price is invalid | rules 2-4 | a finite quantity and price whose product overflows is `unmeasurable` (today it is counted, and its month's revenue is written as null in a required field) |
 | 2E-n: the products' share on their sale lines | on the `sale` class | nothing |
 
@@ -730,7 +732,8 @@ applied (S), or a definition the design owed (E); none changes a figure:
   file it classifies.
 - E7 (#13): the name-only vote reads today's dated sale lines.
 - E8 (#14): the `_source` rename amends CONTRACTS section 5 for three names;
-  `changes[]` keep the plan's names.
+  it happens before the plan runs (2E-t1 review cycle 2), so the flags and
+  `changes[]` follow it.
 - E9 (#2): a blank suggestion is a missing cell; the anchor lists
   `columns_out` and pins the candidates on the raw files.
 - E10 (review 6b #1, #5-#8): a note is `{code, figures, text, measures}`

@@ -195,7 +195,7 @@ def test_the_change_log_notes_a_basic_offset() -> None:
 
 def test_stage_1_contracts_are_3_1() -> None:
     assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION,
-            PROFILE_VERSION) == ("3.1", "3.1", "3.1", "1.1")
+            PROFILE_VERSION) == ("4.0", "4.0", "4.0", "1.1")
 
 
 def test_a_step_reading_a_date_the_order_cannot_hold_is_refused(tmp_path: Path) -> None:

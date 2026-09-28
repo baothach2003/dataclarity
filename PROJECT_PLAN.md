@@ -2571,9 +2571,42 @@ dataclarity/
       cause such as B1 can be a consequence of the missing days, and a
       measurement problem must be stated before any business reading. Q12
       ("10.05.30 2026" read as 2030) - Phase 8 (8D). D1-D4 accepted.
-- [ ] 2E-t1 **Line taxonomy: the classifier and stage 1's contracts** (the
-      revised design's section 7). After the 2E-t revision and its fifth
-      review.
+- [x] 2E-t1 **Line taxonomy: the classifier and stage 1's contracts** (the
+      revised design's section 7). **Done 2026-09-28** (eighth run, session
+      2; method `C:\Users\Happy\2Et1-method.txt`):
+      - `stages/ingest/line_taxonomy.py`: every line of the cleaned file gets
+        one class of the closed list (`contracts.cleaning.
+        CLEANED_LINE_CLASSES`) by the rules of the design's 4.2 - "in" first,
+        unmeasurable, the user's item, the signs with pooled twins -
+        `class_source` and `suggested_class` (the candidates found on the
+        cleaned file, none where the item is answered); written into
+        cleaned.csv by `execute_run`, read from the text cleaned.csv holds, in
+        the applied date order. A source column named like one of the three
+        is renamed `<name>_source` before the plan runs (flags, change log
+        and mapping follow; plan_final.json keeps the plan as submitted).
+      - `gift_card` joins the line-class answers (the gift-card words, the
+        Review choice, left out of revenue as a fee is in stages 2-3 until
+        2E-t2); "a product" is now sent for a SKU too (it clears the key's
+        suggestion). Stage 1 contracts 4.0, metrics.json 16.0 (the enum
+        widened) - the migration's one major each; the frontend's manual
+        plan 4.0, tied to the backend's major by a test.
+      - Measured: the three demo runs through the built stage 1 differ from
+        the pins in exactly `columns_out` (+3), the stage 1 version and
+        metrics.json's; cleaned.csv's source columns byte-identical; the
+        classes those of the design's 2.1; the candidates 13 + 7 gift
+        vouchers.
+      - Performance (SPECS 11): the candidate search, the name-only vote and
+        the keys vectorised (same results, checked on thousands of random
+        frames and the demo files) - a 50 MB file of unique codes 55 s ->
+        12.7 s; Online Retail II's classes 6.2 s -> 4.6 s.
+      - Tests first; mutation 33 mutants, 31 killed, 2 equivalent (a price
+        check the amount check covers; the drop set, equal once a dropped
+        column is never renamed). Doubt-review 3 cycles (8, 6, 7 findings;
+        cross-model skipped: non-interactive): the no-AI manual plan left at
+        3.1 (refused - fixed), "a product" for a SKU, the rename's order and
+        flags, performance, stale texts. Cycle 3's fixes (a dropped column
+        not renamed, the failure naming the written column, dict lookups)
+        are UNREVIEWED; tested and mutation-checked.
 - [ ] 2E-t2 **Line taxonomy: stages 2 and 3 read the class** (the revised
       design's section 7), with every stock KPI "not supported in v1" and
       the report of unmeasurable lines (Thach's answer 7).
@@ -3004,6 +3037,12 @@ dataclarity/
       From the sixth run (Thach's Q12): "10.05.30 2026" (a dotted time, then
       a year) reads as 2030; refusing a dotted candidate beside a year would
       also refuse "05.03.26 2045" (a German date and an HHMM time).
+      From 2E-t1: a 50 MB file whose EVERY line is a key of its own carrying
+      a class word (671,938 candidates) executes in 34.5 s, over SPECS 11's
+      30 s - realistic shapes (a unique code per line, up to 10% worded) take
+      13-14 s; the schema step's candidate list costs the same on such a file
+      (older), and Review would list every one. Finite lines whose month sum
+      passes a float stay counted (review 5 #13).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3234,7 +3273,10 @@ revision 3.**
 Session **2E-t revision 3** closed 2026-09-28 (eighth run, session 1; see the
 2E-t item): the design and ADR-0008 for v1 with Q25, Q26-Q28 and the standing
 rule; the anchor pinned through stage 1's real path; reviews 6 and 6b folded
-in, no stop. **Next: 2E-t1.**
+in, no stop. Session **2E-t1** closed 2026-09-28 (session 2; see its item):
+the classifier writes each line's class into cleaned.csv; `gift_card`; stage 1
+4.0, metrics.json 16.0; the demo runs differ only as the anchor lists. pytest
+3281, Vitest 187. **Next: 2E-t2.**
 **Fifth overnight run** approved by Thach (2026-09-27, after reading the
 fourth run's report): **2E-n** (first a scoped review of 2E-m's unreviewed
 cycle-2 fixes - his Q5 - then Q1 reading G, Q2 one fit measure, Q4 the

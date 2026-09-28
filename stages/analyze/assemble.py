@@ -33,8 +33,10 @@ from stages.analyze.metrics_products import compute_product_metrics
 # judged per receipt). 14.0 in 2E-j (a date column read in the order stage 1
 # decided; placeholder dates undated; a month-grain file's last month
 # compared, `period.month_grain`). 15.0 in 2E-o (month-end grain; the date
-# found beside a dotted time or before its time).
-SCHEMA_VERSION = "15.0"
+# found beside a dotted time or before its time). 16.0 in 2E-t1 (the line
+# taxonomy: the line-class enum of `non_product` gained "gift_card"; the one
+# major of the migration, held through 2E-t3).
+SCHEMA_VERSION = "16.0"
 METRICS_FILENAME = "metrics.json"
 
 

@@ -9,6 +9,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from contracts.cleaning import TAXONOMY_COLUMNS
 from stages.ingest import transforms
 from stages.ingest.cleaning import CleaningError, execute_run
 from stages.ingest.plan_validation import InvalidPlanError
@@ -125,7 +126,10 @@ def test_for_a_file_of_500_rows_or_fewer_the_preview_is_exactly_what_execute_wri
     run_id = raw_run(tmp_path)
     preview = preview_frame(frame_of(), DEDUPLICATING)
     execute_run(tmp_path, run_id, DEDUPLICATING, now=NOW)
-    written = pd.read_csv(tmp_path / run_id / "cleaned.csv", dtype=str, keep_default_na=False)
+    # The plan's result: stage 1 adds each line's class after the plan
+    # (2E-t1), and the preview shows what the plan does.
+    written = pd.read_csv(tmp_path / run_id / "cleaned.csv", dtype=str, keep_default_na=False).drop(
+        columns=list(TAXONOMY_COLUMNS))
 
     kept = [r for r in preview.rows if r.after is not None]
     assert len(kept) == len(written) == preview.rows_after

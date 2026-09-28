@@ -21,6 +21,8 @@ const CHOICES: { value: Choice; label: string }[] = [
   { value: 'pooled', label: 'Many items under one code (sold, not ranked as a product)' },
   { value: 'cost', label: 'A fee or cost (leaves revenue)' },
   { value: 'adjustment', label: 'An accounting adjustment (leaves revenue)' },
+  // 2E-t1 (Thach, the line taxonomy's decision 4): a liability until redeemed.
+  { value: 'gift_card', label: 'A gift card sold (owed until redeemed: leaves revenue)' },
 ]
 
 const SUGGESTIONS: Record<LineClass, string> = {
@@ -29,6 +31,7 @@ const SUGGESTIONS: Record<LineClass, string> = {
   pooled: 'many items under one code',
   cost: 'a fee or cost',
   adjustment: 'an accounting adjustment',
+  gift_card: 'a gift card',
 }
 
 const MONEY = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })

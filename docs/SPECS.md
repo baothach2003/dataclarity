@@ -163,7 +163,9 @@ remap the question is asked again.
   key: not answered, a product, a charge paid by the customer (stays in
   revenue, no order), a discount (stays in revenue), many items under one
   code (sold, not ranked as a product; 2E-l), a fee or cost (leaves revenue),
-  an accounting adjustment (leaves revenue). Nothing is chosen for the user;
+  an accounting adjustment (leaves revenue), a gift card sold (owed until
+  redeemed: leaves revenue; 2E-t1, suggested for "gift card", "gift voucher",
+  "gift certificate" and codes like `gift_0001_10`). Nothing is chosen for the user;
   unanswered, the lines stay products - except a line with no SKU whose name
   is sold under exactly one classed SKU: it takes that SKU's class unless its
   name is answered, "a product" included (2E-l). Every class leaves the
@@ -332,7 +334,9 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 
 Canonical fields: `product_name` (required), `sku`, `category`,
 `transaction_date` (required), `quantity` (required), `unit_price`,
-`transaction_type` (in|out, default out), `supplier`, `customer`, `note`,
+`transaction_type` (in|out, default out; a line typed "in" is stock received,
+outside revenue whatever its sign - the line taxonomy's Q25; any other value is
+read by the line's signs), `supplier`, `customer`, `note`,
 `order_id` (optional, 2E-e: the id shared by every line of one order,
 invoice, receipt or transaction - when mapped, orders are order ids, not
 lines), `ignore`.

@@ -68,7 +68,7 @@ def test_stage_2_reads_the_order_stage_1_recorded(tmp_path: Path) -> None:
     run = create_run(tmp_path)
     pd.DataFrame(australian_rows()).to_csv(run.path / "cleaned.csv", index=False)
     report = CleaningReportContract(
-        schema_version="3.1", generated_at=NOW, rows_in=62, rows_out=62, columns_in=5,
+        schema_version="4.0", generated_at=NOW, rows_in=62, rows_out=62, columns_in=5,
         columns_out=5, changes=[], warnings=[], column_mapping=MAPPING,  # type: ignore[arg-type]  # plain strs for the Literals
         date_order="day_first")
     (run.path / "cleaning_report.json").write_text(report.model_dump_json(), encoding="utf-8")
@@ -118,8 +118,8 @@ def test_a_daily_file_ending_on_the_first_still_drops_its_last_month() -> None:
 
 
 def test_metrics_json_is_14_or_the_current_one() -> None:
-    assert SCHEMA_VERSION == "15.0"
-    assert MetricsContract.supported_major == 15
+    assert SCHEMA_VERSION == "16.0"
+    assert MetricsContract.supported_major == 16
 
 
 def test_the_receipt_check_by_date_says_the_date_is_a_month() -> None:

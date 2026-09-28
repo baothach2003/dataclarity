@@ -45,3 +45,18 @@ def test_json_round_trip_is_lossless(
     reread = model.model_validate_json(original.model_dump_json())
 
     assert reread == original
+
+
+def test_the_frontends_manual_plan_carries_the_readers_major() -> None:
+    # 2E-t1 review cycles 1 #1 and 2 #6: the no-AI path builds its plan in the
+    # browser; a stale major there is refused by the backend, so the literal is
+    # tied to the reader here rather than to itself.
+    import re
+    from pathlib import Path
+
+    from contracts.cleaning import CleaningPlanContract
+
+    source = (Path(__file__).resolve().parents[2] / "frontend" / "src" / "domain" / "reviewPlan.ts").read_text(
+        encoding="utf-8")
+    versions = re.findall(r"schema_version: '(\d+)\.\d+'", source)
+    assert versions and all(int(major) == CleaningPlanContract.supported_major for major in versions)

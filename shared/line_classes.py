@@ -53,10 +53,18 @@ def text_identity(df: pd.DataFrame, column: str | None) -> pd.Series:
 
 def answer_key(answer: LineClassAnswer) -> str | None:
     """The key an answer names; None when its value reads as nothing."""
-    text = product_text(pd.Series([answer.value], dtype=object)).str.casefold().iloc[0]
-    if pd.isna(text):
-        return None
-    return f"{'sku' if answer.field == 'sku' else 'name'}:{text}"
+    return answer_keys([answer.value], [answer.field])[0]
+
+
+def answer_keys(values: list[str], fields: list[str]) -> list[str | None]:
+    """`answer_key` for many values at once, read in one pass (2E-t1 review
+    cycle 2 #1): `fields` are "sku" or "product_name". The one difference is
+    a value holding a NUL character, which `product_text`'s grouping can
+    read with another value of the batch; no value read from a file holds
+    one - the CSV reader ends a cell there (2E-t1 review cycle 3 #6)."""
+    texts = product_text(pd.Series(values, dtype=object)).str.casefold()
+    return [None if pd.isna(text) else f"{'sku' if field == 'sku' else 'name'}:{text}"
+            for text, field in zip(texts, fields, strict=True)]
 
 
 def line_classes(df: pd.DataFrame, reverse: dict[str, str], answers: list[LineClassAnswer],
@@ -70,16 +78,27 @@ def line_classes(df: pd.DataFrame, reverse: dict[str, str], answers: list[LineCl
     customer returning (Thach, 2E-l). "A product" is an answer that stops
     it (2E-l review cycle 1: the user is the final authority, CLAUDE.md
     3.3), and reads as NaN like every product."""
+    answered = answered_items(df, reverse, answers, would_sell)
+    return answered.where(answered.ne(PRODUCT)).astype(object)
+
+
+def answered_items(df: pd.DataFrame, reverse: dict[str, str], answers: list[LineClassAnswer],
+                   would_sell: pd.Series, *, names: pd.Series | None = None,
+                   skus: pd.Series | None = None) -> pd.Series:
+    """Each line's answer as given - a class, or "product" - NaN when nobody
+    answered its key (or, for a name-only line, its one SKU's): stage 1's
+    classifier records whether the user or a rule decided a line (2E-t1).
+    `names` and `skus` are the two `text_identity` halves when the caller has
+    read them already."""
     classes = {key: answer.line_class for answer in answers
                if (key := answer_key(answer)) is not None}
     if not classes:
         return pd.Series(np.nan, index=df.index, dtype=object)
-    names = text_identity(df, reverse.get("product_name"))
-    skus = text_identity(df, reverse.get("sku"))
+    names = text_identity(df, reverse.get("product_name")) if names is None else names
+    skus = text_identity(df, reverse.get("sku")) if skus is None else skus
     own = keyed(names, skus).map(classes).astype(object)
     inherited = ("sku:" + name_only_sku(names, skus, would_sell)).map(classes).astype(object)
-    answered = own.where(own.notna(), inherited)
-    return answered.where(answered.ne(PRODUCT)).astype(object)
+    return own.where(own.notna(), inherited).astype(object)
 
 
 def name_only_sku(names: pd.Series, skus: pd.Series, would_sell: pd.Series) -> pd.Series:
@@ -87,7 +106,12 @@ def name_only_sku(names: pd.Series, skus: pd.Series, would_sell: pd.Series) -> p
     the lines that WOULD be sales if nothing were classed (2E-f L4, read so
     since 2E-d2 cycle 3 F3); NaN otherwise. Sale lines only, so a stock note
     written on one SKU's write-off cannot pull every such note to it."""
-    sold = would_sell & skus.notna() & names.notna()
-    one_sku = skus[sold].groupby(names[sold]).agg(
-        lambda values: values.iloc[0] if values.nunique() == 1 else np.nan)
-    return names.map(one_sku.dropna()).where(skus.isna()).astype(object)
+    name_only = skus.isna() & names.notna()
+    # Only the names a name-only line carries are voted on: on a file where
+    # every line has a SKU there is nothing to vote, and a vote per name took
+    # 11.5 s on 525,677 unique codes (2E-t1 review cycle 1 #4).
+    sold = would_sell & skus.notna() & names.isin(set(names[name_only]))
+    grouped = skus[sold].groupby(names[sold])
+    first, distinct = grouped.first(), grouped.nunique()
+    one_sku = first[distinct == 1]
+    return names.map(one_sku).where(name_only).astype(object)

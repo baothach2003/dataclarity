@@ -26,6 +26,9 @@ const CLASS_WORDS: [LineClass | null, string[]][] = [
   // Thach, 2E-l: M "Manual" pools manually priced sales - not an adjustment.
   ['pooled', ['manual']],
   ['discount', ['discount', 'coupon', 'giảm giá', 'giam gia', 'chiết khấu', 'chiet khau']],
+  // 2E-t1: a voucher sold is a liability. After the discount words; no bare
+  // "voucher" or "gift" (review 5 #12).
+  ['gift_card', ['gift card', 'gift voucher', 'gift certificate', 'gift_']],
   ['charge', ['postage', 'shipping', 'delivery', 'carriage', 'freight', String.raw`p\s?&\s?p`, 'phí vận chuyển', 'phi van chuyen', 'phí ship', 'phi ship']],
   // Not "hoa hồng": commission, but also roses (2E-d2 doubt-review F7).
   // "sample": Thach, 2E-l - samples given away are a marketing cost.
@@ -159,10 +162,11 @@ export function nonProductCandidates(
 }
 
 /** The classes answered for the current product columns, as the plan's
- * `confirmations.line_classes` carries them. "A product" is no answer for a
- * SKU, but it is one for a name: unanswered, a line with no SKU takes the
- * class of the one SKU its name is sold under, and the user's "a product"
- * must hold (2E-l review cycle 1, CLAUDE.md 3.3). */
+ * `confirmations.line_classes` carries them. "A product" is an answer for a
+ * name - unanswered, a line with no SKU takes the class of the one SKU its
+ * name is sold under, and the user's "a product" must hold (2E-l review
+ * cycle 1, CLAUDE.md 3.3) - and, since 2E-t1, for a SKU too: an answered key
+ * carries no pending suggestion into cleaned.csv (2E-t1 review cycle 1 #2). */
 export function answeredLineClasses(
   plan: CleaningPlan,
   profile: ProfileContract,
@@ -171,9 +175,7 @@ export function answeredLineClasses(
 ): LineClassAnswer[] {
   return nonProductCandidates(plan, profile, schema).flatMap((c) => {
     const answer = stored[c.key]
-    return answer === undefined ||
-      (answer.value === 'product' && c.field === 'sku') ||
-      answer.column !== mappedColumn(plan, c.field)
+    return answer === undefined || answer.column !== mappedColumn(plan, c.field)
       ? []
       : [{ value: c.value, field: c.field, line_class: answer.value }]
   })

@@ -120,7 +120,7 @@ def _run_with(tmp_path: Path, answers: OrderConfirmations, customers: bool = Tru
     df = _header_style() if customers else _header_style().drop(columns=["Cust"])
     mapping = MAPPING if customers else {k: v for k, v in MAPPING.items() if v != "customer"}
     df.to_csv(run.path / "cleaned.csv", index=False)
-    report = CleaningReportContract(schema_version="3.0", generated_at=NOW, rows_in=7, rows_out=7,
+    report = CleaningReportContract(schema_version="4.0", generated_at=NOW, rows_in=7, rows_out=7,
                                     columns_in=len(df.columns), columns_out=len(df.columns),
                                     changes=[], warnings=[], column_mapping=mapping,
                                     confirmations=answers)
@@ -158,6 +158,6 @@ def test_each_block_run_on_its_own_reads_the_answers_too(tmp_path: Path) -> None
 
 
 def test_versions() -> None:
-    assert SCHEMA_VERSION == "15.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 in 2E-l; 13.0 / 14.0 in 2E-i; 14.0 / 15.0 in 2E-j; 15.0 / 16.0 since 2E-o
-    assert MetricsContract.supported_major == 15
+    assert SCHEMA_VERSION == "16.0"  # 9.0 / 8.0 in 2E-e2; 10.0 / 9.0 in 2E-k; 11.0 / 10.0 in 2E-d2; 12.0 / 11.0 in 2E-l; 13.0 / 14.0 in 2E-i; 14.0 / 15.0 in 2E-j; 15.0 / 16.0 in 2E-o; 16.0 / 16.0 since 2E-t1
+    assert MetricsContract.supported_major == 16
     assert DiagnosisContract.supported_major == 16  # 12 in 2E-m; 13 in 2E-n; 14 in 2E-i; 15 in 2E-j; 16 since 2E-o

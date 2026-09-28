@@ -4,7 +4,9 @@ The same engine as execution (`cleaning.apply_plan`), run on a bounded sample
 so it stays inside the 3 s budget on a 50 MB file (SPECS section 11):
 
 * a file of up to 500 rows is previewed whole, and then the result is exactly
-  what `execute_run` writes;
+  what the plan makes of it - `execute_run` then writes it with each line's
+  class after the plan (2E-t1: three more columns, and a source column named
+  like one of them renamed), which the preview does not show;
 * a larger file gets a deterministic 500-row sample: its problem rows (found in
   the first 50,000 rows, which is what keeps the cost small) plus rows spread
   evenly over the whole file, first and last included.
