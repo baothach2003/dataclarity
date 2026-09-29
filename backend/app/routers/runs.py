@@ -23,8 +23,9 @@ from app.schemas import (
     PlanResponse,
     PredictResponse,
     PreviewResponse,
+    ReportResponse,
 )
-from app.services import analysis, diagnosis, downloads, metrics, plan_execution, prediction
+from app.services import analysis, diagnosis, downloads, metrics, plan_execution, prediction, reporting
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
@@ -78,14 +79,22 @@ def get_profile(run_id: str, settings: SettingsDep, session: SessionDep) -> Prof
     return analysis.get_profile(session, run_id, settings=settings)
 
 
+def _attachment(file: downloads.DownloadFile) -> Response:
+    # An attachment, never shown on the API's own origin; nosniff keeps a
+    # browser from reading it as anything but its type.
+    return Response(content=file.content, media_type=file.media_type,
+                    headers={"Content-Disposition": f'attachment; filename="{file.filename}"',
+                             "X-Content-Type-Options": "nosniff"})
+
+
 @router.get("/{run_id}/download/cleaned.csv")
 def download_cleaned_csv(run_id: str, settings: SettingsDep, session: SessionDep) -> Response:
-    file = downloads.download_cleaned_csv(session, run_id, settings=settings)
-    return Response(
-        content=file.content,
-        media_type=file.media_type,
-        headers={"Content-Disposition": f'attachment; filename="{file.filename}"'},
-    )
+    return _attachment(downloads.download_cleaned_csv(session, run_id, settings=settings))
+
+
+@router.get("/{run_id}/download/report.html")
+def download_report_html(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> Response:
+    return _attachment(reporting.download_report_html(session, run_id, settings=settings, work=work))
 
 
 @router.post("/{run_id}/analyze-schema")
@@ -174,3 +183,8 @@ def predict(
     work: WorkDep,
 ) -> PredictResponse:
     return prediction.predict(session, run_id, settings=settings, make_client=make_client, budgets=budgets, work=work)
+
+
+@router.post("/{run_id}/report")
+def report(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> ReportResponse:
+    return reporting.build_report(session, run_id, settings=settings, work=work)

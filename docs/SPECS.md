@@ -64,7 +64,7 @@ State machine: `uploaded -> profiled -> planned -> cleaned -> analyzed ->
 imported`, plus `failed(reason)` from any state and `expired` after retention.
 Transitions enforced server-side; out-of-order calls return 409.
 
-How the steps move through it (stage 1 in 1G; stages 2-4 in 2D, 3G-lite and 4C):
+How the steps move through it (stage 1 in 1G; stages 2-5 in 2D, 3G-lite, 4C and 5C):
 
 | Call | Allowed from | Moves the run to |
 |---|---|---|
@@ -76,6 +76,7 @@ How the steps move through it (stage 1 in 1G; stages 2-4 in 2D, 3G-lite and 4C):
 | `POST /analyze` | `cleaned`, `analyzed` | `analyzed` |
 | `POST /diagnose` | `analyzed` | stays `analyzed` (3G-lite: stages 2-4 all live in it; which of their files exist says how far the run went - a stage run again removes the later stages' outputs) |
 | `POST /predict` | `analyzed`, and `diagnosis.json` must exist | stays `analyzed` (4C); the AI, when its step is on, is asked at most 3 times a run and an answer already accepted is final - a fourth predict still writes the forecast |
+| `POST /report` | `analyzed`, and `diagnosis.json` and `forecast.json` must exist | stays `analyzed` (5C); report.json and report.html written together |
 
 `cleaning` is not a step the user sees: it is the claim a run holds while its plan
 executes, taken by one atomic conditional UPDATE, so a second `execute` (or a
@@ -431,6 +432,37 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     with stage 1. One piece of work at a time per run (INVALID_STATE,
     `step_in_progress`).
 - `POST /api/runs/{id}/report` -> `report.json` + html download url
+  - As built in 5C (200): `{run_id, status: "analyzed", report, html_url,
+    notices}`. Stage 5 writes report.json from the earlier stages' files -
+    computing nothing, calling no AI (`notices` is `[]`) - then report.html
+    from it: both or neither within the process (around report.json's rename
+    the previous pair is set aside and the page rendered; either failing puts
+    the previous pair back, or removes a first one half written; a crash
+    between them can leave report.json alone - the next report writes both).
+    The uploaded file's name comes from the run's
+    row; the recommendations are shown only while `STRATEGY_AI_ENABLED` is
+    true, whatever forecast.json holds (4C review #4). Allowed from
+    `analyzed` once diagnosis.json and forecast.json exist (none:
+    INVALID_STATE "Run the diagnosis first" / "Run the prediction first",
+    `details.missing`); the run keeps `analyzed`; a re-run of stages 2-4
+    removes the report's files. Files describing other months:
+    INVALID_STATE (`details.reason` `files_mismatch`); its files gone:
+    EXPIRED; a later stage's file another version wrote: INVALID_STATE "run
+    that stage again" - a stage 1 file: EXPIRED "upload the file again",
+    except stage 1's AI answers (`schema_inference.json`,
+    `plan_proposed.json`), which feed only the provenance and are read as
+    absent. One piece of work at a time per run (INVALID_STATE,
+    `step_in_progress`).
+- `GET /api/runs/{id}/download/report.html` (5C) -> the page, as an
+  attachment (`report_<name>.html`, the name sanitized as the cleaned file's
+  is; `X-Content-Type-Options: nosniff`, on every download). From
+  `analyzed` or `imported`; no report yet: INVALID_STATE "Build the report
+  first" (`details.missing`); a report being built again, its page set
+  aside for the moment: INVALID_STATE `step_in_progress` ("wait"); its
+  files gone: EXPIRED (the cleaned file's download too). No work claim:
+  downloads never hold each other off. report.json needs no
+  download: the report's response carries it (as `execute`'s carries the
+  cleaning report).
 - `POST /api/runs/{id}/import` -> `{products_created, products_updated,
   transactions_inserted, skipped:[{row, reason}]}`
 - `GET /api/dashboard/summary` | `/trend?product_id=&days=30` | `/low-stock`

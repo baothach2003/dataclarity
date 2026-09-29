@@ -10,6 +10,7 @@ from contracts import (
     DiagnosisContract,
     ForecastContract,
     MetricsContract,
+    ReportContract,
     SchemaInferenceContract,
 )
 from contracts.lines import LineSummary, ReservedRename
@@ -86,6 +87,16 @@ class PredictResponse(BaseModel):
     forecast: ForecastContract
     # AI_NOT_ASKED or AI_UNAVAILABLE when the recommendations are null: the
     # forecast stands either way (CONTRACTS 8).
+    notices: list[Notice] = Field(default_factory=list)
+
+
+class ReportResponse(BaseModel):
+    run_id: str
+    status: Literal["analyzed"]
+    report: ReportContract
+    # Where report.html downloads from (SPECS 8: "report.json + html download url").
+    html_url: str
+    # Stage 5 calls no AI and has no degraded path: nothing is flagged.
     notices: list[Notice] = Field(default_factory=list)
 
 

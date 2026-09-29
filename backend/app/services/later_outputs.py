@@ -15,9 +15,8 @@ from pathlib import Path
 
 from contracts import DiagnosisContract, ForecastContract, ReportContract
 from shared.run_registry import run_file
+from stages.report.html_report import REPORT_HTML  # the presentation layer beside report.json; no model
 
-# The presentation layer beside report.json (CONTRACTS section 1); no model.
-REPORT_HTML = "report.html"
 # Newest first, so a crash part way (the one case not put back) leaves the
 # earlier outputs, which still describe each other.
 _OUTPUTS = [(ReportContract.written_by_stage, REPORT_HTML)]

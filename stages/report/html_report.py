@@ -36,6 +36,7 @@ from stages.report.html_parts import (
     table,
 )
 
+REPORT_HTML = "report.html"  # beside report.json in runs/<run_id>/ (CONTRACTS section 1)
 _VERDICTS = {"trusted": "trusted", "caution": "caution", "blocked": "blocked - the figures below are not a base "
              "for conclusions"}
 # A previous figure withheld for the incomplete month: its reason is said
@@ -216,6 +217,6 @@ def html_run(runs_root: Path, run_id: str, *,
     a failure leaves the previous page whole."""
     source = run_file(runs_root, run_id, ReportContract.filename or "report.json")
     report = ReportContract.model_validate_json(source.read_text(encoding="utf-8"))
-    path = run_file(runs_root, run_id, "report.html")
+    path = run_file(runs_root, run_id, REPORT_HTML)
     write_atomically(path, render_html(report).encode("utf-8"), around_replace=around_write)
     return path

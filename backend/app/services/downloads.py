@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import RunStatus
 from app.services import run_state, stage_errors
-from shared.run_registry import run_file
+from shared.run_registry import RunNotFoundError, run_file
 from stages.ingest.cleaning import CLEANED_FILENAME
 
 # The statuses whose run has a cleaned.csv on disk (SPECS section 3).
@@ -27,7 +27,7 @@ class DownloadFile:
     filename: str  # sanitized: safe to put in a Content-Disposition header as-is
 
 
-def _safe_stem(name: str, *, default: str) -> str:
+def safe_stem(name: str, *, default: str) -> str:
     """The uploaded filename is user-supplied and only its extension was ever
     checked (SEC-1); a control character or quote in it must never reach a
     response header, so only a plain allowlist of characters survives."""
@@ -38,8 +38,10 @@ def _safe_stem(name: str, *, default: str) -> str:
 def download_cleaned_csv(session: Session, run_id: str, *, settings: Settings) -> DownloadFile:
     run = run_state.load_run(session, run_id)
     run_state.require_status(run, *_HAS_CLEANED_FILE, step="download the cleaned file")
-    path = run_file(settings.runs_dir, run_id, CLEANED_FILENAME)
-    if not path.exists():
-        raise stage_errors.files_gone()
-    stem = _safe_stem(run.filename, default="data")
-    return DownloadFile(content=path.read_bytes(), media_type="text/csv", filename=f"cleaned_{stem}.csv")
+    try:
+        path = run_file(settings.runs_dir, run_id, CLEANED_FILENAME)
+        content = path.read_bytes()
+    except (RunNotFoundError, FileNotFoundError):
+        raise stage_errors.files_gone() from None
+    stem = safe_stem(run.filename, default="data")
+    return DownloadFile(content=content, media_type="text/csv", filename=f"cleaned_{stem}.csv")

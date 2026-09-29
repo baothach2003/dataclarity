@@ -3435,7 +3435,30 @@ dataclarity/
       demo files: every page renders (0.03-0.4 s), no negative zero, the
       Kaggle signals named as lines with its two floored charts marked.
       Known limits: 8D "From 5B".
-- [ ] 5C `POST /api/runs/{id}/report` + download endpoints. Tests
+- [x] 5C `POST /api/runs/{id}/report` + download endpoints. Tests. **Done
+      2026-09-29** (ninth run, session 10; infrastructure: failing tests
+      first, one review cycle, mutation on the logic).
+      `backend/app/services/reporting.py` + two routes (SPECS 3 and 8 as
+      built). `POST /report`: from `analyzed` once diagnosis.json and
+      forecast.json exist (else INVALID_STATE naming the missing file), the
+      run stays `analyzed`, one piece of work at a time; the uploaded file's
+      name from the run's row, the recommendations only while
+      `STRATEGY_AI_ENABLED`; report.json written atomically and, around its
+      rename, the previous pair set aside and report.html rendered - both or
+      neither within the process. `GET /download/report.html`: from
+      `analyzed` or `imported`, an attachment under a sanitized name with
+      `nosniff` (the cleaned file's download too), no work claim; a page set
+      aside by a rebuild answers "wait" (`step_in_progress`), never a 500.
+      Decided alone: no report.json download (the response carries it, as
+      `execute`'s carries the cleaning report); the page's name one constant
+      (`stages/report/html_report.REPORT_HTML`). Its review (11 findings)
+      folded in: a download racing a rebuild gave a 500 or "build it first"
+      (the pair was set aside for the whole build - now only around the
+      rename); the cleaned file's download gave a 500 when its run's
+      directory was gone (1G's, fixed here); the hostile-name test never sent
+      a CR/LF (the client percent-encodes it - now set in the database).
+      Tests: 28 in `tests/backend/test_api_report.py`; mutation 43 of 43.
+      Known limits: 8D "From 5C".
 - [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
       independence). Decide how a stage CLI gets the runs root without
       importing the backend (SEC-4), e.g. a `--runs-dir` argument (no stage
@@ -3893,6 +3916,22 @@ dataclarity/
         points to it rather than repeating it.
       - (5B) the page's customer signals on a month whose customer column is
         blank read 0 "below" range - the 3E2 decision above covers them.
+      From 5C (2026-09-29):
+      - a process killed between report.json and report.html leaves
+        report.json alone and the previous pair set aside (hidden); the next
+        report writes both, but a `.aside-report.html` it did not move stays
+        (~4.8 MB) until the run's retention cleanup.
+      - on Windows a download holding report.html open for its read (a few
+        ms) makes a step that sets it aside at that moment fail with a 500,
+        the previous files put back whole.
+      - an imported run without a report: the download says "Build the
+        report first", which only an `analyzed` run can do (import is not
+        built yet - Phase 7 decides).
+      - a truncated or corrupt earlier-stage file is a 500 on /report, as on
+        /predict (a run file this version wrote cannot be half written:
+        atomic writes).
+      - a download name keeps only [A-Za-z0-9._-]: "bao cao thang 9.csv"
+        downloads as report_b_o_c_o_th_ng_9.html; no RFC 6266 `filename*`.
       - review 4's fixes (the part-way note never beside withheld figures,
         the reason for a month of unmeasurable lines, D2's "inconclusive"
         kept off the charts, the contract's once-each and chart checks) have
@@ -4114,6 +4153,11 @@ string escaped (SEC-3 extended to the file's own text first), plotly.js
 inlined once; one review cycle plus a scoped second one (its fixes tested
 and mutated, unreviewed). On the demo files: no invented sentence, no
 negative zero, signals named and floored as report.json says. **Next: 5C.**
+Session **5C** closed 2026-09-29 (ninth run, session 10; see its item):
+POST /report writes report.json and report.html together (both or neither
+within the process), GET /download/report.html serves the page as a
+sanitized attachment; one review cycle folded in (a download racing a
+rebuild, a 500 on a gone directory). **Next: 5D.**
 Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
 forecast.json assembled and POST /predict: the forecast always, the AI step
 behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),
