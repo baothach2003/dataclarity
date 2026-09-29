@@ -3318,7 +3318,7 @@ dataclarity/
   manual review finds no fabricated figures
 
 ### Phase 5 - Stage 5 Report
-- [ ] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
+- [x] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
       actions) from all prior contracts. Tests. First define the layer
       structure in CONTRACTS section 9 (today `dict[str, Any]`), including
       how a `null` AI block shows as "unavailable" (AI_PIPELINE section 9) and
@@ -3341,7 +3341,47 @@ dataclarity/
       `frame.history_months`. **From 4C (review #4):** the recommendations
       shown only while `STRATEGY_AI_ENABLED` is true - the backend tells the
       stage (a file written while it was on keeps its blocks); `confidence`
-      shown as a label, never as a figure
+      shown as a label, never as a figure. **Done 2026-09-29** (ninth run,
+      session 8; method `C:\Users\Happy\5A-method.txt`; display assembly:
+      failing tests first, mutation on the logic; three review cycles - the
+      bound - and a scoped review of the last fixes, because each cycle's
+      fixes were logic; that review's own small fixes are unreviewed). `contracts/report.py` (the layers, the file, the
+      rules held across rows) and `contracts/report_views.py` (the rows):
+      typed in place at 1.0, no report.json written before (CONTRACTS 9
+      documents how each layer is built and what the contract refuses; 10
+      records it). `stages/report/layers.py` builds the layers,
+      `stages/report/builder.py` checks the files describe the same months
+      (`ReportMismatchError`), assembles, draws the charts and writes
+      report.json atomically (`report_run`). Layer 1: the period; the trust
+      badge with every check's message; the five KPIs side by side ("Lines",
+      "Average line value", "Return lines per sale line" on basis lines; the
+      return rate a `ratio`), revenue's change the only one, no previous
+      value when the previous month is incomplete; a null figure with its
+      reason, and two zeros of stage 2 shown as a null with a reason - an
+      empty current month, and active customers of 0 in a month whose lines
+      name nobody; `current_note` when a file starts part-way through the
+      current month (its figures stand); the months, a month with no line a
+      null with its reason, drawn whole only when both definitions say so
+      (complete_months and, for the compared month, previous_complete); the
+      lines in no figure and the money outside product revenue; notes by
+      code - always-on once in `how_to_read`. Layer 2: the diagnosis as it
+      stands (hypotheses with rule and evidence, signals with their
+      reasons), the narration or "unavailable". Layer 3: the forecast with
+      its notes, `first_month_in_file`, `partial_first_month_until` (day
+      grain only); the recommendations only while the step is on, their
+      confidence as a label (high from 0.7, medium from 0.4); every note not
+      always-on beside them. Charts: the complete months from the first drawn
+      to the last, a gap a null point with its reason (a run of months named
+      once), the forecast with its own notes; both with the notes naming
+      revenue and the trust cautions. Provenance: the AI answers the report
+      uses. Tests: 73 in `tests/stages/report/` (5 files and
+      `report_fixtures.py`), 38 in `tests/contracts/test_report.py` and
+      `test_report_rules.py`; mutation 87 of 89 over the four rounds (the
+      two left equivalent: a change kept when the previous month is
+      incomplete, which metrics.json already refuses; a part-way note for a
+      file starting after the current month, which is then always empty). On the demo files (Kaggle, both Online Retail II
+      plans) every figure of report.json matched its earlier file (review 3,
+      0 mismatches). Known limits: 8D "From 5A".
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
@@ -3748,6 +3788,53 @@ dataclarity/
         retry names it); another case passes.
       - `confidence` is the AI's own number in [0, 1]: 5A shows it as a
         label, never as a figure (CLAUDE.md 3.2).
+      From 5A (2026-09-29; none fabricates on the demo files - review 3
+      traced every figure):
+      - a customer column mapped but blank on a month's lines: layer 1
+        withholds active customers with the reason, but stage 3's customer
+        signals and its C and B hypotheses read those lines as no customer
+        ("below" range at 0; C2 "ruled out"). With no column mapped stage 3
+        already marks them not testable. Thach decides: a note in stage 5
+        beside the causes, or stage 3 marking them not testable when a
+        month's lines name nobody (conclusion code: the full process).
+      - stage 2 tolerates two missing leading days in the compared month;
+        stage 3's history and the forecast do not (complete_months). The
+        KPIs then compare with a month the chart does not draw whole - a
+        month suppressed, never invented.
+      - a month with lines but no sale (refunds only) that is not a compared
+        month is drawn whole as a negative month (stage 3's and the
+        forecast's history count it too); a compared one is withheld.
+      - a month before the first sale counts as complete from `data_start`
+        (a first row of any kind: 3G0's limit), in the chart as in stage 3.
+      - the report's causes layer carries no calendar, lever tree or
+        localization: the Insights page's decomposition visual (SPECS 4.4)
+        reads diagnosis.json in Phase 6; adding them to report.json is
+        additive.
+      - the narration reads "unavailable" on every v1 report (3F is not
+        built), which reads as a failure; `models_used` cannot name the plan
+        step's model (plan_proposed.json has no `model_used`).
+      - a stage 1 answer of the current major that cannot be read fails the
+        report, though it only feeds the provenance (a broken run dir).
+      - `tests/contracts/test_report*.py` build their payload with stage 5's
+        builder (`report_fixtures.py`): a fault both share is caught by the
+        stage tests, not the contract's.
+      - the contract cannot hold which months are covered whole (that needs
+        `shared/periods`, a frozen definition): the builder's tests hold it.
+      - with a withheld current month, the chart ends at the month before
+        and its cautions describe a month it does not draw; the compared
+        month's reason can stand in both the chart's note and its cautions.
+      - `current_note` reads `data_start`, the first row of any kind: an
+        unpriced line on the 1st and sales from the 20th give no note (3G0's
+        limit again); its condition restates `complete_months`' for the
+        current month, so a fix of that limit in `shared/periods` must move
+        the note with it.
+      - the frontend must show stage 5's withheld zeros and `current_note`
+        from report.json's layer 1 (CONTRACTS 11), not re-derive them from
+        metrics.json: Phase 6 wires it.
+      - review 4's fixes (the part-way note never beside withheld figures,
+        the reason for a month of unmeasurable lines, D2's "inconclusive"
+        kept off the charts, the contract's once-each and chart checks) have
+        tests and mutation, but no review: the review bound was reached.
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3948,6 +4035,16 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **5A** closed 2026-09-29 (ninth run, session 8; see its item):
+report.json's three layers typed and built from the earlier files, nothing
+computed; three review cycles - the bound - and a scoped review of the last
+fixes: the zeros stage 2 writes for an empty month or unnamed customers
+shown as a null with a reason, a partly covered current month noted, the
+charts drawn only from months both definitions call whole, with gaps,
+notes and trust cautions; the contract refuses what CONTRACTS 9 lists (the
+scoped review's own small fixes unreviewed). On
+the demo files every figure matched its earlier file. Limits: 8D "From
+5A" (one for Thach: blank customer lines in stage 3). **Next: 5B.**
 Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
 forecast.json assembled and POST /predict: the forecast always, the AI step
 behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),

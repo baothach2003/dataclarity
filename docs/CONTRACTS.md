@@ -1467,26 +1467,200 @@ previous month is not complete - the endpoint's answer says which.
 
 ## 9. `report.json` (stage 5 output, data layer)
 
+Defined in session 5A (`contracts/report.py`; in place at `1.0` - no report.json
+had been written). An illustrative excerpt - its values from the example files
+of sections 6-8, as a v1 run shows them (the AI strategy step off, no
+narration yet); "..." elides:
+
 ```json
 {
   "schema_version": "1.0", "generated_at": "...",
   "run_id": "...", "source_file": "sales_2011.csv",
   "data_quality": {"rows_in": 152430, "rows_out": 151988,
-                   "issues_fixed": 7, "warnings": 1},
-  "layer_1_numbers": { "...": "selected fields from metrics.json" },
-  "layer_2_causes": { "...": "selected fields from diagnosis.json" },
-  "layer_3_actions": { "...": "recommendations from forecast.json" },
+                   "issues_fixed": 2, "warnings": 1},
+  "layer_1_numbers": {
+    "period": {"current": "2011-11", "previous": "2011-10", "data_start": "2010-12-01",
+               "data_end": "2011-12-09", "previous_complete": true, "previous_incomplete_reason": null},
+    "trust": {"verdict": "caution",
+              "checks": [{"id": "D1", "status": "caution", "message": "About 5 days in the current month ..."}],
+              "limitations": ["..."]},
+    "kpis": [{"id": "revenue", "label": "Revenue", "unit": "money", "current": 1150000.0,
+              "previous": 1290000.0, "change_pct": -10.9, "change_reason": null,
+              "current_reason": null, "previous_reason": null, "notes": []},
+             {"id": "orders", "label": "Orders", "unit": "count", "current": 1820, "previous": 1950,
+              "change_pct": null, "change_reason": null, "current_reason": null,
+              "previous_reason": null, "notes": []}, "... the other three KPIs"],
+    "current_note": null,
+    "revenue_by_month": ["... 2011-09 to 2011-11, each complete",
+                         {"period": "2011-12", "revenue": 300000.0, "revenue_reason": null,
+                          "complete": false}],
+    "undated_lines": 0, "undated_lines_reason": null, "unmeasurable": [],
+    "non_product": [], "outside_revenue": [],
+    "how_to_read": [{"code": "discounts_in_prices", "text": "...", "figures": ["..."], "measures": []}],
+    "notes": []
+  },
+  "layer_2_causes": {
+    "headline": {"rule": 6, "hypothesis_id": "P2", "lens": "product", "message": "..."},
+    "hypotheses": [{"id": "P2", "statement": "Sales mix shifted towards cheaper products",
+                    "verdict": "supported", "contribution": -21000.0, "share": 0.21,
+                    "rule": "same sign and share >= 0.20", "evidence": {"mix_effect": -21000.0}}],
+    "not_testable": [{"id": "...", "statement": "...", "reason": "..."}],
+    "signals": [{"series": "revenue", "mode": "level", "signal": "within", "value_cur": 1150000.0,
+                 "center": 1240000.0, "lower": 1090000.0, "upper": 1390000.0, "rule": null,
+                 "mode_fallback": null, "insufficient_reason": null}],
+    "narration": null, "narration_status": "unavailable",
+    "notes": [], "suggested_classes": {}
+  },
+  "layer_3_actions": {
+    "forecast": {"method": "...", "months_used": 24, "insufficient_history": false,
+                 "points": [{"period": "2011-12", "point": 1210000.0, "low": 1040000.0,
+                             "high": 1380000.0, "confidence": 0.8}],
+                 "history_note": null, "season_note": null, "notes": [],
+                 "first_month_in_file": true, "partial_first_month_until": "2011-12-09"},
+    "recommendations": null, "do_not_do": null,
+    "recommendations_status": "switched_off", "notes": []
+  },
   "charts": [
-    {"id": "revenue_trend", "type": "line", "title": "Revenue by month",
-     "series": [{"name": "revenue", "x": ["2011-01"], "y": [690000.0]}]}
+    {"id": "revenue_trend", "type": "line", "title": "Revenue by month", "notes": [], "note": null,
+     "cautions": ["About 5 days in the current month ..."],
+     "series": [{"name": "revenue", "x": ["2011-09", "2011-10", "2011-11"],
+                 "y": [1000000.0, 1290000.0, 1150000.0]}]},
+    {"id": "forecast", "type": "line", "title": "Revenue forecast", "notes": [], "note": null,
+     "cautions": ["About 5 days in the current month ..."],
+     "series": [{"name": "point", "x": ["2011-12"], "y": [1210000.0]},
+                {"name": "low", "x": ["2011-12"], "y": [1040000.0]},
+                {"name": "high", "x": ["2011-12"], "y": [1380000.0]}]}
   ],
   "provenance": {"stages_run": ["ingest", "analyze", "diagnose", "predict"],
-                 "ai_calls": 4, "models_used": ["claude-sonnet-5"]}
+                 "ai_calls": 2, "models_used": ["claude-sonnet-5"]}
 }
 ```
 Stage 5 performs no analysis: it selects, orders and formats. Any number in
 `report.json` must be traceable to an earlier contract file - this is what makes
-the report defensible.
+the report defensible. How the layers are built (`stages/report/layers.py`;
+`builder.py` checks the files, assembles the layers, draws the charts and
+writes the file):
+- **The files must describe the same months**: diagnosis.json's
+  `frame.current`/`.previous` those of metrics.json's `period`, and
+  forecast.json's first point the month after `period.current` - otherwise
+  `ReportMismatchError` (stage 4's `DiagnosisMismatchError`, for stage 5;
+  5A review 1 #8): never another comparison's badge beside these KPIs.
+- **`layer_1_numbers`** (metrics.json; the trust badge from diagnosis.json,
+  beside the KPIs - section 6): the five KPIs, each current and previous side
+  by side - "Lines", "Average line value" and "Return lines per sale line"
+  when `orders_basis` is `lines` (section 6); counts stay whole numbers; the
+  return rate's unit is `ratio` (returns per sale, no ceiling - not a
+  share). The one change shown is `revenue_change_pct` (section 11); no
+  other is computed. An incomplete previous month is never shown beside the
+  current: every `previous` is null and `previous_reason` carries
+  `previous_incomplete_reason`. A null figure carries its reason
+  (`*_reason`). Two zeros stage 2 writes are shown as a null with a reason,
+  never as a real 0 (section 11; the standing rule): a current month in
+  which no line counted in revenue is dated - every current KPI and the
+  change, "a closed month or missing data, which the file cannot tell
+  apart" - or "the file starts on ..., after ...", "no line counted in
+  revenue carries a date the file can read" (every line undated), "no line
+  dated in ... can be measured" (its lines unpriced or without a quantity;
+  5A review 4 #3) - and active customers of 0 in
+  a month with lines, none of which names a customer ("no column is mapped
+  as the customer" when cleaning_report.json maps none; "no line in ...
+  names a customer" otherwise; 5A reviews 2 #5, 3 #3). A day-grain file
+  that starts part-way through the current month keeps its figures - stage
+  2 takes that month as a fair one (a shop that opened then) - with
+  `current_note` beside them: the file cannot tell that from an export cut
+  short (the standing rule; 5A review 3 #1). The trust badge carries its verdict, every check's id, status and
+  `message` (why a caution: a cut-short month, a gap) and the limitations.
+  `revenue_by_month` lists every month from the file's first with revenue
+  to its last; one inside with no line counted in revenue has `revenue`
+  null and a `revenue_reason` ("a closed month or missing data, which the
+  file cannot tell apart"), never 0. `complete` is true only when both
+  definitions say so - `shared/periods.complete_months` (stage 3's history,
+  the forecast's) and, for the compared month, `period.previous_complete`
+  (stage 2's) - and never past `period.current`: nothing is drawn whole
+  that either calls partial (5A reviews 1 #1, 2 #3). `undated_lines` (with
+  its reason) and `unmeasurable` are the lines in no figure (section 6:
+  never dropped silently); `non_product` and `outside_revenue` the money of
+  the classes that is not product revenue, each reason saying where it went
+  (an adjustment is a reconciling amount). These rows, and the notes'
+  measures, are carried whole, a scope per figure; a renderer shows a
+  `previous` scope (or `amount_previous`) only when `previous_complete`,
+  and a `current` one only when the current KPIs are not withheld - never a
+  previous value beside a current one, nor a withheld month's 0 (section
+  11; 5B follows it; 5A review 3 #4). Notes are worded from
+  `NOTE_TEXTS` by code, never the file's sentence: an always-on note ONCE
+  in `how_to_read` (Thach, adjustment 1; deduplicated across metrics.json
+  and diagnosis.json), the others in `notes`, each KPI listing by code the
+  notes whose `figures` name it.
+- **`layer_2_causes`** (diagnosis.json as it stands): the code-written
+  headline; the hypotheses with their `rule` (why a figure is null, or a
+  directional test) and `evidence`, shown key by key (section 11); the
+  not-testable list; the signals (a description, never a verdict -
+  ADR-0006/0007) with `rule`, `mode_fallback` and `insufficient_reason`;
+  diagnosis.json's `notes` that are not always-on (the copies of
+  metrics.json's notes stage 3 carries); the suggested classes.
+  `narration` is `ai_findings`; null shows as `narration_status`
+  "unavailable" (AI_PIPELINE 9).
+- **`layer_3_actions`** (forecast.json): the forecast with its notes -
+  metrics.json's notes naming revenue (not always-on) and its own
+  `history_note` / `season_note`. `first_month_in_file` says the first
+  forecast month is one the file holds lines of - its revenue so far is
+  never compared with the point; `partial_first_month_until` is the day a
+  day-grain file ends in it (a month-grain file's month-to-date line has no
+  such day: 2E-o). The recommendations and do-not-do are shown only while
+  stage 4's AI step is on - the backend tells the stage (4C review #4):
+  `recommendations_status` "shown", "switched_off" (whatever the file
+  holds), or "unavailable" (no accepted answer); `notes` beside them: every
+  note of either file that is not always-on (section 11). A recommendation's
+  `confidence` is replaced by `confidence_label` - "high" from 0.7,
+  "medium" from 0.4, "low" below (display cut points, 5A) - never a figure.
+- **`charts`**: `revenue_trend` from the first complete month with revenue
+  to the last; a month between them with no revenue or not whole is a null
+  point, drawn as a gap, and `note` says why - each run of months with no
+  line once ("No line counted in revenue is dated in 2011-06 to 2011-08 (3
+  months): ..."), the compared month with its own
+  `previous_incomplete_reason` - never joined, never a zero; with no month
+  to draw, `note` says so. `forecast` (point, low, high), when there is a
+  forecast, with the forecast's own `history_note` and `season_note` as its
+  `note`. Both list in `notes` the notes naming revenue and in `cautions`
+  the messages of the trust checks that caution or block, and of D1 when it
+  cannot judge whether the month was cut short ("inconclusive"; D2's is
+  about prices, the badge's alone): a cut-short month is plotted as it
+  stands, and the forecast learns most from it (the standing rule; 5A
+  reviews 2 #2, 3 #5, 4 #7).
+- **`provenance`**: `stages_run`; `ai_calls` counts the AI answers the report
+  uses - a schema inference, an AI-proposed plan, a narration, shown
+  recommendations - not the calls made (retries and failures are in the
+  server's logs); `models_used` the models that gave them. Stage 1's two
+  files feed only this: one absent, or of another major, is read as absent;
+  one of the current major that cannot be read fails the report, as a
+  broken run does.
+- **`data_quality`** (cleaning_report.json): rows in and out; `issues_fixed`
+  the plan's changes that did something - changed a cell (a fill, a trim, a
+  parse), or dropped or marked a row (a drop, a flag; stage 1's
+  `rows_affected` counts both); an action that changed nothing is still
+  logged (1D) and not counted; `warnings` their count.
+- **What the contract refuses** (5A reviews 1 #14, 2 #7, 3 #9, 4 #5): KPIs other
+  than the five, once each, in order; a change on any KPI but revenue; a
+  comparison with an incomplete previous month; a null KPI, a null revenue
+  change or an incomplete previous month without its reason; a previous
+  month that is not the one before the current, or data that start after
+  they end; a month revenue null without its reason or with one it does
+  not need; months out of order or twice; a month past the current one, or
+  a compared month the KPIs withhold, drawn whole; a note worded otherwise
+  than by its code, or a code listed twice in any one list; an always-on
+  note beside a figure, or a file's note in `how_to_read`; a note named
+  beside a figure that the report does not show; a chart other than
+  `revenue_trend` and `forecast`, either drawn twice, one plotting other
+  figures than the report's own (the forecast's point, low and high only),
+  or a revenue line - any series of it - joined across a month or out of
+  order; a forecast that does not start the
+  month after the current one; `first_month_in_file` other than whether the
+  file ends in the first forecast month, or a day other than the file's
+  last. Not held by the contract: which months are covered whole (it would
+  need `shared/periods`, a second copy of a frozen definition - the builder
+  and its tests hold it).
+- **`source_file`**: the uploaded file's name, passed by the backend from the
+  run's row (stage 5 never reads the database).
 
 ## 10. Versioning and change policy
 
@@ -1541,6 +1715,22 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 5A, report.json defined.** Section 9's three layers,
+  `dict[str, Any]` until now, are typed (`contracts/report.py`), in place at
+  `1.0`: no report.json had been written. Stage 5 selects and orders the
+  earlier files' fields and computes nothing (section 9 lists how each layer
+  is built). Its reviews (5A reviews 1 to 4) added, still in place at
+  `1.0`: the trust checks' messages; the hypotheses' `rule` and `evidence`
+  and the signals' `rule`, `mode_fallback` and `insufficient_reason`; the
+  lines in no figure and the money outside product revenue
+  (`non_product`, `outside_revenue`); a month with no line as a null with
+  its reason, and a chart's gaps, `notes`, `note` and `cautions`;
+  `current_note`; `first_month_in_file` and `partial_first_month_until`;
+  `confidence_label` in place of a recommendation's `confidence`; the
+  return rate's unit `ratio`; and the validators listed in section 9's
+  "What the contract refuses". The leaf rows are in
+  `contracts/report_views.py` (split for file size; `contracts/report.py`
+  re-exports them).
 - 2026-09-29: **session 4C, forecast.json written.** Stage 4 writes the
   file for the first time (`stages/predict/assemble.py`, POST /predict),
   `schema_version` `1.0`: the forecast always; `model_used`,
@@ -1878,12 +2068,29 @@ How the fields are read:
   change (orders, AOV, the return rate in points) adds it to stage 2 as a
   new field first. Stage 5 shows stage 3's trust badge beside stage 2's
   period-over-period KPIs (CONTRACTS 6).
+- **Zeros that are not counts, and a partly covered month** (5A reviews 2
+  #1, 2 #5, 3 #1, 4 #2; the standing rule): stage 2 writes 0 for a current
+  month in which no line counted in revenue is dated, and 0 active
+  customers for a month whose lines name nobody; and it takes a month the
+  file starts inside as a whole current month. Stage 5 withholds the first
+  two with their reasons and notes the third (`current_note`) - section 9.
+  The frontend shows the same, and reads them from report.json's layer 1
+  rather than deriving them again from these fields (one copy of the rule:
+  Phase 6 wires it).
 - **Months**: `revenue_by_month` holds every month with a dated counted
   line, a partial first and last month included. Which are complete is
   read from `period` (`data_start`, `data_end`, `month_grain`) by the one
   definition stage 3's history uses, `shared/periods.complete_months` (4A:
   no new stage 2 field - periods are frozen), and never past
-  `period.current`.
+  `period.current`. Stage 5 and the frontend DRAW a month whole only when
+  both definitions say so: for the compared month `period.previous_complete`
+  must be true as well (5A reviews 1 #1, 2 #3) - a chart never claims more
+  than the KPIs beside it, nor than stage 3's history and the forecast. (The
+  two disagree only about a file starting one or two days into the compared
+  month: the KPIs compare with it, the chart does not draw it - 8D.) There,
+  a month between the first and the last with no line counted in revenue is
+  shown as a gap with its reason (a closed month or missing data, which the
+  file cannot tell apart), never as 0 and never joined across.
 - **A note that names revenue stands beside the forecast too** (4A review 2
   #4, the standing rule): forecast.json carries no metrics notes - the
   forecast is built from `core.revenue_by_month`, so wherever stage 5 or

@@ -7,42 +7,46 @@ from contracts.report import ReportContract
 
 
 def report_payload() -> dict[str, Any]:
-    # The example from docs/CONTRACTS.md section 9 ("..." run_id filled in).
-    return {
-        "schema_version": "1.0",
-        "generated_at": "2026-09-18T04:18:00Z",
-        "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
-        "source_file": "sales_2011.csv",
-        "data_quality": {"rows_in": 152430, "rows_out": 151988,
-                         "issues_fixed": 7, "warnings": 1},
-        "layer_1_numbers": {"...": "selected fields from metrics.json"},
-        "layer_2_causes": {"...": "selected fields from diagnosis.json"},
-        "layer_3_actions": {"...": "recommendations from forecast.json"},
-        "charts": [
-            {"id": "revenue_trend", "type": "line", "title": "Revenue by month",
-             "series": [{"name": "revenue", "x": ["2011-01"], "y": [690000.0]}]}
-        ],
-        "provenance": {"stages_run": ["ingest", "analyze", "diagnose", "predict"],
-                       "ai_calls": 4, "models_used": ["claude-sonnet-5"]},
-    }
+    """A report.json as stage 5 builds it from the example contract files
+    (session 5A defined the layers; tests/stages/report builds them)."""
+    from tests.stages.report.report_fixtures import build
+
+    payload: dict[str, Any] = build().model_dump(mode="json")
+    return payload
 
 
-def test_accepts_documented_example() -> None:
+def test_accepts_a_report_as_stage_5_builds_it() -> None:
     report = ReportContract.model_validate(report_payload())
 
     assert report.data_quality.rows_in - report.data_quality.rows_out == 442
-    assert report.charts[0].series[0].y == [690000.0]
+    assert report.charts[0].series[0].y == [1000000.0, 1290000.0, 1150000.0]
     assert report.provenance.ai_calls == 4
 
 
-def test_layers_keep_arbitrary_nested_content_until_5a() -> None:
-    # The layer structure is defined in Phase 5A (CONTRACTS.md section 10).
+def test_the_layers_are_typed_since_5a() -> None:
+    # Until 5A they held any nested content (CONTRACTS section 10).
     payload = report_payload()
     payload["layer_1_numbers"] = {"core": {"revenue_current": 1150000.0}}
 
-    report = ReportContract.model_validate(payload)
+    with pytest.raises(ValidationError, match="layer_1_numbers"):
+        ReportContract.model_validate(payload)
 
-    assert report.layer_1_numbers == {"core": {"revenue_current": 1150000.0}}
+
+def test_a_narration_and_its_status_agree() -> None:
+    payload = report_payload()
+    payload["layer_2_causes"]["narration_status"] = "unavailable"
+
+    with pytest.raises(ValidationError, match="narration_status"):
+        ReportContract.model_validate(payload)
+
+
+@pytest.mark.parametrize("status", ["switched_off", "unavailable"])
+def test_recommendations_are_shown_exactly_when_their_status_says_so(status: str) -> None:
+    payload = report_payload()
+    payload["layer_3_actions"]["recommendations_status"] = status
+
+    with pytest.raises(ValidationError, match="shown together"):
+        ReportContract.model_validate(payload)
 
 
 def test_accepts_degraded_run_with_no_ai_calls() -> None:
@@ -100,3 +104,74 @@ def test_rejects_non_numeric_series_value() -> None:
 
     with pytest.raises(ValidationError, match="y"):
         ReportContract.model_validate(payload)
+
+
+# --- the rules the builder follows, held by the file (5A review 1 #14) --------------------------
+
+
+def _numbers_rejected(payload: dict[str, Any], match: str) -> None:
+    with pytest.raises(ValidationError, match=match):
+        ReportContract.model_validate(payload)
+
+
+def test_rejects_a_comparison_with_an_incomplete_previous_month() -> None:
+    payload = report_payload()
+    numbers = payload["layer_1_numbers"]
+    numbers["period"].update(previous_complete=False, previous_incomplete_reason="the previous month is incomplete")
+    numbers["revenue_by_month"][1]["complete"] = False
+    _numbers_rejected(payload, "compared with an incomplete previous month")
+
+
+def test_rejects_a_change_on_any_kpi_but_revenue() -> None:
+    payload = report_payload()
+    payload["layer_1_numbers"]["kpis"][1]["change_pct"] = -6.7
+    _numbers_rejected(payload, "only revenue's is carried")
+
+
+def test_rejects_a_month_after_the_current_one_marked_complete() -> None:
+    payload = report_payload()
+    payload["layer_1_numbers"]["revenue_by_month"][-1]["complete"] = True
+    _numbers_rejected(payload, "after the current month")
+
+
+def test_rejects_a_previous_month_drawn_whole_that_the_kpis_do_not_compare() -> None:
+    from tests.contracts.test_metrics_reasons import _partial
+    from tests.stages.report.report_fixtures import build, metrics_data
+
+    payload: dict[str, Any] = build(metrics=_partial(metrics_data())).model_dump(mode="json")
+    payload["layer_1_numbers"]["revenue_by_month"][1]["complete"] = True
+    _numbers_rejected(payload, "drawn whole only when the KPIs compare with it")
+
+
+def test_rejects_a_files_note_in_how_to_read_and_an_always_on_note_beside_a_figure() -> None:
+    from tests.contracts.test_metrics import metrics_payload
+    from tests.stages.report.report_fixtures import SAME_DAY, build, metrics_data
+
+    def with_both() -> dict[str, Any]:
+        metrics = metrics_data(notes=metrics_payload()["core"]["notes"] + [SAME_DAY])
+        payload: dict[str, Any] = build(metrics=metrics).model_dump(mode="json")
+        return payload
+
+    payload = with_both()
+    numbers = payload["layer_1_numbers"]
+    assert [n["code"] for n in numbers["how_to_read"]] == ["discounts_in_prices"]
+    numbers["how_to_read"].append(numbers["notes"][0])
+    _numbers_rejected(payload, "shown once, in how_to_read")
+    payload = with_both()
+    payload["layer_1_numbers"]["notes"].append(payload["layer_1_numbers"]["how_to_read"][0])
+    _numbers_rejected(payload, "shown once, in how_to_read")
+    payload = with_both()
+    payload["layer_2_causes"]["notes"] = payload["layer_1_numbers"]["how_to_read"]
+    _numbers_rejected(payload, "shown once, in how_to_read")
+
+
+def test_rejects_a_month_with_no_revenue_and_no_reason() -> None:
+    payload = report_payload()
+    payload["layer_1_numbers"]["revenue_by_month"][0]["revenue"] = None
+    _numbers_rejected(payload, "null exactly when its reason says why")
+
+
+def test_rejects_a_day_for_a_forecast_month_the_file_does_not_hold() -> None:
+    payload = report_payload()
+    payload["layer_3_actions"]["forecast"]["first_month_in_file"] = False
+    _numbers_rejected(payload, "the day the file ends in the first forecast month")
