@@ -26,6 +26,7 @@ TEST_ENV = {
     "RETENTION_HOURS": "24",
     "PREVIEW_CACHE_MAX_MB": "300",
     "PREVIEW_CACHE_TTL_SECONDS": "900",
+    "STRATEGY_AI_ENABLED": "false",  # v1's default (4C); a test turns it on explicitly
 }
 os.environ.update(TEST_ENV)
 

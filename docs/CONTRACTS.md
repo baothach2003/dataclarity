@@ -1541,6 +1541,13 @@ the report defensible.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 4C, forecast.json written.** Stage 4 writes the
+  file for the first time (`stages/predict/assemble.py`, POST /predict),
+  `schema_version` `1.0`: the forecast always; `model_used`,
+  `recommendations` and `do_not_do` null together while the AI strategy
+  step is off (v1's default, 4B's review bound) and whenever it is not
+  asked or gives no accepted answer. No field changed. A re-run of stage 4
+  removes the report's files (section 1).
 - 2026-09-29: **session 4A, the forecast (4A reviews 1 and 2).** Section 8's
   `forecast` block gains `months_used` (the complete months the forecast
   learned from), `history_note` (why they start where they do, or null) and

@@ -3268,13 +3268,52 @@ dataclarity/
       checked as now; (c) no AI strategy in v1 - the forecast alone.
       Whichever, Phase 4's manual review of real answers needs a real call
       (Thach's approval).
-- [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests.
+- [x] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests.
       Refuses a diagnosis.json that does not describe metrics.json's months
       (`frame.current`/`previous` against `period.current`/`previous`) - the
       backend removes stale later outputs (3G-lite), a standalone run does
       not; a run with no diagnosis.json (never diagnosed, or removed by a
       re-analysis) is INVALID_STATE "run the diagnosis first", never
-      EXPIRED
+      EXPIRED. **Done 2026-09-29** (ninth run, session 7; method
+      `C:\Users\Happy\4C-method.txt`; infrastructure: failing tests first,
+      one review cycle, mutation on the logic). `stages/predict/assemble.py`:
+      `predict` (the forecast always; the AI step when on, asked and
+      answering; the AI blocks null together otherwise, with why) and
+      `predict_run` (reads metrics.json and diagnosis.json through their
+      models, refuses other months, writes forecast.json atomically,
+      `schema_version` 1.0). `backend/app/services/prediction.py` and the
+      route: from `analyzed` with diagnosis.json; the run stays `analyzed`;
+      the report's files set aside around the rename; AI_NOT_ASKED /
+      AI_UNAVAILABLE notices (a new notice code, in the frontend's type
+      too). Decisions made alone: **C9 - the AI step behind a required
+      setting `STRATEGY_AI_ENABLED`, false in v1** (4B blocked at its review
+      bound: no unverified recommendation reaches a report; **Thach's real
+      `.env` needs the line `STRATEGY_AI_ENABLED=false`**); **C5 - the
+      run's one AI retry shared with stage 1** (SPECS 11: "max 4 calls per
+      run plus 1 shared retry"): the backend kept forgetting it when the
+      plan ran, so stage 4 would have had a second one - now a run that
+      goes on keeps it (a failed one still forgets it); the two stage 1
+      tests that pinned the forgetting assert the new rule; C3 - a blocked
+      diagnosis or an incomplete previous month: forecast yes, AI no.
+      **Review (11 findings, all folded in):** three predicts with the step
+      on locked a run's forecast out for good (the attempt count wrapped the
+      forecast and counted predicts that never asked) - now counted only
+      when the AI is asked, a fourth predict writes the forecast without
+      asking; a re-predict asked the AI again - an accepted answer is now
+      final (reused; a re-run of stage 2 or 3 removes it first); a
+      check-then-read race gave a 500 - the files are checked inside the
+      exclusive block; a read transaction was held through the AI call -
+      committed first; the notices said "the forecast is done" with no
+      forecast and gave prose as their reason - a code (`switched_off`,
+      `diagnosis_blocked`, `not_comparable`, `attempts_used`, the client's
+      code, `internal_error`) and a true sentence; an unexpected error on the
+      AI path lost the forecast - it degrades now; SPECS 3 and 10 and
+      AI_PIPELINE 2 completed. For 5A: show the recommendations only while
+      the setting is on (a file written while it was on keeps them). **The
+      real `.env` needs `STRATEGY_AI_ENABLED=false`, or neither the backend
+      nor Alembic starts.** Tests: 11 on the assembly, 16 on the endpoint
+      (the AI faked, both settings, the shared retry, the attempts, the
+      race, one at a time), 1 on stage 1's kept branch; mutation 26 of 26.
 - **DoD:** every recommendation cites a number that exists in the inputs; a
   manual review finds no fabricated figures
 
@@ -3299,7 +3338,10 @@ dataclarity/
       `history_note`/`season_note`; beside the recommendations, every note
       that is not `always_on` (the AI's text cites figures no code maps
       back); `months_used` is never shown as diagnosis.json's
-      `frame.history_months`
+      `frame.history_months`. **From 4C (review #4):** the recommendations
+      shown only while `STRATEGY_AI_ENABLED` is true - the backend tells the
+      stage (a file written while it was on keeps its blocks); `confidence`
+      shown as a label, never as a figure
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
@@ -3385,7 +3427,8 @@ dataclarity/
       is fully received (today 1A returns 413 only after python-multipart has
       spooled the whole body); the retention cleanup also deletes run
       directories that have no `runs` row (left by a commit with an unknown
-      outcome, see 1A2);
+      outcome, see 1A2), and forgets an expired run's in-memory entries -
+      its `RetryBudgets` entry lives the run's whole life since 4C;
       the run-state transition for a rate-limited AI step (SEC-2); the
       trusted-proxy setting that yields the client IP (SEC-2; 9A sets the
       Render value); AI call budget per run (1G added a per-run, per-step attempt cap,
@@ -3676,6 +3719,14 @@ dataclarity/
       - profiling (analyze-schema's deterministic part) takes 8.9 s on the
         39 MB demo sample and 11.4 s at the 50 MB cap, where SPECS 11 asks
         for 3 s (the DEMO measure).
+      From 4C (2026-09-29):
+      - the run's shared AI retry lives in memory: a process restart gives a
+        run a fresh one (one extra AI call at most), and a run that goes on
+        keeps its entry until the restart or 8B's retention cleanup forgets
+        it (a few bytes a run).
+      - stage 4's attempt count lives in memory too (a restart resets it) and
+        is never reset by a re-analysis: a run whose AI failed three times
+        gets forecasts without asking again until it is uploaded anew.
       From 4B (2026-09-29; the AI faked, so no answer of a real model yet):
       - the AI writes no number, but it can cite the WRONG figure - a real
         path that does not say what its sentence claims - and state prose
@@ -3897,6 +3948,12 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
+forecast.json assembled and POST /predict: the forecast always, the AI step
+behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),
+the run's one AI retry shared with stage 1 (SPECS 11), an accepted answer
+final, the AI asked at most 3 times without ever holding the forecast back.
+One review cycle (11 findings, folded in). **Next: stage 5 (5A).**
 Session **4B** closed 2026-09-29 (ninth run, session 6; see its item):
 the strategy step built and tested with the AI faked (no real call), then
 redesigned after review 2 so the AI writes no number (paths rendered by

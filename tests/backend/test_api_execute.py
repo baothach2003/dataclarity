@@ -92,16 +92,18 @@ def test_a_plan_built_by_hand_without_a_proposal_is_manual(make_api: MakeApi) ->
     assert api.status(run_id) is RunStatus.CLEANED
 
 
-def test_execute_forgets_what_the_run_kept_in_memory(make_api: MakeApi) -> None:
+def test_execute_forgets_the_frame_and_keeps_the_runs_retry_for_stage_4(make_api: MakeApi) -> None:
+    # 4C (SPECS 11, "max 4 calls per run plus 1 shared retry"): the retry was
+    # forgotten here, and stage 4 got a second one; the run keeps it now.
     api, run_id, plan = make_api_with_plan(make_api)
     api.post(run_id, "preview", plan)
     assert run_id in api.app.state.frame_cache.cached_runs
-    assert run_id in api.app.state.retry_budgets.tracked_runs
+    budget = api.app.state.retry_budgets.for_run(run_id)
 
     api.post(run_id, "execute", plan)
 
     assert api.app.state.frame_cache.cached_runs == []
-    assert api.app.state.retry_budgets.tracked_runs == []
+    assert api.app.state.retry_budgets.for_run(run_id) is budget
 
 
 # --- execute: the state machine -------------------------------------------------------

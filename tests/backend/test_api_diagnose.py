@@ -162,12 +162,12 @@ _MANUAL = [("sku", "identifier", "sku"), ("name", "text", "product_name"), ("qty
            ("price", "numeric_continuous", "unit_price"), ("day", "datetime", "transaction_date")]
 
 
-def _monthly_analyzed_run(make_api: MakeApi, content: bytes | None = None) -> tuple[Any, str]:
+def _monthly_analyzed_run(make_api: MakeApi, content: bytes | None = None, **settings: Any) -> tuple[Any, str]:
     """Through the no-AI path: profiled, then a plan built by hand (the fake
     AI's answers are written for the one-month fixture)."""
     from tests.backend.api_support import unusable_reply
 
-    api = make_api(unusable_reply(), unusable_reply())  # the AI answers nothing usable: degraded
+    api = make_api(unusable_reply(), unusable_reply(), **settings)  # the AI answers nothing usable: degraded
     run_id = api.upload(content or _monthly_csv())
     assert api.post(run_id, "analyze-schema").status_code == 200  # profiles; the AI is unavailable
     plan = {"schema_version": "4.0", "generated_at": "2026-09-29T00:00:00Z", "source": "manual",

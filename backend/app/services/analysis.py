@@ -248,6 +248,8 @@ def _still_in_the_ai_phase(
     session.refresh(run)
     if run.status is expected:
         return
-    if run.status not in (RunStatus.UPLOADED, RunStatus.PROFILED, RunStatus.PLANNED):
+    # A run that failed or expired asks the AI nothing more; one that went on
+    # keeps its retry for stage 4 (SPECS 11's one shared retry; 4C).
+    if run.status in (RunStatus.FAILED, RunStatus.EXPIRED):
         budgets.forget(run.id)
     run_state.require_status(run, expected, step=step)

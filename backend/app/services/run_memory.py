@@ -7,8 +7,9 @@ All of it is lost when the process restarts, which is safe:
   time. Reading a 54 MB file alone costs 2.6 s against the 3 s preview budget (1F
   measurements). Losing it costs one slower preview.
 * `RetryBudgets`: the run's one shared AI retry (AI_PIPELINE section 2), which spans
-  the schema step and the plan step, two separate requests. Losing it (a restart in
-  the middle of a run) can allow one extra retry, which costs one AI call.
+  the schema step, the plan step and stage 4's strategy step (4C), separate
+  requests. Losing it (a restart in the middle of a run) can allow one extra retry,
+  which costs one AI call.
 * `RunWork`: which runs this process is working on right now, and how many AI
   attempts each step of a run has used.
 
@@ -178,11 +179,13 @@ class FrameCache:
 
 
 class RetryBudgets:
-    """The run's shared AI retry, one object per run for the run's whole life.
+    """The run's shared AI retry, one object per run for the run's whole life -
+    stage 1 and stage 4 share it (SPECS 11; 4C).
 
-    Entries are a few bytes and dropped when the run leaves the AI phase
-    (`forget`); a run abandoned before that keeps its entry until the process
-    restarts or the retention cleanup (PROJECT_PLAN 8B) forgets it.
+    Entries are a few bytes and dropped when the run fails (`forget`); a run
+    that goes on, or is abandoned, keeps its entry until the process restarts
+    or the retention cleanup (PROJECT_PLAN 8B) forgets it. A restart gives a
+    run a fresh retry (8D).
     """
 
     def __init__(self) -> None:
@@ -280,6 +283,16 @@ class RunWork:
     def is_active(self, run_id: str) -> bool:
         with self._lock:
             return run_id in self._active
+
+    def attempts_left(self, run_id: str, step: str) -> bool:
+        """Whether the AI may still be asked for this step (stage 4, 4C
+        review #1: counted only when asked, never refusing the work around it)."""
+        with self._lock:
+            return self._attempts.get((run_id, step), 0) < self._max_attempts
+
+    def record_attempt(self, run_id: str, step: str) -> None:
+        with self._lock:
+            self._attempts[(run_id, step)] = self._attempts.get((run_id, step), 0) + 1
 
     def forget(self, run_id: str) -> None:
         """The run is out of the interactive phase: its attempt counts are not needed."""

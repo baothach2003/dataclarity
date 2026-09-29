@@ -158,7 +158,7 @@ def execute_plan(
             )
             _settle(session, run_id, "fail the run", lambda: run_state.fail(
                 session, run_id, refused.code, only_from=(RunStatus.CLEANING,)))
-            _forget(run_id, cache, budgets, work)
+            _forget(run_id, cache, work, budgets)  # a failed run asks the AI nothing more
             raise refused from error
         except BaseException:
             # A full disk, memory, a bug, or a client that disconnected mid-request:
@@ -170,7 +170,9 @@ def execute_plan(
         # freed as `cleaned` by its next visit (the report exists), so it is not fatal.
         _settle(session, run_id, "mark the run cleaned", lambda: run_state.advance(
             session, run_id, RunStatus.CLEANED, only_from=(RunStatus.CLEANING,)))
-    _forget(run_id, cache, budgets, work)
+    # The run goes on to stages 2-4: its AI retry stays, shared with stage 4
+    # (SPECS 11: "max 4 calls per run plus 1 shared retry"; 4C).
+    _forget(run_id, cache, work, None)
     notice = not_inventory_notice(schema)
     return ExecuteResponse(
         run_id=run_id, status="cleaned", report=report, notices=[notice] if notice else [])
@@ -190,12 +192,14 @@ def _settle(session: Session, run_id: str, what: str, write: Callable[[], object
             logger.exception("Could not %s for run %s (attempt %d of 2)", what, run_id, attempt)
 
 
-def _forget(run_id: str, cache: FrameCache, budgets: RetryBudgets, work: RunWork) -> None:
-    """The run is out of the interactive phase: its frame, its AI retry and its AI
-    attempt counts are no longer needed."""
+def _forget(run_id: str, cache: FrameCache, work: RunWork, budgets: RetryBudgets | None) -> None:
+    """The run is out of the interactive phase: its frame and its AI attempt
+    counts are no longer needed; its AI retry only when it failed (`budgets`),
+    as a run that goes on shares it with stage 4."""
     cache.evict(run_id)
-    budgets.forget(run_id)
     work.forget(run_id)
+    if budgets is not None:
+        budgets.forget(run_id)
 
 
 def _require_raw(runs_root: Path, run_id: str) -> None:

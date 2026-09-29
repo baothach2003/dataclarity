@@ -21,9 +21,10 @@ from app.schemas import (
     ExecuteResponse,
     LineSummaryResponse,
     PlanResponse,
+    PredictResponse,
     PreviewResponse,
 )
-from app.services import analysis, diagnosis, downloads, metrics, plan_execution
+from app.services import analysis, diagnosis, downloads, metrics, plan_execution, prediction
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
@@ -161,3 +162,15 @@ def analyze(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkD
 @router.post("/{run_id}/diagnose")
 def diagnose(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> DiagnoseResponse:
     return diagnosis.diagnose(session, run_id, settings=settings, work=work)
+
+
+@router.post("/{run_id}/predict")
+def predict(
+    run_id: str,
+    settings: SettingsDep,
+    session: SessionDep,
+    make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
+    budgets: Annotated[RetryBudgets, Depends(get_retry_budgets)],
+    work: WorkDep,
+) -> PredictResponse:
+    return prediction.predict(session, run_id, settings=settings, make_client=make_client, budgets=budgets, work=work)

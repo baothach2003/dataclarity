@@ -322,7 +322,7 @@ export interface PreviewResult {
 // --- API response envelopes (docs/SPECS.md section 8) --------------------------
 
 export interface Notice {
-  code: 'NOT_INVENTORY' | 'AI_UNAVAILABLE'
+  code: 'NOT_INVENTORY' | 'AI_UNAVAILABLE' | 'AI_NOT_ASKED'
   message: string
   details?: Record<string, unknown>
 }

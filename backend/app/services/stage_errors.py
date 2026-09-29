@@ -98,7 +98,7 @@ def analysis_failed(message: str, details: dict[str, Any] | None = None) -> ApiE
     return ApiError("ANALYSIS_FAILED", message, details)
 
 
-_WHAT_FAILED = {2: "its metrics", 3: "its diagnosis"}
+_WHAT_FAILED = {2: "its metrics", 3: "its diagnosis", 4: "its forecast"}
 
 
 def too_large_to_add(error: ValidationError) -> bool:

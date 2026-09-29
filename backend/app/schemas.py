@@ -8,6 +8,7 @@ from contracts import (
     CleaningPlanContract,
     CleaningReportContract,
     DiagnosisContract,
+    ForecastContract,
     MetricsContract,
     SchemaInferenceContract,
 )
@@ -20,7 +21,9 @@ class Notice(BaseModel):
     request worked and the client must say something plainly to the user.
     Same `code / message / details` shape as an error, so the UI reads both alike."""
 
-    code: Literal["NOT_INVENTORY", "AI_UNAVAILABLE"]
+    # AI_NOT_ASKED (4C): stage 4 did not ask the AI - the step is switched
+    # off, the diagnosis is blocked, or the previous month is incomplete.
+    code: Literal["NOT_INVENTORY", "AI_UNAVAILABLE", "AI_NOT_ASKED"]
     message: str
     details: dict[str, Any] | None = None
 
@@ -74,6 +77,15 @@ class DiagnoseResponse(BaseModel):
     # 3G-lite runs no AI step (the designed degraded mode: `ai_findings` and
     # `model_used` null, docs/AI_PIPELINE.md section 9), so nothing is
     # flagged; 3F adds AI_UNAVAILABLE when the narration is tried and fails.
+    notices: list[Notice] = Field(default_factory=list)
+
+
+class PredictResponse(BaseModel):
+    run_id: str
+    status: Literal["analyzed"]
+    forecast: ForecastContract
+    # AI_NOT_ASKED or AI_UNAVAILABLE when the recommendations are null: the
+    # forecast stands either way (CONTRACTS 8).
     notices: list[Notice] = Field(default_factory=list)
 
 

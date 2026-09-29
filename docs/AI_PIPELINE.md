@@ -32,7 +32,9 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 | 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output, with the notes and the suggested classes (2E-t2) | `diagnosis.ai_findings` |
 | 4 | predict | strategy | `prompts/strategy.md` | `claude-sonnet-5` | metrics + diagnosis + forecast | `forecast.recommendations` |
 
-Shared retry budget: 1 per run. Max tokens 3000 per call. JSON only; the
+Shared retry budget: 1 per run - every AI call of the run shares it (stage
+1's, stage 3's narration once built, stage 4's): the backend keeps it when
+the plan runs (4C); a process restart gives a run a fresh one. Max tokens 3000 per call. JSON only; the
 client strips markdown fences defensively. No sampling parameters:
 `claude-sonnet-5` rejects `temperature` with a 400 (1C, 2026-09-19; this line
 said "Temperature 0" before). Thinking is disabled (`thinking: {type:
@@ -1484,7 +1486,10 @@ As built (4B, `stages/predict/strategy_input.py`, `strategy_checks.py`,
      is still produced and shown, including the code-written headline sentence;
      only `ai_findings` and `model_used` are `null`
    - stage 4: the computed `forecast` block still produced and shown; narrative
-     sections marked "unavailable" in the report
+     sections marked "unavailable" in the report. Stage 4 also does not ask
+     the AI at all - the same null blocks, an AI_NOT_ASKED notice - when its
+     strategy step is switched off (v1's default, 4B), the diagnosis is
+     blocked, or the previous month is not complete
 3. Timeout or network error -> same as 2; the run keeps its state so a retry is
    possible
 4. `domain_confidence < 0.5` -> NOT_INVENTORY path (SPECS section 10)

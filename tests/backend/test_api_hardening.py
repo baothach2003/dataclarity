@@ -155,7 +155,18 @@ def test_a_schema_answer_for_a_run_executed_meanwhile_is_409_not_profiled(
     assert response.status_code == 409
     assert response.json()["error"]["details"]["status"] == "cleaned"
     assert api.status(run_id) is RunStatus.CLEANED
-    assert api.app.state.retry_budgets.tracked_runs == []  # not re-created for a finished run
+    # 4C: kept - the run went on, and stage 4 shares its one retry (SPECS 11).
+    assert api.app.state.retry_budgets.tracked_runs == [run_id]
+
+
+def test_a_schema_answer_for_a_run_failed_meanwhile_forgets_its_retry(make_api: MakeApi) -> None:
+    # 4C review #10: a failed run asks the AI nothing more.
+    api = make_api(schema_reply())
+    run_id = api.upload()
+    on_ai_call(api, lambda: api.set_status(run_id, RunStatus.FAILED))
+
+    assert api.post(run_id, "analyze-schema").status_code == 409
+    assert api.app.state.retry_budgets.tracked_runs == []
 
 
 def test_a_plan_for_a_run_executed_meanwhile_is_409_and_never_marks_it_planned(

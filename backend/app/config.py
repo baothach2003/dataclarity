@@ -44,6 +44,10 @@ class Settings(BaseSettings):
     # memory across all cached files, and seconds a file may sit unused.
     preview_cache_max_mb: Annotated[int, Field(gt=0)]
     preview_cache_ttl_seconds: Annotated[int, Field(gt=0)]
+    # Stage 4's AI strategy step (4B): false in v1 - its review found numbers
+    # and words it lets through (PROJECT_PLAN 4B); Thach turns it on once he
+    # has decided. Off, forecast.json carries the forecast alone.
+    strategy_ai_enabled: bool
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

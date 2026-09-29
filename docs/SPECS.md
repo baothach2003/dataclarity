@@ -64,7 +64,7 @@ State machine: `uploaded -> profiled -> planned -> cleaned -> analyzed ->
 imported`, plus `failed(reason)` from any state and `expired` after retention.
 Transitions enforced server-side; out-of-order calls return 409.
 
-How the steps move through it (stage 1 in 1G; stages 2-3 in 2D and 3G-lite):
+How the steps move through it (stage 1 in 1G; stages 2-4 in 2D, 3G-lite and 4C):
 
 | Call | Allowed from | Moves the run to |
 |---|---|---|
@@ -75,6 +75,7 @@ How the steps move through it (stage 1 in 1G; stages 2-3 in 2D and 3G-lite):
 | `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
 | `POST /analyze` | `cleaned`, `analyzed` | `analyzed` |
 | `POST /diagnose` | `analyzed` | stays `analyzed` (3G-lite: stages 2-4 all live in it; which of their files exist says how far the run went - a stage run again removes the later stages' outputs) |
+| `POST /predict` | `analyzed`, and `diagnosis.json` must exist | stays `analyzed` (4C); the AI, when its step is on, is asked at most 3 times a run and an answer already accepted is final - a fourth predict still writes the forecast |
 
 `cleaning` is not a step the user sees: it is the claim a run holds while its plan
 executes, taken by one atomic conditional UPDATE, so a second `execute` (or a
@@ -357,8 +358,9 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 - `execute` -> `{run_id, status: "cleaned", report, notices}`
 - `notices` holds the section 10 cases that are a 200 with a flag, each as
   `{code, message, details?}` like an error: `AI_UNAVAILABLE` (`details.reason`
-  is the AI client's reason code) and `NOT_INVENTORY` (`details.domain_confidence`,
-  `details.domain_reasoning`). `schema_inference` / `plan` are `null` exactly when
+  is the AI client's reason code), `NOT_INVENTORY` (`details.domain_confidence`,
+  `details.domain_reasoning`) and, from stage 4, `AI_NOT_ASKED` (`details.reason`
+  says why the AI was not asked). `schema_inference` / `plan` are `null` exactly when
   the AI produced no accepted answer.
 - The body of `preview` and `execute` is the plan as `plan_proposed.json` has it,
   as the user edited it. It is validated as a contract by the backend, so an action
@@ -405,6 +407,29 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     Stage 3 on the full Online Retail II file takes about a minute
     (synchronous, v1).
 - `POST /api/runs/{id}/predict` -> `forecast.json`
+  - As built in 4C (200): `{run_id, status: "analyzed", forecast, notices}`.
+    The computed forecast always; the AI's recommendations only when
+    `STRATEGY_AI_ENABLED` is true - false in v1, as 4B stopped at its review
+    bound (PROJECT_PLAN 4B) - the AI is asked (not on a blocked diagnosis or
+    an incomplete previous month) and answers: otherwise the AI blocks are
+    null and `notices` holds AI_NOT_ASKED (`details.reason` `switched_off`,
+    `diagnosis_blocked`, `not_comparable` or `attempts_used`) or
+    AI_UNAVAILABLE (the AI client's reason code, or `internal_error`: the
+    forecast is written whatever the AI's path raises). An answer already
+    accepted into forecast.json is final: a second predict reuses it, never
+    asks again (a re-run of stage 2 or 3 removes the file first). Allowed from
+    `analyzed` once diagnosis.json exists (none: INVALID_STATE "Run the
+    diagnosis first", `details.missing`); the run keeps `analyzed`; a re-run
+    overwrites forecast.json, written atomically, and removes the report's
+    files. A diagnosis of other months than the metrics': INVALID_STATE
+    (`details.reason` `diagnosis_mismatch`); its files gone: EXPIRED; a run
+    file another version wrote: INVALID_STATE "run that stage again";
+    amounts past a float: ANALYSIS_FAILED (`amounts_too_large`). The AI is
+    asked at most three times a run - counted only when asked; a fourth
+    predict writes the forecast without asking (AI_NOT_ASKED
+    `attempts_used`), never a 429 - and spends the run's one retry, shared
+    with stage 1. One piece of work at a time per run (INVALID_STATE,
+    `step_in_progress`).
 - `POST /api/runs/{id}/report` -> `report.json` + html download url
 - `POST /api/runs/{id}/import` -> `{products_created, products_updated,
   transactions_inserted, skipped:[{row, reason}]}`
@@ -444,6 +469,7 @@ warning in the import summary when it would go negative).
 | All-null column | flagged; default action drop_column | - |
 | Not inventory data (domain_confidence < 0.5) | say so plainly; offer generic cleaning with downloads only; disable mapping-dependent import and stages 2-5 | NOT_INVENTORY (200 + flag) |
 | AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stages 3-4 still write their computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` sections 7-8) | AI_UNAVAILABLE (200 + flag) |
+| Stage 4 does not ask the AI: its strategy step is switched off (v1's default), the diagnosis is blocked, the previous month is not complete, or the AI was already asked 3 times for the run (4C) | the forecast is written, the recommendations are null; the message says why (`details.reason`: `switched_off`, `diagnosis_blocked`, `not_comparable`, `attempts_used`) | AI_NOT_ASKED (200 + flag) |
 | Stage called out of order | rejected | INVALID_STATE (409) |
 | Run id that names no run (unknown, or not a UUID) | rejected | NOT_FOUND (404) |
 | Malformed request (no `file` part, a body that is not a JSON object, a wrong type) | rejected; the message lists where, never the value sent | INVALID_REQUEST (400) |
@@ -451,7 +477,7 @@ warning in the import summary when it would go negative).
 | Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
-| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts or quantities - any month's - are too large to add up (2E-t3, 2E-v); or stage 3 cannot diagnose this data: its classes changed after the analysis, or its attribution multiplies the amounts past a float (3G-lite) | run stays as it was - `cleaned.csv` is still valid and downloadable (and, at stage 3, metrics.json), only the later stages are unavailable, nothing is written or removed; the message names the missing field, the domain reasoning, or the class column and says to re-upload; or says the amounts are too large to add up (`details.reason` `amounts_too_large`: the file's own amounts, so re-uploading it would not help) | ANALYSIS_FAILED (422) |
+| Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts or quantities - any month's - are too large to add up (2E-t3, 2E-v); or stage 3 cannot diagnose this data: its classes changed after the analysis, or its attribution multiplies the amounts past a float (3G-lite); or stage 4's forecast carries the amounts past a float (4C) | run stays as it was - `cleaned.csv` is still valid and downloadable (and, at stage 3, metrics.json), only the later stages are unavailable, nothing is written or removed; the message names the missing field, the domain reasoning, or the class column and says to re-upload; or says the amounts are too large to add up (`details.reason` `amounts_too_large`: the file's own amounts, so re-uploading it would not help) | ANALYSIS_FAILED (422) |
 | Fewer than 3 periods of history at stage 4 | `insufficient_history: true`, no forecast | success + flag |
 | Rate limit exceeded, or the AI already asked 3 times for one step of a run (1G) | rejected | RATE_LIMITED (429) |
 | Run expired by retention, or its files are gone, or a stage 1 file of it was written by another version of the app (an older or newer contract major - 2E-v; any endpoint) | rejected with re-upload hint; the last case names the file when one model reads one file (`details.reason` `another_version`, `details.file`) | EXPIRED (410) |

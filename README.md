@@ -91,6 +91,10 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
+- **No AI recommendations yet.** Stage 4's AI strategy step is built but
+  off in v1 (`STRATEGY_AI_ENABLED=false`): its reviews found numbers and
+  words it could still let through, so forecast.json carries the forecast
+  alone until that is decided (`PROJECT_PLAN.md` 4B).
 - **The forecast's season.** Stage 4 multiplies the forecast by a monthly
   seasonality index only when two or more years agree on it. Some shapes
   still read as a season: a change of level between the two years in a
