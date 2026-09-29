@@ -3459,10 +3459,38 @@ dataclarity/
       a CR/LF (the client percent-encodes it - now set in the database).
       Tests: 28 in `tests/backend/test_api_report.py`; mutation 43 of 43.
       Known limits: 8D "From 5C".
-- [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
+- [x] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
       independence). Decide how a stage CLI gets the runs root without
       importing the backend (SEC-4), e.g. a `--runs-dir` argument (no stage
-      has a CLI yet as of 1B)
+      has a CLI yet as of 1B). **Done 2026-09-29** (ninth run, session 11;
+      infrastructure: failing tests first, one review cycle and - its fixes
+      being a redesign - a scoped second; that one's fixes tested and
+      mutated, not reviewed). `stages/report/cli.py` + `__main__.py`:
+      `python -m stages.report --run <id> [--source-file <name>]
+      [--runs-dir <dir>]`, run from the repo root. **Decided (alone):** the
+      runs root is `--runs-dir`, else RUNS_DIR read as the backend reads it
+      - pydantic-settings, the repo root's `.env`, the same rules, a relative
+      value anchored at the repo root - so the stage never imports the
+      backend (SEC-4); STRATEGY_AI_ENABLED from the same sources decides the
+      recommendations (unset: off); the uploaded file's name, which only the
+      database holds, is `--source-file` (a bare name - the page is shared)
+      or else the one the run's report.json already holds - so `--run <id>`
+      alone rebuilds a report the backend built; on a run with no report the
+      name must be given. Both files are written by `builder.build_run`, the
+      one function the backend's service now calls too (both or neither),
+      and the set-aside moved from the backend to `shared/later_outputs.py`
+      (CLAUDE.md 3.1: infrastructure two callers use) - the CLI's own copies
+      of both had drifted (review 2 #1-#3). Every failure is a message
+      naming its file (and field) and an exit code: 2 for usage, 1 for the
+      run's files. The reviews (9, then 11) found the design errors fixed
+      above, a missing `__main__` guard, output a cp1252 console or a
+      closed pipe could not take, messages that named a class or no file.
+      Tests: 28 (`test_5d_cli.py`, `test_5d_cli_failures.py`; a fresh
+      interpreter runs it and loads nothing of the backend); mutation 28 of
+      29 (the one left equivalent: the settings' hidden input, which the
+      CLI's messages never print). CLAUDE.md section 8 still shows
+      `python -m stages.analyze --run <run_id>`: only stage 5 has a CLI
+      (Thach's file - not edited).
 - **DoD:** the HTML report is readable standalone and matches the contract data
 
 ### Phase 6 - Frontend
@@ -3916,6 +3944,13 @@ dataclarity/
         points to it rather than repeating it.
       - (5B) the page's customer signals on a month whose customer column is
         blank read 0 "below" range - the 3E2 decision above covers them.
+      From 5D (2026-09-29):
+      - the CLI takes no part in the server's one piece of work per run, nor
+        in another CLI's: run on a run something else is writing, it can
+        write a report beside files a re-run just removed, or fail and leave
+        a set-aside file (hidden). Never run it on a run in use.
+      - with no report.json yet, the file's name must be given: the CLI
+        cannot read the database.
       From 5C (2026-09-29):
       - a process killed between report.json and report.html leaves
         report.json alone and the previous pair set aside (hidden); the next
@@ -4158,6 +4193,13 @@ POST /report writes report.json and report.html together (both or neither
 within the process), GET /download/report.html serves the page as a
 sanitized attachment; one review cycle folded in (a download racing a
 rebuild, a 500 on a gone directory). **Next: 5D.**
+Session **5D** closed 2026-09-29 (ninth run, session 11; see its item):
+`python -m stages.report --run <id>` builds a run's report with no backend;
+its settings read as the backend reads them, both files written by the one
+`build_run` the backend calls too, the set-aside moved to `shared/`. Stage 5
+is complete; Phase 5's DoD met on the demo files. **Next: the whole
+pipeline's time on the demo sample (adjustment 3), then STOP before Phase 6
+(Figma first).**
 Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
 forecast.json assembled and POST /predict: the forecast always, the AI step
 behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),

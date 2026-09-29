@@ -21,8 +21,9 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import RunStatus
 from app.schemas import DiagnoseResponse
-from app.services import later_outputs, run_state, stage_errors
+from app.services import run_state, stage_errors
 from app.services.run_memory import RunWork
+from shared import later_outputs
 from shared.run_registry import RunNotFoundError, run_file
 from shared.transactions import LineClassColumnsError
 from stages.diagnose.assemble import diagnose_run

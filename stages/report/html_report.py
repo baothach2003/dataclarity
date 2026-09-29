@@ -17,6 +17,7 @@ from pathlib import Path
 from contracts.forecast import MIN_HISTORY_MONTHS
 from contracts.report import Actions, Chart, Kpi, Numbers, ReportContract
 from shared.contract_files import write_atomically
+from shared.later_outputs import REPORT_HTML
 from shared.run_registry import run_file
 from stages.report.html_causes import causes_html
 from stages.report.html_charts import chart_html, plotly_js
@@ -36,7 +37,6 @@ from stages.report.html_parts import (
     table,
 )
 
-REPORT_HTML = "report.html"  # beside report.json in runs/<run_id>/ (CONTRACTS section 1)
 _VERDICTS = {"trusted": "trusted", "caution": "caution", "blocked": "blocked - the figures below are not a base "
              "for conclusions"}
 # A previous figure withheld for the incomplete month: its reason is said

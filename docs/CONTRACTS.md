@@ -34,6 +34,9 @@ Rules:
   another month. They are set aside around the new output's rename,
   deleted once it succeeds and put back if anything fails - all or nothing
   (3G-lite, DEMO review). So which files a run holds says how far it went.
+  One implementation, `shared/later_outputs.py`, used by the backend and by
+  stage 5's own CLI, which writes report.json and report.html as the
+  backend does, through `stages/report/builder.build_run` (5D).
 - Every contract file carries `schema_version` (string, starts at `"1.0"`) and
   `generated_at` (ISO 8601). Readers reject unknown major versions.
 

@@ -20,7 +20,8 @@ import pytest
 from pydantic import BaseModel, ValidationError, field_validator
 
 from app.models import RunStatus
-from app.services import later_outputs, stage_errors
+from app.services import stage_errors
+from shared import later_outputs
 from contracts.lines import TOO_LARGE_TO_ADD
 from shared.run_registry import create_run
 from tests.backend.api_support import MakeApi, make_api_with_plan

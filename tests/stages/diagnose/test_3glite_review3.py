@@ -83,7 +83,7 @@ def test_the_later_outputs_are_set_aside_around_the_rename(tmp_path: Path, stage
 def test_a_rename_that_fails_leaves_every_file_as_it_was(tmp_path: Path, stage: str,
                                                           monkeypatch: pytest.MonkeyPatch) -> None:
     # DEMO review #2: the target held open by another program (Windows).
-    from app.services import later_outputs
+    from shared import later_outputs
 
     run_id, path = _diagnosed(tmp_path)
     files = {p.name: p.read_bytes() for p in path.iterdir()}

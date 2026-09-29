@@ -220,20 +220,20 @@ def test_the_page_of_an_unknown_run_is_not_found(make_api: MakeApi) -> None:
 def test_a_page_that_fails_leaves_no_half_report(make_api: MakeApi, monkeypatch: Any) -> None:
     # report.json is written first; if the page then fails, neither stands -
     # and a previous pair is put back whole.
-    from app.services import reporting
+    from stages.report import builder
 
     def broken(*args: Any, **kwargs: Any) -> None:
         raise RuntimeError("the page failed")
 
     api, run_id = _predicted(make_api)
-    monkeypatch.setattr(reporting, "html_run", broken)
+    monkeypatch.setattr(builder, "html_run", broken)
     assert api.post(run_id, "report").status_code == 500
     assert not {"report.json", "report.html"} & api.files(run_id)
 
     monkeypatch.undo()
     assert api.post(run_id, "report").status_code == 200
     before = {name: api.file(run_id, name).read_bytes() for name in ("report.json", "report.html")}
-    monkeypatch.setattr(reporting, "html_run", broken)
+    monkeypatch.setattr(builder, "html_run", broken)
     assert api.post(run_id, "report").status_code == 500
     assert {name: api.file(run_id, name).read_bytes() for name in ("report.json", "report.html")} == before
     assert not [name for name in api.files(run_id) if name.startswith(".aside-")]

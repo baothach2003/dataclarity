@@ -9,8 +9,8 @@ says so (4C review #4).
 """
 
 import json
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -31,9 +31,11 @@ from contracts.report import (
     ReportContract,
     ReportPeriod,
 )
+from shared import later_outputs
 from shared.contract_files import write_atomically
 from shared.periods import shift_month
 from shared.run_registry import run_file
+from stages.report.html_report import REPORT_HTML, html_run
 from stages.report.layers import actions, causes, numbers, revenue_notes
 
 SCHEMA_VERSION = "1.0"  # report.json's first major: none had been written before (CONTRACTS 10)
@@ -148,7 +150,11 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
 def _read[T: (MetricsContract, DiagnosisContract, ForecastContract, CleaningReportContract)](
         runs_root: Path, run_id: str, model: type[T]) -> T:
     path = run_file(runs_root, run_id, model.filename or "")
-    return model.model_validate_json(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"{path.name} is not UTF-8 text") from error
+    return model.model_validate_json(text)
 
 
 def _optional[T: (SchemaInferenceContract, CleaningPlanContract)](path: Path, model: type[T]) -> T | None:
@@ -157,7 +163,10 @@ def _optional[T: (SchemaInferenceContract, CleaningPlanContract)](path: Path, mo
     refuse the whole report (5A review 1 #15)."""
     if not path.exists():
         return None
-    raw = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"{path.name} cannot be read: it is not a JSON file") from error
     return model.model_validate(raw) if major_of(raw) == model.supported_major else None
 
 
@@ -178,3 +187,29 @@ def report_run(runs_root: Path, run_id: str, *, source_file: str, include_recomm
     write_atomically(run_file(runs_root, run_id, ReportContract.filename or "report.json"),
                      report.model_dump_json(indent=2).encode("utf-8"), around_replace=around_write)
     return report
+
+
+@contextmanager
+def _pair(runs_root: Path, run_id: str) -> Iterator[None]:
+    """Around report.json's rename alone (CONTRACTS section 1): the previous
+    pair set aside, the page rendered from the new report.json while it is,
+    and on any failure the previous pair put back - a first pair half
+    written removed (5C review #1)."""
+    with later_outputs.set_aside(runs_root, run_id, after_stage=4):
+        try:
+            yield
+            html_run(runs_root, run_id)
+        except BaseException:
+            for name in (ReportContract.filename, REPORT_HTML):
+                if name is not None:
+                    run_file(runs_root, run_id, name).unlink(missing_ok=True)
+            raise
+
+
+def build_run(runs_root: Path, run_id: str, *, source_file: str, include_recommendations: bool,
+              now: datetime | None = None) -> ReportContract:
+    """report.json and report.html for one run, both or neither within the
+    process - the one way the backend and stage 5's CLI write them (5D
+    review 2 #1: the CLI's own copy of this had drifted)."""
+    return report_run(runs_root, run_id, source_file=source_file, include_recommendations=include_recommendations,
+                      now=now, around_write=lambda: _pair(runs_root, run_id))

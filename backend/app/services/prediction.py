@@ -23,12 +23,13 @@ from app.config import Settings
 from app.errors import ApiError
 from app.models import RunStatus
 from app.schemas import Notice, PredictResponse
-from app.services import later_outputs, run_state, stage_errors
+from app.services import run_state, stage_errors
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import MAX_AI_ATTEMPTS_PER_STEP, RetryBudgets, RunWork
 from contracts.diagnosis import DiagnosisContract
 from contracts.forecast import ForecastBlock
 from contracts.metrics import MetricsContract
+from shared import later_outputs
 from shared.run_registry import RunNotFoundError, run_file
 from stages.predict.ai_strategy import Strategy, recommend
 from stages.predict.assemble import (

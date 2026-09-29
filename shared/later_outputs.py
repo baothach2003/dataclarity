@@ -1,10 +1,14 @@
 """A stage run again makes every later stage's output describe data that is
 no longer there: a diagnosis of the metrics a re-analysis replaced keeps its
-headline about another month (3G-lite review 1 #2). The backend sets them
-aside around the new output's rename and deletes them once it succeeds
+headline about another month (3G-lite review 1 #2). They are set aside
+around the new output's rename and deleted once it succeeds
 (docs/CONTRACTS.md section 1), so which files a run holds still says how far
 it went (SPECS section 3); if anything fails they are put back - all or
 nothing (DEMO review #2). The stages never edit a file they did not write.
+
+Infrastructure, in shared/ since 5D (CLAUDE.md 3.1): the backend's services
+and stage 5's own CLI set outputs aside with this one implementation - the
+CLI's copy of it had drifted (5D review 2 #1, #2).
 """
 
 import logging
@@ -15,7 +19,9 @@ from pathlib import Path
 
 from contracts import DiagnosisContract, ForecastContract, ReportContract
 from shared.run_registry import run_file
-from stages.report.html_report import REPORT_HTML  # the presentation layer beside report.json; no model
+
+# The presentation layer beside report.json (CONTRACTS section 1); no model.
+REPORT_HTML = "report.html"
 
 # Newest first, so a crash part way (the one case not put back) leaves the
 # earlier outputs, which still describe each other.

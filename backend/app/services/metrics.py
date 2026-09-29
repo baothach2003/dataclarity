@@ -21,9 +21,10 @@ from sqlalchemy.orm import Session
 from app.config import Settings
 from app.models import RunStatus
 from app.schemas import AnalyzeResponse
-from app.services import later_outputs, run_state, stage_errors
+from app.services import run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import RunWork
+from shared import later_outputs
 from shared.run_registry import RunNotFoundError, run_file
 from shared.transactions import LineClassColumnsError, RequiredColumnMissingError
 from stages.analyze.assemble import analyze_run
