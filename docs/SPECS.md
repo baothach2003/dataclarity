@@ -318,6 +318,10 @@ again. This is why the product can claim AI assistance without AI opacity.
 - 7.5 Seasonality is only claimed when the gap between the highest and lowest
   period exceeds 40% AND at least two cycles of data exist.
 - 7.6 Every recommendation must name the metric to watch and the review window.
+  As built (4B): the window is checked by code (`how_to_measure` carries a
+  `{window:...}` token, at most a year, rendered by code); the metric is
+  asked by the prompt and not checked - read by the manual review of real
+  answers (Phase 4's DoD).
 
 ## 8. API Contracts
 

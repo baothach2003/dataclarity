@@ -1432,9 +1432,9 @@ metrics.json's `period` and `core.revenue_by_month` only (section 11).
   most 2% on noise and 4.2% on one big month on a flat business. **Known
   limits (8D; the third review, reproduced on the same sweep), where a
   season is claimed that the data does not hold:** a step between the two
-  years at 10-20% noise, up to 59% of the time at 24 months (36-59% for a
-  step of x0.5 to x2, 0.8% for x3 at 10% noise; up to 29% at 36; at 5%
-  noise 0-1.2%); a step one month off the counted year's boundary,
+  years at 10-20% noise, up to 59% of the time at 24 months (36-41% for a
+  step of x0.5 to x2; for x3, 0.8% at 10% noise and 59% at 20%; up to 29%
+  at 36 months; at 5% noise 0-1.2%); a step one month off the counted year's boundary,
   10-15%; one big month at the peak of a season too mild to claim, nearly
   always; and a real season with a step between the years is claimed with
   its indices tilted by the step, the band then holding 0-28% at 24
@@ -1446,8 +1446,13 @@ metrics.json's `period` and `core.revenue_by_month` only (section 11).
   user's amounts - months hundreds of orders of magnitude apart).
 
 Forecast numbers come from code; the AI writes only `recommendations` and
-`do_not_do`, and every `expected_impact` must show its arithmetic from input
-numbers.
+`do_not_do`, and no digit in them is its own (4B): every figure is an input
+figure cited by path and rendered by stage 4, every proposal a bounded token
+("20% (assumed)"), and every `expected_impact` is the AI's formula with the
+result stage 4 computed (`docs/AI_PIPELINE.md` section 8). The example
+above shows the fields' shape in the older free-text style. The step is
+built but off by default in v1 (4B's review 3): until Thach decides, every
+forecast.json carries these blocks null, the answer saying why.
 
 When the AI step is unavailable, meaning no AI output was accepted after the
 shared retry (`docs/AI_PIPELINE.md` section 9), stage 4 still writes this file:
@@ -1456,7 +1461,9 @@ shared retry (`docs/AI_PIPELINE.md` section 9), stage 4 still writes this file:
 partially filled. The keys are always written: `null` is a value, not a missing
 key, and it is never replaced by an empty list. Minimum counts such as "3 to 5
 recommendations" (`docs/AI_PIPELINE.md` section 8) are enforced by stage 4
-before writing, not by this contract.
+before writing, not by this contract. The AI blocks are null the same way
+when stage 4 does not ask the AI (4B): the diagnosis is blocked, or the
+previous month is not complete - the endpoint's answer says which.
 
 ## 9. `report.json` (stage 5 output, data layer)
 
@@ -1877,6 +1884,12 @@ How the fields are read:
   include `revenue` and is not `always_on` is shown beside it, as beside
   the revenue it came from; and so are forecast.json's own `history_note`
   and `season_note` when not null.
+- **The notes stand beside the recommendations too** (4B review 1 #10, the
+  standing rule): the AI's recommendations cite the files' figures in free
+  text, which no code maps back to a figure, so wherever stage 5 or the
+  frontend shows `recommendations`, every note of metrics.json and
+  diagnosis.json that is not `always_on` is shown beside them - by
+  construction, not left to the AI's wording.
 - **Signals describe; none is a verdict in v1** (ADR-0006, ADR-0007): never
   word one as normal or unusual - the AI of 4B included - and read `mode`
   before comparing two rows (money or counts on a `level` row, percentage

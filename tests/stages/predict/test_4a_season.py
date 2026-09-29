@@ -172,7 +172,7 @@ def test_the_ramp_refusal_is_at_nine_tenths_of_the_logs(share: float, refused: s
     assert refusal([year, dict(year)], ORDER) == refused
 
 
-@pytest.mark.parametrize(("correlation", "refused"), [(0.724, None), (0.61, None), (0.59, "agreement"),
+@pytest.mark.parametrize(("correlation", "refused"), [(0.724, None), (0.605, None), (0.595, "agreement"),
                                                        (0.5625, "agreement")])
 def test_the_years_must_agree_at_six_tenths(correlation: float, refused: str | None) -> None:
     # Year 1 = u + a x ZIGZAG, year 2 = u - a x ZIGZAG, u = 1 + 0.5 x
@@ -187,6 +187,20 @@ def test_the_years_must_agree_at_six_tenths(correlation: float, refused: str | N
     two = dict(zip(ORDER, (x - a * z for x, z in zip(u, ZIGZAG, strict=True)), strict=True))
     assert _agreement([one, two]) == pytest.approx(correlation)
     assert refusal([one, two], ORDER) == refused
+
+
+def test_years_that_disagree_are_refused_on_agreement_before_the_ramp() -> None:
+    # 4B review 1 #19 (Part B): year 1 falls 1000 x e^(-0.2k), year 2 rises
+    # 300 x e^(0.01k) - the years correlate -0.95, and against their trend
+    # the indices also ramp (0.97). Agreement is tested before the ramp, so
+    # the refusal is "agreement" and carries no step note: years that
+    # disagree are no step either.
+    values = [1000 * math.exp(-0.2 * k) for k in range(12)] + [300 * math.exp(0.01 * k) for k in range(12)]
+    months = sorted(months_from("2024-01", values))
+    cycles = _cycles(months, detrended(values))
+    assert _agreement(cycles) < 0 and _ramp(ORDER, indices(cycles)) >= 0.9
+    assert refusal(cycles, ORDER) == "agreement"
+    assert season_reading(months, values) == (None, None)
 
 
 def test_the_gap_is_tested_first_so_a_small_step_carries_no_note() -> None:

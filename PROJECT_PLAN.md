@@ -2939,6 +2939,14 @@ dataclarity/
 - [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
       not-tested validator, degraded mode, one real API check (a few cents - the
       only session in Phase 3 that spends credit). Doubt-review: yes
+      **From 4B (reviews 1 and 2):** the narration should write no number
+      either - cite figures by path, code renders them
+      (`stages/predict/strategy_render.py`, moved to `shared/` so both AI
+      steps use one rule, CLAUDE.md 3.1). 4B measured a value check - the
+      flat 0.5% of `AI_NUMBER_TOLERANCE` - letting an invented number
+      through 6-18% of the time, and its tightened successor still letting
+      computed ratios and invented statistics through; the verdict words in
+      context too.
       **From 2E-n:** `prompts/root_cause.md` says to write only about
       supported/partial hypotheses, while rule 6's no-fit headline names
       measured movements whatever their verdict (a ruled-out term against
@@ -3154,7 +3162,112 @@ dataclarity/
       (2E-b review F8): `prompts/strategy.md` maps At-risk and Champions to
       actions but has no rule for the "Returns only" segment (2E-b), whose
       share is usually negative - add one. Tests with
-      mocked AI
+      mocked AI. **Done 2026-09-29** (ninth run, session 6; method
+      `C:\Users\Happy\4B-method.txt`; the AI faked throughout - no real
+      call, Thach's rule for this run): three modules. `strategy_input.py`
+      builds the prompt's input from section 11's 4B rows only (a test walks
+      it against the table; on the demo runs no stray field), lists cut to
+      their 10 largest movers, notes worded by code, no hypothesis evidence,
+      no narration - so stage 4 calls the AI whether or not `ai_findings`
+      exists (S4: the deterministic blocks are the input); ~8-9k tokens on
+      the demo runs. `strategy_checks.py` checks every answer (S2; AI_PIPELINE
+      8 lists the rules): figures of the input only, as roundings to 3
+      significant figures or more as written (a round invented number must
+      be exact), a citation per recommendation, windows, the arithmetic of
+      `expected_impact`, no stock, no verdict on a month, the marks. My own
+      draft's doubt found the arithmetic refusing a lone "x" (the prompt's
+      own format) and hyphens read as minuses (D1); measuring it found a flat
+      0.5% match let an invented number through 6-18% of the time - the
+      significant-figures rule brings a round invented number to ~1.3%
+      (small integers stay 26-32%: 8D). `ai_strategy.py`: the strict answer
+      model, `recommend` (one retry with the problems named, the run's
+      budget; AIUnavailable otherwise). `prompts/strategy.md`: the number
+      rules, the arithmetic format, the "No purchases in file" rule, the
+      forecast's notes. **Review 1 (19 findings; 17 on 4B)** found invented
+      figures still getting in - a tempting action's numbers and a second
+      result after "=" unchecked; any number of 1 or less read as a share,
+      so a 0.48% share passed as "48.5%" (on the demo sample); an expected
+      impact's result accepted 1% off, with any sign, over an invented
+      "120 months" or "900%" - and sound answers refused on the demo:
+      "a discount" and "free samples" read as the marked products
+      "Discount" and "SAMPLES", a share of change above 1 never a
+      percentage. Fixed: the numbers read in `strategy_numbers.py` (split
+      out) - percentages kept apart by field (`*_pct`, a fraction, a `yoy`
+      signal's points), numbers glued to words and ".5" read, a sign read,
+      a number past a float infinite, never a crash; the arithmetic's
+      result a rounding of it as written with its sign, one result only,
+      percentage assumptions in (0%, 100%], windows up to a year, "of" and
+      "+ 5%" understood, at most 10 numbers; every field checked, none
+      empty; the stock and verdict words widened (stage 3's stockout
+      wording allowed); marks matched as written and taken from both
+      files, never the subject of an expected impact either; the "No
+      purchases in file" customers never a target; "lines" never called
+      orders (the basis's reason kept in the input); `not_asked` - no AI
+      on a blocked diagnosis or an incomplete previous month (4C writes the
+      AI blocks null and says why); the notes beside the recommendations
+      by construction (CONTRACTS 11, for 5A); Part B, 4A's pins tightened
+      (agreement at 0.595/0.605, the agreement tested before the ramp) and
+      one quoted range corrected. Invented numbers now pass 1.0-1.5% as
+      round integers, 3.6-4.5% as percentages, 24-36% as small integers.
+      **Review 2 (16 findings) showed the value checks cannot hold**: a
+      division by 1% or chained "+100%" inflated an impact without limit,
+      a flipped sign and a wrong direction word passed, a ratio the AI
+      computed and an invented "37% lift" passed as figures or offers, and
+      the prompt's own "0.48%" was refused. Checking free-text numbers was
+      an arms race, so **redesigned (CLAUDE.md 3.2 by construction): the AI
+      writes no number** - it cites figures by path (`{metrics.core.
+      revenue_current}`, list items by index or natural key) and code
+      renders them (percentages as percentages, with their sign; a
+      direction word must agree with it); its own numbers are bounded
+      tokens (`{offer:10%}`, `{assume:20%}` shown "(assumed)",
+      `{window:30 days}`); `expected_impact` is its formula, code computes
+      the result (assumptions and windows only multiply, a window in
+      months, division only by a figure); any digit it wrote itself is
+      refused (`strategy_render.py` and `strategy_impact.py`, replacing
+      `strategy_numbers.py`).
+      Also from review 2: verdict words checked only in a sentence about a
+      period, the tempting action free to name what not to do; "order" in
+      the singular on basis "lines"; marks in any case for a name of
+      several words; the "No purchases in file" customers looked into as
+      the prompt allows; the prompt's "At-risk growing" rule replaced (a
+      segment count is a snapshot, stage 3's C4); a test ties `FRACTIONS`
+      to the contracts' share and rate fields. On the demo inputs, a sound
+      answer written to the prompt passes and renders (every number the
+      code's). Tests 95; mutation 60 of 60.
+      **BUILT, NOT ENABLED - blocked at the review bound (Thach decides).**
+      Review 3 (21 findings; the third and last cycle) found fabrication
+      paths that occur on both demo inputs, so the blocking rule holds 4B
+      back; three cycles each finding substantive holes (the numbers, then
+      the prose) is information about the design, and no fourth cycle is
+      run alone. 4C wires the step behind a setting that is OFF by default:
+      no AI recommendation reaches a report until Thach decides. Where
+      CODE itself is wrong (fix list ready): an impact's shown formula is
+      not the one computed - brackets and a leading "-" dropped, precedence
+      applied (#1); a percentage result shown as a bare fraction (#12); a
+      division by a tiny cited figure inflates (#11); the partial month
+      after the compared one is in the input (#4); the bridge terms' signs
+      are not direction-checked (#5); the "No purchases in file" segment
+      and a marked product reached by index or name are not recognised
+      (#6, #7); `customers_previous` invites stage 3's inconclusive C4
+      comparison (#9); -0.0 shown as "-0" (#18); short numeric names hide
+      invented digits (#14); `recommend` does not enforce `not_asked`
+      (#20). Where the PROSE carries it (no word list closes it): a
+      direction word beyond the two before a figure, or a synonym
+      ("slipped", "fell sharply by"), or a "-" the AI writes before a
+      figure (#2); a token carrying an invented claim ("lifts spend by 37%",
+      "within 3 months") (#3); stock without stock words ("Order 5,133
+      more units from the supplier") (#8); a verdict with no period word
+      ("abnormally high", "routine variation, as expected") (#10); sound
+      sentences refused ("usually", a clause's direction word, "November
+      2011", the Pareto 80%) (#13); a unit written beside a figure (#17);
+      the prompt's impact example multiplies a whole-file average spend
+      (#16). **Options:** (a) keep this design - fix the code list, widen
+      the prose rules, one more review cycle; (b) structured
+      recommendations - code writes the insight and cause sentences from
+      the figures the AI picks, the AI writes only the action and why,
+      checked as now; (c) no AI strategy in v1 - the forecast alone.
+      Whichever, Phase 4's manual review of real answers needs a real call
+      (Thach's approval).
 - [ ] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests.
       Refuses a diagnosis.json that does not describe metrics.json's months
       (`frame.current`/`previous` against `period.current`/`previous`) - the
@@ -3181,7 +3294,12 @@ dataclarity/
       appears ONCE, in a "How to read these figures" section; beside a
       figure only the notes specific to this file's data. The engine is
       unchanged - this is display: a note beside every figure trains readers
-      to ignore all of them
+      to ignore all of them. **From 4A and 4B (CONTRACTS 11):** beside the
+      forecast, the notes naming revenue and forecast.json's own
+      `history_note`/`season_note`; beside the recommendations, every note
+      that is not `always_on` (the AI's text cites figures no code maps
+      back); `months_used` is never shown as diagnosis.json's
+      `frame.history_months`
 - [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
@@ -3558,6 +3676,27 @@ dataclarity/
       - profiling (analyze-schema's deterministic part) takes 8.9 s on the
         39 MB demo sample and 11.4 s at the 50 MB cap, where SPECS 11 asks
         for 3 s (the DEMO measure).
+      From 4B (2026-09-29; the AI faked, so no answer of a real model yet):
+      - the AI writes no number, but it can cite the WRONG figure - a real
+        path that does not say what its sentence claims - and state prose
+        claims with no number. Phase 4's manual review of real answers is
+        the rest of the check: it needs a real call, Thach's approval.
+        Whether a real model follows the path syntax within one retry is
+        unmeasured for the same reason.
+      - an expected impact multiplies whatever figures it names: the
+        arithmetic is shown and code's, its sense is the reader's (a
+        negative spend multiplies to a negative impact, visibly).
+      - verdict words are a list, checked only in a sentence about a
+        period: "a regular November" passes; the ranking by expected impact
+        and the metric in `how_to_measure` are unchecked; the notes (shown
+        beside the recommendations by stage 5) and the mapping of cause to
+        action are the prompt's.
+      - numbers written as words ("twelve") are not read.
+      - a marked product whose name is one common word is matched in its
+        own case: "Discount" opening a sentence reads as the product (the
+        retry names it); another case passes.
+      - `confidence` is the AI's own number in [0, 1]: 5A shows it as a
+        label, never as a figure (CLAUDE.md 3.2).
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -3758,6 +3897,14 @@ run file another version wrote is never a 500 on any endpoint (EXPIRED for
 a stage 1 file, INVALID_STATE "run that stage again" for a later one); the
 always-on notes defined once. Review 3's fixes are reviewed in 3G0's cycle.
 pytest 3450, Vitest 200 (no frontend change).
+Session **4B** closed 2026-09-29 (ninth run, session 6; see its item):
+the strategy step built and tested with the AI faked (no real call), then
+redesigned after review 2 so the AI writes no number (paths rendered by
+code, bounded tokens, impacts computed); review 3 - the bound - still found
+fabrication paths on the demo inputs (the code's own formula precedence,
+and the prose), so it is **built but not enabled** and 4C wires it OFF by
+default; **Thach decides among three options** (the item). pytest and
+Vitest as in its commit. **Next: 4C.**
 Session **4A** closed 2026-09-29 (ninth run, session 5; see its item):
 stage 4's revenue forecast - a weighted level, a season only when every
 test holds (refused with a note when it cannot be told from a step), an
