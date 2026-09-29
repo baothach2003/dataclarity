@@ -3986,7 +3986,17 @@ dataclarity/
       s, execute ~4.5 s); at the 50 MB cap stages 2+3 = 55 s of SPECS 11's
       60 s for stages 2-5, profiling 11 s of its 3 s; stages 4-5 not built
       then - to be re-measured once they are. Thach decides whether to
-      optimise before deploy.
+      optimise before deploy. **Re-measured with stages 4-5 (ninth run,
+      after 5D)**, the same way (the real app over HTTP in one process,
+      SQLite, the AI faked - its own latency not included; the AI strategy
+      step off, v1's default): 68.7 s and 68.3 s end to end with the
+      classed plan, 64.9 s unanswered. Stages 4 and 5 add almost nothing:
+      predict 0.0 s, report (report.json + report.html) 0.1 s, the page's
+      download 0.9 s (4.8 MB). Stages 2-5 together 44-45 s of SPECS 11's
+      60 s on the 39 MB sample (analyze 18-20 s, diagnose 24-25 s), so the
+      50 MB cap's 55 s for stages 2+3 stays the figure to watch; profiling
+      (analyze-schema) 9 s of its 3 s and Review's summary 8-9 s unchanged.
+      No factor for a free hosting tier is assumed.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -4197,9 +4207,12 @@ Session **5D** closed 2026-09-29 (ninth run, session 11; see its item):
 `python -m stages.report --run <id>` builds a run's report with no backend;
 its settings read as the backend reads them, both files written by the one
 `build_run` the backend calls too, the set-aside moved to `shared/`. Stage 5
-is complete; Phase 5's DoD met on the demo files. **Next: the whole
-pipeline's time on the demo sample (adjustment 3), then STOP before Phase 6
-(Figma first).**
+is complete; Phase 5's DoD met on the demo files. The whole pipeline's time
+on the demo sample re-measured with stages 4-5 (Phase 9's item: 64.9-68.7 s
+without the AI's own latency; stages 4-5 add about 1 s). **The ninth run
+STOPS here, before Phase 6 (the frontend needs Thach's Figma design first).
+Open for Thach: 4A's season claim (four options), 4B's AI strategy step
+(three options), the decisions made alone in 5A-5D (the overnight report).**
 Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
 forecast.json assembled and POST /predict: the forecast always, the AI step
 behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),
