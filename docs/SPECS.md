@@ -536,9 +536,17 @@ tests live in `CONSTRAINTS.md`.
   response that fails schema validation, or that contains an action outside the
   catalog, never reaches a contract file or the transform engine. AI-generated
   text is escaped wherever it is rendered (frontend and `report.html`), never
-  inserted as HTML. Test: a mocked response with a schema violation, and one
-  with an off-catalog action, leave no contract file written; a mocked response
-  carrying `<script>` in a text field appears escaped in the rendered output.
+  inserted as HTML. **Text taken from the uploaded file is untrusted the same
+  way** (session 5B, the decision PROJECT_PLAN gave it): the file's name,
+  column names, product, category and customer values, and every sentence
+  that quotes them - a note, a reason, a hypothesis statement or its
+  evidence, a trust message - are escaped wherever rendered; `report.html`
+  escapes every string it takes from `report.json`, and its charts carry
+  only months and numbers, never text from the file or the AI (Plotly draws
+  its own markup in labels). Test: a mocked response with a schema violation,
+  and one with an off-catalog action, leave no contract file written; a
+  mocked response carrying `<script>` in a text field, and a product name or
+  file name carrying markup, appear escaped in the rendered output.
 - **SEC-4 Secrets only from the environment.** Secrets (`ANTHROPIC_API_KEY`,
   the credentials in `DATABASE_URL`) come only from environment variables or
   the `.env` file (`CLAUDE.md` section 5), never from source code, fixtures or

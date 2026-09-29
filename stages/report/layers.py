@@ -42,6 +42,13 @@ _LABELS = {"revenue": "Revenue", "orders": "Orders", "active_customers": "Active
            "aov": "Average order value", "return_rate": "Return rate"}
 # CONTRACTS 6: a file with no order numbers counts lines.
 _LINES_LABELS = {"orders": "Lines", "aov": "Average line value", "return_rate": "Return lines per sale line"}
+# The signal series (diagnosis.json) named as the KPIs are (5B review 2 #2).
+_SERIES_LABELS = {"revenue": "Revenue", "orders": "Orders", "active_customers": "Active customers",
+                  "frequency": "Orders per customer", "aov": "Average order value",
+                  "units_per_order": "Units per order", "price_per_unit": "Price per unit",
+                  "return_rate": "Return rate"}
+_SERIES_LINES_LABELS = {"orders": "Lines", "frequency": "Lines per customer", "aov": "Average line value",
+                        "units_per_order": "Units per line", "return_rate": "Return lines per sale line"}
 # Stage 2 counts 0 customers when no line names one: a zero read as real
 # (CONTRACTS 11 - show the reason, never a zero).
 NO_CUSTOMER_COLUMN = "no column is mapped as the customer, so no customer can be counted"
@@ -185,7 +192,8 @@ def numbers(metrics: MetricsContract, diagnosis: DiagnosisContract, has_customer
         notes=[view(n) for n in beside])
 
 
-def causes(diagnosis: DiagnosisContract) -> Causes:
+def causes(diagnosis: DiagnosisContract, orders_basis: str) -> Causes:
+    labels = _SERIES_LABELS | (_SERIES_LINES_LABELS if orders_basis == "lines" else {})
     return Causes(
         headline=diagnosis.headline,
         hypotheses=[HypothesisView(id=h.id, statement=h.statement, verdict=h.verdict, contribution=h.contribution,
@@ -193,9 +201,10 @@ def causes(diagnosis: DiagnosisContract) -> Causes:
                     for h in diagnosis.hypotheses],
         not_testable=list(diagnosis.not_testable),
         signals=None if diagnosis.signals is None else [
-            SignalView(series=s.series, mode=s.mode, signal=s.signal, value_cur=s.value_cur, center=s.center,
-                       lower=s.lower, upper=s.upper, rule=s.rule, mode_fallback=s.mode_fallback,
-                       insufficient_reason=s.insufficient_reason) for s in diagnosis.signals],
+            SignalView(series=s.series, label=labels[s.series], mode=s.mode, signal=s.signal, value_cur=s.value_cur,
+                       center=s.center, lower=s.lower, upper=s.upper, rule=s.rule, mode_fallback=s.mode_fallback,
+                       insufficient_reason=s.insufficient_reason, limits_method=s.limits_method)
+            for s in diagnosis.signals],
         narration=diagnosis.ai_findings, narration_status="unavailable" if diagnosis.ai_findings is None else "shown",
         notes=[view(n) for n in diagnosis.notes if not n.always_on],
         suggested_classes=dict(diagnosis.suggested_classes))

@@ -13,6 +13,10 @@ from contracts._base import (
 )
 from contracts.lines import refuse_non_finite
 
+# SPECS 7.4: fewer complete months than this and there is no forecast - one
+# copy for stage 4, this contract and stage 5's page (5B review 1 #14).
+MIN_HISTORY_MONTHS = 3
+
 
 class RevenuePoint(ContractModel):
     period: YearMonth
@@ -71,8 +75,8 @@ class ForecastBlock(ContractModel):
         """No forecast on too short a history; otherwise one point per month
         of the horizon, the months consecutive (4A review 1 #12)."""
         # SPECS 7.4: insufficient exactly when fewer than 3 months (4A review 2 #8).
-        if self.insufficient_history != (self.months_used < 3):
-            raise ValueError("insufficient history means fewer than 3 months used")
+        if self.insufficient_history != (self.months_used < MIN_HISTORY_MONTHS):
+            raise ValueError(f"insufficient history means fewer than {MIN_HISTORY_MONTHS} months used")
         if self.insufficient_history:
             if self.revenue or self.horizon_periods:
                 raise ValueError("insufficient history: no forecast, horizon 0")

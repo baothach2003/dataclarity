@@ -140,7 +140,7 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
                                  issues_fixed=sum(1 for c in cleaning.changes
                                                   if c.cells_affected > 0 or c.rows_affected > 0),
                                  warnings=len(cleaning.warnings)),
-        layer_1_numbers=layer_1, layer_2_causes=causes(diagnosis), layer_3_actions=layer_3,
+        layer_1_numbers=layer_1, layer_2_causes=causes(diagnosis, metrics.core.orders_basis), layer_3_actions=layer_3,
         charts=_charts(metrics, layer_1, layer_3),
         provenance=_provenance(schema, plan_source, diagnosis, layer_3, forecast))
 

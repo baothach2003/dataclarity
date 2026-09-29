@@ -83,9 +83,23 @@ def test_rejects_a_first_forecast_month_in_the_file_with_no_forecast_or_another_
     forecast["partial_first_month_until"] = "2011-07-04"
     _numbers_rejected(payload, "the day the file ends in the first forecast month")
     payload = report_payload()
-    payload["layer_3_actions"]["forecast"].update(points=[], partial_first_month_until=None)
+    payload["layer_3_actions"]["forecast"].update(points=[], partial_first_month_until=None,
+                                                  insufficient_history=True, months_used=2)
     payload["charts"] = payload["charts"][:1]
     _numbers_rejected(payload, "first_month_in_file needs a forecast month")
+    # 5B review 1 #6: points exactly when the history is long enough.
+    payload = report_payload()
+    payload["layer_3_actions"]["forecast"].update(points=[], partial_first_month_until=None, first_month_in_file=False)
+    payload["charts"] = payload["charts"][:1]
+    _numbers_rejected(payload, "points exactly when the history is long enough")
+    payload = report_payload()
+    payload["layer_3_actions"]["forecast"].update(insufficient_history=True, months_used=2)
+    _numbers_rejected(payload, "points exactly when the history is long enough")
+    # 5B review 2 #5: the flag agrees with the months it counts.
+    for insufficient, months in ((True, 24), (False, 2)):
+        payload = report_payload()
+        payload["layer_3_actions"]["forecast"].update(insufficient_history=insufficient, months_used=months)
+        _numbers_rejected(payload, "too short exactly when fewer than 3 months were used")
 
 
 # --- review 3 #9: the rest of what CONTRACTS 9 says the contract refuses ------------------------
@@ -195,11 +209,19 @@ def test_rejects_a_chart_twice_a_second_series_joined_or_a_forecast_series_of_it
     payload = report_payload()
     payload["charts"].append(payload["charts"][0])
     _numbers_rejected(payload, "each chart is drawn once")
+    # 5B review 1 #6: the revenue line is one series, the forecast three -
+    # a second series (joined or not) is refused before it can be drawn.
     payload = report_payload()
     first = payload["charts"][0]["series"][0]
     payload["charts"][0]["series"].append(first | {"name": "again", "x": first["x"][::-1], "y": first["y"][::-1]})
-    _numbers_rejected(payload, "never a join")
+    _numbers_rejected(payload, r"plots \['revenue'\]")
     payload = report_payload()
     point = payload["charts"][1]["series"][0]
     payload["charts"][1]["series"].append(point | {"name": "confidence", "y": [0.8] * len(point["x"])})
-    _numbers_rejected(payload, "not 'confidence'")
+    _numbers_rejected(payload, r"plots \['point', 'low', 'high'\]")
+    payload = report_payload()
+    payload["charts"][1]["series"] = payload["charts"][1]["series"][:1]
+    _numbers_rejected(payload, r"plots \['point', 'low', 'high'\]")
+    payload = report_payload()
+    payload["charts"][1]["series"][2]["x"] = ["2012-01", "2012-02", "2012-03"]
+    _numbers_rejected(payload, "share their months")

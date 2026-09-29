@@ -21,7 +21,7 @@ from collections.abc import Sequence
 
 from scipy.stats import t as student_t
 
-from contracts.forecast import ForecastBlock, RevenuePoint
+from contracts.forecast import MIN_HISTORY_MONTHS, ForecastBlock, RevenuePoint
 from contracts.metrics import MetricsContract
 from shared.periods import complete_months, shift_month
 from stages.predict.seasonality import indices, season_reading
@@ -29,9 +29,9 @@ from stages.predict.seasonality import indices, season_reading
 HORIZON = 3  # months after the current one
 CONFIDENCE = 0.8
 WEIGHTS = (1.0, 2.0, 3.0)  # the three latest months, oldest first
-MIN_HISTORY = 3  # SPECS 7.4: fewer periods than this and no forecast
+MIN_HISTORY = MIN_HISTORY_MONTHS  # SPECS 7.4: fewer periods than this and no forecast (one copy)
 RECENT = 12  # the months whose sign decides log or money errors (4A review 2 #2)
-INSUFFICIENT = ("no forecast: fewer than 3 complete months of history run up to the compared month "
+INSUFFICIENT = (f"no forecast: fewer than {MIN_HISTORY_MONTHS} complete months of history run up to the compared month "
                 "(SPECS 7.4)")
 STOCK_REASON = ("stock figures are not supported in v1: DataClarity v1 analyses sales, not inventory, so no "
                 "product has a stockout risk")

@@ -743,6 +743,22 @@ dataclarity/
       only once this session lands (Thach, 3A). The "normal-variation" state
       is DORMANT in v1 (ADR-0007) - design the rule-7 "no single tested cause"
       state instead.
+      **Also in 3E2 - blank customer lines (Thach, 2026-09-29, deciding 5A
+      review 3 #2; after the skeleton, in the stage 3 completion work with
+      3E1b, not before):** when the customer column is mapped but blank on a
+      month's lines, stage 3 marks the customer causes (the C and B
+      hypotheses) **not testable**, with the reason "the customer column is
+      mapped but blank for that month" - as it already does when no column
+      is mapped. Not a stage 5 note: "ruled out" says the cause did not
+      happen, while the data only failed to show the customers; a note beside
+      a false verdict leaves the verdict false. Conclusion code: the full
+      process (method first, tests first, mutation, doubt-review). The same
+      shape reaches the customer signals (`active_customers`, `frequency`
+      read 0 and chart "below"): the session applies the same reasoning to
+      them, or asks Thach. It does not fabricate on the demo files, so it
+      waits; 8D "From 5A" keeps it as a known limit until then. Repro:
+      scratchpad `run9/5a/review3/realruns3.py` (`nov_sales_unnamed`) and
+      `run9/5a/review2/realruns.py` (`blank_customer`).
 - [x] 2E Stage 2 definitions (closed 2026-09-24; session log below). Three
       definitions stage 3 had exposed, each ONE shared definition in
       `shared/`: **an order is a sale row** (counted, quantity > 0) in both
@@ -3382,11 +3398,43 @@ dataclarity/
       file starting after the current month, which is then always empty). On the demo files (Kaggle, both Online Retail II
       plans) every figure of report.json matched its earlier file (review 3,
       0 mismatches). Known limits: 8D "From 5A".
-- [ ] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
+- [x] 5B `html_report.py`: self-contained HTML with embedded Plotly charts;
       downloadable. Tests on structure, not pixels, including AI text escaped
       (SPECS SEC-3). Owner of the open decision to extend SEC-3 to text taken
       from the uploaded CSV (column names, product/category values): update
-      SPECS first, then 5B and the Phase 6 screens follow it
+      SPECS first, then 5B and the Phase 6 screens follow it. **Done
+      2026-09-29** (ninth run, session 9; display: failing tests first, one
+      review cycle, mutation on the logic; the cycle's fixes were logic, so a
+      scoped second review; its own fixes tested and mutated, not reviewed).
+      **SEC-3 extended first** (the decision this item owned, made alone):
+      text from the uploaded file is untrusted like the AI's - every string
+      report.html takes from report.json is escaped, and a chart carries only
+      months and numbers (Plotly draws markup in labels). `html_report.py`
+      (the page, `html_run` writing report.html atomically beside
+      report.json), `html_causes.py` (the causes), `html_parts.py` (escaping,
+      formats, tables, notes), `html_charts.py` (Plotly; plotly.js inlined
+      once - the page fetches nothing; ~4.8 MB). It computes nothing: a
+      number is formatted, and one that shows as zero shows no sign. It keeps
+      report.json's rules - a withheld figure's reason, never a 0; an
+      incomplete previous month never compared (its reason once, the cells
+      pointing to it); always-on notes once; the notes by code beside the
+      figures, the charts, the forecast and the recommendations; the trust
+      cautions and gap notes beside the charts; signals named as the KPIs
+      are (lines on basis lines), worded by the rule that fired, a floor said
+      so, never a verdict; a product whose class nobody confirmed marked
+      where the evidence names it; nothing filled in that the file leaves
+      null. report.json gained, in place at 1.0: a signal's `label` and
+      `limits_method` (consumer row added, section 11), and the checks that
+      a chart's series are its own and a forecast's points agree with its
+      history; `contracts/forecast.py` names `MIN_HISTORY_MONTHS`, read by
+      stage 4 and the page. Tests: 49 on the page (`test_5b_*.py`, among
+      them a sweep that marks every free-text field the contract accepts and
+      renders one page), `html_probe.py` (the stdlib parser, structure not
+      pixels); mutation 113 of 114 over the three rounds (the one left
+      equivalent: a header built only from validated months). On the three
+      demo files: every page renders (0.03-0.4 s), no negative zero, the
+      Kaggle signals named as lines with its two floored charts marked.
+      Known limits: 8D "From 5B".
 - [ ] 5C `POST /api/runs/{id}/report` + download endpoints. Tests
 - [ ] 5D `python -m stages.report --run <id>` CLI path verified (proves stage
       independence). Decide how a stage CLI gets the runs root without
@@ -3794,9 +3842,9 @@ dataclarity/
         withholds active customers with the reason, but stage 3's customer
         signals and its C and B hypotheses read those lines as no customer
         ("below" range at 0; C2 "ruled out"). With no column mapped stage 3
-        already marks them not testable. Thach decides: a note in stage 5
-        beside the causes, or stage 3 marking them not testable when a
-        month's lines name nobody (conclusion code: the full process).
+        already marks them not testable. **Decided (Thach, 2026-09-29):**
+        stage 3 marks them not testable with the reason, in 3E2 after the
+        skeleton (see that item); a known limit until then.
       - stage 2 tolerates two missing leading days in the compared month;
         stage 3's history and the forecast do not (complete_months). The
         KPIs then compare with a month the chart does not draw whole - a
@@ -3831,6 +3879,20 @@ dataclarity/
       - the frontend must show stage 5's withheld zeros and `current_note`
         from report.json's layer 1 (CONTRACTS 11), not re-derive them from
         metrics.json: Phase 6 wires it.
+      - (5B) report.html is ~4.8 MB, plotly.js inlined so the page needs no
+        network; a CDN link would make it small but not self-contained.
+      - (5B) a hypothesis's evidence is shown as it stands, formatted: a tiny
+        number in scientific notation (1.234e-05), values inside a list or a
+        mapping as JSON (true, null, 12345), at the top level as words
+        (yes, none, 12,345).
+      - (5B) a count on a level signal chart shows one decimal (its centre
+        and limits are averages: 1,240.0), where the KPI shows 1,240.
+      - (5B) on a blocked run the incomplete previous month's reason can
+        stand in several places the page takes from report.json - the period,
+        the D1 message in the badge, the chart's gap note; each withheld cell
+        points to it rather than repeating it.
+      - (5B) the page's customer signals on a month whose customer column is
+        blank read 0 "below" range - the 3E2 decision above covers them.
       - review 4's fixes (the part-way note never beside withheld figures,
         the reason for a month of unmeasurable lines, D2's "inconclusive"
         kept off the charts, the contract's once-each and chart checks) have
@@ -4044,7 +4106,14 @@ charts drawn only from months both definitions call whole, with gaps,
 notes and trust cautions; the contract refuses what CONTRACTS 9 lists (the
 scoped review's own small fixes unreviewed). On
 the demo files every figure matched its earlier file. Limits: 8D "From
-5A" (one for Thach: blank customer lines in stage 3). **Next: 5B.**
+5A"; blank customer lines decided by Thach mid-run - stage 3 marks the
+customer causes not testable, in 3E2 after the skeleton. **Next: 5B.**
+Session **5B** closed 2026-09-29 (ninth run, session 9; see its item):
+report.html - one self-contained page rendered from report.json, every
+string escaped (SEC-3 extended to the file's own text first), plotly.js
+inlined once; one review cycle plus a scoped second one (its fixes tested
+and mutated, unreviewed). On the demo files: no invented sentence, no
+negative zero, signals named and floored as report.json says. **Next: 5C.**
 Session **4C** closed 2026-09-29 (ninth run, session 7; see its item):
 forecast.json assembled and POST /predict: the forecast always, the AI step
 behind `STRATEGY_AI_ENABLED` (false in v1 - **Thach's `.env` needs the line**),

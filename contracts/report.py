@@ -16,7 +16,7 @@ from pydantic import NonNegativeInt, model_validator
 
 from contracts._base import ContractFile, ContractModel
 from contracts.diagnosis import AiFindings, Headline, NotTestable
-from contracts.forecast import DoNotDo, RevenuePoint
+from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint
 from contracts.lines import NoteCode, OutsideRevenueLines, UnmeasurableLines
 from contracts.metrics import NonProductLines
 from contracts.profile import LineClass
@@ -143,6 +143,10 @@ class ForecastView(ContractModel):
 
     @model_validator(mode="after")
     def _a_day_only_in_the_first_forecast_month(self) -> Self:
+        if self.insufficient_history != (self.months_used < MIN_HISTORY_MONTHS):
+            raise ValueError(f"the history is too short exactly when fewer than {MIN_HISTORY_MONTHS} months were used")
+        if self.insufficient_history == bool(self.points):
+            raise ValueError("a forecast has points exactly when the history is long enough (5B review 1 #6)")
         if self.first_month_in_file and not self.points:
             raise ValueError("first_month_in_file needs a forecast month")
         until = self.partial_first_month_until
@@ -206,8 +210,6 @@ class ReportContract(ContractFile):
                 if chart.id == "revenue_trend" and any(
                         later != month_after(earlier) for earlier, later in zip(series.x, series.x[1:])):
                     raise ValueError("the revenue chart's months follow each other: a gap is a null, never a join")
-                if chart.id == "forecast" and series.name not in ("point", "low", "high"):
-                    raise ValueError(f"the forecast chart plots its point, low and high, not {series.name!r}")
                 for x, y in zip(series.x, series.y):
                     if chart.id == "revenue_trend":
                         month = months.get(x)

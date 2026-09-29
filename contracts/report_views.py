@@ -55,6 +55,19 @@ class Chart(ContractModel):
     # cut-short month is plotted as it stands, so the caution stands beside it.
     cautions: list[str]
 
+    @model_validator(mode="after")
+    def _its_own_series(self) -> Self:
+        """The revenue line is one series, "revenue"; the forecast its point,
+        low and high - what report.html draws, and nothing it cannot (5B
+        review 1 #6)."""
+        names = [series.name for series in self.series]
+        expected = ["revenue"] if self.id == "revenue_trend" else ["point", "low", "high"]
+        if names != expected:
+            raise ValueError(f"chart {self.id!r} plots {expected}, got {names}")
+        if len({tuple(series.x) for series in self.series}) > 1:
+            raise ValueError(f"chart {self.id!r}: its series share their months")
+        return self
+
 
 class Provenance(ContractModel):
     stages_run: list[str]
@@ -177,6 +190,9 @@ class SignalView(ContractModel):
     (ADR-0006, ADR-0007)."""
 
     series: str
+    # The series as the KPIs name it - lines, not orders, on a file with no
+    # order numbers (CONTRACTS 6; 5B review 2 #2).
+    label: str
     mode: Literal["level", "yoy"]
     signal: Literal["above", "below", "within", "insufficient_history"]
     value_cur: float | None
@@ -186,6 +202,10 @@ class SignalView(ContractModel):
     rule: Literal[1, 2] | None
     mode_fallback: Literal["no_year_ago_value", "unusable_year_ago_base"] | None
     insufficient_reason: Literal["too_few_points", "no_current_value", "no_measurable_spread"] | None
+    # "minimum_spread": no variation was measured and a floor drew the limits
+    # - a reader must be able to tell that from a measured chart (CONTRACTS 7;
+    # 5B review 2 #1).
+    limits_method: Literal["median_moving_range", "mean_moving_range", "minimum_spread"]
 
 
 class RecommendationView(ContractModel):

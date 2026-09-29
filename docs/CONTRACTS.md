@@ -1583,10 +1583,12 @@ writes the file):
   the classes that is not product revenue, each reason saying where it went
   (an adjustment is a reconciling amount). These rows, and the notes'
   measures, are carried whole, a scope per figure; a renderer shows a
-  `previous` scope (or `amount_previous`) only when `previous_complete`,
-  and a `current` one only when the current KPIs are not withheld - never a
-  previous value beside a current one, nor a withheld month's 0 (section
-  11; 5B follows it; 5A review 3 #4). Notes are worded from
+  `previous` scope (or `amount_previous`) only when `previous_complete` -
+  never a previous value beside a current one (section 11; 5A review 3 #4)
+  - and, when the current KPIs are withheld, `non_product[].amount_current`
+  as withheld with that reason, never its 0; a `current` scope of lines
+  (unmeasurable, outside revenue, a note's measures) is shown: those lines
+  are real, and often why the month is withheld (5B review 1 #5). Notes are worded from
   `NOTE_TEXTS` by code, never the file's sentence: an always-on note ONCE
   in `how_to_read` (Thach, adjustment 1; deduplicated across metrics.json
   and diagnosis.json), the others in `notes`, each KPI listing by code the
@@ -1595,7 +1597,11 @@ writes the file):
   headline; the hypotheses with their `rule` (why a figure is null, or a
   directional test) and `evidence`, shown key by key (section 11); the
   not-testable list; the signals (a description, never a verdict -
-  ADR-0006/0007) with `rule`, `mode_fallback` and `insufficient_reason`;
+  ADR-0006/0007) with `rule`, `mode_fallback`, `insufficient_reason`,
+  `limits_method` (a floor, `minimum_spread`, told apart from a measured
+  chart - section 7) and `label`, the series named as the KPIs are ("Lines",
+  "Lines per customer", "Average line value", "Units per line", "Return
+  lines per sale line" when `orders_basis` is `lines`; 5B review 2 #1, #2);
   diagnosis.json's `notes` that are not always-on (the copies of
   metrics.json's notes stage 3 carries); the suggested classes.
   `narration` is `ai_findings`; null shows as `narration_status`
@@ -1656,11 +1662,32 @@ writes the file):
   order; a forecast that does not start the
   month after the current one; `first_month_in_file` other than whether the
   file ends in the first forecast month, or a day other than the file's
-  last. Not held by the contract: which months are covered whole (it would
-  need `shared/periods`, a second copy of a frozen definition - the builder
-  and its tests hold it).
+  last; a revenue chart other than one series named `revenue`, or a
+  forecast chart other than `point`, `low` and `high` over the same months;
+  forecast points when the history is too short, or none when it is not (5B
+  review 1 #6). Not held by the contract: which months are covered whole (it
+  would need `shared/periods`, a second copy of a frozen definition - the
+  builder and its tests hold it).
 - **`source_file`**: the uploaded file's name, passed by the backend from the
   run's row (stage 5 never reads the database).
+
+**report.html** (session 5B, `stages/report/html_report.py`,
+`html_causes.py`, `html_parts.py`, `html_charts.py`) is report.json rendered
+as one self-contained page - no stylesheet or script fetched; plotly.js
+inlined once - written beside it atomically by `html_run`. It is not a
+contract file: it shows report.json as it stands and computes nothing (a
+number is formatted: rounded for display; one that shows as zero shows no
+sign - section 11). It keeps the rules above - a withheld figure shows its
+reason, an incomplete previous month is never compared (its reason said
+once, each withheld cell pointing to it), always-on notes once, the notes
+beside the figures, the forecast and the recommendations by code, the
+trust cautions and gap notes beside the charts, signals worded by the rule
+that fired and never as a verdict (a floor said so; a rule or reason the row
+leaves null left unsaid), a product whose class nobody confirmed marked
+"(suggested: <class>, not confirmed)" wherever the evidence names it
+(sections 6 and 7). Every string from report.json is escaped
+(SPECS SEC-3, as 5B extended it to the uploaded file's text), and a chart
+carries only months and numbers.
 
 ## 10. Versioning and change policy
 
@@ -1715,6 +1742,16 @@ writes the file):
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-09-29: **session 5B, report.html.** report.json gains two checks, in
+  place at `1.0` (no report.json has been written outside the tests): a
+  chart's series are its own (the revenue line one series, `revenue`; the
+  forecast `point`, `low`, `high` over the same months), and a forecast has
+  points exactly when its history is long enough, and it is too short
+  exactly when fewer than `MIN_HISTORY_MONTHS` months were used. A signal
+  row gains `label` and `limits_method` (5B review 2; section 11 gains the
+  row `signals[].limits_method` for readers 5 and FE - additive).
+  `contracts/forecast.py` names the threshold, `MIN_HISTORY_MONTHS` (3, SPECS
+  7.4), read by stage 4 and the page.
 - 2026-09-29: **session 5A, report.json defined.** Section 9's three layers,
   `dict[str, Any]` until now, are typed (`contracts/report.py`), in place at
   `1.0`: no report.json had been written. Stage 5 selects and orders the
@@ -2124,7 +2161,7 @@ How the fields are read:
   SEC-3).
 - **Not in the contract**: `trust.checks[].evidence`, `calendar.evidence`,
   `tree.customers.evidence` and `.previous_transition`, `tree.lever.reasons`,
-  `buyers_*`, `limits_method`, the stage 3 frame's history bounds, a
+  `buyers_*`, the stage 3 frame's history bounds, a
   dimension's filter flags - a consumer that needs one adds its row first.
 
 #### metrics.json
@@ -2305,6 +2342,7 @@ How the fields are read:
 | `signals[].rule` | `Literal[1, 2] \| None` | 4B, 5, FE |
 | `signals[].mode_fallback` | `Literal['no_year_ago_value', 'unusable_year_ago_base'] \| None` | 4B, 5, FE |
 | `signals[].insufficient_reason` | `Literal['too_few_points', 'no_current_value', 'no_measurable_spread'] \| None` | 4B, 5, FE |
+| `signals[].limits_method` | `Literal['median_moving_range', 'mean_moving_range', 'minimum_spread']` | 5, FE |
 | `tree` | `object \| None` | 4B, 5, FE |
 | `tree.method` | `Literal['shapley']` | 4B, 5, FE |
 | `tree.lever` | `object` | 4B, 5, FE |
