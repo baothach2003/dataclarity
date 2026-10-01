@@ -44,6 +44,7 @@ python -m stages.analyze --run <run_id>
 | `docs/SPECS.md` | Functional spec: flows, screens, API, edge cases |
 | `docs/CONTRACTS.md` | JSON schemas passed between stages |
 | `docs/AI_PIPELINE.md` | AI steps, transform catalog, failure handling |
+| `docs/DATA_FAILURE_MODES.md` | Every known input-data failure mode, how it is caught and handled, and its test |
 | `docs/FIGMA_DESIGN_NOTES.md` | Design frames, node ids, tokens |
 
 ## Run locally
@@ -91,6 +92,12 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
+- **Numbers written for people are not read.** A price with a thousands
+  separator ("1,000.00"), a currency sign ("$10.00") or a decimal comma
+  ("10,5") is counted nowhere: its lines are listed as unmeasurable, but
+  the revenue shown beside them silently leaves them out. Export plain
+  numbers (`docs/DATA_FAILURE_MODES.md`, which lists every input shape and
+  how it is handled).
 - **A month that barely moved still gets a cause.** On a synthetic store
   with nothing planted, every one of 30 months named a cause: the engine has
   no test of whether a change is larger than the shop's usual month-to-month
@@ -109,12 +116,19 @@ main ones:
   season read from exactly two years - the fewest it can be read from, where
   a one-time change of level cannot be fully told from the season - says so
   beside the forecast; the demo sample's does.
-- **Speed.** On the 39 MB demo sample (below) the analysis takes about 18
-  seconds and the diagnosis about 24; at the 50 MB upload cap, 25 and 31 -
-  55 of the 60 seconds `docs/SPECS.md` section 11 gives stages 2-5
-  together, and profiling takes 11 seconds where it asks for 3. Stages 4
-  and 5 are not built yet, so the whole pipeline is not timed; these
-  figures leave out the AI's own response time.
+- **Speed.** On the 39 MB demo sample (below) the whole pipeline takes
+  65-69 seconds end to end, stages 2-5 44-45 of them (the analysis about
+  20, the diagnosis about 25; the forecast and the report under a second)
+  against the 60 `docs/SPECS.md` section 11 gives them; at the 50 MB upload
+  cap the analysis and the diagnosis alone take 55. Profiling takes 9-11
+  seconds where SPECS asks for 3. The AI's own response time is not in
+  these figures.
+- **Memory.** The server process peaks at about 830 MB on the demo sample
+  and about 990 MB at the 50 MB cap (stage 1's cleaning is the peak, about
+  13 times the file's size; the analysis and the diagnosis reach 680-780
+  MB), and keeps about 300 MB of caches between steps. One 50 MB file needs
+  about 1 GB; each run processed at the same time adds about 0.5-0.7 GB
+  (`PROJECT_PLAN.md` Phase 9).
 
 ## Demo data
 

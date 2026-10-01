@@ -2810,7 +2810,7 @@ dataclarity/
         (the report). Cycle 3's fixes (the too-large wording, the undated
         wording, stage 2's refusal as ANALYSIS_FAILED, their tests) are
         UNREVIEWED; tested.
-- [ ] 2E-u **The data failure-mode catalog** (Thach, 2026-09-28). Method
+- [x] 2E-u **The data failure-mode catalog** (Thach, 2026-09-28). Method
       before code. Consolidate every known input-data failure mode (the 2E
       series' fixes, the 8D list, Online Retail II's quirks, the line
       taxonomy) into `docs/DATA_FAILURE_MODES.md`, grouped (line types,
@@ -2825,6 +2825,56 @@ dataclarity/
       **After the end-to-end skeleton** (Thach, 2026-09-29: the skeleton
       first - 2E-v, the consumer contract, 3G-lite, the demo build, stages 4
       and 5 - then 2E-u).
+      **Done 2026-10-01** (tenth run, session 3; documentation and test
+      infrastructure - CLAUDE.md 3.6: the method `C:\Users\Happy\2E-u-method.txt`
+      first, failing tests first, one review cycle - 11 findings, all folded
+      in or recorded; the fixes tested, not reviewed again; no mutation: no
+      production code changed). `docs/DATA_FAILURE_MODES.md`: 95 modes in
+      seven groups (file structure, dates, amounts and quantities, line
+      types, identities, placeholders, coverage), each with its detection,
+      handling (FIX, ASK, FLAG, REFUSE or LIMIT), owner and the existing
+      test that covers it; ids `DF-` plus a group letter (a bare B1 or D1
+      names a hypothesis). `tests/data_failures/dirty*.py`: one sample per
+      mode (stdlib and pandas, every import parsed), each a fixed edit of
+      one small clean file; `test_conformance*.py`: each sample through the
+      stage that owns it - through the production flow (raw.csv, stage 1's
+      profile and execute, stages 2-3) where stage 1 decides - with the
+      figure worked by hand or the explicit refusal; LIMIT rows pinned as
+      known-limit tests; four request- or AI-level modes referenced to their
+      tests, four with no case for a stated reason; `test_catalog.py` keeps
+      the catalog and the suite in step. 35 modes had no test before.
+      **The review disproved the first version's "no silent wrong figure"**
+      (it had tested close variants too gently and missed known shapes).
+      The findings, each a LIMIT (finding) row pinned by its case, **for
+      Thach to decide** (none reaches the demo files' figures except F4, and
+      only if the user approves the AI's plan):
+      - F1 (a common export shape): stage 1's cast is `pd.to_numeric`, so
+        no step reads a thousands separator, a currency sign or a decimal
+        comma. One product priced "1,000.00" leaves revenue silently that
+        product short (DF-C4b - the lines are listed further down, nothing
+        beside the figure); a file priced so throughout blocks with a wrong
+        reason, "the export was cut short" (DF-C4c, DF-A6b).
+      - F2: two-digit year-first dates ("24/02/10") are read as day-first,
+        with no question - the calendar lands in 2001-2031 and the headline
+        names a cause (DF-B14; recorded in 8D "From 2E-j", now pinned).
+      - F3: an unanswered walk-in placeholder ("Guest", "-") is one customer
+        buying for every walk-in, with no note (DF-F1b, DF-F5) - against
+        the method's own M2 (an unanswered default must be flagged, refused
+        or correct).
+      - F4: the plan the AI proposes drops exact duplicate rows, and a
+        duplicate cannot be told from a genuine repeat (CLAUDE.md 3.3a's
+        shape): on the Online Retail II sample it would drop 5,206 rows,
+        2011-11 revenue -0.3% (DF-A7).
+      - F5: one or two lost days are under D1's caution, so the headline
+        can give the fall to the season (DF-G1b); a file starting two days
+        into the previous month is compared with no note (DF-B10c).
+      - F6: one line typed in the future moves the whole period there and
+        the run blocks, saying the export was cut short (DF-B15).
+      - F7: a NUL byte past the upload's first 8 KB ends its cell - a price
+        "1", NUL, "0.0" reads 1, nothing flagged (DF-A13; 8D's "unreachable
+        from a file" was wrong).
+      From now on a new finding enters as a catalog row plus a generator
+      case (the catalog's first paragraph).
 - [x] **SCOPE FREEZE for v1** (Thach, 2026-09-28; **effective 2026-09-29,
       now**, no longer after 2E-u), recorded here and in CLAUDE.md 3.6: the
       foundational definitions (line classes, orders, customers, products,
@@ -3893,7 +3943,9 @@ dataclarity/
         no transform today can raise it.
       - #12 a NUL inside a code: the CSV reader ends the cell there, so two
         codes differing after a NUL read as one (`pd.factorize` also stops
-        at NUL); unreachable from a file.
+        at NUL); unreachable from a file - WRONG (2E-u review #5): the
+        upload checks only the first 8 KB, so a NUL further on reaches the
+        reader (docs/DATA_FAILURE_MODES.md DF-A13, finding F7).
       From 3G0's review (2026-09-29; none fabricates on the demo files):
       - a `schema_version` that is not MAJOR.MINOR, or none, is not read as
         another version's file: a 500 (a hand-edited or corrupted file).
@@ -4244,6 +4296,37 @@ dataclarity/
       50 MB cap's 55 s for stages 2+3 stays the figure to watch; profiling
       (analyze-schema) 9 s of its 3 s and Review's summary 8-9 s unchanged.
       No factor for a free hosting tier is assumed.
+      **Peak memory (tenth run, Thach's RUN item 4; no hosting tier's
+      limits assumed).** Measured on Windows from the process's own counters
+      (GetProcessMemoryInfo): the working set - resident memory, what a
+      Linux host counts - and the private commit. Two views
+      (scratchpad run10/mem: mem_app.py, mem_stage.py), the AI faked, the
+      strategy step off, the classed plan.
+      (1) The real app in one process, as deployed (TestClient, SQLite, its
+      caches), sampled every 5 ms - each request's peak working set, 39 MB
+      sample / 50 MB cap (49.3 MiB): upload 372 / 414 MB; profiling
+      (analyze-schema) 728 / 823; Review's summary 776 / 913; preview 378 /
+      469; execute 834 / 987; analyze 678 / 766; diagnose 680 / 776; predict
+      532 / 577; report 545 / 586; the page's download 531 / 572. **Process
+      peak 834 MB / 988 MB** (214 MB after imports); between steps it keeps
+      ~300 MB more than after imports (the frame and preview caches -
+      PREVIEW_CACHE_MAX_MB 512 - and the run's state). Private commit peaks
+      1,590 / 1,743 MB, ~700 MB of it reserved at start and never touched.
+      (2) Each stage alone in a fresh process on a copy of that run
+      (Windows' exact peak; the stage's own increment over 182 MB after
+      imports): profile 511 / 592 (+330 / +411); execute 714 / 852 (+533 /
+      +670); analyze 627 / 715 (+445 / +533); diagnose 618 / 746 (+437 /
+      +565); predict 182 / 182 (+1); report 237 / 237 (+55 / +56).
+      Reading: stage 1's cleaning is the peak at ~13-14 times the file's
+      size, and every frame-reading step (profiling, Review's summary,
+      execute, analyze, diagnose) needs 9-14 times it; memory grows with the
+      file roughly linearly (x1.26 the file: +17-26% memory). One step at a
+      time per run, but a worker serves several runs at once (FastAPI runs
+      the sync endpoints in a thread pool): a worker needs ~1 GB resident
+      for one 50 MB file, and each concurrent heavy step on another run adds
+      its own increment (~0.5-0.7 GB at the cap). Thach decides the host and
+      whether to reduce the peak first (the caches' size, a narrower frame
+      in stage 1's execute).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
