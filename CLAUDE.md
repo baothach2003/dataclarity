@@ -197,8 +197,8 @@ cd ..
 python -m uvicorn app.main:app --app-dir backend --reload
 pytest    # from the repo root or from backend/
 
-# run a single stage standalone (proves stage independence)
-python -m stages.analyze --run <run_id>
+# run stage 5 standalone (proves stage independence; only stage 5 has a CLI)
+python -m stages.report --run <run_id> [--source-file <name>] [--runs-dir <dir>]
 
 # frontend
 cd frontend && npm install && npm run dev && npm test

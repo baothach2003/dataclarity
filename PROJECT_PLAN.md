@@ -2955,6 +2955,15 @@ dataclarity/
 - [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
       not-tested validator, degraded mode, one real API check (a few cents - the
       only session in Phase 3 that spends credit). Doubt-review: yes
+      **Design direction (Thach, 2026-10-01, deciding 4B):** designed ONCE
+      with the post-deploy 4B (Backlog) - code selects the claims
+      deterministically (e.g. the two or three best-supported causes and
+      their figures), code writes every sentence stating a fact or a
+      figure, and the AI writes only the action and the reason for each
+      pre-selected claim, with no numbers and no choice of claims: an AI
+      that chooses which figures to cite can cite the wrong real one.
+      This supersedes the "cite figures by path" direction below where they
+      differ. Not built in the tenth run (Thach: stop before 3F).
       **From 4B (reviews 1 and 2):** the narration should write no number
       either - cite figures by path, code renders them
       (`stages/predict/strategy_render.py`, moved to `shared/` so both AI
@@ -3284,6 +3293,17 @@ dataclarity/
       checked as now; (c) no AI strategy in v1 - the forecast alone.
       Whichever, Phase 4's manual review of real answers needs a real call
       (Thach's approval).
+      **Decided (Thach, 2026-10-01): (c) for v1** - the strategy step stays
+      off, as now (`STRATEGY_AI_ENABLED=false`). After deploy, a stronger
+      form of (b), designed ONCE and shared with 3F (the diagnosis's AI
+      narration, which carries the same risk): (1) code selects the claims
+      deterministically - for example the two or three best-supported causes
+      and their figures; (2) code writes every sentence that states a fact
+      or a figure; (3) the AI writes only the action and the reason for each
+      pre-selected claim, with no numbers and no choice of claims. Why:
+      letting the AI choose which figures to cite still lets it cite the
+      wrong REAL figure (review 3's finding) - claims must be fixed before
+      any prose. The Backlog holds the post-deploy item.
 - [x] 4C Assemble `forecast.json` + `POST /api/runs/{id}/predict`. Tests.
       Refuses a diagnosis.json that does not describe metrics.json's months
       (`frame.current`/`previous` against `period.current`/`previous`) - the
@@ -3333,6 +3353,13 @@ dataclarity/
 - **DoD:** every recommendation cites a number that exists in the inputs; a
   manual review finds no fabricated figures
 
+- [ ] 4A-b **The two-year season note** (Thach, 2026-10-01, deciding 4A's
+      season claim - option (b); the reasoning is in 8D's season entry).
+      Whenever a season is claimed from exactly two years of history, a note
+      says the step/season split is not certain at the minimum of two cycles,
+      through forecast.json and the report wherever the forecast is shown.
+      Full process (stage 4 logic: method first, tests first, mutation,
+      doubt-review).
 ### Phase 5 - Stage 5 Report
 - [x] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
       actions) from all prior contracts. Tests. First define the layer
@@ -3821,6 +3848,19 @@ dataclarity/
         years (the step/season split is never certain then); (c) claim a
         season only when its out-of-sample errors beat no season's; (d)
         three years before a season (suppresses the demo sample's).
+        **Decided (Thach, 2026-10-01): (b)** - keep the claim and add a note
+        whenever a season is claimed from exactly two years: the
+        step/season split is not certain at the theoretical minimum of two
+        cycles (Hyndman & Kostenko 2007, "Minimum sample size requirements
+        for seasonal forecasting models", Foresight 6: minimum sample sizes
+        assume almost no noise, and reaching them does not ensure adequate
+        seasonal estimates). (c) is not feasible at 24 months - any holdout
+        leaves fewer than two cycles to fit; (d) trades a rare error for a
+        frequent one (peak months systematically under-forecast). These
+        findings stay here as known limits; the cautious SPECS 7.5 reading
+        (the gap as (strongest index - weakest) / strongest, measured
+        against the business's own trend) is confirmed as built. Built in
+        the tenth run: 4A-b. v2: the Backlog's Fourier seasonal component.
       - one month at or under zero at the oldest end of a whole-year
         history switches the season off (the counted years include it):
         a season suppressed, never invented (4A review 3 #4).
@@ -4040,6 +4080,17 @@ inventory: every stock KPI (days to stockout, velocity, any low-stock figure,
   lines on customer-less invoices; unknown until mapped was recommended -
   29% -> 34% of products with a null days to stockout on that shape).
 
+**v2: a seasonal component with few Fourier terms** (Thach, 2026-10-01,
+deciding 4A): instead of twelve monthly indices, a few Fourier terms, to
+reduce the influence of one spike month on the season (4A review 3: one big
+month at a mild season's peak makes the season claimed with a made-up peak).
+Needs its own sweep before it replaces the indices.
+
+**After deploy: 4B as structured claims, designed once with 3F** (Thach,
+2026-10-01): code selects the claims and writes every sentence of fact or
+figure; the AI writes only the action and the reason for each pre-selected
+claim, with no numbers and no choice of claims (4B item; 3F item).
+
 **Period-anchored customer segments, for C4** (3E1 doubt-review cycle 3).
 C4 is `inconclusive` in v1 behind `SEGMENTS_ANCHORED_TO_THE_PERIOD` in
 `hypothesis_evidence_customers.py`. Stage 2's segment counts are a snapshot
@@ -4156,6 +4207,30 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Tenth overnight run** approved by Thach (2026-10-01, after reading the
+ninth run's report, while he designs the Insights frame in Figma). Decisions
+recorded: **4A (b)** - the two-year season note (8D's season entry has the
+reasoning and its source; the cautious SPECS 7.5 reading confirmed; v2's
+Fourier seasonal component in the Backlog); **4B (c) for v1** - the strategy
+step stays off; after deploy a structured design shared with 3F (the 4B and
+3F items, the Backlog); **every decision made alone in 5A-5D accepted**;
+CLAUDE.md section 8's stage CLI command corrected to the one that exists.
+Run order: **4A-b** (the two-year season note through the forecast and the
+report; full process) -> **3E2** (the deterministic scenario generator and
+S0-S11 with their acceptance criteria, including Thach's decision that a
+customer column mapped but blank for a month makes the customer causes NOT
+TESTABLE with that reason; full process) -> **2E-u** (the data failure-mode
+catalog: the catalog, a deterministic dirty-file generator, the conformance
+suite - the correct result or an explicit refusal, never a silent wrong
+figure) -> **the pre-deploy memory measurement** (peak memory per stage on
+the demo sample and at the 50 MB cap; no hosting tier's limits assumed).
+**3E2 before 3E1b** (this run's order; the plan's sequencing above had 3E1b
+first so 3E2 would measure a settled engine): the generator and the suite
+are built from the scenario spec, independent of the engine; their results
+are recorded against the engine as it stands and are re-run after 3E1b.
+Stop before 3F, Phase 6, any deploy step and any real AI API call. Same
+rules. Report in `C:\Users\Happy\overnight-report.txt` (the ninth run's
+kept as `overnight-report-run9.txt`).
 **Ninth overnight run** approved by Thach (2026-09-29, after reading the
 eighth run's report; every decision made alone accepted - S1-S6, E1-E11,
 T1-T5, U1-U16, V1-V6, W1-W9 - with three adjustments: always-on notes shown
