@@ -117,12 +117,18 @@ def test_df_g1_a_lost_week_is_a_trust_caution_and_the_headline_says_so() -> None
     assert check(found, "D1") == "caution" and found.headline.rule == 2
 
 
-def test_known_limit_df_g1b_two_lost_days_pass_unnoticed() -> None:
-    """LIMIT (D1_CAUTION_DAYS 3, set for sparse shops - 3E1; review #2): two
-    lost days in a shop that trades daily are no caution, and the headline
-    gives the fall to seasonality (CLAUDE.md 3.3a's shape, with no note)."""
+def test_df_g1b_two_lost_days_are_a_caution_and_the_headline_says_so() -> None:
+    """Was a LIMIT (a fixed 3-day caution, set for sparse shops in 3E1) - the
+    headline gave the fall to seasonality. Since 3E1b (2E-u F5) D1 cautions
+    from one whole day where the shop's own history has no zero day: January
+    31 x 42 = 1,302, February 27 trading days x 42 = 1,134, -168. The two
+    lost days are 2 x 42 = 84 of it - 50%, rule 2's share - the rest is
+    February's two fewer calendar days."""
     found = diagnosis(sample("DF-G1B"))
-    assert check(found, "D1") != "caution" and found.headline.rule == 5
+    d1 = next(c for c in found.trust.checks if c.id == "D1")
+    assert (d1.status, d1.evidence["excess_zero_days_cur"], d1.evidence["estimated_revenue_gap"]) \
+        == ("caution", 2.0, 84.0)
+    assert found.headline.rule == 2 and "-84.00" in found.headline.message
 
 
 def test_known_limit_df_g2_an_empty_month_charts_zero() -> None:

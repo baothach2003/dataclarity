@@ -152,7 +152,7 @@ before 2E-u: the conformance case is its test (listed at the end).
 | Id | Mode | Detection | Handling | Owner | Covered by |
 |---|---|---|---|---|---|
 | DF-G1 | Days lost in the current month (a week) | D1 | FLAG: trust caution; headline rule 2 when they explain the change | stage 3 | stages/diagnose/test_frame_and_trust.py (D1) |
-| DF-G1b | One or two days lost | - | LIMIT: under D1's caution (`D1_CAUTION_DAYS` 3, set for sparse shops in 3E1) - no caution, and the headline can give the fall to another cause | stage 3 | - |
+| DF-G1b | One or two days lost | D1, against the shop's own spread (3E1b; 2E-u F5) | FLAG: in a shop whose history has no zero day on those weekdays, a trust caution; headline rule 2 when they explain half the change. LIMIT: in a sparse or seasonal shop, or one whose history has stray zero days on every weekday, they sit inside its spread - not seen | stage 3 | - |
 | DF-G2 | A month with no line at all | - | LIMIT: charted 0 (3B's recorded defect) | stage 3 | stages/diagnose/test_3e2_blank_customers.py::test_known_limit_a_month_with_no_lines_charts_zero_customers |
 | DF-G3 | Fewer than three complete months | the history | REFUSE: no forecast, `insufficient_history` | stage 4 | stages/predict/test_4a_forecast.py::test_insufficient_history_means_fewer_than_three_months |
 | DF-G4 | Fewer than eight months of history | the baseline | REFUSE: no chart, `too_few_points` | stage 3 | - |

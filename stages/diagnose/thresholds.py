@@ -22,6 +22,17 @@ PARTIAL_MIN_SHARE = 0.05
 # seasonality) only when that context explains most of the change.
 HEADLINE_CONTEXT_MIN_SHARE = 0.50
 
+# Rules 5 and 6 single a cause out only when |this month's change| is at least
+# this many times the shop's median month-over-month movement of complete
+# months (Thach, 2026-10-02, deciding 3E2-F1; stages/diagnose/movement.py).
+# From the tenth run's measurement on the 3E2 generator, seeds 1-30, money
+# basis: at 2 nothing planted passed in 7% of runs (S0), most planted causes in
+# 83-100%; the calendar (30%) and the stockout (33%) pass less because those
+# effects sit inside ordinary noise - they stay visible in the hypothesis
+# table (a known limit). A factor of 1 is not viable: by the definition of a
+# median, about half of ordinary months exceed it.
+HEADLINE_MOVEMENT_FACTOR = 2.0
+
 # --- Metric tree (7.6) --------------------------------------------------------
 
 # sum(|contributions|) / |net change|. At 3x the components are moving several
@@ -311,15 +322,44 @@ CALENDAR_MIN_WEEKS = 8
 
 # --- D1, coverage (7.3) -------------------------------------------------------
 
-# Excess zero-days beyond what this store's own weekday pattern predicts.
-D1_CAUTION_DAYS = 3
-D1_CAUTION_SHARE = 0.10
+# Excess zero-days beyond what this store's own pattern predicts
+# (stages/diagnose/d1_pattern.py). Since 3E1b (2026-10-02) the caution is
+# scaled to the shop: at least D1_CAUTION_MIN_DAYS AND more than its own
+# spread, the larger of median + D1_SPREAD_K x 1.4826 x MAD of the learned
+# months' leave-one-out excesses and D1_SPREAD_K binomial standard
+# deviations. Chosen by a rule fixed before the sweep (the 3E1b method): the
+# smallest K keeping false cautions at or under 5% on every shape with
+# nothing missing (nine shapes x 40 seeds x 12 current months; scratchpad
+# 3e1b/fc.json): K 2.5 - worst 2.1% (a shop closed on 3% of days at random);
+# K 2.0 gave 6.0% there. PROVISIONAL since the two review cycles' fixes: re-run
+# through the shipped rule (d1_pattern.judge) over files of 4-36 months, K 2.5
+# gives 6.7% on that random-closure shop at 18 months, and K 3.0 detects a
+# 7-day gap behind half-gapped history months less (91% vs 99.8% at 24
+# months), so neither meets the rule on every cell - Thach decides (the 3E1b
+# method, "review 2"). The fixed 3 days / 10% it replaces cautioned 27% of
+# shops trading on 45% of days and 58% of seasonal shops with nothing
+# missing, and let two lost days pass in a shop that never misses one (2E-u
+# F5): one whole day beyond the pattern is now enough - in a shop whose
+# weekday months hold no zero day; a stray one in history (a holiday on any
+# weekday) puts a single lost day just short of it (3E1b review 3, R3). A
+# real gap in a sparse shop's quiet months now
+# sits inside its noise and is not seen (detection table in the method) - a
+# SUPPRESS, the safe side of the asymmetry rule.
+D1_CAUTION_MIN_DAYS = 1.0
+D1_SPREAD_K = 2.5
 D1_BLOCK_SHARE = 0.50
-# PROVISIONAL (3E1). A history month with fewer active days than this share of
-# the history's median is itself gapped and is not learned from: a March
-# missing 20 days, or a November holding one row, taught "closed" as normal
-# and hid a real gap in the current month (3E1 doubt-review cycle 3).
-D1_LEARN_MIN_ACTIVE_SHARE = 0.50
+# 3E1b review 1 (amendment 3 of the method, measured before it was built):
+# the one-day floor needs a full year of candidate months - before that the
+# shop's annual closures have not been seen, and a bank holiday cannot be told
+# from a lost day, so 3E1's 3 days stand (bank-holiday shops exported for
+# 4-13 months cautioned 31-65% with nothing missing at one day; 0% at three).
+D1_FULL_YEAR_MONTHS = 12
+D1_CAUTION_MIN_DAYS_SHORT = 3.0
+# D1 learns from up to this many complete months before the current one (the
+# frame's history window is HISTORY_MAX_MONTHS, 24): the same calendar month
+# two years earlier tells the previous month's season from a gap; at 24 the
+# seasonal shape's transition months cautioned 50% (0% from 25 months).
+D1_HISTORY_MAX_MONTHS = 36
 
 # --- D2, uniform price-level shift (7.3) --------------------------------------
 

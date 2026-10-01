@@ -332,10 +332,48 @@ counted in the verdict; 2E-j).
   A per-weekday rate rather than one scalar (Thach, 3B) because closing is a
   weekday habit, not a daily probability: one scalar leaves a residue that
   moves with month shape (measured worst case 0.86 days for one closed
-  weekday, 1.43 for two, 1.71 for three - bounded under `D1_CAUTION_DAYS`, so
+  weekday, 1.43 for two, 1.71 for three - bounded under the 3 days D1 cautioned at until 3E1b, so
   it never raised a false caution, but it also partly absorbs a real Tuesday
   gap in a shop that never trades Sundays, which the per-weekday rate exposes).
-  `caution` at `D1_CAUTION_DAYS` or `D1_CAUTION_SHARE`; `blocked` at
+  **Since 3E1b, two expectations.** The PATTERN above, and the
+  SEASON-ADJUSTED one: the pattern plus the mean of what the same calendar
+  month of other learned years held BEYOND their own pattern (scaled by the
+  months' lengths), when positive - a seasonal shop's off-season month and an
+  annual closure are its own pattern, not a gap (their raw counts, first
+  used, carried their weekdays: an October with four Sundays expected its
+  copies' five, and a lost Wednesday hid - review 2, N4) (without it D1 flagged 51-58% of seasonal shops' months
+  with nothing missing). The trust badge reads the days beyond the
+  season-adjusted expectation (evidence `unexplained_zero_days_*`); B1's and
+  T2's refusals, the estimated gaps and the D1 hypothesis read the days
+  beyond the pattern (`excess_zero_days_*`, the meaning they always had): a
+  closed Christmas week is no missing data, yet December lost it against
+  November - with one expectation for both, an annual closure lifted B1's
+  refusal and stopped explaining the change (3E1b review 1, F1; Online
+  Retail II 2010-12). The D1 hypothesis is found when its pattern excess
+  passes the same caution test, whatever the badge says.
+  **`caution` (3E1b) when the excess is at least the floor AND above the
+  shop's own spread.** The floor is `D1_CAUTION_MIN_DAYS` (one whole day)
+  once `D1_FULL_YEAR_MONTHS` (12) months are LEARNED (review 2, N1: keyed on
+  candidates it stayed at one day with seven learned) - a full year,
+  the shop's annual closures seen - and `D1_CAUTION_MIN_DAYS_SHORT` (3E1's 3
+  days) before that: in a shorter history a bank holiday cannot be told from
+  a lost day (review 1, F3: exports of 4-13 months cautioned 31-65% on bank
+  holidays at one day). The spread is the larger of median +
+  `D1_SPREAD_K` x 1.4826 x MAD of the learned months' leave-one-out excesses
+  (each learned month against the others' expectation) and `D1_SPREAD_K`
+  binomial standard deviations of the month's zero days
+  (`stages/diagnose/d1_pattern.py`). The fixed 3 days / 10% it replaced
+  cautioned 27% of shops trading on 45% of their days with nothing missing
+  (rule 2 headlined "missing data, or days the shop was closed" on 6-7 of 40
+  - 3E1's part A, a FABRICATE) and let two lost days pass in a shop that
+  never misses one (2E-u F5). K was chosen by a rule fixed before the sweep
+  (the 3E1b method: the smallest K keeping false cautions at or under 5% on
+  every shape with nothing missing - nine shapes x 40 seeds x 12 current
+  months): 2.5, worst 2.1%. Measured cost: a lost day or two in a sparse
+  shop, in a seasonal shop's quiet months, or in a shop whose history holds
+  stray zero days on every weekday (Online Retail II's shape: about five lost
+  days to be caught) sits inside its spread and is not seen - a SUPPRESS.
+  `blocked` at
   `D1_BLOCK_SHARE`, and blocked when three or more days of the previous month
   precede the file's first sale, or the previous month holds no sale (7.2). `inconclusive` when no history month
   other than the previous one has sales to learn from (evidence
@@ -352,19 +390,57 @@ counted in the verdict; 2E-j).
   **What D1 learns from.** Only history months that hold rows (an empty month
   is itself a gap), never the previous month (it is itself under check;
   learning from it let a 12-day gap teach itself away - cycle 2, M2), and
-  never a month with fewer active days than `D1_LEARN_MIN_ACTIVE_SHARE` of the
-  history's median, listed in `sparse_history_months`: a March missing 20
-  days, or a November holding one row, taught "closed" as normal and hid a
-  12-day gap in the current month (cycle 3). The median is the shop's own, so
-  a sparse shop's ordinary months all stay (measured: no change on 40 sparse
-  shops at either trading rate). **Measured cost, and a limit it does not
-  create:** on seasonal shops with NOTHING missing (daily Apr-Sep, 1-5
-  trading days a month off-season, 120 current months), D1 flags 61 of 120
-  months with or without this exclusion - essentially every off-season month,
-  because D1 has no notion of season. The exclusion turns 33 of those
-  cautions into blocks (rule 1: 7 -> 40 of 120; rule 2: 9 -> 14), since the
-  off-season months no longer teach a closing rate. Recorded with the
-  sparse-shop false cautions in PROJECT_PLAN 3E1b.
+  **(3E1b, part B) never a month whose own excess over the other learned
+  months reaches 3E1's 3 days and their spread** - and the weekday RATES
+  come only from the learned months whose own days beyond the others'
+  weekday pattern stay under 3 days (`weekday_months` in the evidence): an
+  annual closure is learned for its season, but spread over every weekday a
+  shop closed 1-21 August expected 1.8 zero days in May, a day lost there
+  was no excess, B1's refusal lifted and B1 took the headline (3E1b review
+  3, R1; the fix after the third cycle - tested and mutated, not reviewed:
+  the bound) (a gap a month must not
+  teach is days, not a holiday: at one day every bank-holiday month left the
+  learning, its year-ago copy with it, and the next one cautioned - review 2,
+  N1; Online Retail II 2011-01) - the largest first, repeated, listed in
+  `gapped_history_months` (the learned ones in `learned_months`). A March
+  missing 20 days, or a November holding one row, taught "closed" as normal
+  and hid a 12-day gap (3E1 cycle 3), and the floor 3E1 put in - half the
+  history's median active days - still learned from a December missing 14 of
+  31 days, so February expected 6.7 zero days, found 7 and read "ok" while
+  rule 6 named B1 (cycle 4). Measured: with 1, 2, 3 or 6
+  history months missing 14 days each, a 7-day gap in the current month
+  cautions in 99.8-100% of runs (36 months). T2's year-ago months are
+  measured against the learned months other than themselves, on the pattern
+  alone (`excess_zero_days`). **No compared month vouches for anything**
+  (review 1, F2: both Marches missing the same ten days read "ok" when the
+  current month kept its year-ago copy learned): where only the month under
+  test says "this is the season", a gap repeated a year apart cannot be
+  told from a closure, and the badge cautions (CLAUDE.md 3.3a). **D1 learns
+  from up to `D1_HISTORY_MAX_MONTHS` (36) complete months** before the
+  current one, more than the frame's 24, so the previous month's year-ago
+  copy has its own partner two years back; at exactly two years it has none
+  and the seasonal shape's transition months caution (50%; 0% from 25
+  months). D1's whole decision is one pure function,
+  `stages/diagnose/d1_pattern.judge`, which the method's sweep runs too
+  (review 2, N2: the first measurements came from a simulator that differed
+  from the shipped rule). Measured through it, false cautions with nothing
+  missing, files of 4-36 months: dense, closed weekdays, bank holidays,
+  fixed holidays 0%; sparse 0-4%; random closures 1-4% (6.7% at 18 months);
+  moving 3-day closures (Eid, Chinese New Year) 16.7%; retail-like (Online
+  Retail II's shape) 17-25% under two years, 8% at two, 0% from 25 months;
+  seasonal shops 24-58% under 25 months (HEAD 58%), 0% from 25 - each a
+  closure the history cannot place, worded as one. Known limits.
+  **Known limits after the third review cycle:** the one-day floor is on
+  the month's whole excess, so a stray zero day in history (a holiday on any
+  weekday) puts a single lost day just short of it (review 3, R3); a 1-2-day
+  gap in last year's same month vouches for an equal gap now (the can't-tell
+  shape, as before 3E1b's 3-day threshold; badge only - B1 still refused;
+  R2); the badge prices the days beyond the season, rule 2 the days beyond
+  the weekday pattern - two figures when the season explains some (R4).
+  **`D1_SPREAD_K` is PROVISIONAL**: neither 2.5 nor 3.0 meets the method's
+  selection rule on every cell once files of 4-36 months are swept (2.5:
+  random closures 6.7% at 18 months; 3.0: a 7-day gap behind half-gapped
+  history 91% at 24 months) - Thach decides.
   **Estimated gaps**: `estimated_revenue_gap` (current month) and
   `estimated_revenue_gap_prev` are each month's excess zero days priced at
   **that month's own** mean revenue per active day, since its missing days
@@ -1187,6 +1263,34 @@ while the month fell 450 short of its season. Written as a band, not
    seasonal shoulder month has exactly that shape. This belongs here and not
    only in 7.9: the headline is written by code and is still produced in
    degraded mode, where no narration validator runs.
+
+   **The size test, before rules 5 and 6** (3E1b; Thach, deciding 3E2-F1):
+   a cause is singled out only when |this month's change| is at least
+   `HEADLINE_MOVEMENT_FACTOR` (2) times the shop's median month-over-month
+   movement of complete months (`stages/diagnose/movement.py`): each pair of
+   consecutive months in the frame's history window, |r(m) - r(m-1)| /
+   r(m-1) in percent by stage 2's own rule (a pair after a non-positive or
+   residue month has no base and is skipped). Otherwise the headline is
+   rule 7 stating the descriptive fact - "This month's change (+0.3%) is
+   within this shop's usual month-to-month range: under twice its median
+   movement of about 4.5% over the 23 month-to-month changes before it. No
+   single cause is singled out." - and the hypothesis table shows every
+   verdict as before. Why: a share is measured against the change itself, so
+   any decomposition of a month that barely moved has a term holding a fifth
+   of it; on the 3E2 suite every month with nothing planted named a cause (30
+   of 30 seeds), T3 being dormant since ADR-0007. The factor is Thach's from
+   the tenth run's measurement (money basis, seeds 1-30): nothing planted
+   passed in 7% of runs, most planted causes in 83-100%; the calendar (30%)
+   and a stockout (33%) pass less because their effects sit inside ordinary
+   noise - they stay in the table (a known limit). A factor of 1 is not
+   viable: by the definition of a median, about half of ordinary months
+   exceed it. With fewer than 7 movements (the 8 months a baseline needs,
+   7.5) or no percentage for the change, the test cannot run: rules 5-7
+   stand and the message adds "Whether this change is larger than this
+   shop's usual month-to-month movement cannot be said: <why>." - the data
+   cannot tell, so the existing behaviour is kept and said (CLAUDE.md 3.3a's
+   shape; decided alone, 3E1b). `headline.movement` carries the test
+   (CONTRACTS section 7). Rules 1-4 are not gated.
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
    state that - when it fits BEST: rules 5 and 6 are ranked together under
    the one fit (Thach, 2E-o Q1), so a context cause no longer wins by coming
@@ -1241,7 +1345,9 @@ while the month fell 450 short of its season. Written as a band, not
    after the share causes that fit and BEFORE the movements sentence, which
    is the last resort (Thach, 2E-o Q4; C4 is always inconclusive in v1).
 7. Nothing supported - no single tested cause explains most of the change,
-   followed by the `partial` ones.
+   followed by the `partial` ones. **Since 3E1b also the size test's
+   answer** (above): the change within the shop's usual range, no cause
+   singled out, whatever the table supports.
 
 Trust `caution` never changes the headline and is always shown beside it.
 
@@ -1348,6 +1454,7 @@ are heuristics until calibrated against real data.
 |---|---|---|
 | `SUPPORTED_MIN_SHARE` / `PARTIAL_MIN_SHARE` | 0.20 / 0.05 | 7.8 |
 | `HEADLINE_CONTEXT_MIN_SHARE` | 0.50 | 7.8 rules 2 and 5 |
+| `HEADLINE_MOVEMENT_FACTOR` | 2.0 (Thach, 3E2-F1) | 7.8, the size test of rules 5 and 6 |
 | `MASKED_GROSS_TO_NET` | 3.0 | 7.6 |
 | `MASKED_MIN_CONTRIBUTION_SHARE` | 0.25 (3E2's sweep on S0-S11; 0.20 from 3D6b) | 7.6, tree-based masked-shift alert (3D6b) |
 | `XMR_FACTOR` | 2.66 | 7.5, the fallback estimator (3 / d2) |
@@ -1364,9 +1471,10 @@ are heuristics until calibrated against real data.
 | `YOY_MODE_MIN_MONTHS` | **derived**, see below | 7.5 |
 | `HISTORY_MAX_MONTHS` | 24 | 7.2 |
 | `CALENDAR_MIN_WEEKS` | 8 | 7.4 |
-| `D1_CAUTION_DAYS` / `D1_CAUTION_SHARE` | 3 / 0.10 | 7.3 |
+| `D1_CAUTION_MIN_DAYS` / `D1_SPREAD_K` | 1.0 / 2.5 (3E1b's sweep; 3 days / 10% until 3E1b) | 7.3 |
+| `D1_FULL_YEAR_MONTHS` / `D1_CAUTION_MIN_DAYS_SHORT` | 12 / 3.0 (3E1b review 1: the one-day floor needs a year) | 7.3 |
+| `D1_HISTORY_MAX_MONTHS` | 36 (3E1b review 1: D1's own learning window) | 7.3 |
 | `D1_BLOCK_SHARE` | 0.50 | 7.3 |
-| `D1_LEARN_MIN_ACTIVE_SHARE` | 0.50 (PROVISIONAL) | 7.3 |
 | `RECONCILE_FLOAT_TOLERANCE` | 1e-12 of the money moved | 7.6 |
 | `D2_MIN_PRODUCTS` / `D2_MIN_ROWS` | 20 / 3 | 7.3 |
 | `D2_CLUSTER_SHARE` / `D2_CLUSTER_WIDTH` | 0.80 / 0.02 | 7.3 |
@@ -1471,6 +1579,31 @@ noise holds 20% of it. F2: rules 5 and 6 ranked under one fit let B1 - the
 mechanism a calendar or season works through - take the context cause's
 place. The sweep set `MASKED_MIN_CONTRIBUTION_SHARE` to 0.25 (thresholds.py
 records the measurement).
+
+**Re-run on the settled engine (2026-10-02, after 3E1b; Thach's decisions on
+the tenth report: every criterion over seeds 1-30, a pass at least 25 of 30;
+the method C:\Users\Happy\3E2-rerun-method.txt fixed before the run).** Each
+scenario's spec now lists its **accepted consequences** (Thach's 3E2-F3,
+`consequences` in `scenarios.py`, written from the definitions before the
+run): B1 and C2 beside a stockout (S7) and discontinued products (S8) -
+orders whose every line was that product are not placed, customers whose
+only purchases they were lapse; C1 and C3 beside the x100 error (S10); R3
+beside the mix shift (S3), flagged for Thach's veto - R3 reads only sales
+days. Results: **A1** (the expectation) passes for S0 29, S2 29, S3 25, S4
+30, S5 29, S6 29, S8 26, S10 30; fails for S1 2 (gated 22 - the calendar's
+effect sits inside ordinary noise, Thach's recorded limit), S7 9 (gated 20,
+the same), S9 16 (B1 takes the headline 12 times - F2) and S11 0 (six months
+are too short for the size test, so its cause stands with the size "cannot
+be said"; the spec expects rule 7). **A2** (S0 with no hypothesis
+supported): 0 of 30 - by Thach's F1 decision the table is unchanged. **A3**
+(at most one decoy in the whole suite per seed): 0 of 30 (S0 and S11 alone
+carry 71 decoys each; without them 15 of 30, 11 without S3's R3) - **not
+relaxed: stopped for Thach** with the counts (PROJECT_PLAN 3E2-F3). **A4**
+(the masked alert on S6 only): S6 29 of 30, none elsewhere. **F2 stopped**
+(the pre-registered "wide gap" test, R3 of the method): T1 is supported in
+only 18 of 30 calendar runs, so no band reaches 25 of 30, and an unplanted T2
+fits as closely as a planted one (0.915 of the change in S0 seed 1; the
+planted season's 25th-best is 0.218 from the change) - nothing built for F2.
 
 ## 8. Strategy step (stage 4)
 

@@ -33,8 +33,12 @@ from datetime import date
 
 import pandas as pd
 
-# Equal to stage 3's D1 caution size (D1_CAUTION_DAYS): a leading gap that
-# would caution as missing days blocks as a partial month.
+# Stage 3's D1 caution size until 3E1b (3 days): a leading gap that would
+# caution as missing days blocks as a partial month. Since 3E1b D1 cautions
+# from one whole day where the shop's own spread allows, so a shorter leading
+# gap is at least D1's size (tests/stages/diagnose/test_2e_stage3.py holds
+# the relation). The value is frozen with the period definitions (CLAUDE.md
+# 3.6); only this comment changed.
 PREVIOUS_MIN_MISSING_DAYS = 3
 
 

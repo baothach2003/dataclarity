@@ -167,7 +167,7 @@ def test_diagnosis_json_requires_the_deductions_term() -> None:
     # 6.0 in 2E-g (product keys and labels, the gap never R3 or D2); 7.0 in
     # 2E-h (wall-clock dates); 8.0 since 2E-e2 (answers from Review).
     payload = diagnosis_payload()
-    assert DiagnosisContract.model_validate(payload).schema_version == "17.0"  # 17.0 since 2E-t2; 9.0 in 2E-k; 10.0 in 2E-d2; 11.0 in 2E-l; 12.0 in 2E-m; 13.0 in 2E-n; 14.0 in 2E-i; 15.0 in 2E-j; 16.0 since 2E-o
+    assert DiagnosisContract.model_validate(payload).schema_version == "18.0"  # 18.0 since 3E1b; 17.0 since 2E-t2; 9.0 in 2E-k; 10.0 in 2E-d2; 11.0 in 2E-l; 12.0 in 2E-m; 13.0 in 2E-n; 14.0 in 2E-i; 15.0 in 2E-j; 16.0 since 2E-o
 
     del payload["tree"]["returns"]["deductions_cur"]
     with pytest.raises(ValidationError, match="deductions_cur"):

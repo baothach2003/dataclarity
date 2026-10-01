@@ -140,19 +140,18 @@ def test_both_stages_agree_on_an_incomplete_previous_month(start, complete) -> N
     assert (d1.status == "blocked") is (not complete)
 
 
-def test_the_shared_constants_equal_the_stage_3_ones_they_are_stated_to_equal() -> None:
-    """shared/ cannot import a stage, so the value is stated twice; this is
-    what keeps "equal to D1's caution size" true rather than a comment. (The
-    residue tolerance is no longer stated twice: stage 3 imports it.)"""
+def test_a_leading_gap_too_short_to_block_is_long_enough_to_caution() -> None:
+    """shared/ cannot import a stage, so the relation is stated in both places
+    and held here. Until 3E1b the leading-days block equalled D1's fixed
+    caution size (3 days). Since 3E1b D1 cautions from one whole day where the
+    shop's own spread allows (D1_CAUTION_MIN_DAYS), so the 1 or 2 leading days
+    shared/periods.py tolerates (frozen, CLAUDE.md 3.6) are at least the size
+    D1 can caution at. (The residue tolerance is no longer stated twice: stage
+    3 imports it.)"""
     from shared.periods import PREVIOUS_MIN_MISSING_DAYS
-    from stages.diagnose.thresholds import D1_CAUTION_DAYS, D1_CAUTION_SHARE
+    from stages.diagnose.thresholds import D1_CAUTION_MIN_DAYS
 
-    assert PREVIOUS_MIN_MISSING_DAYS == D1_CAUTION_DAYS
-    # D1's share condition is not repeated in shared/periods.py because it
-    # cannot bind: the largest whole count "fewer than 3" allows (2 days) is
-    # under 10% of every month length, 2.8 to 3.1 days.
-    assert all(PREVIOUS_MIN_MISSING_DAYS - 1 < D1_CAUTION_SHARE * days
-               for days in (28, 29, 30, 31))
+    assert D1_CAUTION_MIN_DAYS <= PREVIOUS_MIN_MISSING_DAYS - 1
 
 
 

@@ -38,18 +38,19 @@ def test_b1_is_refused_on_a_fraction_of_an_excess_day() -> None:
         == "inconclusive"
 
 
-def test_a_history_month_with_exactly_half_the_median_active_days_is_learned_from() -> None:
-    """The boundary, by hand. History candidates September (30 active days),
-    October (31), November (15 of 30; December is the previous month and never
-    learned from). Median 30, floor 0.5 x 30 = 15: November's 15 is AT the
-    floor and stays. (The max, 31, would give 15.5 and drop it.)"""
+def test_a_history_month_at_half_the_median_active_days_is_no_longer_learned_from() -> None:
+    """3E1's boundary - November with 15 active days of 30 sat AT the old floor
+    (half the median, 0.5 x 30) and was learned from - replaced in 3E1b (part
+    B: such a month hid a gap). Now, by hand: September and October never miss
+    a day, so against them November expects 0 and finds 15 - over one day and
+    over their spread of 0 - and is excluded (d1_pattern.learn)."""
     rows = daily_rows(date(2011, 9, 1), date(2012, 1, 31),
                       skip=tuple(date(2011, 11, d) for d in range(16, 31)))
 
     _, _, _, check = _run(rows)
 
-    assert check.evidence["sparse_history_months"] == []
-    assert check.evidence["learned_from_months"] == 3
+    assert check.evidence["gapped_history_months"] == ["2011-11"]
+    assert check.evidence["learned_months"] == ["2011-09", "2011-10"]
 
 
 def test_t2_is_refused_when_the_year_ago_previous_month_has_missing_days() -> None:

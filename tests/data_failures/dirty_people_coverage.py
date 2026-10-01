@@ -133,7 +133,7 @@ def g1() -> Sample:
 
 
 def g1b() -> Sample:
-    # Two days lost: under D1's caution (D1_CAUTION_DAYS 3).
+    # Two days lost in a shop that never misses one (D1's caution since 3E1b).
     return Sample([row for row in base() if row["Date"] not in ("2024-02-12", "2024-02-13")])
 
 

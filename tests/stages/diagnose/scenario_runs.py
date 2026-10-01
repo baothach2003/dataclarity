@@ -37,7 +37,9 @@ class Outcome:
         return self.rule == expected.rule and (expected.names is None or self.named == {expected.names})
 
     def decoys(self, scenario: Scenario) -> frozenset[str]:
-        return self.supported - scenario.implied
+        """Supported, but neither implied nor an accepted consequence of the
+        planted cause (Thach's 3E2-F3: both written in the spec)."""
+        return self.supported - scenario.implied - scenario.consequences
 
     def false_alarm(self, scenario: Scenario) -> bool:
         """A headline naming a cause that was not planted: any rule but 7

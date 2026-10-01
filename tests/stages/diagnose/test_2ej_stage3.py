@@ -102,7 +102,7 @@ def test_a_daily_file_keeps_its_day_level_steps() -> None:
 
 
 def test_diagnosis_json_is_15_or_the_current_one() -> None:
-    assert DiagnosisContract.supported_major == 17  # 17 since 2E-t2 (the line taxonomy)
+    assert DiagnosisContract.supported_major == 18  # 18 since 3E1b; 17 since 2E-t2 (the line taxonomy)
 
 
 def test_the_calendar_contract_ties_null_expectations_to_not_applicable() -> None:

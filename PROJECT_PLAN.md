@@ -700,6 +700,64 @@ dataclarity/
          the coupon "product" sat in gross and R2 could see it. Part C's
          size test must cover a change carried by deductions too (repro
          scratchpad `review17/p2_deduction_headline.py`).
+      **Built 2026-10-02 (eleventh run, session 1; Thach's order: 3E1b before
+      the 3E2 re-run; full process - the method C:\Users\Happy\3E1b-method.txt
+      fixed before measuring, three amendments each recorded before the sweep it
+      changed, tests first, mutation in four rounds (39/40 with one equivalent,
+      22/22, 12/12, 15/15), doubt-review 3 cycles - cross-model skipped,
+      non-interactive - the third cycle's fixes tested and mutated, not
+      reviewed: the bound).** **Scope read by the freeze (decided alone):** the
+      item's two `shared/periods` parts (the pattern-aware incomplete previous
+      month; sale-based period ends) are frozen definitions (CLAUDE.md 3.6);
+      neither demo file starts inside its previous month or ends on a non-sale
+      row past its sales, so neither is built - 8D. **Parts A, B and 2E-u F5
+      (D1):** D1's whole decision is one pure function,
+      `stages/diagnose/d1_pattern.judge` (trust.d1_coverage words it; the
+      method's sweep runs it). Two expectations - the weekday PATTERN (rates
+      from the learned months whose own days beyond the others' pattern stay
+      under 3 days: an annual closure teaches no weekday habit) and the
+      SEASON-ADJUSTED one (plus what the same calendar month of other learned
+      years held beyond THEIR pattern); the badge reads the second, B1's and
+      T2's refusals, the gaps and the D1 hypothesis read the first; caution at
+      the floor (one whole day with 12 learned months, else 3E1's 3) AND above
+      the shop's own spread (max of median + 2.5 x 1.4826 x MAD of the learned
+      months' leave-one-out excesses and 2.5 binomial SDs at the month's own
+      expected rate); a history month excluded from learning when its own
+      excess reaches 3 days and the others' spread; D1 learns from up to 36
+      months; no compared month vouches for anything. Measured through the
+      shipped rule (false cautions with nothing missing, 9+3 shapes, files of
+      4-36 months): dense, closed weekdays, bank holidays, fixed holidays 0%;
+      sparse 0-4%; random closures 1-5.4%; seasonal shops 0% from 25 months
+      (24-58% under, HEAD 58%); retail-like 0% from 25 months, 8% at 24,
+      17-25% under; moving 3-day closures 17% (HEAD: sparse 27%, seasonal
+      58%). One lost day in a shop that never misses one: 100% (HEAD 0); a
+      7-day gap behind 1-6 half-gapped history months: 98-100% (91% at 24
+      months with 6, all but one miss the double same-month draw - a season by
+      the data). Generator sparse shops (40 seeds, p 0.45/0.80): D1 false
+      cautions 0/1 (tenth run 11/8), rule 2 0/1 (7/6); B1 refused 31/33, T2
+      37/33 (unchanged: a closed day still confounds them). **Demo files:** D1
+      and every verdict as before on 79 of 81 month pairs (2010-06, both
+      plans: B1 ruled out -> refused). **Part C with 3E2-F1 (Thach's gate):**
+      the old repros were already closed by 2E-l/2E-m/2E-n (coupons -> P4 88%;
+      a +62 price beside a -60 refund -> the offsetting movements). The gate
+      as decided: `stages/diagnose/movement.py`, `HEADLINE_MOVEMENT_FACTOR`
+      2.0, % basis, 7 movements minimum (the engine's 8-month baseline), too
+      short -> the cause stands and the size "cannot be said" (decided alone,
+      the standing rule's shape); a rule-5/6 headline becomes rule 7, a natural
+      rule 7 keeps its sentence; `headline.movement`; diagnosis.json 18.0,
+      report.json 2.1. At the seed: S0 names no cause; S7 (stockout -6.7%) is
+      gated (Thach's recorded limit); S11 (6 months) too short.
+      **FOR THACH:** (1) 3E1b-F1 - the Online Retail II sample's shipped month
+      2011-11 goes from "consistent with seasonality: 100%" to "within this
+      shop's usual month-to-month range" (+27.2% against a median movement of
+      18.5%, the season's own swings); across every month pair of the demo
+      files rule 7 now 43 of 81 (0 before); Kaggle's 2024-12 unchanged (B1 96%,
+      +11.9% vs 2 x 4.9%). A SUPPRESS, not a fabrication - built as decided;
+      options: keep; measure the movement net of the season; exempt a context
+      cause that alone explains closely (F2's "closely"). (2) 3E1b-K -
+      `D1_SPREAD_K` 2.5 is PROVISIONAL: neither 2.5 (random closures at 18
+      months 5.4%) nor 3.0 (a gap behind half-gapped history 91% at 24 months,
+      weaker detection) meets the method's rule on every cell.
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -815,6 +873,28 @@ dataclarity/
       0.45 / 0.80, 40 seeds): B1 refused 31 / 33 of 40, T2 37 / 33 (3E1: 28
       and 30-32 on hand-built shops); 8D. **The Figma Insights frame**: its
       shapes are NOT final - F1 and F2 may change the headline rules.
+      **Thach's decisions on the tenth report (2026-10-02):** 3E1b FIRST (he
+      agreed it belongs before 3E2), then RE-RUN this suite on the settled
+      engine with F2 and F3 (below). **Acceptance: every criterion measured
+      over 30 seeds; a pass is at least 25 of 30.** **Masked share: keep
+      0.25** (the pre-registered rule; at 0.20 S6 would fail 25 of 30). Every
+      decision made alone in the tenth run accepted, including the
+      withdrawal of the look-back window (a refusal over a false verdict).
+      **RE-RUN 2026-10-02 on the settled 3E1b engine (eleventh run, session 2;
+      the method C:\Users\Happy\3E2-rerun-method.txt fixed before the run).**
+      The accepted consequences are in the spec (`scenarios.py`, before the
+      run): S7 and S8 B1, C2; S10 C1, C3; S3 R3 (flagged for Thach's veto).
+      Over seeds 1-30 (pass >= 25): A1 PASSES for S0 29, S2 29, S3 25, S4 30,
+      S5 29, S6 29, S8 26, S10 30; FAILS for S1 2 and S7 9 (gated 22 and 20 -
+      inside ordinary noise, Thach's recorded limit), S9 16 (B1 takes it 12
+      times - F2), S11 0 (too short for the size test: the cause stands with
+      "cannot be said" - decided alone in 3E1b by the standing rule; the spec
+      expects rule 7 - **Thach: should "too short" name no cause instead?**).
+      A2 (S0 with nothing supported) 0/30 - the table is unchanged by Thach's
+      F1 decision. A3 (one decoy in the suite) 0/30 - **STOPPED** (3E2-F3).
+      A4 the masked alert: S6 29/30, nowhere else. F2 **STOPPED** (3E2-F2).
+      Seed pins hold (test_3e2_scenarios.py); the 30-seed rows: scratchpad
+      3e2/sweep2.jsonl, analyse2.py. README and AI_PIPELINE 7.11 updated.
 - [ ] 3E2-F1 **A month that barely moved names a cause** (found by 3E2;
       Thach to decide - a FABRICATE on the commonest shape there is, so it
       blocks the verdict sessions, 3F included). S0 and S11 plant nothing
@@ -834,6 +914,21 @@ dataclarity/
       verdicts, add a note beside a small change's headline (Thach's own
       reasoning on blank customers: a note beside a false verdict leaves it
       false); (c) bring T3 back on a test that is not step 4's.
+      **DECIDED (Thach, 2026-10-02; eleventh run), folded into 3E1b part C:**
+      a size gate at the HEADLINE level only, rules 5 and 6 only (rules 1-4
+      unchanged; verdicts and the hypothesis table unchanged). A cause is
+      singled out only when |net change| is at least TWICE this shop's median
+      absolute month-over-month movement of complete months; otherwise the
+      headline states the descriptive fact (e.g. "This month's change (+1.2%)
+      is within this shop's typical month-to-month movement (median about
+      4.5%); no single cause is singled out") and the table shows every
+      verdict as now; a history too short to estimate the movement is said
+      so. **Why factor 2** (Thach, from the measurement above): nothing
+      planted passes in 7% of runs, most planted causes in 83-100%; the
+      calendar (30%) and the stockout (33%) pass less because those effects
+      sit inside ordinary noise - they stay visible in the table, a known
+      limit. A factor of 1 is not viable: by the definition of a median,
+      about half of ordinary months exceed it.
 - [ ] 3E2-F3 **Do a planted cause's own consequences count as implied?**
       (found by 3E2 review 2; Thach to decide - it is about the suite's
       implied sets, fixed before the engine ran, not a known limit). 7.11
@@ -844,6 +939,22 @@ dataclarity/
       products (orders whose every line was discontinued vanished) - true
       statements the method had not listed. Options: widen the implied sets
       (and say so), or count them as decoys and accept the criterion fails.
+      **DECIDED (Thach, 2026-10-02):** each scenario's spec lists its accepted
+      consequences (e.g. a stockout implies C2; discontinued products imply
+      B1), written in the spec from the definitions, never inferred from
+      engine output. The headline must still name the planted root cause. If
+      "one decoy in the whole suite" still fails after that, it is NOT
+      relaxed: stop and show Thach the decoy counts.
+      **STOPPED as decided (2026-10-02):** with the consequences written into the
+      spec, "at most one decoy in the whole suite" holds on 0 of 30 seeds -
+      not relaxed. Decoy counts over seeds 1-30: S0 71 and S11 71 (B1 18 each,
+      P2 15, C2 12, C3 10, C1 6-7, P3 4, T2/T1 4-5 - the table keeps every
+      verdict under the F1 decision), S1 24 (T2 9, P2 9, C1 4), S7 15 (C3 6,
+      T2 6, C1 2), S3 13 (22 without the flagged R3), S6 7, S2 6, S8 5, S4 3,
+      S5 2, S9 0, S10 0. Without S0 and S11: 15 of 30 seeds (11 without R3).
+      For Thach: the criterion's arithmetic cannot pass while S0/S11's table
+      is unchanged - drop S0/S11 from the decoy count, or state the criterion
+      per scenario, or keep it failing.
 - [ ] 3E2-F2 **The context cause loses rule 5 to B1** (found by 3E2; Thach
       to decide). Rules 5 and 6 ranked under one fit (2E-o Q1): on the
       calendar (S1) B1 "customers bought less often" took the headline in
@@ -852,6 +963,20 @@ dataclarity/
       true - but it hides the cause. Options: rank a supported context cause
       of at least HEADLINE_CONTEXT_MIN_SHARE first (2E-o's order before Q1),
       or name both.
+      **DECIDED (Thach, 2026-10-02):** a context cause (calendar, seasonality)
+      is named first ONLY when it alone explains the change closely; the
+      lever term is then named as its mechanism. Otherwise the one-fit
+      ranking stands (the Kaggle case, T2 at 1.48x, stays B1). "Closely" is
+      chosen only if the 3E2 re-run shows a wide gap between planted
+      calendar/season months and Kaggle-like overshoots; if not, stop and
+      show Thach.
+      **STOPPED as decided (2026-10-02):** the re-run shows NO wide gap. The
+      planted calendar's T1 is supported in only 18 of 30 runs (|1 - s| 0.015
+      - 0.512 when it is), so no band reaches 25 of 30; the season's T2 |1 - s|
+      at its 25th-best run is 0.218, while an UNPLANTED T2 fits at 0.085 (S0
+      seed 1, 0.915 of the change) and 0.087 (S0 seed 21) - noise fits as
+      closely as the season. Kaggle 2024-12's T2 is 1.48 (0.48). Nothing built;
+      the distributions are in scratchpad 3e2/analyse2.py's output.
 - [x] 2E Stage 2 definitions (closed 2026-09-24; session log below). Three
       definitions stage 3 had exposed, each ONE shared definition in
       `shared/`: **an order is a sale row** (counted, quantity > 0) in both
@@ -2875,6 +3000,37 @@ dataclarity/
         from a file" was wrong).
       From now on a new finding enters as a catalog row plus a generator
       case (the catalog's first paragraph).
+      **Thach's decisions on F1-F7 (2026-10-02):**
+      - **F1 - an exception to the scope freeze, before deploy** (the most
+        common export shape silently loses revenue): the number format is
+        decided at stage 1, as 2E-j decided the date order. Per numeric
+        column, cells that PROVE the format ("1,000.00" proves a thousands
+        comma; "10,5" a decimal comma); currency symbols stripped; a column
+        the file cannot prove is asked in Review; unanswered and unproven,
+        the plan is refused with the true reason. Never a default either way.
+        Item 2E-u1 below.
+      - **F6, before deploy:** lines dated after the upload date are
+        excluded from period selection, counted and reported (the upload
+        date is the reference). Item 2E-u6.
+      - **F3:** an unanswered walk-in placeholder candidate is marked
+        "suggested, not confirmed", like Q17. Item 2E-u3.
+      - **F4, before deploy:** the AI never proposes exact-duplicate removal
+        by default; when a user adds it, Review shows the lines and the
+        revenue it removes. Item 2E-u4.
+      - **F5:** into 3E1b's D1 learning (that item).
+      - **F2 and F7:** 8D known limits.
+- [ ] 2E-u1 **The number format decided at stage 1** (2E-u F1; Thach,
+      2026-10-02 - an exception to the scope freeze, before deploy). See
+      2E-u's decisions. Full process for the reading rule (it decides
+      figures): method first, tests first, mutation, review.
+- [ ] 2E-u6 **Lines dated after the upload date** (2E-u F6; before deploy):
+      excluded from period selection, counted and reported; the upload date
+      is the reference.
+- [ ] 2E-u3 **An unanswered walk-in placeholder marked "suggested, not
+      confirmed"** (2E-u F3), like Q17's suggested classes.
+- [ ] 2E-u4 **No exact-duplicate removal proposed by default** (2E-u F4;
+      before deploy); a user-added removal shows its lines and revenue in
+      Review.
 - [x] **SCOPE FREEZE for v1** (Thach, 2026-09-28; **effective 2026-09-29,
       now**, no longer after 2E-u), recorded here and in CLAUDE.md 3.6: the
       foundational definitions (line classes, orders, customers, products,
@@ -4270,6 +4426,33 @@ dataclarity/
         the reason for a month of unmeasurable lines, D2's "inconclusive"
         kept off the charts, the contract's once-each and chart checks) have
         tests and mutation, but no review: the review bound was reached.
+      From 3E1b (2026-10-02; none fabricates on the demo files):
+      - not built by the scope freeze: the pattern-aware incomplete previous
+        month and sale-based period ends (`shared/periods`).
+      - the one-day floor is on a month's whole excess: a stray zero day in
+        history (a holiday on any weekday) puts a single lost day just short
+        of it (review 3, R3); a shop closed on bank holidays needs 3 lost days
+        (2 lost: 0-23%).
+      - a 1-2-day gap in last year's same month vouches for an equal gap now
+        - the can't-tell shape, as before 3E1b (badge only; B1 still refused;
+        review 3, R2); a gap in a month an annual closure already marks needs
+        more days for the badge, its season widening the floor (B1 and the D1
+        hypothesis still see it).
+      - the badge prices the days beyond the season, rule 2 the days beyond
+        the weekday pattern: two figures when the season explains some
+        (review 3, R4).
+      - closures the history cannot place caution, worded as closures:
+        seasonal shops under 25 months, retail-like shapes under two years,
+        moving multi-day closures (Eid, Chinese New Year) 17%; a shop that
+        newly closes on a weekday cautions until its new months outnumber
+        enough of the old (review 2, N3).
+      - sparse and seasonal shops: a gap inside their ordinary variation is
+        not seen (a SUPPRESS, the safe side).
+      - the size gate: causes whose effect sits inside ordinary noise (the
+        calendar, a short stockout) are left to the table (Thach, with F1); a
+        seasonal retailer's movements are its season (3E1b-F1, for Thach); a
+        history under 8 months cannot be gated and says so.
+
 - **DoD:** every hostile input fails gracefully with the specified message
 
 ### Phase 9 - Deploy and Documentation
@@ -4327,6 +4510,14 @@ dataclarity/
       its own increment (~0.5-0.7 GB at the cap). Thach decides the host and
       whether to reduce the peak first (the caches' size, a narrower frame
       in stage 1's execute).
+      **Thach (2026-10-02), for deploy:** the maximum upload size, the
+      number of concurrent heavy steps and the preview cache size become
+      environment settings (local defaults as today; hosted values chosen
+      later), heavy steps one at a time by default. Measure peak memory at 5,
+      10 and 20 MB for the curve. Do not start reducing the peak in code yet.
+      **Test time** (Thach): the suite takes about 7 minutes; a pytest marker
+      for the scenario and failure-mode suites makes a quick run possible
+      while iterating; the full suite still runs before every commit.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test

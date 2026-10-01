@@ -667,7 +667,7 @@ are heuristic defaults, to be revisited against real data.
 | YOY_MODE_MIN_MONTHS | 25 | 5.4 |
 | HISTORY_MAX_MONTHS | 24 | 5.1 |
 | CALENDAR_MIN_WEEKS | 8 | 5.3 |
-| D1_CAUTION_DAYS / D1_CAUTION_SHARE | 3 / 0.10 | 5.2 |
+| D1_CAUTION_DAYS / D1_CAUTION_SHARE | 3 / 0.10 (superseded in 3E1b: AI_PIPELINE 7.3, 7.10) | 5.2 |
 | D1_BLOCK_SHARE | 0.50 | 5.2 |
 | D2_MIN_PRODUCTS / D2_MIN_ROWS | 20 / 3 | 5.2 |
 | D2_CLUSTER_SHARE / D2_CLUSTER_WIDTH | 0.80 / 0.02 | 5.2 |

@@ -98,11 +98,19 @@ main ones:
   the revenue shown beside them silently leaves them out. Export plain
   numbers (`docs/DATA_FAILURE_MODES.md`, which lists every input shape and
   how it is handled).
-- **A month that barely moved still gets a cause.** On a synthetic store
-  with nothing planted, every one of 30 months named a cause: the engine has
-  no test of whether a change is larger than the shop's usual month-to-month
-  movement. Read a small change's cause with that in mind (`PROJECT_PLAN.md`
-  3E2-F1).
+- **A small change names no cause.** The headline singles a cause out only
+  when the month moved at least twice the shop's median month-to-month
+  movement; inside that it says the change is within the shop's usual range
+  (the hypothesis table still shows every verdict). Causes whose effect sits
+  inside ordinary noise - a calendar shift of a few percent, a short
+  stockout - are then left to the table. A file with fewer than eight months
+  before the compared one is too short to measure the usual movement: the
+  headline names its cause and says the size cannot be judged.
+- **Missing days in a quiet shop.** Days with no sales are judged against
+  the shop's own pattern and its month-to-month spread: in a shop that
+  trades every day one lost day is caught, but in a shop that trades on a
+  few days a week, or in a seasonal shop's quiet months, a lost day or two
+  sits inside its ordinary variation and is not seen.
 - **No AI recommendations yet.** Stage 4's AI strategy step is built but
   off in v1 (`STRATEGY_AI_ENABLED=false`): its reviews found numbers and
   words it could still let through, so forecast.json carries the forecast
@@ -174,16 +182,18 @@ scenario - a price cut, a mix shift, lapsed customers, a lost week, a
 stockout, a season and more (`docs/AI_PIPELINE.md` 7.11). At the fixed seed
 the diagnosis says what was planted in **8 of 12** scenarios - 7 by the
 headline, and the x100 price-entry error by its trust caution (its headline
-names the price change the error made, the caution beside it) - with **8
-decoys** (causes supported that were not planted) and **2 false alarms**,
-both on the scenarios where nothing was planted. Over 30 seeds: lapsed
-customers and the x100 error are caught in 30 of 30; the price cut, the mix
-shift, a lost week and a masked shift in 29; discontinued products 26; a
-stockout 22 (a small plant, inside the store's noise); a season 17; the
-calendar 8; and **a month with nothing planted is never left without a
-cause (0 of 30)**. Outside those, 17 of 300 runs named a cause that was not
-planted. Measured before the stage 3 completion work (3E1b); the misses are
-open decisions in `PROJECT_PLAN.md` 3E2-F1, 3E2-F2 and 3E2-F3.
+names the price change the error made, the caution beside it) - with **6
+decoys** (causes supported that were not planted, all on the two scenarios
+where nothing was planted: the hypothesis table keeps every verdict) and **1
+false alarm** (the six-month build, too short for the headline's size test).
+Over 30 seeds (the planted cause in the headline, or the x100 caution):
+lapsed customers and the x100 error 30 of 30; nothing planted (no cause
+singled out), the price cut, a lost week and a masked shift 29; discontinued
+products 26; a mix shift 25; a season 16; a stockout 9 and the calendar 2 -
+their effect sits inside the store's ordinary month-to-month movement, so
+the headline names no cause and leaves them to the table; the six-month
+build 0 (too short to judge). The open points are in `PROJECT_PLAN.md`
+(3E2-F2, 3E2-F3 and 3E1b's findings).
 
 ## Status
 

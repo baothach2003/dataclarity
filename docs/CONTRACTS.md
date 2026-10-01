@@ -954,7 +954,8 @@ about one: `docs/adr/0006-level-signals-are-descriptive.md`.
                              "excess_zero_days_prev": 0.0,
                              "estimated_revenue_gap": 18400.0,
                              "estimated_revenue_gap_prev": 0.0,
-                             "sparse_history_months": [],
+                             "gapped_history_months": [],
+                             "caution_bar_days_cur": 0.0,
                              "history_months_with_rows": 23,
                              "learned_from_months": 22},
                 "message": "About 5 days in the current month have no sales beyond this store's normal closing pattern (missing data, or days the shop was closed), worth roughly 18,400 in revenue."}],
@@ -1278,8 +1279,14 @@ when refused on a possible gap, carries `d1_status` and both months'
 `refund_lines_prev` and `refund_lines_cur` (counts of return lines and
 negative-amount lines, each once; 2E-c2 kept the negative-amount clause when
 the proof for dropping it failed). B1 is no longer refused on refunds (2E). The D1 trust check's `evidence` lists
-`sparse_history_months` (history months too gapped to learn from),
-`history_months_with_rows` and `learned_from_months`; on a block for an
+`gapped_history_months` (history months too gapped to learn from - 3E1b;
+`sparse_history_months` before), `learned_months` and their count
+`learned_from_months`, `history_months_with_rows` (over D1's own window, up
+to 36 months since 3E1b), `caution_min_days` (the floor), and per compared
+month `excess_zero_days_*` (beyond the weekday pattern: B1, T2, the gaps and
+the D1 hypothesis read it), `unexplained_zero_days_*` (beyond the pattern and
+the same month of other years: the badge reads it) and `caution_bar_days_*`
+(the shop's own spread, 3E1b); on a block for an
 incomplete previous month it carries only `previous_leading_days_missing`,
 `first_sale` and `previous_month_has_sales`. `family` is one of `data_quality | time | customers
 | lever | product_returns | localization_lifecycle`; `id`, `family`, `lens`
@@ -1288,7 +1295,18 @@ home, which `docs/AI_PIPELINE.md` 7.8 mirrors under test. `headline.rule` is `1`
 (`docs/AI_PIPELINE.md` section 7); `hypothesis_id` and `lens` are `null` for
 rules that name no hypothesis (1, 2, 3, 4, 5, 7), and for rule 6 when it
 names an exact tie, or when no cause it may name fits and it names the
-movements that offset each other (2E-n) - the message names them. Every `evidence` value is a
+movements that offset each other (2E-n) - the message names them.
+`headline.movement` (3E1b, optional) is the size test of rules 5 and 6:
+`{change_pct, typical_pct, movements, factor, singled_out, reason}` -
+this month's change and the shop's median month-over-month movement of
+complete months, in percent, the number of movements measured, the factor
+(2.0); `singled_out` true when |change| reaches factor x typical, false
+when it does not (then `rule` is 7: no cause singled out, the change within
+the shop's usual range), null with `reason` when the test could not run
+(fewer than 7 movements, or no percentage for the change) - rules 5-7 then
+stand and the message says the size cannot be judged. Null for rules 1-4,
+and in a report.json written before 18.0. A consumer decides on `rule` and
+`singled_out`, never on the message. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
 section 4. All money and share figures are floats; counts are integers.
 `ai_findings` (when present) is `{summary, headline_explanation,
@@ -1772,6 +1790,18 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-02: **session 3E1b, D1's pattern and the headline's size test
+  (Thach, deciding 3E2-F1).** `diagnosis.json` 18.0 (major: the same data
+  can say something else). D1 learns from the history months whose own
+  excess would not caution, expects the same calendar month of another year
+  when it held more zero days, and cautions from one whole day above the
+  shop's own spread (evidence: `gapped_history_months` replaces
+  `sparse_history_months`; `learned_months`, `caution_bar_days_cur`,
+  `caution_bar_days_prev` added). The headline's rules 5 and 6 single a
+  cause out only beyond twice the shop's median month-over-month movement;
+  rule 7 also means "within the usual range"; the optional
+  `headline.movement` (section 11's rows added). report.json carries the
+  Headline model: the optional field, minor - its readers unaffected.
 - 2026-10-01: **session 4A-b, forecast.json 2.0** (Thach, 4A option (b)):
   `season_note` also notes a season CLAIMED from exactly two years, and the
   new required `season_years` says how many years a claimed season was read
@@ -2492,6 +2522,13 @@ How the fields are read:
 | `headline.hypothesis_id` | `str \| None` | 4B, 5, FE |
 | `headline.lens` | `str \| None` | 4B, 5, FE |
 | `headline.message` | `str` | 4B, 5, FE |
+| `headline.movement` | `object \| None` | 4B, 5, FE |
+| `headline.movement.change_pct` | `float \| None` | 4B, 5, FE |
+| `headline.movement.typical_pct` | `float \| None` | 4B, 5, FE |
+| `headline.movement.movements` | `int (ge=0)` | 4B, 5, FE |
+| `headline.movement.factor` | `float (gt=0)` | 4B, 5, FE |
+| `headline.movement.singled_out` | `bool \| None` | 4B, 5, FE |
+| `headline.movement.reason` | `str \| None` | 4B, 5, FE |
 | `ai_findings` | `object \| None` | 5, FE |
 | `ai_findings.summary` | `str` | 5, FE |
 | `ai_findings.headline_explanation` | `str` | 5, FE |

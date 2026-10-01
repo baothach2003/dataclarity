@@ -14,7 +14,7 @@ means the sessions that produce them are validated from their first line.
 from math import isclose
 from typing import Any, ClassVar, Literal, Self
 
-from pydantic import NonNegativeInt, model_validator
+from pydantic import Field, NonNegativeInt, model_validator
 
 from contracts._base import ContractFile, ContractModel, UnitInterval, YearMonth, numbers_json_cannot_carry
 from contracts.lines import TOO_LARGE_TO_ADD, Notes, refuse_non_finite
@@ -615,6 +615,30 @@ class NotTestable(ContractModel):
     reason: str
 
 
+class HeadlineMovement(ContractModel):
+    """The headline's size test (3E1b, Thach's 3E2-F1 decision): is this
+    month's change at least `factor` times the shop's median month-over-month
+    movement of complete months? Rules 5 and 6 single a cause out only when it
+    is (`singled_out` true); false - rule 7, the change within the usual
+    range; null - the test could not run (`reason`), and rules 5-6 stand with
+    that said."""
+
+    change_pct: float | None
+    typical_pct: float | None
+    movements: int = Field(ge=0)
+    factor: float = Field(gt=0)
+    singled_out: bool | None
+    reason: str | None
+
+    @model_validator(mode="after")
+    def _consistent(self) -> Self:
+        if (self.singled_out is None) != (self.reason is not None):
+            raise ValueError("a movement carries a reason exactly when its test could not run")
+        if self.singled_out is not None and (self.change_pct is None or self.typical_pct is None):
+            raise ValueError("a movement that was tested carries both percentages")
+        return self
+
+
 class Headline(ContractModel):
     """Written by code, never by the AI: the report must still state its
     conclusion when the AI is unavailable (CONTRACTS.md section 7)."""
@@ -623,6 +647,9 @@ class Headline(ContractModel):
     hypothesis_id: str | None
     lens: str | None
     message: str
+    # 3E1b: written whenever rules 1-4 did not decide; null for rules 1-4 (the
+    # size test does not apply) and in a report.json from before 18.0.
+    movement: HeadlineMovement | None = None
 
 
 # --- Step 8 (session 3F): AI narration ----------------------------------------
@@ -701,8 +728,13 @@ class DiagnosisContract(ContractFile):
     # directional cause comes before the movements, P3 reads signed, and a
     # month-end file's D1, T1 and R3 do not apply. 17 since 2E-t2: the line
     # taxonomy - stages read each line's class from cleaned.csv, the notes
-    # and the suggested classes join the output.
-    supported_major: ClassVar[int] = 17
+    # and the suggested classes join the output. 18 since 3E1b: D1 learns the
+    # shop's own pattern and cautions from one day (its verdicts, B1's and
+    # T2's refusals move with it), and the headline singles a cause out only
+    # beyond twice the shop's typical month-to-month movement - rule 7 also
+    # means "within the usual range" (Thach, 3E2-F1) - with the optional
+    # `headline.movement`. The same data can say something else.
+    supported_major: ClassVar[int] = 18
     stale_major_hint: ClassVar[str] = (
         ": this diagnosis.json was written by an earlier stage 3 with different "
         "definitions (returns lens, new and resurrected customers, the headline's "

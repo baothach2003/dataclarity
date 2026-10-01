@@ -207,8 +207,8 @@ def test_diagnosis_json_is_major_12_or_the_current_one_and_refuses_an_11_file() 
     # under 11.0, R2 since 12.0) - a change of meaning, a major bump
     # (CONTRACTS 10). 12.0 in 2E-m; 13.0 in 2E-n; 14.0 in 2E-i; 15.0 since 2E-j.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 17  # 17 since 2E-t2 (the line taxonomy)
-    assert DiagnosisContract.model_validate(payload).schema_version == "17.0"
+    assert DiagnosisContract.supported_major == 18  # 18 since 3E1b; 17 since 2E-t2 (the line taxonomy)
+    assert DiagnosisContract.model_validate(payload).schema_version == "18.0"
 
     payload["schema_version"] = "11.0"
     with pytest.raises(ValidationError, match="re-analyse"):

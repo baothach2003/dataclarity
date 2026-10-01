@@ -9,7 +9,7 @@ from stages.diagnose.inputs import MONTH_GRAIN_NOTE
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.numbers import typical_magnitude, usable_base
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
-from stages.diagnose.trust import excess_zero_days
+from stages.diagnose.trust import excess_zero_days, pattern_found
 
 
 def check_of(inputs: Step7Inputs, check_id: str):
@@ -38,11 +38,14 @@ def d1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     gap_prev = float(check.evidence["estimated_revenue_gap_prev"])
     evidence = {"estimated_revenue_gap": gap_cur, "estimated_revenue_gap_prev": gap_prev,
                 "d1_status": check.status}
-    if check.status == "ok":
-        # Tied to the check (Thach, 3E1): a few excess zero days are noise in
-        # a sparse shop, and D1 came out supported on 17-24 of 40 shops with
-        # NO missing data. "Missing" is what the check's thresholds define,
-        # and the rule says what the check found rather than "none" (cycle 3).
+    if not pattern_found(check):
+        # Tied to the check's test (Thach, 3E1): a few excess zero days are
+        # noise in a sparse shop, and D1 came out supported on 17-24 of 40
+        # shops with NO missing data. "Missing" is what the check's thresholds
+        # define, and the rule says what the check found rather than "none"
+        # (cycle 3). Since 3E1b the test is applied to the days beyond the
+        # weekday PATTERN, not to the badge: a closure the shop has every year
+        # is no data problem, yet it still moves the month (review 1, F1).
         found = (check.evidence["excess_zero_days_cur"], check.evidence["excess_zero_days_prev"])
         return Outcome(verdict="ruled_out", evidence=evidence,
                        rule=f"excess zero days (current {found[0]:.1f}, previous "

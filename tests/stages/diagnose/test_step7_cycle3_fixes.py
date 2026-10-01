@@ -88,15 +88,16 @@ def test_b2_keeps_its_verdict_across_a_gap() -> None:
 def test_a_partly_empty_history_month_does_not_teach_its_gap() -> None:
     """13 daily months; March 2011 misses 20 days, January 2012 misses 4. With
     March in the learning set the expectation absorbed 1.7 days and the gap
-    fell under the threshold. March has 11 active days against a history
-    median of 30-31, under half: it is not learned from."""
+    fell under the threshold. March's 20 zero days against the others' 0 are
+    over one day and over their spread of 0: it is not learned from (3E1b's
+    rule; 3E1's was March's 11 active days under half the median)."""
     hole = tuple(date(2011, 3, d) for d in range(5, 25))
     gap = tuple(date(2012, 1, d) for d in range(10, 14))
 
     _, _, headline, check = _run(daily_rows(date(2010, 12, 1), date(2012, 1, 31), skip=hole + gap))
 
     assert check.evidence["expected_zero_days_cur"] == 0.0
-    assert check.evidence["sparse_history_months"] == ["2011-03"]
+    assert check.evidence["gapped_history_months"] == ["2011-03"]
     assert check.status == "caution"
     assert headline.rule == 2
 
@@ -169,10 +170,11 @@ def test_t2_is_refused_when_a_year_ago_month_has_missing_days() -> None:
     _, verdicts, headline, _ = _run(rows)
 
     assert verdicts["T2"].verdict == "inconclusive"
-    # 10 missing days less the 0.401 February 2011 taught as normal: with 18
-    # active days it is above half the history median, so it stays in D1's
-    # learning window and absorbs a little of its own gap.
-    assert verdicts["T2"].evidence["excess_zero_days_year_ago_cur"] == 9.599
+    # All 10 missing days. Until 3E1b February 2011 (18 active days, above
+    # half the median) stayed in D1's learning and absorbed 0.401 of its own
+    # gap (9.599); now its excess over the other months excludes it (part B),
+    # and February 2010 and 2012, with no zero day, vouch for none.
+    assert verdicts["T2"].evidence["excess_zero_days_year_ago_cur"] == 10.0
     assert headline.rule != 5
 
 
@@ -266,13 +268,21 @@ def test_the_caution_prices_a_gap_at_its_own_months_pace() -> None:
 
 
 def test_d1_ruled_out_text_states_what_the_check_found() -> None:
-    """Two excess days under the threshold: the rule said "found no excess
-    missing days", next to evidence showing 2.0."""
-    rows = daily_rows(date(2010, 12, 1), date(2012, 1, 31),
-                      skip=(date(2012, 1, 10), date(2012, 1, 11)))
+    """Excess days under the threshold: the rule said "found no excess missing
+    days", next to evidence showing 2.0 (3E1). Since 3E1b two lost days in a
+    shop that never misses one caution, so the case is now a shop closed on
+    the first Monday of every month: 12 closed Mondays of 52 in the learned
+    months, 12 / 52 = 0.2308; January 2012 has five Mondays (expected 1.154)
+    and closes two (the 2nd and the 9th): 0.846 excess, under one whole day."""
+    closed = []
+    for year, month in [(2010, 12)] + [(2011, m) for m in range(1, 13)] + [(2012, 1)]:
+        day = date(year, month, 1)
+        closed.append(day + timedelta(days=(7 - day.weekday()) % 7))
+    rows = daily_rows(date(2010, 12, 1), date(2012, 1, 31), skip=(*closed, date(2012, 1, 9)))
 
-    _, verdicts, _, _ = _run(rows)
+    _, verdicts, _, check = _run(rows)
 
+    assert check.evidence["excess_zero_days_cur"] == 0.846
     assert verdicts["D1"].verdict == "ruled_out"
     assert "no excess" not in verdicts["D1"].rule
-    assert "2.0" in verdicts["D1"].rule
+    assert "0.8" in verdicts["D1"].rule

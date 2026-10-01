@@ -12,14 +12,10 @@ must not claim to tell those apart.
 import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
-from stages.diagnose.inputs import MONTH_GRAIN_NOTE, RunData, days_in_month, month_dates
+from stages.diagnose.d1_pattern import MonthZeros, cautions, count_zeros, judge, pattern_zero_days, zero_rates
+from stages.diagnose.inputs import MONTH_GRAIN_NOTE, RunData, days_in_month
 from stages.diagnose.frame import previous_coverage_of
-from stages.diagnose.thresholds import (
-    D1_BLOCK_SHARE,
-    D1_CAUTION_DAYS,
-    D1_CAUTION_SHARE,
-    D1_LEARN_MIN_ACTIVE_SHARE,
-)
+from stages.diagnose.thresholds import D1_HISTORY_MAX_MONTHS
 # D2 and D3 live in trust_checks.py; re-exported so callers keep one import.
 from stages.diagnose.trust_checks import d2_price_level, d3_flagged_rows
 
@@ -36,8 +32,11 @@ DROPPED_ROWS_LIMITATION = (
 
 
 def evaluate_trust(data: RunData, history: list[str]) -> Trust:
+    """`history`: the frame's window, the call shape every step shares. Since
+    3E1b no check reads it - D1 learns from its own, longer window."""
+    del history
     checks = [
-        d1_coverage(data, history),
+        d1_coverage(data),
         d2_price_level(data),
         d3_flagged_rows(data),
     ]
@@ -59,7 +58,7 @@ def evaluate_trust(data: RunData, history: list[str]) -> Trust:
 # --- D1: days of data missing -------------------------------------------------
 
 
-def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
+def d1_coverage(data: RunData) -> TrustCheck:
     """Zero-revenue days beyond what this store's own weekday pattern predicts.
 
     The expectation is per weekday, not one scalar rate (Thach, session 3B): a
@@ -105,50 +104,65 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
     # ...and never from the PREVIOUS month: it is itself checked below, and
     # learning "normal" from it let a 12-day February gap teach itself away
     # (3E1 doubt-review cycle 2, M2).
-    candidates = [month for month in history if month in data.months_with_rows
+    # D1 learns from more than the frame's 24 months when the file holds them
+    # (3E1b review 1, F2): a month's same calendar month a year and two years
+    # earlier tell a season from a gap; at exactly two years the previous
+    # month's has one copy, and the badge cautions rather than guess (3.3a).
+    window = [month for month in data.complete_months
+              if month < period.current][-D1_HISTORY_MAX_MONTHS:]
+    candidates = [month for month in window if month in data.months_with_rows
                   and month != period.previous]
-    empty_history = [month for month in history if month not in data.months_with_rows]
+    empty_history = [month for month in window if month not in data.months_with_rows]
     active = _active_dates(data)
+    months = _zero_counts(active, [*candidates, period.previous, period.current])
     # ...nor from a month that is itself mostly gap: a March missing 20 days,
     # or a November holding one row, taught "closed" as normal and hid a real
-    # gap in the current month (3E1 doubt-review cycle 3). Measured against
-    # the history's own median, so a sparse shop's ordinary months all stay.
-    active_days = {month: len(month_dates(month)) - _zero_days(active, month)
-                   for month in candidates}
-    floor = D1_LEARN_MIN_ACTIVE_SHARE * float(pd.Series(active_days).median()) \
-        if active_days else 0.0
-    learned_from = [month for month in candidates if active_days[month] >= floor]
-    sparse_history = [month for month in candidates if active_days[month] < floor]
-    if not learned_from:
+    # gap in the current month (3E1 doubt-review cycle 3) - and a December
+    # missing 14 of 31 days still did under the "half the median active
+    # days" floor (cycle 4; 3E1b part B). A month is excluded when its own
+    # excess over the others would caution (d1_pattern.learn).
+    judged = judge(months, candidates, period.current, period.previous)
+    if judged is None:
         # The previous month is never learned from, so a two-month file lands
         # here with a complete, full history month: say so rather than "no
         # month holds rows" (3E1 doubt-review cycle 4).
         return TrustCheck(
             id="D1", status="inconclusive",
-            evidence={"history_months": len(history),
-                      "history_months_with_rows": len(history) - len(empty_history),
+            evidence={"history_months": len(window),
+                      "history_months_with_rows": len(window) - len(empty_history),
                       "learned_from_months": 0},
             message="No complete month before the current one, other than the month it is "
                     "compared with (which is itself under check), has sales to learn this "
                     "store's normal trading pattern from.")
 
-    zero_rates = _zero_rate_by_weekday(active, learned_from)
-
+    rates = zero_rates(months, judged.weekdays)
     evidence: dict[str, object] = {
-        "zero_rate_by_weekday": {str(day): round(rate, 4) for day, rate in zero_rates.items()},
-        "history_months_with_rows": len(history) - len(empty_history),
-        "learned_from_months": len(learned_from),
+        "zero_rate_by_weekday": {str(day): round(rate, 4) for day, rate in enumerate(rates)},
+        "history_months_with_rows": len(window) - len(empty_history),
+        "learned_from_months": len(judged.learned),
+        "learned_months": judged.learned,
+        # The learned months the weekday rates come from: an annual closure
+        # is learned for its season but teaches no weekday (3E1b review 3, R1).
+        "weekday_months": judged.weekdays,
         "empty_history_months": empty_history,
-        "sparse_history_months": sparse_history,
+        "gapped_history_months": judged.excluded,
+        "caution_min_days": judged.floor,
     }
-    excess = {}
-    for label, month in (("cur", period.current), ("prev", period.previous)):
-        observed = _zero_days(active, month)
-        expected = _expected_zero_days(zero_rates, month)
-        excess[label] = max(0.0, observed - expected)
-        evidence[f"zero_days_{label}"] = observed
-        evidence[f"expected_zero_days_{label}"] = round(expected, 3)
-        evidence[f"excess_zero_days_{label}"] = round(excess[label], 3)
+    # Two excesses (3E1b review 1, F1): beyond the weekday PATTERN - what B1's
+    # and T2's refusals, the gaps and the D1 hypothesis read, since a closure
+    # still moves the month against the other - and beyond the pattern AND the
+    # same month of other years (UNEXPLAINED) - what the badge reads: an annual
+    # closure is no missing data.
+    by_label = {"cur": judged.current, "prev": judged.previous}
+    for label, month in by_label.items():
+        evidence[f"zero_days_{label}"] = month.observed
+        evidence[f"expected_zero_days_{label}"] = round(month.pattern, 3)
+        evidence[f"excess_zero_days_{label}"] = round(month.excess, 3)
+        evidence[f"seasonal_expected_zero_days_{label}"] = round(month.expected, 3)
+        evidence[f"unexplained_zero_days_{label}"] = round(month.unexplained, 3)
+        evidence[f"caution_bar_days_{label}"] = round(month.bar, 3)
+    excess = {label: month.excess for label, month in by_label.items()}
+    unexplained = {label: month.unexplained for label, month in by_label.items()}
 
     # Each gap at its OWN month's pace, since a month's missing days would have
     # traded at that month's rate: pricing at the other month's pace flipped
@@ -158,49 +172,66 @@ def d1_coverage(data: RunData, history: list[str]) -> TrustCheck:
     # The PREVIOUS month can be the incomplete one, inflating the change
     # upward (3E1 doubt-review #4): it cautions but never blocks - the
     # current month is the one being diagnosed.
-    gap = excess["cur"] * _mean_revenue_per_active_day(data, period.current)
-    gap_prev = excess["prev"] * _mean_revenue_per_active_day(data, period.previous)
-    evidence["estimated_revenue_gap"] = round(gap, 2)
-    evidence["estimated_revenue_gap_prev"] = round(gap_prev, 2)
+    pace = {"cur": _mean_revenue_per_active_day(data, period.current),
+            "prev": _mean_revenue_per_active_day(data, period.previous)}
+    evidence["estimated_revenue_gap"] = round(excess["cur"] * pace["cur"], 2)
+    evidence["estimated_revenue_gap_prev"] = round(excess["prev"] * pace["prev"], 2)
 
     days = days_in_month(period.current)
-    if excess["cur"] >= D1_BLOCK_SHARE * days:
+    if judged.blocked:
         observed = evidence["zero_days_cur"]
         return TrustCheck(
             id="D1", status="blocked", evidence=evidence,
             message=f"{observed} of {days} days in the current month have no sales at all, "
-                    f"about {excess['cur']:.0f} more than this store's normal closing "
+                    f"about {unexplained['cur']:.0f} more than this store's normal closing "
                     "pattern explains - missing data, or days the shop was closed. Too few "
                     "trading days to diagnose.")
-    if excess["cur"] >= D1_CAUTION_DAYS or excess["cur"] >= D1_CAUTION_SHARE * days:
-        return TrustCheck(
-            id="D1", status="caution", evidence=evidence,
-            message=f"About {excess['cur']:.0f} days in the current month have no sales beyond "
-                    "this store's normal closing pattern (missing data, or days the shop was "
-                    f"closed), worth roughly {gap:,.0f} in revenue.")
-    days_prev = days_in_month(period.previous)
-    if excess["prev"] >= D1_CAUTION_DAYS or excess["prev"] >= D1_CAUTION_SHARE * days_prev:
-        return TrustCheck(
-            id="D1", status="caution", evidence=evidence,
-            message=f"About {excess['prev']:.0f} days in the previous month have no sales "
-                    "beyond this store's normal closing pattern (missing data, or days the "
-                    f"shop was closed), worth roughly {gap_prev:,.0f} in revenue - the change "
-                    "is measured against an incomplete month.")
+    for label, which, tail in (("cur", "current", "."),
+                               ("prev", "previous", " - the change is measured against an incomplete month.")):
+        if by_label[label].flagged:
+            count, verb = _days(unexplained[label])
+            return TrustCheck(
+                id="D1", status="caution", evidence=evidence,
+                message=f"About {count} in the {which} month {verb} no sales beyond this store's "
+                        "normal closing pattern (missing data, or days the shop was closed), worth "
+                        f"roughly {unexplained[label] * pace[label]:,.0f} in revenue{tail}")
     return TrustCheck(
         id="D1", status="ok", evidence=evidence,
         message="Coverage matches this store's normal trading pattern.")
 
 
 def excess_zero_days(data: RunData, check: TrustCheck, month: str) -> float | None:
-    """Zero-sale days in any `month` beyond D1's learned weekday pattern, or
+    """Zero-sale days in any `month` beyond D1's learned weekday PATTERN, or
     None when D1 learned none. For T2's year-ago pair, which D1 does not check
-    (3E1 doubt-review cycle 3: a year-ago gap read as the season)."""
-    rates = check.evidence.get("zero_rate_by_weekday")
-    if rates is None:
+    (3E1 doubt-review cycle 3: a year-ago gap read as the season): measured
+    against the learned months other than itself, and against the pattern
+    alone - a closure in the year-ago month moves last year's season whatever
+    the season expects (3E1b review 1, F1)."""
+    learned = check.evidence.get("weekday_months")
+    if learned is None:
         return None
-    zero_rates = {int(day): rate for day, rate in rates.items()}
-    return max(0.0, _zero_days(_active_dates(data), month)
-               - _expected_zero_days(zero_rates, month))
+    others = [other for other in learned if other != month]
+    months = _zero_counts(_active_dates(data), [*others, month])
+    return max(0.0, months[month].total - pattern_zero_days(months, month, others))
+
+
+def pattern_found(check: TrustCheck) -> bool:
+    """Whether days with no sales beyond the weekday pattern pass D1's caution
+    test in either compared month - the D1 hypothesis's own test (3E1b review
+    1, F1): an annual closure explains a change though it is no missing data."""
+    evidence = check.evidence
+    return any(cautions(float(evidence[f"excess_zero_days_{label}"]),
+                        float(evidence[f"caution_bar_days_{label}"]), float(evidence["caution_min_days"]))
+               for label in ("cur", "prev"))
+
+
+def _days(excess: float) -> tuple[str, str]:
+    return ("1 day", "has") if round(excess) == 1 else (f"{excess:.0f} days", "have")
+
+
+def _zero_counts(active: pd.Series, months: list[str]) -> dict[str, MonthZeros]:
+    traded = set(active.index.date)
+    return {month: count_zeros(traded, month) for month in dict.fromkeys(months)}
 
 
 def _active_dates(data: RunData) -> pd.Series:
@@ -216,31 +247,6 @@ def _active_dates(data: RunData) -> pd.Series:
     trading = set(days[data.parsed.sale])
     revenue = data.parsed.revenue_amounts[counted].groupby(days[counted]).sum()
     return revenue[revenue.index.isin(trading)]
-
-
-def _zero_rate_by_weekday(active: pd.Series, history: list[str]) -> dict[int, float]:
-    """Share of history dates of each weekday (0 = Monday) with no revenue."""
-    traded = set(active.index)
-    rates: dict[int, float] = {}
-    counts: dict[int, list[int]] = {day: [0, 0] for day in range(7)}
-    for month in history:
-        for day in month_dates(month):
-            slot = counts[day.weekday()]
-            slot[1] += 1
-            if day not in traded:
-                slot[0] += 1
-    for day, (zeros, total) in counts.items():
-        rates[day] = zeros / total if total else 0.0
-    return rates
-
-
-def _zero_days(active: pd.Series, month: str) -> int:
-    traded = set(active.index)
-    return sum(1 for day in month_dates(month) if day not in traded)
-
-
-def _expected_zero_days(zero_rates: dict[int, float], month: str) -> float:
-    return sum(zero_rates[day.weekday()] for day in month_dates(month))
 
 
 def _mean_revenue_per_active_day(data: RunData, month: str) -> float:

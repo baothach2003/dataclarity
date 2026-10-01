@@ -222,6 +222,48 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
                     f"{average} {pair['aov']:+,.2f}: large movements that "
                     "largely cancelled out. This may be seasonal.")
 
+    # The size test (3E1b; Thach, 3E2-F1): rules 5 and 6 single a cause out
+    # only beyond twice the shop's median month-to-month movement - inside it
+    # any decomposition of noise has a term holding a fifth of the change, and
+    # every month with nothing planted named a cause (30 of 30 seeds). The
+    # verdicts and the table are untouched. Untestable (too short a history,
+    # no percentage): rules 5-7 stand and say so - the data cannot tell
+    # (CLAUDE.md 3.3a's shape).
+    gate = moved.movement
+    found = _ranked(hypotheses, by_id, moved, change)
+    # Only a cause singled out is gated: a rule 7 keeps its own sentence and
+    # its "partly consistent" list (3E1b review 1, F6).
+    if gate is not None and gate.singled_out is False and found.rule in (5, 6):
+        times = "twice" if gate.factor == 2 else f"{gate.factor:g} times"
+        places = _places(gate.change_pct, gate.typical_pct, gate.factor)
+        return Headline(rule=7, hypothesis_id=None, lens=None, movement=gate,
+                        message=f"{change} This month's change ({gate.change_pct:+.{places}f}%) is within "
+                                f"this shop's usual month-to-month range: under {times} its median "
+                                f"movement of about {gate.typical_pct:.{places}f}% over the "
+                                f"{gate.movements} month-to-month changes before it. No single cause "
+                                "is singled out.")
+    if gate is not None and gate.singled_out is None and found.rule in (5, 6):
+        found = found.model_copy(update={"message": (
+            f"{found.message} Whether this change is larger than this shop's usual month-to-month "
+            f"movement cannot be said: {gate.reason}.")})
+    return found.model_copy(update={"movement": gate})
+
+
+def _places(change_pct: float, typical_pct: float, factor: float) -> int:
+    """Decimal places for the two percentages, one unless rounding would print
+    a change that is not under `factor` x the typical movement - "+37.0% ...
+    under twice about 18.5%" for 36.96 against 18.49 (3E1b review 2, N5)."""
+    for places in range(1, 10):
+        # ...and never prints a change that moved as "-0.0%" (review 3, R5).
+        if round(abs(change_pct), places) < factor * round(typical_pct, places) and (
+                change_pct == 0 or round(change_pct, places) != 0):
+            return places
+    return 10
+
+
+def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: Changes,
+            change: str) -> Headline:
+    """Rules 5 to 7, as they stood before the size test."""
     # 5 and 6, ranked together under the one fit (Thach, 2E-o Q1): rule 5's
     # context causes - the calendar or seasonality, supported and at least
     # half of the change - and rule 6's share causes compete, and the

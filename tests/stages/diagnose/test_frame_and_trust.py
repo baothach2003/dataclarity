@@ -88,7 +88,7 @@ def test_d1_flags_a_run_of_missing_days_and_prices_the_gap() -> None:
     gap = tuple(date(2011, 11, day) for day in range(10, 16))
     data = run_data(daily_rows(start, end, skip=gap))
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "caution"
     assert check.evidence["zero_days_cur"] == 6
@@ -103,7 +103,7 @@ def test_d1_blocks_when_most_of_the_month_is_missing() -> None:
     gap = tuple(date(2011, 11, day) for day in range(1, 21))  # 20 of 30 days
     data = run_data(daily_rows(start, end, skip=gap))
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "blocked"
 
@@ -114,7 +114,7 @@ def test_a_shop_closed_every_sunday_is_not_accused_of_missing_data() -> None:
     start, end = month_span("2011-01", 11)
     data = run_data(daily_rows(start, end, closed_weekdays=(6,)))
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "ok"
     assert check.evidence["zero_days_cur"] == 4  # November 2011 has four Sundays
@@ -128,7 +128,7 @@ def test_a_shop_closed_sundays_still_shows_a_weekday_gap() -> None:
     gap = tuple(date(2011, 11, day) for day in (1, 2, 3, 8, 9))  # Tue/Wed/Thu
     data = run_data(daily_rows(start, end, closed_weekdays=(6,), skip=gap))
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "caution"
     assert check.evidence["excess_zero_days_cur"] == pytest.approx(5.0)
@@ -140,7 +140,7 @@ def test_d1_is_inconclusive_without_any_history_to_compare_against() -> None:
     is absent - see test_step7_cycle3_fixes; 3E1 moved this fixture on.)"""
     data = run_data(daily_rows(date(2010, 12, 1), date(2011, 1, 31)))
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "inconclusive"
 
@@ -311,7 +311,7 @@ def test_empty_history_months_do_not_teach_d1_that_gaps_are_normal() -> None:
             if entry["Date"][:7] not in ("2010-05", "2010-06", "2010-07")]
     data = run_data(rows)
 
-    check = d1_coverage(data, history_window(data))
+    check = d1_coverage(data)
 
     assert check.status == "caution"
     assert check.evidence["excess_zero_days_cur"] == 6.0

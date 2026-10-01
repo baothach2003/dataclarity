@@ -138,7 +138,7 @@ def test_a_name_in_a_hypothesis_is_marked_too(data) -> None:
 
 def test_diagnosis_json_is_17_0_with_the_notes_and_the_marks(data) -> None:
     payload = diagnosis_payload()
-    assert payload["schema_version"] == "17.0"
+    assert payload["schema_version"] == "18.0"
     payload["notes"] = [n.model_dump(mode="json") for n in stage_3_notes(data)]
     payload["hypotheses"].append({"id": "R1", "family": "localization_lifecycle", "lens": "localization",
                                   "statement": "x", "verdict": "ruled_out", "contribution": None, "share": None,

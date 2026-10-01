@@ -26,6 +26,11 @@ from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.stages.diagnose.test_2el_review1 import COLUMNS, _days, _run
 from tests.stages.diagnose.test_headline import catalog, tree, trust
 
+# 3E1b: a five-month file is too short for the headline's size test, and says so.
+SHORT_HISTORY = ("Whether this change is larger than this shop's usual month-to-month movement cannot be "
+                 "said: only 4 month-to-month changes before it can be measured, and 7 are needed.")
+
+
 
 def _headline(moved: Changes, **causes: tuple[str, float | None]):
     """Every catalog cause ruled out with no contribution except `causes`:
@@ -263,7 +268,10 @@ def test_a_price_rise_against_a_refund_month_is_named_as_the_movement_up() -> No
     assert headline.message == (
         "Revenue went from 1,550.00 to 1,405.00 (-145.00). The change is what remains of movements in "
         "opposite directions, among them: down, returns took more revenue away (returns lens, -300.00); "
-        "up, like-for-like prices changed (product lens, +155.00).")  # 2E-o Q5 #1: signed, "among them"
+        "up, like-for-like prices changed (product lens, +155.00). "  # 2E-o Q5 #1: signed, "among them"
+        # 3E1b: a five-month file is too short for the size test, and says so.
+        "Whether this change is larger than this shop's usual month-to-month movement cannot be said: "
+        "only 4 month-to-month changes before it can be measured, and 7 are needed.")
 
 
 def test_the_no_fit_message_claims_no_fit_a_gated_cause_would_contradict() -> None:
@@ -374,7 +382,7 @@ def test_the_products_share_counts_their_sale_lines_not_their_refunds() -> None:
     assert (results["P2"].verdict, results["P2"].contribution) == ("supported", pytest.approx(-420.0))
     assert (results["P3"].verdict, results["P3"].contribution) == ("supported", pytest.approx(-200.0))
     assert (headline.rule, headline.hypothesis_id) == (6, "P3")
-    assert headline.message.endswith("(returns lens, 51% of the change).")
+    assert headline.message.endswith("(returns lens, 51% of the change). " + SHORT_HISTORY)
 
 
 def test_r1_names_the_product_whose_revenue_moved_not_an_order_cancelled() -> None:
@@ -427,8 +435,8 @@ def test_diagnosis_json_is_major_13_or_the_current_one_and_refuses_a_12_file() -
     # name another cause, and rule 6 may name none or two (CONTRACTS 10).
     # 13.0 in 2E-n; 14.0 in 2E-i; 15.0 since 2E-j.
     payload = diagnosis_payload()
-    assert DiagnosisContract.supported_major == 17  # 17 since 2E-t2 (the line taxonomy)
-    assert DiagnosisContract.model_validate(payload).schema_version == "17.0"
+    assert DiagnosisContract.supported_major == 18  # 18 since 3E1b; 17 since 2E-t2 (the line taxonomy)
+    assert DiagnosisContract.model_validate(payload).schema_version == "18.0"
 
     payload["schema_version"] = "12.0"
     with pytest.raises(ValidationError, match="re-analyse"):

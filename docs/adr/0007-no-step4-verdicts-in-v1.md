@@ -3,6 +3,12 @@
 ## Status
 Accepted. Extends ADR-0006 (level rows are descriptive) to year-over-year
 rows, and supersedes its exception 3 (the masked-shift alert reading step 4).
+**Complemented 2026-10-02 (3E1b, Thach's 3E2-F1 decision):** with T3 dormant
+nothing asked whether a change was larger than usual, so every month that
+barely moved named a cause. The headline now singles a cause out only beyond
+twice the shop's median month-over-month movement (`docs/AI_PIPELINE.md` 7.8,
+the size test). That is not a step-4 verdict: no row becomes one, T3 stays
+dormant, and the hypothesis table is unchanged.
 
 ## Date
 2026-09-23 (Phase 3, decided by Thach after session 3D6; implemented in

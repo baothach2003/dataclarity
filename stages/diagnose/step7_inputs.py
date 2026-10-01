@@ -5,10 +5,11 @@ functions and the verdict rule can both import it without a cycle."""
 
 from dataclasses import dataclass
 
-from contracts.diagnosis import Calendar, Frame, Localization, Signal, Tree, Trust
+from contracts.diagnosis import Calendar, Frame, HeadlineMovement, Localization, Signal, Tree, Trust
 from stages.diagnose.inputs import RunData, money_moved
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.localization import products_hold_the_change
+from stages.diagnose.movement import measure_movement
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,10 @@ class Changes:
     # read by the headline's product-lens gate. `changes()` always sets it; a
     # hand-built Changes (tests) holds the change unless it says otherwise.
     products_hold_the_change: bool = True
+    # The headline's size test (3E1b, stages/diagnose/movement.py). `changes()`
+    # always measures it; a hand-built Changes (tests) carries none, and then
+    # rules 5 and 6 are not gated.
+    movement: HeadlineMovement | None = None
 
 
 def changes(inputs: Step7Inputs) -> Changes:
@@ -72,9 +77,14 @@ def changes(inputs: Step7Inputs) -> Changes:
     gross = (tree.returns.gross_cur - tree.returns.gross_prev) if tree else None
     alert = bool(tree and tree.lever.masked_shift_alert)
     localization = inputs.localization
-    return Changes(prev, cur, cur - prev, gross, alert, money_moved(inputs.data),
+    scale = money_moved(inputs.data)
+    movement = measure_movement(inputs.history, {month: month_revenue(inputs.data, month)
+                                                 for month in inputs.history},
+                                revenue_prev=prev, revenue_cur=cur, scale=scale)
+    return Changes(prev, cur, cur - prev, gross, alert, scale,
                    # The basis the lever counted on (F10): the same shared
                    # rule stage 2 wrote into metrics.json.
                    orders_basis=inputs.data.parsed.orders_basis,
                    products_hold_the_change=(localization is not None
-                                             and products_hold_the_change(localization.breadth)))
+                                             and products_hold_the_change(localization.breadth)),
+                   movement=movement)

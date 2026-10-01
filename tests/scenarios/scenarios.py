@@ -6,7 +6,10 @@ names where the rule names one, or - for S10, whose finding is a trust
 caution and never a headline - a verdict. `implied` lists the hypotheses
 the planted cause makes true by their documented definitions (AI_PIPELINE
 7.8): a supported hypothesis outside it is a decoy. Both were fixed from
-the definitions, never from engine output.
+the definitions, never from engine output. `consequences` (Thach's 3E2-F3
+decision, 2026-10-02; written before the re-run, the 3E2 re-run method's R1,
+C:/Users/Happy/3E2-rerun-method.txt) lists what the planted mechanism makes true by a hypothesis's
+own definition beyond its implied set - not a decoy, never the headline.
 
 Compared months: Aug -> Sep 2023 (calendar-neutral, with its year-ago pair:
 store.WEEKDAY_WEIGHTS), planted in September, over 26 complete months
@@ -46,6 +49,7 @@ class Scenario:
     expected: Expected
     implied: frozenset[str]
     build: Callable[[int], pd.DataFrame] = field(repr=False)
+    consequences: frozenset[str] = frozenset()
 
 
 def _sep(day: int) -> date:
@@ -152,18 +156,35 @@ def s11(seed: int) -> pd.DataFrame:
 # reads, by definition, as customers buying less often (B1) and more of
 # them skipping the month (C2) or not coming back (C3).
 _FEWER_ORDERS = frozenset({"B1", "C2", "C3"})
+# Orders whose every line was the product that stopped selling are not placed
+# (B1: fewer orders per customer), and a customer whose only purchases would
+# have been it buys nothing that month (C2: counted lapsed). No substitute is
+# drawn (store.py), so both follow from the plant itself.
+_LOST_PRODUCT_ORDERS = frozenset({"B1", "C2"})
+# R3 reads only sales days ("may have run out of stock", verify on the shelf):
+# a product picked a third as often goes its zero-run of trading days without
+# a sale by construction of R3's definition. Flagged for Thach's veto - its
+# statement is about stock, not the demand that moved; the re-run reports the
+# decoys with and without it.
+FLAGGED_CONSEQUENCES = {"S3": frozenset({"R3"})}
 
 SCENARIOS: tuple[Scenario, ...] = (
     Scenario("S0", "nothing", Expected(rule=7), frozenset(), s0),
     Scenario("S1", "calendar", Expected(rule=5, names="T1"), _FEWER_ORDERS | {"T1"}, s1),
     Scenario("S2", "like-for-like price cut", Expected(rule=6, names="P1"), frozenset({"P1"}), s2),
-    Scenario("S3", "mix shift", Expected(rule=6, names="P2"), frozenset({"P2"}), s3),
+    Scenario("S3", "mix shift", Expected(rule=6, names="P2"), frozenset({"P2"}), s3,
+             consequences=FLAGGED_CONSEQUENCES["S3"]),
     Scenario("S4", "lapsed customers", Expected(rule=6, names="C2"), frozenset({"C2"}), s4),
     Scenario("S5", "missing days", Expected(rule=2), _FEWER_ORDERS | {"D1"}, s5),
     Scenario("S6", "masked shift", Expected(rule=4), frozenset({"C2", "B2"}), s6),
-    Scenario("S7", "stockout", Expected(rule=6, names="R3"), frozenset({"R3", "R1", "P2", "B2"}), s7),
-    Scenario("S8", "discontinued products", Expected(rule=6, names="R2"), frozenset({"R2", "B2"}), s8),
+    Scenario("S7", "stockout", Expected(rule=6, names="R3"), frozenset({"R3", "R1", "P2", "B2"}), s7,
+             consequences=_LOST_PRODUCT_ORDERS),
+    Scenario("S8", "discontinued products", Expected(rule=6, names="R2"), frozenset({"R2", "B2"}), s8,
+             consequences=_LOST_PRODUCT_ORDERS),
     Scenario("S9", "seasonality", Expected(rule=5, names="T2"), _FEWER_ORDERS | {"T2"}, s9),
-    Scenario("S10", "x100 price error", Expected(supported="D2"), frozenset({"D2", "P1"}), s10),
+    # Every revenue figure of the month is x100, new and returning customers'
+    # included (C1, C3 hold by their definitions).
+    Scenario("S10", "x100 price error", Expected(supported="D2"), frozenset({"D2", "P1"}), s10,
+             consequences=frozenset({"C1", "C3"})),
     Scenario("S11", "nothing, 6 months", Expected(rule=7), frozenset(), s11),
 )

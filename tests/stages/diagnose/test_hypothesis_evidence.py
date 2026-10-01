@@ -35,12 +35,17 @@ def _trust(check_id: str, status: str, **evidence):
                                   message="could not run")]))
 
 
+# Days beyond the weekday pattern that pass D1's caution test (3E1b).
+_FOUND = {"excess_zero_days_cur": 3.0, "excess_zero_days_prev": 1.0, "caution_bar_days_cur": 0.0,
+          "caution_bar_days_prev": 0.0, "caution_min_days": 1.0}
+
+
 def test_d1_nets_the_two_gaps_at_their_own_pace() -> None:
     """Missing days this month worth 120 at this month's pace pull the change
     down; missing days last month worth 45 at last month's pace pushed it up:
     45 - 120 = -75."""
     outcome = evaluate("D1", _trust("D1", "caution", estimated_revenue_gap=120.0,
-                                    estimated_revenue_gap_prev=45.0))
+                                    estimated_revenue_gap_prev=45.0, **_FOUND))
 
     assert outcome.contribution == -75.0
 
@@ -51,9 +56,32 @@ def test_d1_is_ruled_out_when_its_check_found_nothing() -> None:
     shops with no missing data."""
     outcome = evaluate("D1", _trust("D1", "ok", estimated_revenue_gap=40.0,
                                     estimated_revenue_gap_prev=0.0,
-                                    excess_zero_days_cur=1.0, excess_zero_days_prev=0.0))
+                                    excess_zero_days_cur=1.0, excess_zero_days_prev=0.0,
+                                    caution_bar_days_cur=2.0, caution_bar_days_prev=2.0, caution_min_days=1.0))
 
     assert outcome.verdict == "ruled_out"
+
+
+def test_d1_is_not_found_under_the_floor_of_a_short_history() -> None:
+    # Two days beyond the pattern, over a spread of 0, but under the 3-day
+    # floor a history shorter than a year has (3E1b review 1, F3).
+    outcome = evaluate("D1", _trust("D1", "ok", estimated_revenue_gap=20.0, estimated_revenue_gap_prev=0.0,
+                                    excess_zero_days_cur=2.0, excess_zero_days_prev=0.0,
+                                    caution_bar_days_cur=0.0, caution_bar_days_prev=0.0, caution_min_days=3.0))
+
+    assert outcome.verdict == "ruled_out"
+
+
+def test_d1_is_found_on_the_weekday_pattern_whatever_the_badge_says() -> None:
+    """3E1b review 1, F1: an annual closure the same month of other years
+    expects leaves the badge "ok", yet its days beyond the weekday PATTERN
+    (1.9 here, over the floor of 1 and the spread of 0.9) still moved the
+    month: the D1 hypothesis is weighed on them - 0 - 19 = -19."""
+    outcome = evaluate("D1", _trust("D1", "ok", estimated_revenue_gap=19.0, estimated_revenue_gap_prev=0.0,
+                                    excess_zero_days_cur=1.9, excess_zero_days_prev=0.0,
+                                    caution_bar_days_cur=0.9, caution_bar_days_prev=0.9, caution_min_days=1.0))
+
+    assert (outcome.verdict, outcome.contribution) == (None, -19.0)
 
 
 def test_d1_that_could_not_run_is_inconclusive() -> None:
