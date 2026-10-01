@@ -24,8 +24,12 @@ from tests.stages.diagnose.test_rule_one_reliability import months
 
 def test_b1_needs_the_three_factor_split() -> None:
     """A customer column is mapped, but a period had no identified customers,
-    so level 1 fell back to orders x AOV: frequency cannot be read."""
-    inputs = NS(data=NS(parsed=CUSTOMER), tree=NS(
+    so level 1 fell back to orders x AOV: frequency cannot be read. Since 3E2
+    a month whose sale lines name no customer is refused first (not_testable),
+    and a compared month with no sale blocks the run: this path is no longer
+    reached from a file - kept as the guard on a level 1 formed without
+    customers, should another way to one appear (3E2 review 3 #9)."""
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=CUSTOMER), tree=NS(
         returns=NS(returns_prev=0.0, returns_cur=0.0),
         lever=NS(level1=NS(formula="orders*aov", factors=[]),
                  reasons={"level1_form": "no identified customers in one period"})),
@@ -190,6 +194,6 @@ def test_c4_refuses_when_a_segment_has_emptied() -> None:
                 NS(segment="Loyal", customers=20, customers_previous=20),
                 NS(segment="At-risk", customers=5, customers_previous=0),
                 NS(segment="Needs Attention", customers=45, customers_previous=30)]
-    inputs = NS(data=NS(parsed=CUSTOMER, metrics=NS(customers=NS(segments=segments))))
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=CUSTOMER, metrics=NS(customers=NS(segments=segments))))
 
     assert evaluate("C4", inputs).verdict == "inconclusive"

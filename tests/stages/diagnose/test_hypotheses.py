@@ -229,7 +229,7 @@ def test_c4_counts_a_move_from_strong_to_weak_segments(monkeypatch) -> None:
     segments = [seg("Champions", 15, 20), seg("Loyal", 15, 20), seg("At-risk", 20, 10),
                 seg("Hibernating", 10, 10), seg("New", 40, 40), seg("Needs Attention", 1, 1)]
     inputs = SimpleNamespace(
-        data=SimpleNamespace(parsed=SimpleNamespace(reverse={"customer": "Cust"}),
+        data=SimpleNamespace(blank_customer_months=frozenset(), parsed=SimpleNamespace(reverse={"customer": "Cust"}),
                              metrics=SimpleNamespace(customers=SimpleNamespace(segments=segments))))
 
     fell = c4(inputs, Changes(1000.0, 800.0, -200.0, -200.0, False))

@@ -3,6 +3,9 @@ out of `hypothesis_evidence.py` in 3E1 for file size. Also home to the
 no-customer-column refusal, which B1 shares.
 """
 
+from typing import Literal
+
+from stages.diagnose.inputs import shift_month
 from stages.diagnose.numbers import is_negligible
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
 from stages.diagnose.thresholds import C4_RULE_OUT_POINTS, C4_SUPPORT_POINTS
@@ -34,10 +37,47 @@ NOT_TESTABLE_NO_CUSTOMER = Outcome(
     rule="requires a customer column")
 
 
+def blank_customers(inputs: Step7Inputs, *, reads: Literal["compared", "transition", "history"]) -> Outcome | None:
+    """Not testable when a month the cause reads has a customer column
+    mapped but blank (Thach, 2026-09-29, deciding 5A review 3 #2): "ruled
+    out" claims the cause did not happen, while the data only failed to show
+    the customers - and a note beside a false verdict leaves it false. What
+    a cause reads: the compared months (B1, C4); with the previous
+    transition, the month before them too (C2); or, for C1 and C3, whose
+    new and returning customers are told apart by earlier months, every
+    month up to the current one (3E2 review 1 #2). A look-back window
+    (review 2 #7) let an older blank month turn returning customers into new
+    ones again - "new customers brought in more revenue" in the headline -
+    so it was withdrawn (review 3 #1): a refusal over a false verdict, and a
+    file whose names start part way is 8D's known limit."""
+    if not inputs.data.blank_customer_months:
+        return None
+    period = inputs.data.metrics.period
+    if reads == "history":
+        months = {month for month in inputs.data.blank_customer_months if month <= period.current}
+    else:
+        months = {period.previous, period.current} | (
+            {shift_month(period.previous, -1)} if reads == "transition" else set())
+    blank = sorted(months & inputs.data.blank_customer_months)
+    if not blank:
+        return None
+    # "Between", never "to": the months need not follow each other (review 3 #7).
+    span = " and ".join(blank) if len(blank) <= 2 else f"{len(blank)} months between {blank[0]} and {blank[-1]}"
+    return Outcome(verdict="not_testable",
+                   evidence={"reason": f"the customer column is mapped but blank for {span}: "
+                                       "no sale line names a customer",
+                             "blank_months": blank},
+                   rule="requires a named customer on the lines of every month it reads")
+
+
 def bridge_difference(term: str, censored_matters: bool):
     def evaluate(inputs: Step7Inputs, moved: Changes) -> Outcome:
         if no_customer(inputs):
             return NOT_TESTABLE_NO_CUSTOMER
+        # The terms that need first purchases (C1, C3) are the ones left-
+        # censoring refuses: they read every earlier month; C2 the transitions.
+        if blank := blank_customers(inputs, reads="history" if censored_matters else "transition"):
+            return blank
         lens = inputs.tree.customers
         if lens.previous_transition is None:
             return Outcome(verdict="inconclusive", evidence=dict(lens.evidence),
@@ -54,6 +94,8 @@ def bridge_difference(term: str, censored_matters: bool):
 def c4(inputs: Step7Inputs, moved: Changes) -> Outcome:
     if no_customer(inputs):
         return NOT_TESTABLE_NO_CUSTOMER
+    if blank := blank_customers(inputs, reads="compared"):
+        return blank
     if not SEGMENTS_ANCHORED_TO_THE_PERIOD:
         return Outcome(verdict="inconclusive", evidence={},
                        rule="stage 2's segment counts are a snapshot at the file's end, "

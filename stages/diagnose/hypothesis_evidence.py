@@ -22,6 +22,7 @@ from stages.diagnose.hypothesis_evidence_time import (
 # The customer family lives in its own module (file size); c4 is re-exported.
 from stages.diagnose.hypothesis_evidence_customers import (
     NOT_TESTABLE_NO_CUSTOMER,
+    blank_customers,
     bridge_difference,
     c4,
     no_customer,
@@ -47,6 +48,8 @@ def _directional_check(check_id: str):
 def b1(inputs: Step7Inputs, moved: Changes) -> Outcome:
     if no_customer(inputs):
         return NOT_TESTABLE_NO_CUSTOMER
+    if blank := blank_customers(inputs, reads="compared"):
+        return blank
     # An order is a row count, so a day with no sales removes whole orders and
     # reads as customers buying less often: two missing days under D1's
     # threshold headlined "customers bought less often (100%)" (3E1 doubt-

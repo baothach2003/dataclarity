@@ -29,8 +29,8 @@ HEADLINE_CONTEXT_MIN_SHARE = 0.50
 # is the case a "did revenue move?" report misses entirely.
 MASKED_GROSS_TO_NET = 3.0
 
-# PROVISIONAL (3D6b; 3E re-sweeps it against the real S0-S11 suite and may
-# change it). Since ADR-0007 the masked-shift alert no longer reads step 4, so
+# Set by 3E2's sweep against the planted-cause suite (below); first tuned in
+# 3D6b on hand-built shapes. Since ADR-0007 the masked-shift alert no longer reads step 4, so
 # "the components moved strongly" needs its own bar, a FLOOR:
 #
 #     floor = this share * max(typical month, |previous month|, |current month|)
@@ -50,14 +50,14 @@ MASKED_GROSS_TO_NET = 3.0
 # Why the max (Thach, after the doubt-review; the first version used the
 # typical month alone): the typical month is small against a peak, so months
 # at 3x and 10x typical fired on 15-25% of them with nothing planted. The max
-# keeps the rate flat UPWARD and never lets the floor drop below 20% of the
-# typical month, so a bad last month cannot shrink it.
+# keeps the rate flat UPWARD and never lets the floor drop below the share
+# of the typical month, so a bad last month cannot shrink it.
 #
 # Why the change is measured against the compared months, not the floor (pair
-# review, a fabrication): in a trough the floor is 20% of a typical month far
-# larger than the months compared, so a month that fell 200 -> 50 (-75%)
-# passed as "flat" and fired. Against 20% of the larger compared month it
-# does not. At or above typical scale the two bounds coincide.
+# review, a fabrication): in a trough the floor is the share of a typical
+# month far larger than the months compared, so a month that fell 200 -> 50
+# (-75%) passed as "flat" and fired. Against the share of the larger compared
+# month it does not. At or above typical scale the two bounds coincide.
 #
 # A business materiality threshold. Without noise its must-fire side would be
 # definitional; with noise the change also crosses the bound, so S6's shape
@@ -80,7 +80,27 @@ MASKED_GROSS_TO_NET = 3.0
 # statement - both sides did move that much - in hedged wording, so it
 # misleads by emphasis rather than fabricating a finding; it still takes the
 # headline from rules 5-7, which is the cost.
-MASKED_MIN_CONTRIBUTION_SHARE = 0.20
+#
+# 0.25 since 3E2 (2026-10-01; AI_PIPELINE 7.11's generator, the rule fixed
+# before the sweep: keep 0.20 unless a share raises S6's rate without raising
+# any alert where no masked shift is planted). Seeds 1-30, every scenario,
+# alerts at 0.10 / 0.15 / 0.20 / 0.25 / 0.30: S6 (customers -40%, AOV +40%)
+# 4 / 17 / 24 / 29 / 20 of 30; every other scenario, S9's season included,
+# 0 of 330 at every share. On the noise models above, re-run on the shipped
+# function: 0.20 gives .021/.026 (20/10/10, 1x/3x), .052/.067 (30/15/15),
+# .021/.030 (frequency stable), .025/.023 (orders*aov); 0.25 gives .013/.011,
+# .035/.042, .011/.013, .008/.009 - lower everywhere, since its materiality
+# floor is higher. What 0.25 admits: a month moving up to 25% of the larger
+# compared month counts as flat when gross_to_net still reaches 3 (S6's
+# month fell 24.887% on the frozen seed). S6's whole gain over 0.20 is that
+# widened flatness - the five seeds 0.25 adds fell 22.3-23.3%, and seed 23
+# (-25.2%) still misses (3E2 review 3 #5); at the frozen seed rule 4 hedges
+# a -24.89% month while the planted lapsed customers (C2, -21,714.60) stay
+# out of the headline. The method's rule could not see that cost: no
+# scenario but S6 moves both sides by a material share. Out of sample
+# (seeds 31-60): 28 of 30 at 0.25, 26 at 0.20, no false alert. Scratchpad run10/3e2 (sweep.jsonl,
+# noise_models.py).
+MASKED_MIN_CONTRIBUTION_SHARE = 0.25
 
 # A customer whose first purchase falls inside the first few months of the file
 # only looks new because the file starts there. C1/C3 stay inconclusive then.

@@ -759,6 +759,99 @@ dataclarity/
       waits; 8D "From 5A" keeps it as a known limit until then. Repro:
       scratchpad `run9/5a/review3/realruns3.py` (`nov_sales_unnamed`) and
       `run9/5a/review2/realruns.py` (`blank_customer`).
+      **Built 2026-10-01; NOT done - its acceptance criteria fail on
+      3E2-F1 and 3E2-F2, which wait for Thach** (tenth run, session 2,
+      BEFORE 3E1b - Thach's run order - so every figure below is re-run
+      after it; full process: the method `C:\Users\Happy\3E2-method.txt`
+      written before the engine first ran on a generated file, tests first,
+      mutation 38/38 (two survivors killed by new tests), doubt-review 3 cycles -
+      cross-model skipped, non-interactive; the third cycle's fixes are tested
+      and mutated, not reviewed: the bound). **The generator**
+      (`tests/scenarios/`, AI_PIPELINE 7.11 "As built"): engine-independent
+      by construction (stdlib, numpy, pandas only - every import parsed,
+      the engine-running tests included; seed 20261001 and every plant
+      fixed first), one random stream per month and every draw before a
+      plant drops a line (a line-dropping plant leaves S0's month less those
+      lines, tested; S6's longer orders redraw its month), compared months Aug -> Sep 2023 calendar-neutral with their
+      year-ago pair (found by LP over retail-shaped weekday weights; S1 uses
+      Aug -> Sep 2024, -7.09%). Over seeds 1-30 the compared change's SD is
+      4.83% (the method's 3.42% was seeds 1-20); planted medians -5.9% (S1)
+      and -7.6% (S7, inside the noise) to -30.9% (S4). **The suite**
+      (`tests/stages/diagnose/test_3e2_scenarios.py`): the criteria the
+      engine meets asserted; every outcome at the seed pinned; the misses
+      pinned as KNOWN LIMITS under F1 and F2 (no xfail: CONSTRAINTS F1, F2 -
+      review 1 #1; the first version's xfail(strict) was withdrawn). At the
+      seed the expectation is met in 8 of 12 (7 by the headline, S10 by its
+      D2 verdict), 8 decoys, 2 false alarms; over seeds 1-30 S4 and S10
+      30/30, S2, S3, S5, S6 29, S8 26, S7 22, S9 17, S1 8, S0 and S11 0;
+      outside S0/S11 17 of 300 runs named a cause not planted; the share
+      held out of sample (seeds 31-60: S6 28 at 0.25, 26 at 0.20). The
+      suite adds ~3 minutes to pytest (now ~7). **Thach's blank-customer
+      decision**: built (AI_PIPELINE 7.8; `RunData.blank_customer_months`, a
+      month whose sale lines name no customer; "the C and B hypotheses" read
+      as C1-C4 and B1 - B2 reads no customer). **Decided alone**: C1 and C3
+      read every month up to the current one (a look-back window tried in
+      review 2 brought the false "new customers" back and was withdrawn in
+      review 3 - a file whose names start part way refuses them for good,
+      8D), C2 three months, B1 and C4 two; and, by the same reasoning, the
+      customer signals, figure by figure as stage 2 has them:
+      `active_customers` missing when no counted line names a customer
+      (stage 2's 0, which layer 1 withholds), `frequency` when sales have no
+      named buyer (stage 2 counts no buyer) - `no_current_value`, out of the
+      baseline, `no_year_ago_value` for a year-ago month without the figure. **The masked sweep** (rule fixed
+      in the method): S6 fired 4 / 17 / 24 / 29 / 20 of 30 at 0.10-0.30,
+      every other scenario 0 of 330 at every share, S9's rule 4 never;
+      3D6b's noise models re-run on the shipped function fire less at 0.25
+      than at 0.20 everywhere, so `MASKED_MIN_CONTRIBUTION_SHARE` is
+      **0.25** (thresholds.py; five hand-checked boundary tests recomputed,
+      every 0.20 in the docs, ADR-0007 and docstrings reconciled). **D's
+      dilution** (S6's alert runs, seeds 1-60): every B1 term holding at
+      least 20% of the change in its direction (12) falls under 0.2 against
+      level 1's gross; P2 (7, against the gross-sales change) keeps all -
+      3E1's D, measured (review 2 #4 corrected a sign-blind first count). **3D6's known-limit tests**: kept as they are
+      (each pins a chart shape still drawn; its `not is_actionable` assert
+      is the tripwire for the day verdicts return - reason beside them).
+      **v1 known limits on the generator** (sparse: each day trades with p
+      0.45 / 0.80, 40 seeds): B1 refused 31 / 33 of 40, T2 37 / 33 (3E1: 28
+      and 30-32 on hand-built shops); 8D. **The Figma Insights frame**: its
+      shapes are NOT final - F1 and F2 may change the headline rules.
+- [ ] 3E2-F1 **A month that barely moved names a cause** (found by 3E2;
+      Thach to decide - a FABRICATE on the commonest shape there is, so it
+      blocks the verdict sessions, 3F included). S0 and S11 plant nothing
+      and name a cause in 30 of 30 seeds (1-5 hypotheses `supported`; at the
+      seed "customers bought more often (+260.63 against the change of
+      +159.89)"). Why: a share is measured against the change itself, and
+      any decomposition of a noise change has a term holding 20% of it -
+      T3 ("routine variation") is dormant since ADR-0007, so nothing asks
+      whether the change is larger than the shop's usual movement.
+      Evidence for a gate (generator only, scratchpad run10/3e2
+      materiality.py): |change| / median |month-to-month change| over the 24
+      months before is >= 2 on 7% of S0 runs and 23% of S11's (six months:
+      few points), but also on only 30% of S1's (calendar -7%) and 33% of
+      S7's (stockout) against 83-100% of every other planted cause. Options:
+      (a) a materiality gate (no cause supported under k x the usual
+      movement - k is the trade-off above); (b) the standing rule: keep the
+      verdicts, add a note beside a small change's headline (Thach's own
+      reasoning on blank customers: a note beside a false verdict leaves it
+      false); (c) bring T3 back on a test that is not step 4's.
+- [ ] 3E2-F3 **Do a planted cause's own consequences count as implied?**
+      (found by 3E2 review 2; Thach to decide - it is about the suite's
+      implied sets, fixed before the engine ran, not a known limit). 7.11
+      allows one decoy in the whole suite; outside S0 and S11 only 4 of 30
+      seeds have one or none. At the seed two are consequences of the planted
+      cause: C2 beside the stockout (customers whose only buy was the
+      stocked-out product did not come back) and B1 beside the discontinued
+      products (orders whose every line was discontinued vanished) - true
+      statements the method had not listed. Options: widen the implied sets
+      (and say so), or count them as decoys and accept the criterion fails.
+- [ ] 3E2-F2 **The context cause loses rule 5 to B1** (found by 3E2; Thach
+      to decide). Rules 5 and 6 ranked under one fit (2E-o Q1): on the
+      calendar (S1) B1 "customers bought less often" took the headline in
+      12 of 30 seeds and T1 in 9; on the season (S9) B1 13, T2 17. B1 is the
+      mechanism a calendar or season works through, so its statement is
+      true - but it hides the cause. Options: rank a supported context cause
+      of at least HEADLINE_CONTEXT_MIN_SHARE first (2E-o's order before Q1),
+      or name both.
 - [x] 2E Stage 2 definitions (closed 2026-09-24; session log below). Three
       definitions stage 3 had exposed, each ONE shared definition in
       `shared/`: **an order is a sale row** (counted, quantity > 0) in both
@@ -3970,6 +4063,63 @@ dataclarity/
         retry names it); another case passes.
       - `confidence` is the AI's own number in [0, 1]: 5A shows it as a
         label, never as a figure (CLAUDE.md 3.2).
+      From 3E2 (2026-10-01; measured on the generator, before 3E1b; none on
+      the demo files):
+      - B1 by lost orders: a stockout or discontinued products remove the
+        orders whose every line was that product, so "customers bought less
+        often" is supported in 15 of 30 stockout seeds (beside R3 in 12) and
+        23 of 30 discontinued-product seeds - true, a consequence of the
+        planted cause the method had not listed as implied, so counted as
+        decoys (3E2-F3).
+      - R3 on a mix shift: products picked a third as often go 7 days
+        without a sale, and "a top product may have run out of stock"
+        comes out supported in 9 of 30 mix-shift seeds (POS-only stockout
+        detection; R3's wording says "verify on the shelf").
+      - noise decoys where something was planted: T2 and P2 in 9 of 30
+        calendar seeds each - F1's root (3E2-F1).
+      - sparse shops (each day trades with p 0.45 / 0.80, 40 seeds): B1
+        refused 31 / 33, T2 37 / 33; D1 reads missing days on 11 / 8 of 40
+        with nothing missing, headline rule 2 on 7 / 6 ("missing data, or
+        days the shop was closed" - hedged, as 3E1 recorded).
+      - since the masked share is 0.25, a month moving up to 25% of the
+        larger compared month counts as flat when gross_to_net reaches 3
+        (S6's fell 24.887% at the seed): rule 4's "largely cancelled out"
+        beside the real net change, always stated.
+      - D under the alert: every B1 term holding 20% of the change in its
+        direction falls under 0.2 against level 1's gross (12 of 12, S6's
+        alert runs, seeds 1-60): 3E1's D, measured - under the alert B1 is
+        never supported.
+      - S6's orders fell 45% at the seed, not 40%: its longer orders redraw
+        the month (the customers who left held 38.7% of S0's September
+        orders). At the seed S6 fires only for a share between 0.25 and
+        0.29 (flatness below, the AOV side's floor above).
+        At the seed the month fell 24.887% against the 25% flat bound - the
+        README's 8 of 12 and the suite's "fires on S6 only" rest on that
+        margin (0.11 points; 3E2 review 1 #6). The 20-25% band 0.25 newly
+        counts as flat was not tested for false alerts by the suite (no
+        scenario but S6 moves both sides by 25% of a month); on the demo
+        files 0.25 adds no alert on any month pair and removes one (the
+        sample unanswered, 2009-12 -> 2010-01, -19.9%: not a compared month).
+      - names recorded only from part way through a file: C1 and C3 are
+        not testable on every later month (SUPPRESS; a look-back window that
+        accepted old blank months brought a false "new customers" headline
+        back, so it was withdrawn - 3E2 review 3 #1). Pinned by a known-limit
+        test.
+      - unnamed sales and named returns in a month (a refunds desk that
+        records the customer while the till does not): stage 2's frozen
+        definition counts the refunders as the month's active customers, so
+        the KPI shows them and the signal charts them ("below"); the
+        customer causes are not testable (no sale line names a customer).
+        3E2 review 3 #2.
+      - a mostly-blank customer month (3E2 review 1 #3 case B): one named
+        sale line among thousands leaves the month "named", read as that one
+        customer (frequency from one buyer, "above"; B1 "ruled out"). Thach's
+        decision names a BLANK month; where a mostly-blank one stops being
+        readable needs a threshold of its own. Pinned by a known-limit test.
+      - in a blank current month, localization's `customer_type` dimension
+        and `tree.customers` still report the classes ("lapsed" carrying the
+        month's revenue). The report shows neither; stage 4's strategy input
+        reads them, and that step is off in v1 (3E2 review 1 #14).
       From 5A (2026-09-29; none fabricates on the demo files - review 3
       traced every figure):
       - a customer column mapped but blank on a month's lines: layer 1
@@ -3978,7 +4128,10 @@ dataclarity/
         ("below" range at 0; C2 "ruled out"). With no column mapped stage 3
         already marks them not testable. **Decided (Thach, 2026-09-29):**
         stage 3 marks them not testable with the reason, in 3E2 after the
-        skeleton (see that item); a known limit until then.
+        skeleton (see that item); a known limit until then. **Resolved in
+        3E2 (2026-10-01)** for a month whose lines name no customer: built,
+        the customer signals with it. A month of unnamed sales and named
+        returns is "From 3E2" below.
       - stage 2 tolerates two missing leading days in the compared month;
         stage 3's history and the forecast do not (complete_months). The
         KPIs then compare with a month the chart does not draw whole - a
@@ -7172,6 +7325,15 @@ PREVIEW_CACHE_TTL_SECONDS=900
   again", and the page's download checks report.json's major first (the
   page has no version of its own). `MIN_SEASON_YEARS` (2) lives in
   contracts/forecast.py, the one copy stage 4 and the model read.
+- 2026-10-01, session 3E2 (tenth run): no contract shape changed. Two
+  meanings widened in place, both recorded in CONTRACTS 7: a customer
+  cause's `not_testable` gains the reason "the customer column is mapped but
+  blank for <month>" (`evidence.blank_months`), and `no_current_value`
+  answers `active_customers` / `frequency` in such a month - both values a
+  reader already handles (the reason ends ": no sale line names a customer",
+  and a third widened meaning: `no_year_ago_value` for a customer series
+  whose year-ago month named no customer). `MASKED_MIN_CONTRIBUTION_SHARE`
+  0.20 -> 0.25.
 
 ## 13. Definition of Done for every sub-phase
 

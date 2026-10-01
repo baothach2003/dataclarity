@@ -167,3 +167,10 @@ shifting mix) fires it by design, which is why the hedge is permanent.
 shapes because the scenario generator does not exist until 3E. 3E re-runs the
 sweep against the real S0-S11 suite and may change the value; planted causes
 are ground truth only once the generator exists and was not built to fit it.
+
+**Update (session 3E2, 2026-10-01).** The re-sweep ran on the generator
+(AI_PIPELINE 7.11) and set the share to **0.25**: S6 fired 29 of 30 seeds
+(24 at 0.20), no other scenario fired at any share from 0.10 to 0.30, and
+the noise models above fire less at 0.25 than at 0.20. The rates and the
+"20%" figures above are 0.20's, kept as the record of this decision;
+`stages/diagnose/thresholds.py` holds the measurement.

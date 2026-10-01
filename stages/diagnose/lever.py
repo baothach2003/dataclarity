@@ -282,19 +282,21 @@ def _masked_shift(
     month was 300 against in-season months of 500,000, so a 1% composition
     wiggle cleared a floor of 60, and on a noise model the alert fired on
     15-25% of peak months with nothing planted. The floor must scale with the
-    months being compared. It never drops below 20% of the typical month, so a
-    bad last month cannot shrink it either - 20% of a bad month is a small
-    move on this shop. It scales UP only: in a trough the floor stays at 20%
-    of the typical month, so a masked shift there counts only when both
+    months being compared. It never drops below the share (25% since 3E2) of
+    the typical month, so a bad last month cannot shrink it either - a share
+    of a bad month is a small move on this shop. It scales UP only: in a
+    trough the floor stays at that share of the typical month, so a masked
+    shift there counts only when both
     sides moved by that much - e.g. orders 20 -> 2 against AOV 10 -> 100 on
     a flat 200 - and rarely fires otherwise (0.1% detection of a planted 30%
-    shift at 0.3x typical on the sweep's noise model; a rate, not a bound).
+    shift at 0.3x typical on the sweep's noise model, measured at 0.20 in
+    3D6b; a rate, not a bound).
 
     Why flatness needs a bound on the change, measured against the COMPARED
     months. By the ratio alone, a month that went from 1,000 to 2,000 has
     `gross_to_net` 3.5 and is "flat", and headline rule 4 would call a
     doubled month stable. The first version measured the change against the
-    materiality floor, and in a trough that floor is 20% of a typical month
+    materiality floor, and in a trough that floor is a share of a typical month
     far larger than the months compared: a month that fell 200 -> 50 (-75%)
     passed as flat and fired (pair review #2, a fabrication).
 
@@ -311,8 +313,8 @@ def _masked_shift(
     live. It can only REMOVE an alert - the safe direction - and a test pins
     it. An earlier version of this docstring said it never bound, on 12,000
     random draws of which only 338 fired the pair and none sat in a trough.
-    Under the shipped bound a targeted search of 400,000 extreme shapes found
-    no case where it blocks (lowest ratio among 16,968 firing: 3.43), while
+    Under the bound as shipped in 3D6b (share 0.20) a targeted search of
+    400,000 extreme shapes found no case where it blocks (lowest ratio among 16,968 firing: 3.43), while
     the same search on the first bound found 169 - measured, not proven.
 
     With no trading month in the history there is no typical month, the check

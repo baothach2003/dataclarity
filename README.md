@@ -91,6 +91,11 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
+- **A month that barely moved still gets a cause.** On a synthetic store
+  with nothing planted, every one of 30 months named a cause: the engine has
+  no test of whether a change is larger than the shop's usual month-to-month
+  movement. Read a small change's cause with that in mind (`PROJECT_PLAN.md`
+  3E2-F1).
 - **No AI recommendations yet.** Stage 4's AI strategy step is built but
   off in v1 (`STRATEGY_AI_ENABLED=false`): its reviews found numbers and
   words it could still let through, so forecast.json carries the forecast
@@ -147,6 +152,24 @@ The recorded sample comes from the library versions pinned in
 With other versions the sample can differ: the command then writes it as
 `online_retail_ii_sample.not-recorded.csv` beside the path, never over a
 recorded sample, prints its checksum and exits with 1.
+
+## How well the diagnosis finds a planted cause
+
+A fixed-seed synthetic store (`tests/scenarios/`) plants one known cause per
+scenario - a price cut, a mix shift, lapsed customers, a lost week, a
+stockout, a season and more (`docs/AI_PIPELINE.md` 7.11). At the fixed seed
+the diagnosis says what was planted in **8 of 12** scenarios - 7 by the
+headline, and the x100 price-entry error by its trust caution (its headline
+names the price change the error made, the caution beside it) - with **8
+decoys** (causes supported that were not planted) and **2 false alarms**,
+both on the scenarios where nothing was planted. Over 30 seeds: lapsed
+customers and the x100 error are caught in 30 of 30; the price cut, the mix
+shift, a lost week and a masked shift in 29; discontinued products 26; a
+stockout 22 (a small plant, inside the store's noise); a season 17; the
+calendar 8; and **a month with nothing planted is never left without a
+cause (0 of 30)**. Outside those, 17 of 300 runs named a cause that was not
+planted. Measured before the stage 3 completion work (3E1b); the misses are
+open decisions in `PROJECT_PLAN.md` 3E2-F1, 3E2-F2 and 3E2-F3.
 
 ## Status
 

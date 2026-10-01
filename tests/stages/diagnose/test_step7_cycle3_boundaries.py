@@ -29,7 +29,7 @@ def test_b1_is_refused_on_a_fraction_of_an_excess_day() -> None:
     refusing a verdict a partial gap could have made."""
     from stages.diagnose.hypothesis_evidence import EVIDENCE
 
-    inputs = NS(data=NS(parsed=NS(reverse={"customer": "Cust"})),
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=NS(reverse={"customer": "Cust"})),
                 tree=NS(returns=NS(returns_prev=0.0, returns_cur=0.0)),
                 trust=NS(checks=[NS(id="D1", status="ok", evidence={
                     "excess_zero_days_cur": 0.5, "excess_zero_days_prev": 0.0})]))

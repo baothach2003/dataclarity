@@ -269,7 +269,7 @@ def test_c4_explains_a_rise_by_a_move_to_stronger_segments(monkeypatch) -> None:
 
     segments = [seg("Champions", 20, 15), seg("Loyal", 20, 15), seg("At-risk", 10, 15),
                 seg("Hibernating", 10, 15), seg("New", 30, 30), seg("Needs Attention", 10, 10)]
-    inputs = NS(data=NS(parsed=NS(reverse={"customer": "Cust"}),
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=NS(reverse={"customer": "Cust"}),
                         metrics=NS(customers=NS(segments=segments))),
                 trust=NS(verdict="trusted"))
     from stages.diagnose.hypothesis_evidence import EVIDENCE
@@ -331,7 +331,7 @@ def test_c4_explains_nothing_when_revenue_did_not_move(monkeypatch) -> None:
 
     segments = [seg("Champions", 10, 15), seg("Loyal", 10, 15), seg("At-risk", 20, 15),
                 seg("Hibernating", 20, 15), seg("New", 30, 30), seg("Needs Attention", 10, 10)]
-    inputs = NS(data=NS(parsed=NS(reverse={"customer": "Cust"}),
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=NS(reverse={"customer": "Cust"}),
                         metrics=NS(customers=NS(segments=segments))),
                 trust=NS(verdict="trusted"))
     from stages.diagnose.hypothesis_evidence import EVIDENCE

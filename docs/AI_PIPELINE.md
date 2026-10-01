@@ -243,7 +243,14 @@ zero-amount write-off is not a return), the **incomplete previous month** is `sh
 both stages (CONTRACTS section 6). Every figure
 stage 3 recomputes that also exists in `metrics.json` must match it exactly; a
 dedicated test enforces this, because two stages disagreeing on a definition
-would make the report contradict itself.
+would make the report contradict itself. One exception, by Thach's decision
+on blank customer months (7.8; 3E2): in a month whose sale lines name no
+customer, stage 3 reads `active_customers` as missing where stage 2 counts 0
+(no counted line names a customer) - and the report does not contradict
+itself, because layer 1 withholds stage 2's figure exactly then, with its
+reason (5A); `frequency` is missing exactly where stage 2 counts no buyer
+(`core.buyers_*` 0: sales, no named buyer - metrics.json carries no
+frequency figure of its own).
 
 | Field | Missing consequence |
 |---|---|
@@ -696,8 +703,8 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   since the conversion divides by that change.
 - **Masked-shift alert** (on the tree alone since ADR-0007).
   `gross_to_net = sum(|phi_i|) / |delta_revenue|` over level 1. The alert is
-  decided against one FLOOR, `MASKED_MIN_CONTRIBUTION_SHARE` (PROVISIONAL, 3E
-  re-sweeps it) times the largest of the typical month (median |revenue|
+  decided against one FLOOR, `MASKED_MIN_CONTRIBUTION_SHARE` (0.25, set by
+  3E2's sweep on the real suite - 7.11) times the largest of the typical month (median |revenue|
   over the history window's trading months), the previous month and the
   current month. The movement is MATERIAL - on the ORDERS x AOV split of
   level 1 (`tree.lever.masked_shift_pair`), one contribution of each sign
@@ -722,10 +729,10 @@ Every decomposition reconciles to its own total exactly (relative tolerance
   quiet month; the floor makes that harmless, because a month where nothing
   moved has contributions small in absolute terms. It scales with the months
   compared - on the typical month alone, peak months fired on noise 15-25% of
-  the time (3D6b doubt-review) - and never drops below 20% of the typical
-  month, so a bad last month cannot shrink it; in a trough it stays there,
-  so a masked shift counts only when both sides moved by 20% of a typical
-  month - rare, not impossible (reported `false` otherwise: the check ran). When either compared month netted zero or below,
+  the time (3D6b doubt-review) - and never drops below the share (25%) of
+  the typical month, so a bad last month cannot shrink it; in a trough it
+  stays there, so a masked shift counts only when both sides moved by 25%
+  of a typical month - rare, not impossible (reported `false` otherwise: the check ran). When either compared month netted zero or below,
   AOV is zero or negative and the Shapley terms change sign, so the alert is
   `null` with a reason, as for no typical month. With no trading month in the history
   there is no yardstick: the alert is `null` with a reason, never `false`.
@@ -1078,6 +1085,40 @@ the same January came out `ruled_out` or "migrated to weaker segments",
 `supported`, depending on who bought on 2-10 February. The rule is kept
 behind a switch for when stage 2 anchors a snapshot per month (Backlog).
 
+**A customer column mapped but blank for a month** (Thach, 2026-09-29,
+deciding 5A review 3 #2; built in 3E2). A month whose sale lines name no
+customer - blank cells, or a walk-in placeholder the user confirmed (2E-k)
+- says nothing about who bought. "Ruled out" would claim
+a cause did not happen when the data only failed to show the customers, and
+a note beside a false verdict leaves it false, so C1, C2, C3, C4 and B1 are
+`not_testable` when a month they read is such a month, with the reason "the
+customer column is mapped but blank for <month>: no sale line names a
+customer" (three or more months: "for N months between <first> and <last>",
+which need not follow each other;
+`evidence.blank_months` lists them). Thach's "the C and B hypotheses" is
+read as the causes that read customers - C1-C4 and B1; B2 (units per order)
+reads none (3E2 review 2 #14). C1 and C3 read every month up to the current
+one - who is new or returning is decided by earlier months, so a blank month
+turned returning customers into new ones (3E2 review 1 #2); a look-back
+window accepting older blank months brought that back, with "new customers"
+in the headline, and was withdrawn (review 3 #1): a file whose names start
+part way refuses C1 and C3 on every later month (8D, SUPPRESS - a refusal
+over a false verdict). C2 reads the compared months and the month before
+them (the previous transition); B1 and C4 the compared months. A year-ago month without the figure (figure by figure, as below) gives the
+customer series `no_year_ago_value`, never `unusable_year_ago_base` (a
+business event). After "no column is
+mapped", before every other rule. A month is blank when it has sale lines
+and none names a customer (one named return line does not make it named:
+3E2 review 1 #3). A month with SOME named sale lines keeps its reading (the
+bridge's unattributed term, 2E-f; a mostly-blank month is 8D's). Step 4 reads the same:
+`active_customers` and `frequency` are missing, not 0, in such a month - a
+blank current month is `no_current_value`, a blank history month leaves the
+baseline instead of teaching it zero customers - figure by figure, as stage
+2 has them (review 2 #1): `active_customers` when no counted line names a
+customer, `frequency` when sales have no named buyer. A month of unnamed
+sales and named returns therefore counts its refunders as its active
+customers - stage 2's frozen definition, charted as such (8D).
+
 **B2 is `inconclusive` on any return line, or any counted line with a
 negative amount** (INTERIM, Thach; 2E-c2 was to drop the negative-amount
 clause on proof that a deduction cannot move B2, and the proof failed: a
@@ -1308,7 +1349,7 @@ are heuristics until calibrated against real data.
 | `SUPPORTED_MIN_SHARE` / `PARTIAL_MIN_SHARE` | 0.20 / 0.05 | 7.8 |
 | `HEADLINE_CONTEXT_MIN_SHARE` | 0.50 | 7.8 rules 2 and 5 |
 | `MASKED_GROSS_TO_NET` | 3.0 | 7.6 |
-| `MASKED_MIN_CONTRIBUTION_SHARE` | 0.20, **PROVISIONAL** | 7.6, tree-based masked-shift alert (3D6b); 3E re-sweeps it on S0-S11 |
+| `MASKED_MIN_CONTRIBUTION_SHARE` | 0.25 (3E2's sweep on S0-S11; 0.20 from 3D6b) | 7.6, tree-based masked-shift alert (3D6b) |
 | `XMR_FACTOR` | 2.66 | 7.5, the fallback estimator (3 / d2) |
 | `XMR_MEDIAN_FACTOR` | 3.145 | 7.5, the default estimator (3 / d4) |
 | `XMR_MIN_BASELINE_POINTS` | 8 | 7.5 |
@@ -1382,6 +1423,54 @@ the whole suite produces at most one `supported` hypothesis not implied by its
 planted cause. The suite's headline accuracy, decoy count and false-alarm count
 are printed by the tests and quoted in the README: that is the evidence the
 engine works.
+
+**As built (session 3E2, 2026-10-01; before 3E1b, so re-run after it).** The
+generator is `tests/scenarios/store.py` with `scenarios.py`. It imports only
+the standard library, numpy and pandas - a test parses every import, the
+tests that run the engine included, and refuses the dynamic routes it knows
+(code run from a string, a name looked up at run time, a file read) - and
+its seed (`SEED` 20261001) and every planted rule were fixed before the
+engine first ran on it (the method's timestamp, 14:32 against the first run
+at 14:33): no engine figure reaches a planted cause by any route the parse
+knows, and none was there to fit. The store: ~400 customers (320 from the
+start, 80 arriving, 0.8% monthly churn) buying about four times a month, 6
+categories x 10 products at fixed prices, retail weekday weights, 1.5% of
+lines returned within ten days, order ids mapped; each month draws from its
+own random stream and a plant drops lines only after every draw, so a plant
+that drops lines (S4, S5, S7, S8) leaves S0's month less those lines
+(tested); a repricing plant (S2, S10) or a product pick (S3) keeps S0's draws;
+S6's longer orders redraw its month from the same stream. The compared months,
+Aug -> Sep 2023, and their year-ago pair hold the same expected trading
+under those weights, so no scenario but S1 carries a calendar (S1's Aug ->
+Sep 2024: -7.09%). Over seeds 1-30 S0's change has a 4.83% standard
+deviation (-7.5% to +15.2%); the planted changes' medians are S1 -5.9%, S7
+-7.6% (inside the noise: its misses are partly the plant's size), S6 -14.2%,
+S3 -16.5%, S8 -17.4%, S2 -20.4%, S5 -23.9%, S9 -24.5%, S4 -30.9%. Each
+scenario's expected headline and implied hypotheses are in `scenarios.py`,
+written from 7.8's definitions; `tests/stages/diagnose/test_3e2_scenarios.py`
+asserts the criteria the engine meets, pins every scenario's outcome at the
+seed, and pins the misses as KNOWN LIMITS under the findings in PROJECT_PLAN
+3E2-F1 and 3E2-F2 (awaiting Thach) - no xfail (CONSTRAINTS F1, F2). The
+suite prints the seed's scores; the 30-seed rates below come from the
+measurement scripts (a sweep takes ~13 minutes on ten cores, too long for
+the suite). At the
+seed: the expectation is met in 8 of 12 (7 by the headline; S10 by its
+verdict, D2 supported, while its headline names the price change the x100
+error made), with 8 decoys and 2 false alarms (S0, S11). Over seeds 1-30 the
+expectation is met: S4 and S10 30 of 30; S2, S3, S5 and S6 29; S8 26; S7 22;
+S9 17; S1 8; **S0 and S11 0 - every month with nothing planted named a
+cause** (1-5 hypotheses `supported`). Outside S0 and S11, 17 of 300 runs
+named a cause that was not planted (S1 6, S7 5, S8 4, S2 1, S3 1; a headline
+naming several causes - the offsetting movements, 4 of 360 runs, 2 of them
+outside S0 and S11 - counts
+as one, since the contract does not list them). The share was chosen on
+seeds 1-30; out of sample, on seeds 31-60, S6 fires 28 of 30 at 0.25 (26 at
+0.20, 20 at 0.30) and S0 and S9 never. F1: a share
+is measured against the change itself, so a term of any decomposition of
+noise holds 20% of it. F2: rules 5 and 6 ranked under one fit let B1 - the
+mechanism a calendar or season works through - take the context cause's
+place. The sweep set `MASKED_MIN_CONTRIBUTION_SHARE` to 0.25 (thresholds.py
+records the measurement).
 
 ## 8. Strategy step (stage 4)
 

@@ -103,7 +103,7 @@ def compute_signals(data: RunData, history: list[str]) -> list[Signal]:
             # seasonal shop the level limits are wide enough to swallow a real
             # 50% collapse, so this series says `within` where the
             # year-over-year chart said `below` (3D4 doubt-review C3).
-            fallback = _fallback_reason(data, current) if ready else None
+            fallback = _fallback_reason(data, current, name, table[name]) if ready else None
             # Level mode, and level mode alone, is what this file supports for
             # this series. The row is DESCRIPTIVE: it is computed, written and
             # shown, and step 7 does not read it as a judgement about the
@@ -120,7 +120,7 @@ def compute_signals(data: RunData, history: list[str]) -> list[Signal]:
     return signals
 
 
-def _fallback_reason(data: RunData, current: str) -> str:
+def _fallback_reason(data: RunData, current: str, name: str, column: pd.Series) -> str:
     """Was the year-ago month absent, or present but unusable as a base?
 
     Two different facts about the shop, and step 7 should be able to tell them
@@ -137,6 +137,12 @@ def _fallback_reason(data: RunData, current: str) -> str:
     to ask the right source.
     """
     year_ago = shift_month(current, -YOY_LAG_MONTHS)
+    # A customer figure the year-ago month never measured (3E2: lines but
+    # no named customer, or sales with no named buyer) is absent, not a
+    # business event - read figure by figure, as the series are built
+    # (review 1 #9, review 3 #3).
+    if name in CUSTOMER_SERIES and pd.isna(column.get(year_ago, float("nan"))):
+        return "no_year_ago_value"
     return ("unusable_year_ago_base" if year_ago in data.months_with_rows
             else "no_year_ago_value")
 
@@ -168,7 +174,6 @@ def monthly_series(data: RunData) -> pd.DataFrame:
     counted = data.parsed.counted
     months = data.months
     customer_col = data.parsed.reverse.get("customer")
-
     rows = []
     for month in data.complete_months:
         mask = counted & (months == month)
@@ -194,10 +199,16 @@ def monthly_series(data: RunData) -> pd.DataFrame:
             # receipt, 2E-f), matching stage 2's active_customers: the
             # consistency test compares these two figures directly.
             customers = int(data.parsed.customers[mask].nunique())
-            row["active_customers"] = float(customers)
             # Frequency per BUYER, as the lever computes it (2E doubt-review F1).
             buyers = int(data.parsed.customers[mask & data.parsed.sale].nunique())
-            row["frequency"] = orders / buyers if buyers else 0.0
+            # Missing, never 0, where stage 2 has no figure to show (3E2,
+            # Thach's blank-customer decision; review 2 #1: figure by
+            # figure, as stage 2): lines but no named customer - stage 2
+            # counts 0, which layer 1 withholds - or sales with no named
+            # buyer - stage 2 counts no buyer. A 0 charted "below" and
+            # taught the baseline zero customers.
+            row["active_customers"] = float(customers) if customers or not mask.any() else float("nan")
+            row["frequency"] = orders / buyers if buyers else (float("nan") if orders else 0.0)
         rows.append(row)
 
     table = pd.DataFrame(rows, index=pd.Index(data.complete_months, name="month"))
@@ -313,6 +324,11 @@ def _signal_for(
     baseline = column.reindex(history).dropna()
     value_cur = column.get(current, float("nan"))
 
+    if name in CUSTOMER_SERIES and pd.isna(value_cur):
+        # A customer figure the month never measured: said first, since
+        # "too few points" sends a reader after history that would not
+        # help (3E2 review 2 #3: a column blank on every line).
+        return _no_baseline(name, mode, "no_current_value")
     if len(baseline) < XMR_MIN_BASELINE_POINTS:
         return _no_baseline(name, mode, "too_few_points")
     if pd.isna(value_cur):

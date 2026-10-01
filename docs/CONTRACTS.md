@@ -1067,7 +1067,13 @@ presenting them together.
 
 `signals[].mode_fallback` is `no_year_ago_value | unusable_year_ago_base |
 null` and `signals[].insufficient_reason` is `too_few_points |
-no_current_value | no_measurable_spread | null`.
+no_current_value | no_measurable_spread | null`. `no_current_value` also
+answers, with a customer column mapped, `active_customers` for a current
+month whose counted lines name no customer and `frequency` for one whose
+sales have no named buyer (3E2) - not measured, never 0, figure by figure as
+stage 2 has them; such a history month leaves their baseline, and a
+year-ago month without the figure gives their `mode_fallback`
+`no_year_ago_value` (never `unusable_year_ago_base`, a business event).
 **These two must not be merged.** They answer different questions and a later
 session tidying them into one field would lose a distinction step 7 depends
 on:
@@ -1255,7 +1261,12 @@ entered, which is context for every C-family verdict built on it. `hypotheses[].
 and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
 carry their test in `evidence` and `rule` instead, and for any hypothesis
 whose verdict is `inconclusive` or `not_testable`; `share` is also `null` when
-the change is negligible or `D` is zero. `statement` is the RENDERED
+the change is negligible or `D` is zero. A customer cause (C1-C4, B1) is
+`not_testable` with `evidence.reason` "no column is mapped to customer", or
+since 3E2 "the customer column is mapped but blank for <month>: no sale line
+names a customer" with `evidence.blank_months` (AI_PIPELINE 7.8; three or more months read "N
+months between <first> and <last>") - added in place: the shape is
+unchanged and `not_testable` was already a verdict every reader handles. `statement` is the RENDERED
 statement: for a cause that can move either way, code picks the fall or rise
 wording from the sign of `contribution`, and the direction-neutral tested
 statement is kept when no number was computed (ADR-0005 clarification).

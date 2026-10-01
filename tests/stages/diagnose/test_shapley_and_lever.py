@@ -383,10 +383,10 @@ def test_the_alert_reads_orders_against_aov_not_an_identity() -> None:
     shift: four orders at 100 (400) become two at 210 (420).
         phi_orders = -2 * (100 + 210) / 2 = -310
         phi_aov    = +110 * (4 + 2) / 2   = +330
-        Floor 0.20 * max(400, 400, 420) = 84, change 20: flat, both sides
+        Floor 0.25 * max(400, 400, 420) = 105, change 20: flat, both sides
         clear it. Alert.
     plain: two customers become four, nothing else moves - ratio 1.0, change
-        200 over its floor of 80. No alert.
+        200 over its floor of 100. No alert.
 
     The ratio test itself is not pinned here: over the pair it is implied
     (test_no_step4_verdicts.py pins MASKED_GROSS_TO_NET <= 3)."""

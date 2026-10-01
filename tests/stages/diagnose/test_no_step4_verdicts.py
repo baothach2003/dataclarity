@@ -92,22 +92,22 @@ def test_a_masked_shift_below_the_floor_does_not_fire() -> None:
       phi_customers = +2 * (120 + 100) / 2 = +220
       phi_aov       = -20 * (10 + 12) / 2  = -220
     The typical month and both compared months are 1,200, so the floor is
-    MASKED_MIN_CONTRIBUTION_SHARE * 1,200 = 240 at 0.20 - and this does NOT
-    clear it. The next test moves further and does."""
+    MASKED_MIN_CONTRIBUTION_SHARE * 1,200 = 300 at 0.25 (3E2; 240 at 0.20) -
+    and this does NOT clear it. The next test moves further and does."""
     lever = _lever(_shop([(f"C{i}", 120.0) for i in range(10)],
                          [(f"C{i}", 100.0) for i in range(12)]))
 
     effects = {f.name: f.contribution for f in lever.level1.factors}
     assert effects["customers"] == pytest.approx(220.0)
     assert effects["aov"] == pytest.approx(-220.0)
-    assert MASKED_MIN_CONTRIBUTION_SHARE * 1200.0 == pytest.approx(240.0)
+    assert MASKED_MIN_CONTRIBUTION_SHARE * 1200.0 == pytest.approx(300.0)
     assert lever.masked_shift_alert is False
 
 
 def test_a_masked_shift_above_the_floor_fires() -> None:
     """October: 10 customers at 120 -> 1,200. November: 15 customers at 80
     -> 1,200. phi_customers = +5 * (120 + 80) / 2 = +500, phi_aov = -40 *
-    (10 + 15) / 2 = -500. Both clear 240, revenue is flat: the alert fires.
+    (10 + 15) / 2 = -500. Both clear 300 (0.25 x 1,200), revenue is flat: the alert fires.
     Before ADR-0007 it could not - no component had a step-4 signal on a file
     this short - so the one case the alert exists for went unreported."""
     lever = _lever(_shop([(f"C{i}", 120.0) for i in range(10)],
@@ -137,8 +137,8 @@ def test_the_floor_is_measured_against_the_typical_month_not_last_month() -> Non
 def test_a_month_where_revenue_really_moved_is_not_masked() -> None:
     """Revenue doubled, so nothing is hidden. October 10 customers at 120
     (1,200); November 25 at 96 (2,400). phi_customers = +15 * (120 + 96) / 2
-    = +1,620, phi_aov = -24 * (10 + 25) / 2 = -420. The floor is 0.20 *
-    max(1,200, 1,200, 2,400) = 480: the change of 1,200 is far above it, -420
+    = +1,620, phi_aov = -24 * (10 + 25) / 2 = -420. The floor is 0.25 *
+    max(1,200, 1,200, 2,400) = 600: the change of 1,200 is far above it, -420
     does not clear it, and gross 2,040 over net 1,200 is 1.7, below 3 - it
     fails on every count."""
     lever = _lever(_shop([(f"C{i}", 120.0) for i in range(10)],
@@ -217,10 +217,10 @@ def test_an_identity_is_not_a_masked_shift() -> None:
 def test_the_s6_shape_still_fires_on_the_pair() -> None:
     """Scenario S6's shape: customers -40%, AOV +40%, frequency flat. October
     10 customers at 100 (1,000); November 6 at 140 (840). Orders 10 -> 6.
-    Floor 0.20 * max(1,000, 1,000, 840) = 200, change -160, under it.
+    Floor 0.25 * max(1,000, 1,000, 840) = 250, change -160, under it.
       phi_orders = -4 * (100 + 140) / 2 = -480
       phi_aov    = +40 * (10 + 6) / 2   = +320
-    Both clear 200: the alert fires, and the pair it rested on is in the file
+    Both clear 250: the alert fires, and the pair it rested on is in the file
     for headline rule 4 to name."""
     lever = _lever(_history_then([(f"C{i}", 100.0, 1) for i in range(10)],
                                  [(f"C{i}", 140.0, 1) for i in range(6)]))
@@ -256,7 +256,7 @@ def test_a_trough_month_that_fell_75_percent_is_not_flat() -> None:
     one order at 50 (50): -75%. The change of 150 was measured against 20% of
     the TYPICAL month (200) and passed as "flat", so headline rule 4 would
     have called a three-quarters collapse stable. The change is now measured
-    against 20% of the larger COMPARED month: 0.20 * 200 = 40, and 150 is not
+    against 25% of the larger COMPARED month: 0.25 * 200 = 50, and 150 is not
     under it."""
     lever = _lever(_months([(f"C{i}", 10.0) for i in range(20)], [("C0", 50.0)], 1000.0))
 
@@ -267,7 +267,7 @@ def test_a_trough_month_that_rose_143_percent_is_not_flat() -> None:
     """Case A of the same review, the mirror. Typical 2,040; October 14
     orders at 20 (280), November 68 orders at 10 (680): +143%. Under the first
     floor C only the three-factor ratio (2.975) happened to stop it. Now the
-    change of 400 is measured against 0.20 * 680 = 136 and is not flat -
+    change of 400 is measured against 0.25 * 680 = 170 and is not flat -
     stopped by the rule, not by luck."""
     october = [(f"C{i}", 20.0) for i in range(14)]
     november = [(f"C{i % 17}", 10.0) for i in range(68)]
@@ -311,12 +311,12 @@ def _level(orders: float, aov: float) -> LeverLevel:
 @pytest.mark.parametrize("contributions,expected,label", [
     ((400.0, -200.0), False, "a big rise against a fall under the floor"),
     ((-400.0, 200.0), False, "a big fall against a rise under the floor"),
-    ((240.0, -240.0), True, "both sides exactly on the floor (0.2 * 1,200 = 240.0)"),
-    ((239.0, -241.0), False, "the positive side just under the floor"),
+    ((300.0, -300.0), True, "both sides exactly on the floor (0.25 * 1,200 = 300.0)"),
+    ((299.0, -301.0), False, "the positive side just under the floor"),
 ])
 def test_both_sides_must_be_material(contributions, expected, label) -> None:
-    """Typical month 1,200, both compared months at 1,200, floor 240, revenue
-    flat (gross_to_net None)."""
+    """Typical month 1,200, both compared months at 1,200, floor 300 (0.25,
+    3E2), revenue flat (gross_to_net None)."""
     reasons: dict[str, str] = {}
 
     alert = _masked_shift(_level(*contributions), None, 1200.0, 1200.0, 1200.0, reasons)
@@ -329,8 +329,9 @@ def test_the_floor_scales_up_with_a_peak_month() -> None:
     typical month is 300 (a trickle off-season) and whose compared months are
     in season at 500,000. Against the typical month alone the floor was 60,
     so a 1% composition wiggle of +-4,975 fired the alert - measured at 15-25%
-    false alarms on peak months with nothing planted. The floor is now 20% of
-    the LARGEST of the typical month and the two compared months: 100,000."""
+    false alarms on peak months with nothing planted. The floor is now 25% (3E2;
+    20% in 3D6b) of the LARGEST of the typical month and the two compared
+    months: 125,000."""
     alert = _masked_shift(_level(4975.2, -4975.2), None, 300.0,
                           500000.0, 500000.0, {})
 
@@ -341,7 +342,7 @@ def test_a_month_that_doubled_is_not_flat() -> None:
     """Doubt-review 3D6b #5. October 1,000 (10 customers at 100), November
     2,000 (40 at 50): orders +2,250, aov -1,250, gross_to_net 3.5. By the
     ratio alone that is "flat", and rule 4 would call a +100% month stable.
-    The floor is 0.20 * max(1,000, 1,000, 2,000) = 400 and the change is
+    The floor is 0.25 * max(1,000, 1,000, 2,000) = 500 and the change is
     1,000, so it is not."""
     alert = _masked_shift(_level(2250.0, -1250.0), 3.5, 1000.0,
                           1000.0, 2000.0, {})
@@ -350,20 +351,21 @@ def test_a_month_that_doubled_is_not_flat() -> None:
 
 
 @pytest.mark.parametrize("revenue_prev,revenue_cur,contributions,label", [
-    (1000.0, 1200.0, (440.0, -240.0), "a month rising into a peak"),
-    (1200.0, 1000.0, (240.0, -440.0), "a month falling out of one"),
+    (1000.0, 1280.0, (600.0, -320.0), "a month rising into a peak"),
+    (1280.0, 1000.0, (320.0, -600.0), "a month falling out of one"),
 ])
 def test_the_floor_counts_whichever_compared_month_is_larger(
     revenue_prev: float, revenue_cur: float, contributions: tuple, label: str,
 ) -> None:
     """The mutation check found the max was pinned only by its typical-month
     term: dropping either compared month left the suite green. Typical 1,000,
-    the larger compared month 1,200, so the floor is 0.20 * 1,200 = 240. The
-    change of 200 is under it and both sides clear it: the alert fires. With
-    the larger month left out the floor would be 200, the change would not be
-    under it, and the alert would not fire."""
-    # The ratio the lens would compute: gross 680 over a change of 200.
-    alert = _masked_shift(_level(*contributions), 680.0 / 200.0, 1000.0,
+    the larger compared month 1,280, so the floor and the flatness bound are
+    0.25 * 1,280 = 320 (3E2's share). The change of 280 is under it and both
+    sides clear it: the alert fires. With the larger month left out the bound
+    would be 0.25 * 1,000 = 250, the change would not be under it, and the
+    alert would not fire."""
+    # The ratio the lens would compute: gross 920 over a change of 280.
+    alert = _masked_shift(_level(*contributions), 920.0 / 280.0, 1000.0,
                           revenue_prev, revenue_cur, {})
 
     assert alert is True, label
@@ -371,15 +373,17 @@ def test_the_floor_counts_whichever_compared_month_is_larger(
 
 def test_the_net_change_must_stay_under_the_floor() -> None:
     """The flatness bound's own boundary. Since the pair review the change is
-    measured against 20% of the larger COMPARED month, not of the typical
-    month. Typical 1,000; previous 2,000; current 2,499 (change 499, bound
-    499.8, flat) or 2,500 (change 500, bound 500.0, not flat). Contributions
-    sum to the change and clear the materiality floor (0.20 * max(1,000,
-    2,000, current)) on both sides, so only flatness decides."""
+    measured against 25% (3E2; 20% before) of the larger COMPARED month, not
+    of the typical month. Typical 1,000; previous 1,500; current 1,999
+    (change 499, bound 499.75, flat) or 2,000 (change 500, bound exactly
+    500.0, not flat: the bound is strict - 3E2 review 2 #2 kept the exact
+    boundary the 0.20 version had). Contributions sum to the change and clear
+    the materiality floor (0.25 * max(1,000, 1,500, current)) on both sides,
+    so only flatness decides."""
     flat = _masked_shift(_level(1000.0, -501.0), 1501.0 / 499.0, 1000.0,
-                         2000.0, 2499.0, {})
+                         1500.0, 1999.0, {})
     moved = _masked_shift(_level(1000.0, -500.0), 1500.0 / 500.0, 1000.0,
-                          2000.0, 2500.0, {})
+                          1500.0, 2000.0, {})
 
     assert flat is True
     assert moved is False
@@ -442,3 +446,20 @@ def test_the_typical_month_ignores_shut_months() -> None:
     of the two trading months, 1,100 - not 0, which would put the floor at
     zero and let any opposing pair fire."""
     assert typical_magnitude([0.0, 0.0, 0.0, 1000.0, 1200.0]) == 1100.0
+
+
+@pytest.mark.parametrize("revenue_prev,revenue_cur,contributions,label", [
+    (1000.0, 1200.0, (460.0, -260.0), "the current month raises the floor"),
+    (1200.0, 1000.0, (260.0, -460.0), "the previous month raises the floor"),
+])
+def test_the_floor_counts_the_larger_compared_month_too(
+    revenue_prev: float, revenue_cur: float, contributions: tuple, label: str,
+) -> None:
+    """3E2 review 2 #9: the FLOOR's compared-month terms, apart from the
+    flatness bound's. Typical 1,000; the larger compared month 1,200: floor
+    0.25 * 1,200 = 300, and the smaller side's 260 does not clear it. With
+    that month left out of the floor's max it would be 250, cleared - while
+    flatness (change 200 under 300) is the same either way."""
+    alert = _masked_shift(_level(*contributions), 720.0 / 200.0, 1000.0, revenue_prev, revenue_cur, {})
+
+    assert alert is False, label

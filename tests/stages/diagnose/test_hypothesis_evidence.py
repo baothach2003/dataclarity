@@ -102,7 +102,7 @@ def test_t2_needs_positive_months_to_scale(prev, ly_cur, label) -> None:
 
 def _bridge(censored: bool, previous=True):
     before = NS(new=300.0, lapsed=-100.0, resurrected=80.0)
-    return NS(data=NS(parsed=CUSTOMER), tree=NS(customers=NS(
+    return NS(data=NS(blank_customer_months=frozenset(), parsed=CUSTOMER), tree=NS(customers=NS(
         new=120.0, lapsed=-250.0, resurrected=30.0,
         previous_transition=before if previous else None,
         evidence={"left_censored": censored})))
@@ -144,7 +144,7 @@ def test_c4_partial_band(monkeypatch) -> None:
                 NS(segment="Hibernating", customers=1, customers_previous=1),
                 NS(segment="New", customers=41, customers_previous=40),
                 NS(segment="Needs Attention", customers=1, customers_previous=1)]
-    inputs = NS(data=NS(parsed=CUSTOMER, metrics=NS(customers=NS(segments=segments))))
+    inputs = NS(data=NS(blank_customer_months=frozenset(), parsed=CUSTOMER, metrics=NS(customers=NS(segments=segments))))
 
     outcome = evaluate("C4", inputs)
 

@@ -355,6 +355,12 @@ def test_a_rate_series_is_guarded_the_same_way() -> None:
 # step-4 row descriptive in v1. The CHART behaviour is unchanged and pinned
 # here as it is; what changed is that none of it is a verdict. The Backlog's
 # "unusualness verdicts" must fix these before it switches verdicts back on.
+#
+# 3E2 (2026-10-01) decided what happens to them now that no signal is a
+# verdict: KEPT as they are. Each pins a chart shape that is still drawn,
+# and its `not is_actionable` assert is the tripwire that fails the day
+# verdicts are switched back on - which is when they must be fixed. None
+# reaches a headline: the masked-shift alert no longer reads step 4 (3D6b).
 
 
 def test_known_limit_a_trickle_off_season_disarms_the_guard() -> None:
