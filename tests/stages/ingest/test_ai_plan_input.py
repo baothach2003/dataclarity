@@ -63,7 +63,8 @@ def test_the_dataset_actions_and_the_business_key_are_given() -> None:
 
     payload = sent(columns)
 
-    assert payload["dataset_legal_actions"] == ["remove_exact_duplicates", "flag_duplicate_keys"]
+    # Never the exact-duplicate removal: the user's to add in Review (2E-u4).
+    assert payload["dataset_legal_actions"] == ["flag_duplicate_keys"]
     assert payload["business_key"] == ["sku", "day"]
 
 

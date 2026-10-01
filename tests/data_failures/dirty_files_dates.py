@@ -168,5 +168,13 @@ def b15() -> Sample:
     return Sample(rows)
 
 
+def b15b() -> Sample:
+    # One line typed a year that is past the data but before the upload
+    # (2025 for 2024): no rule can tell it from a late sale (2E-u6 review 1, #10).
+    rows = base()
+    rows.append({"Date": "2025-02-10", "Qty": "1", "Price": "10.0", "Product": "Mug", "Cust": "Ann"})
+    return Sample(rows)
+
+
 b16 = edit("2024-02-10", Date="45332")  # Excel's serial number for 2024-02-10
 b17 = edit("2024-02-10", Date="10/02/2024 SA")  # Vietnamese AM marker

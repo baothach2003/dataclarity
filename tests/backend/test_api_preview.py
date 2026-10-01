@@ -8,7 +8,7 @@ import pytest
 from app.models import RunStatus
 from stages.ingest import transforms
 from app.services.run_memory import FrameCache
-from stages.ingest.profiling import read_csv_text
+from stages.ingest.profiling import profile_csv, read_csv_text
 from tests.backend.api_support import MakeApi, edited, make_api_with_plan, planned, schema_reply
 from tests.stages.ingest.cleaning_fixtures import make_plan
 
@@ -28,7 +28,7 @@ def test_preview_returns_the_sample_and_changes_nothing(make_api: MakeApi) -> No
     assert preview["rows_in_file"] == 5
     assert preview["sample_rows"] == 5
     assert preview["sampled"] is False
-    assert preview["rows_after"] == 4  # rows 1 and 3 are the same row: one is dropped
+    assert preview["rows_after"] == 5  # rows 1 and 3 are the same row: both stay, the AI's removal stripped (2E-u4)
     assert {d["column"] for d in preview["deltas"]} >= {"price", "qty"}
     assert api.status(run_id) is RunStatus.PLANNED
     assert api.files(run_id) == files_before  # no cleaned.csv, no plan_final.json
@@ -223,3 +223,22 @@ def test_the_cache_is_configured_from_the_settings(make_api: MakeApi) -> None:
 
     assert cache.max_bytes == 123 * 1_048_576
     assert cache.ttl_seconds == 45
+
+
+def test_the_preview_reads_numbers_by_the_whole_files_proof(make_api: MakeApi) -> None:
+    """2E-u1 review 3, R3-1: the backend's preview takes the proof from
+    profile.json - "1,299.99" off the sample proves the point, so the
+    sample's "1,200" reads 1200, as execution will write it."""
+    n = 2000
+    grid = {i * (n - 1) // 499 for i in range(500)}  # the 500-row sample's rows
+    proofs = [i for i in range(1, n) if i not in grid][:10]
+    rows = "".join(f"S{i},Lamp,1,\"{'1,299.99' if i in proofs else '1,200'}\",2024-01-05\n" for i in range(n))
+    csv = ("sku,name,qty,price,day\n" + rows).encode()
+    api, run_id, plan = make_api_with_plan(make_api)
+    # The run's file and its profile, before the first preview reads them.
+    api.file(run_id, "raw.csv").write_bytes(csv)
+    api.file(run_id, "profile.json").write_text(profile_csv(csv).model_dump_json(), encoding="utf-8")
+    response = api.post(run_id, "preview", plan)
+    assert response.status_code == 200, response.text
+    shown = [(row["before"]["price"], (row["after"] or {}).get("price")) for row in response.json()["preview"]["rows"]]
+    assert ("1,200", "1200") in shown and ("1,200", "1,200") not in shown

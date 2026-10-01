@@ -48,14 +48,15 @@ def test_df_a6_a_semicolon_file_is_split_on_its_semicolons() -> None:
     assert (profile.dataset.delimiter, profile.dataset.columns) == (";", 5)
 
 
-def test_known_limit_df_a6b_decimal_commas_are_read_by_no_step(tmp_path: Path) -> None:
-    """LIMIT (2E-u review #1; for Thach): stage 1's cast reads no "10,0"
-    (pd.to_numeric), so a European export loses every price - and the run
-    blocks with a reason that is not the file's ("no sales in 2024-01 ... the
-    export was cut short")."""
+def test_df_a6b_a_european_export_is_read_with_its_decimal_commas(tmp_path: Path) -> None:
+    """Was a LIMIT (2E-u F1): stage 1's cast read no "10,0", so every price
+    was lost and the run blocked saying the export was cut short. Since
+    2E-u1 "10,0" proves a decimal comma (one separator, not followed by three
+    digits) and stage 1 rewrites it: February 2024 is 29 x 42.00 = 1,218.00,
+    January 31 x 42.00 = 1,302.00, as the clean file."""
     found, diagnosed = real_flow(sample("DF-A6B"), tmp_path, CAST_PRICE)
-    assert (found.core.revenue_current, found.core.revenue_previous, diagnosed.headline.rule) == (0.0, 0.0, 1)
-    assert "has no sales in 2024-01" in diagnosed.trust.checks[0].message
+    assert (found.core.revenue_current, found.core.revenue_previous) == (1218.0, 1302.0)
+    assert diagnosed.headline.rule != 1
 
 
 def test_df_a7_duplicate_rows_are_counted() -> None:
@@ -204,17 +205,36 @@ def test_known_limit_a_cell_naming_no_day_is_no_date(mode: str) -> None:
 
 
 def test_known_limit_df_b14_year_first_two_digit_dates_are_misread(tmp_path: Path) -> None:
-    """LIMIT, a FABRICATE (8D "From 2E-j": YY/MM/DD without a year-first
-    format reads as D/M/Y; review #3, for Thach): no question is asked, the
-    calendar lands in 2001-2031 and the headline names a cause - "products
-    were launched or discontinued"."""
+    """LIMIT, a FABRICATE (8D "From 2E-j" and "From 2E-u", Thach's F2:
+    YY/MM/DD without a year-first format reads as D/M/Y): no question is
+    asked and the calendar lands in 2001-2031. Since 2E-u6 the misread lines
+    after the upload choose no period, so the months compared are misread
+    ones before it - 2026-08, a rule-7 headline (it was 2031-11 and rule 6,
+    "products were launched or discontinued"); which months depends on the
+    upload date."""
     found, diagnosed = real_flow(sample("DF-B14"), tmp_path)
-    assert (found.period.current, diagnosed.headline.rule) == ("2031-11", 6)
+    assert (found.period.current, diagnosed.headline.rule) == ("2026-08", 7)
+    assert found.core.future_lines > 0
 
 
-def test_known_limit_df_b15_one_future_line_moves_the_whole_period() -> None:
-    """LIMIT (review #3, for Thach): a line typed 2042 makes 2042-01 the
-    current month; the run blocks, saying the export was cut short."""
+def test_df_b15_a_line_dated_after_the_upload_chooses_no_period() -> None:
+    """HANDLED since 2E-u6 (Thach, 2026-10-02; was a LIMIT: 2042-01 became
+    the current month and the run blocked, saying the export was cut short).
+    The line is left out of choosing the period, counted with its revenue,
+    and keeps its own month; February is compared with January as without
+    it, and nothing blocks."""
     found = metrics(sample("DF-B15"))
-    assert found.period.current == "2042-01"
-    assert diagnosis(sample("DF-B15")).headline.rule == 1
+    assert (found.period.current, found.period.data_end.isoformat()) == ("2024-02", "2024-02-29")
+    assert (found.core.revenue_current, found.core.future_lines, found.core.future_revenue) == (FEB, 1, 10.0)
+    assert found.core.revenue_by_month[-1].period == "2042-02"
+    assert diagnosis(sample("DF-B15")).headline.rule == 7  # within the shop's usual movement
+
+
+def test_known_limit_df_b15b_a_year_typo_before_the_upload_still_moves_the_period() -> None:
+    """LIMIT (2E-u6 review 1, #10; for Thach): a line typed 2025 in a 2024
+    file is before the upload, so no rule tells it from a late sale - the
+    period moves to 2025-01 and the run blocks, saying the export was cut
+    short."""
+    found = metrics(sample("DF-B15B"))
+    assert (found.period.current, found.core.future_lines) == ("2025-01", 0)
+    assert diagnosis(sample("DF-B15B")).headline.rule == 1

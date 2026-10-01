@@ -130,9 +130,9 @@ def test_a_file_with_no_ties_scores_exactly_as_before(ascending: bool) -> None:
 
 def test_metrics_json_is_the_current_major_version() -> None:
     # 3.0 in 2E-c; 4.0 in 2E-c2; 5.0 since 2E-e (test_2ee_stage2.py); 10.0 since 2E-k.
-    assert SCHEMA_VERSION == "16.0"  # 12.0 in 2E-l; 13.0 in 2E-i; 14.0 in 2E-j; 15.0 in 2E-o; 16.0 since 2E-t1
+    assert SCHEMA_VERSION == "16.1"  # 16.1 in 2E-u6 (additive); 12.0 in 2E-l; 13.0 in 2E-i; 14.0 in 2E-j; 15.0 in 2E-o; 16.0 since 2E-t1
     metrics = assemble_metrics(pd.DataFrame(_two_months([])), MAPPING, now=NOW)
-    assert metrics.schema_version == "16.0"
+    assert metrics.schema_version == "16.1"
 
 
 def test_a_2x_metrics_json_is_refused_with_a_reason_to_reanalyse() -> None:

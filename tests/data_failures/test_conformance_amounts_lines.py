@@ -26,22 +26,42 @@ def test_a_number_that_does_not_read_is_counted_nowhere_and_reported(mode: str, 
     assert ("current", reason, 1) in unmeasurable(found)
 
 
-def test_known_limit_df_c4b_a_thousands_separator_drops_a_product_silently(tmp_path: Path) -> None:
-    """LIMIT, a silent wrong figure on a common export shape (2E-u review #1;
-    for Thach): stage 1's cast does not read "1,000.00", so every Mug line
-    is unmeasurable - revenue is Tea's alone, 3 x 4.00 x 29 = 348.00, with
-    nothing beside the figure (the lines are listed further down)."""
+def test_df_c4b_a_thousands_separator_is_read(tmp_path: Path) -> None:
+    """Was a LIMIT, a silent wrong figure (2E-u F1): every Mug line was
+    unmeasurable and revenue was Tea's alone, 348.00. Since 2E-u1 "1,000.00"
+    proves a decimal point (both marks: the last is the decimal one): February
+    is 3 x 1,000.00 x 29 + 3 x 4.00 x 29 = 87,348.00, nothing unmeasurable."""
     found, _ = real_flow(sample("DF-C4B"), tmp_path, CAST_PRICE)
-    assert found.core.revenue_current == 348.0
-    assert ("current", "no price", 87) in unmeasurable(found)
+    assert found.core.revenue_current == 87348.0
+    assert unmeasurable(found) == set()
     assert notes(found) == {"discounts_in_prices"}
 
 
-def test_known_limit_df_c4c_currency_signs_on_every_price_block_for_a_wrong_reason(tmp_path: Path) -> None:
-    """LIMIT (review #1): "$10.00" everywhere - nothing reads, and the run
-    blocks saying the export was cut short."""
+def test_df_c4c_currency_signs_are_stripped(tmp_path: Path) -> None:
+    """Was a LIMIT (2E-u F1): "$10.00" everywhere - nothing read, and the run
+    blocked saying the export was cut short. Since 2E-u1 stage 1 strips the
+    sign (Thach): February 29 x 42.00 = 1,218.00, as the clean file."""
     found, diagnosed = real_flow(sample("DF-C4C"), tmp_path, CAST_PRICE)
-    assert (found.core.revenue_current, diagnosed.headline.rule) == (0.0, 1)
+    assert (found.core.revenue_current, found.core.revenue_previous) == (1218.0, 1302.0)
+    assert diagnosed.headline.rule != 1
+
+
+def test_df_c4d_a_price_that_reads_two_ways_refuses_the_plan(tmp_path: Path) -> None:
+    """2E-u1: every price written "1,000" or "4,000" - nothing in the file
+    proves whether those are thousands or decimal commas: the plan is refused
+    with the reason, nothing written - never a default either way (Thach)."""
+    from stages.ingest.number_apply import NumberQuestionUnanswered
+
+    with pytest.raises(NumberQuestionUnanswered, match="'1,000' is one thousand with a thousands comma"):
+        real_flow(sample("DF-C4D"), tmp_path, CAST_PRICE)
+
+
+def test_df_c4d_answered_the_file_is_read_as_the_user_said(tmp_path: Path) -> None:
+    case = sample("DF-C4D")
+    # Answered a decimal comma: Mug 1.000, Tea 4.000 - February 3 x 5.00 x 29 = 435.00.
+    answered = case.__class__(case.rows, raw=case.raw, answers={"number_formats": {"Price": "decimal_comma"}})
+    found, _ = real_flow(answered, tmp_path, CAST_PRICE)
+    assert found.core.revenue_current == 435.0
 
 
 def test_df_c6_an_outlying_price_is_counted_by_stage_1() -> None:

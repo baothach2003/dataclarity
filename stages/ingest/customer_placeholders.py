@@ -27,6 +27,7 @@ import unicodedata
 import numpy as np
 import pandas as pd
 
+from contracts.cleaning import CleaningPlanContract
 from contracts.profile import CustomerPlaceholder
 from shared.transactions import RequiredColumnMissingError, customer_identity, is_blank
 from shared.line_numbers import undated_lines
@@ -143,6 +144,23 @@ def placeholder_candidates(df: pd.DataFrame, column_mapping: dict[str, str]
                    .value_counts().reset_index().drop_duplicates("id").set_index("id")["raw"])
         found = [c.model_copy(update={"value": str(spelled[c.value])}) for c in found]
     return found
+
+
+def unanswered_placeholders(df: pd.DataFrame, plan: CleaningPlanContract) -> list[str]:
+    """The candidates for the plan's own customer column, on the raw file,
+    that the user neither confirmed nor answered "a real customer" - by
+    customer identity (2E-u3: marked "suggested, not confirmed", like Q17)."""
+    dropped = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
+    mapping = {a.source_name: a.canonical_field for a in plan.column_actions
+               if a.canonical_field != "ignore" and a.source_name not in dropped and a.source_name in df.columns}
+    found = placeholder_candidates(df, mapping) or []
+    if not found:
+        return []
+    confirmations = plan.confirmations
+    answered = set(customer_identity(pd.Series(
+        [*confirmations.customer_placeholders, *confirmations.customer_not_placeholders], dtype=object)))
+    identities = customer_identity(pd.Series([c.value for c in found], dtype=object))
+    return [c.value for c, identity in zip(found, identities) if identity not in answered]
 
 
 def _dominant(totals: pd.Series) -> object | None:

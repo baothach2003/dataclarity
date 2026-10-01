@@ -45,7 +45,7 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
     # 2.0 in 2E-e (order_id widened the enum: major); 2.1 since 2E-e2 (confirmations: minor).
-    assert (returned.schema_version, returned.generated_at, returned.source) == ("4.0", NOW, "ai")  # 4.0 since 2E-t1 ("gift_card": major); 2.2 in 2E-k, 2.3 in 2E-d2 (minor); 3.0 in 2E-l ("pooled": major); 3.1 since 2E-j (minor)
+    assert (returned.schema_version, returned.generated_at, returned.source) == ("4.2", NOW, "ai")  # 4.2 since 2E-u3 (minor); 4.1 since 2E-u1 (minor); 4.0 since 2E-t1 ("gift_card": major); 2.2 in 2E-k, 2.3 in 2E-d2 (minor); 3.0 in 2E-l ("pooled": major); 3.1 since 2E-j (minor)
     assert not any(a.edited_by_user for a in returned.column_actions)
     assert not any(a.edited_by_user for a in returned.dataset_actions)
 
@@ -59,7 +59,8 @@ def test_the_ais_actions_params_and_alternatives_are_carried_over(tmp_path: Path
     assert (by_name["qty"].action, by_name["qty"].params) == ("fix_negative", {"strategy": "flag"})
     assert by_name["price"].alternatives == ["impute_mean", "drop_rows_missing"]
     assert by_name["price"].rationale == "25.0% missing"
-    assert [a.action for a in returned.dataset_actions] == ["remove_exact_duplicates"]
+    # The AI's exact-duplicate removal is stripped: the user's to add (2E-u4).
+    assert [a.action for a in returned.dataset_actions] == []
 
 
 def test_the_type_and_mapping_come_from_the_schema_result_not_from_the_ai(

@@ -56,8 +56,10 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             # The later stages' outputs describe the metrics this run
             # replaces: set aside around the new file's rename, deleted once
             # it succeeds (3G-lite reviews 1-3, DEMO review #2).
+            # The upload is the reference for lines dated after it (2E-u6):
+            # the same answer however late the run is analysed.
             metrics = analyze_run(runs_root, run_id, around_write=lambda: later_outputs.set_aside(
-                runs_root, run_id, after_stage=2))
+                runs_root, run_id, after_stage=2), uploaded_at=run.created_at)
         except RequiredColumnMissingError as error:
             raise stage_errors.analysis_failed(
                 str(error), {"canonical_field": error.canonical_field}

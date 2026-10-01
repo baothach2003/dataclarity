@@ -99,6 +99,30 @@ export interface ColumnProfile {
   // 1.1 (2E-j): only for a column with a cell written day-month-year or
   // month-day-year; null or absent otherwise.
   date_order?: DateOrderMeasure | null
+  // 1.2 (2E-u1): for a text column with a cell read as a number written for
+  // people ("1,000.00", "$12.50", "10,5"), and for a column of numbers only
+  // when it holds a question ("1.000"); null or absent otherwise.
+  number_format?: NumberFormatMeasure | null
+}
+
+// The decimal mark of a column's numbers written for people (2E-u1).
+export type NumberFormat = 'decimal_point' | 'decimal_comma'
+
+// Stage 1's measure of one column on the raw file (2E-u1): a cell whose last
+// separator is not followed by three digits, or that holds both marks, proves
+// its mark; "1,000" reads two ways. 'ask' when the column proves neither (or
+// both) and some cell reads two ways; null when nothing depends on it.
+export interface NumberFormatMeasure {
+  readable: number
+  point: number
+  comma: number
+  ambiguous: number
+  currency: number
+  unreadable: number
+  point_example: string | null
+  comma_example: string | null
+  ambiguous_example: string | null
+  decision: NumberFormat | 'ask' | null
 }
 
 // How a column's day-month-year or month-day-year cells are written (2E-j).
@@ -225,10 +249,14 @@ export interface OrderConfirmations {
   customer_on_first_line_only: boolean | null
   // 2.2 (2E-k): the customer values confirmed as walk-in placeholders.
   customer_placeholders?: string[]
+  // 4.2 (2E-u3): the candidates answered "a real customer".
+  customer_not_placeholders?: string[]
   // 2.3 (2E-d2): the product keys the user classed as not products.
   line_classes?: LineClassAnswer[]
   // 3.1 (2E-j): the answer to the date question - true: day first.
   dates_day_first?: boolean | null
+  // 4.1 (2E-u1): the answers to the number question, by source column.
+  number_formats?: Record<string, NumberFormat>
 }
 
 // What a line that is not an ordinary product is (2E-d2, 2E-l): a charge the

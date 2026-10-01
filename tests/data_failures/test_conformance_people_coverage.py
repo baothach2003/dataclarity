@@ -1,6 +1,8 @@
 """The conformance suite, part 3: DF-E identities, DF-F placeholders, DF-G
 coverage (docs/DATA_FAILURE_MODES.md; the rule and the base: test_conformance.py)."""
 
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
@@ -14,7 +16,7 @@ from stages.analyze.assemble import assemble_metrics
 from stages.predict.forecast import forecast
 # The report's own withholding rules, read where they live (layer 1).
 from stages.report.layers import _current_note, _empty_current
-from tests.data_failures.flow import FEB, NOW, check, diagnosis, metrics, notes, sample, verdicts
+from tests.data_failures.flow import FEB, NOW, check, diagnosis, metrics, notes, real_flow, sample, verdicts
 
 # --- E. identities -----------------------------------------------------------------------------------
 
@@ -84,15 +86,19 @@ def test_a_customer_cell_that_names_nobody_is_no_customer(mode: str) -> None:
 
 
 @pytest.mark.parametrize("mode,label", [("DF-F1B", "Guest"), ("DF-F5", "-")])
-def test_known_limit_an_unanswered_walk_in_label_is_a_customer_without_a_note(mode: str, label: str) -> None:
-    """LIMIT (2E-u review #4; for Thach): Review asks about "Guest" and "-";
-    unanswered, each is one customer buying for every walk-in - three
-    active customers, and no note says so."""
+def test_an_unanswered_walk_in_label_is_a_customer_marked_suggested_not_confirmed(
+        mode: str, label: str, tmp_path: Path) -> None:
+    """MARKED since 2E-u3 (Thach, 2026-10-02; was a LIMIT: no note). Review
+    asks about "Guest" and "-"; unanswered, each stays one customer - three
+    active customers, the standing no-guess rule - and the production flow
+    marks it "suggested, not confirmed" beside the customer figures."""
     case = sample(mode)
     asked = placeholder_candidates(pd.DataFrame(case.rows), case.mapping) or []
     assert label in {c.value for c in asked}
-    found = metrics(case)
+    found, _ = real_flow(case, tmp_path)
     assert found.core.active_customers_current == 3 and notes(found) == {"discounts_in_prices"}
+    assert label in [p.value for p in found.customers.unconfirmed_placeholders]
+    assert "suggested, not confirmed" in (found.customers.unconfirmed_placeholders_reason or "")
 
 
 def test_known_limit_df_f2_numbered_walk_in_labels_are_asked_one_by_one() -> None:

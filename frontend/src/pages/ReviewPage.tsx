@@ -8,7 +8,9 @@ import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
 import { DateOrderNotice } from '../components/DateOrderNotice.tsx'
+import { NumberFormatNotice } from '../components/NumberFormatNotice.tsx'
 import { LineSummaryNotice } from '../components/LineSummaryNotice.tsx'
+import { DuplicatesNotice } from '../components/DuplicatesNotice.tsx'
 import { Notice } from '../components/Notice.tsx'
 import { NonProductNotice } from '../components/NonProductNotice.tsx'
 import { OrderNotices } from '../components/OrderNotices.tsx'
@@ -93,25 +95,30 @@ export function ReviewPage({
     [isNotInventory, plan],
   )
 
-  const previewLoading = previewedPlan !== planToSubmit
-  // The whole file for the answers as they stand (2E-t3): what execute would run.
-  const lineSummary = useLineSummary(baseUrl, runId, orderAnswers.confirmed(planToSubmit), !isNotInventory)
+  // The plan with the answers as they stand: what execute would run. A fresh
+  // object every render, so the preview follows its content (2E-u1 review 2,
+  // N2: an answered number question was previewed as written).
+  const confirmedBody = JSON.stringify(orderAnswers.confirmed(planToSubmit))
+  const planToPreview = useMemo(() => JSON.parse(confirmedBody) as CleaningPlan, [confirmedBody])
+  const previewLoading = previewedPlan !== planToPreview
+  // The whole file for the answers as they stand (2E-t3).
+  const lineSummary = useLineSummary(baseUrl, runId, planToPreview, !isNotInventory)
 
   // Preview refreshes 400ms after the last edit (SPECS 4.2 C), cancelling a
   // request superseded by a newer edit before it answers.
   useEffect(() => {
     const controller = new AbortController()
     const timer = setTimeout(() => {
-      previewPlan(baseUrl, runId, planToSubmit, controller.signal)
+      previewPlan(baseUrl, runId, planToPreview, controller.signal)
         .then((response) => {
           setPreview(response.preview)
           setPreviewError(null)
-          setPreviewedPlan(planToSubmit)
+          setPreviewedPlan(planToPreview)
         })
         .catch((error: unknown) => {
           if (!controller.signal.aborted) {
             setPreviewError(error)
-            setPreviewedPlan(planToSubmit)
+            setPreviewedPlan(planToPreview)
           }
         })
     }, PREVIEW_DEBOUNCE_MS)
@@ -119,12 +126,33 @@ export function ReviewPage({
       clearTimeout(timer)
       controller.abort()
     }
-  }, [baseUrl, runId, planToSubmit])
+  }, [baseUrl, runId, planToPreview])
 
   const columns = useMemo(() => buildColumnViewModels(profile, schema, plan), [profile, schema, plan])
   const missingFields = isNotInventory ? [] : missingRequiredFields(plan)
   const editedCount = plan.column_actions.filter((c) => c.edited_by_user).length
   const attentionCount = columns.filter((c) => c.needsAttention).length
+
+  const removesCopies = plan.dataset_actions.some((a) => a.action === 'remove_exact_duplicates')
+
+  // The user's choice alone: the AI never proposes it (2E-u4).
+  function setRemovesCopies(remove: boolean) {
+    setPlan((current) => ({
+      ...current,
+      dataset_actions: remove
+        ? [
+            ...current.dataset_actions.filter((a) => a.action !== 'remove_exact_duplicates'),
+            {
+              action: 'remove_exact_duplicates',
+              params: {},
+              rationale: 'added by the user in Review',
+              alternatives: [],
+              edited_by_user: true,
+            },
+          ]
+        : current.dataset_actions.filter((a) => a.action !== 'remove_exact_duplicates'),
+    }))
+  }
 
   function patchColumn(name: string, patch: Partial<CleaningPlan['column_actions'][number]>) {
     setPlan((current) => ({
@@ -298,6 +326,12 @@ export function ReviewPage({
               answers={orderAnswers.lineAnswers}
               onAnswer={orderAnswers.answerLine}
             />
+            <DuplicatesNotice
+              duplicateRows={profile.dataset.duplicate_rows}
+              removes={removesCopies}
+              summary={lineSummary}
+              onChange={setRemovesCopies}
+            />
             <LineSummaryNotice state={lineSummary} />
             <DateOrderNotice
               plan={plan}
@@ -305,6 +339,12 @@ export function ReviewPage({
               answer={orderAnswers.dateAnswer}
               onAnswer={orderAnswers.answerDate}
               onFixParse={(name, params) => { handleActionChange(name, 'parse_datetime', params) }}
+            />
+            <NumberFormatNotice
+              plan={plan}
+              profile={profile}
+              answers={orderAnswers.numberAnswers}
+              onAnswer={orderAnswers.answerNumber}
             />
             <OrderNotices
               plan={plan}
@@ -367,7 +407,13 @@ export function ReviewPage({
         <ActionBar
           isNotInventory={isNotInventory}
           missingFields={missingFields}
-          unanswered={orderAnswers.dateUnanswered ? 'Answer how the dates are written first' : null}
+          unanswered={
+            orderAnswers.dateUnanswered
+              ? 'Answer how the dates are written first'
+              : orderAnswers.numbersUnanswered
+                ? 'Answer how the numbers are written first'
+                : null
+          }
           editedCount={editedCount}
           attentionCount={attentionCount}
           canReset={aiProposal !== null}

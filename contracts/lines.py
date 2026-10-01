@@ -310,6 +310,14 @@ class ReservedRename(ContractModel):
     holds: str  # what cleaned.csv's own column of that name holds
 
 
+class DuplicatesRemoved(ContractModel):
+    """What the plan's exact-duplicate removal takes (2E-u4): the rows it
+    drops and their revenue as stage 2 reads it - counted lines only."""
+
+    lines: NonNegativeInt
+    revenue: Finite
+
+
 class LineSummary(ContractModel):
     """Review's view of the whole file (2E-t3; docs/LINE_TAXONOMY.md section
     5): stage 1 computes it for the plan and the answers as they stand, with
@@ -327,6 +335,10 @@ class LineSummary(ContractModel):
     unclassified: UnclassifiedLines
     unmeasurable: list[UnmeasurableLines]
     notes: Notes
+    # 2E-u4 (Thach, 2026-10-02): when the plan removes exact duplicates - the
+    # user's choice, never the AI's - the lines and the revenue it takes; null
+    # when the plan does not.
+    duplicates_removed: DuplicatesRemoved | None = None
 
     @model_validator(mode="after")
     def _the_whole_file(self) -> Self:

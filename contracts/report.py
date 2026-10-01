@@ -62,6 +62,15 @@ class Numbers(ContractModel):
     # went is in each reason (an adjustment is a reconciling amount).
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
+    # 2.2 (2E-u6): the lines dated after the upload, left out of choosing the
+    # period and the dates the file covers - shown beside those dates. 0 and
+    # null in a 2.1 file.
+    future_lines: NonNegativeInt = 0
+    future_lines_reason: str | None = None
+    # 2.2 (2E-u3): the walk-in candidates left unanswered in Review, marked
+    # "suggested, not confirmed" beside the customer figures and in the
+    # causes (metrics.json customers). Null in a 2.1 file.
+    unconfirmed_placeholders_reason: str | None = None
     unmeasurable: list[UnmeasurableLines]
     non_product: list[NonProductLines]
     outside_revenue: list[OutsideRevenueLines]

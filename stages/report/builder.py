@@ -38,7 +38,9 @@ from shared.run_registry import run_file
 from stages.report.html_report import REPORT_HTML, html_run
 from stages.report.layers import actions, causes, numbers, revenue_notes
 
-SCHEMA_VERSION = "2.1"  # 2 since 4A-b: the forecast's season_years, its two-year note; 2.1 since 3E1b: the headline's optional movement (CONTRACTS 10)
+# 2 since 4A-b: the forecast's season_years, its two-year note; 2.1 since 3E1b: the headline's
+# optional movement; 2.2 since 2E-u6: the lines dated after the upload (CONTRACTS 10).
+SCHEMA_VERSION = "2.2"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 

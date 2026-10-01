@@ -49,12 +49,11 @@ from contracts.metrics import Pareto, Period, ProductDecline, ProductMetrics, To
 from shared.numbers import is_negligible, pct_change
 from shared.products import product_keys, product_labels, product_suggestions
 from shared.run_registry import run_file
-from shared.date_evidence import month_grain
 from shared.transactions import parse_transactions, require_column
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
-    select_period,
+    choose_period,
 )
 
 TOP_PRODUCTS_LIMIT = 10
@@ -73,8 +72,7 @@ def product_metrics_for_run(
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     parsed = parse_transactions(frame, report.column_mapping, report.applied_confirmations())
-    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale],
-                           grain=month_grain(parsed.dates[parsed.counted]))
+    period, _ = choose_period(parsed, now or datetime.now(UTC))
     return compute_product_metrics(frame, report.column_mapping, period, report.applied_confirmations())
 
 

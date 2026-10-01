@@ -217,5 +217,5 @@ def test_stock_figures_are_not_supported_in_v1_even_with_stock_in_lines(metrics:
 
 
 def test_metrics_json_is_16_0(metrics: MetricsContract) -> None:
-    assert metrics.schema_version == "16.0"
+    assert metrics.schema_version == "16.1"
     assert MetricsContract.model_validate_json(metrics.model_dump_json()) == metrics

@@ -77,6 +77,9 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
         parts.append("<h3>What this data cannot test</h3>"
                      + items(f"{esc(n.statement)}: {esc(n.reason)}" for n in causes.not_testable))
     parts.append(_signals(causes))
+    if numbers.unconfirmed_placeholders_reason:
+        # The customer causes read the same customers (2E-u3).
+        parts.append(para(numbers.unconfirmed_placeholders_reason, "reason"))
     beside = {n.code for n in numbers.notes}
     if causes.notes:
         # A note the numbers already show is linked, never a second anchor.

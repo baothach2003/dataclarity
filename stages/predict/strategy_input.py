@@ -46,7 +46,10 @@ def _metrics(metrics: MetricsContract) -> dict[str, Any]:
         # the AI must say lines, not orders.
         "core": core.model_dump(mode="json", exclude={"notes", "buyers_current", "buyers_previous"})
         | {"notes": [_note(n) for n in core.notes]},
-        "customers": metrics.customers.model_dump(mode="json"),
+        # Never the walk-in candidates: customer values from the file, beyond
+        # the AI's bounded sample (CLAUDE.md 3.2; 2E-u3 review 1, #3).
+        "customers": metrics.customers.model_dump(
+            mode="json", exclude={"unconfirmed_placeholders", "unconfirmed_placeholders_reason"}),
         "products": products.model_dump(mode="json", exclude={"velocity", "velocity_reason", "top_products",
                                                               "biggest_decliners"})
         | {"top_products": _dumped(products.top_products[:MEMBERS_SHOWN]),

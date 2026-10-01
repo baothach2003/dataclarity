@@ -76,6 +76,35 @@ Rules:
 Numeric-only fields (`min`, `max`, `mean`, `median`, `q1`, `q3`) are `null` for
 non-numeric columns. `top_values` is capped at 10 entries per column.
 
+`number_format` (`1.2`, session 2E-u1, Thach) is present on a text column
+with a cell that proves its decimal mark ("1,000.00", "10,5"), reads two ways
+("1,000") or carries a currency symbol at either end ("$12.50", "12,50 €";
+Unicode category Sc) - and on a column pandas reads as numbers only when it
+holds a question (`decision` "ask": "1.000", "2.500"); `null` otherwise (and
+absent from an earlier file). A cell grouped by a space or an apostrophe
+alone ("1 000", "1'000") reads one way: it makes no measure, and execution
+still writes it as a plain number:
+
+```json
+"number_format": {"readable": 4210, "point": 3120, "comma": 0, "ambiguous": 85,
+                  "currency": 4210, "unreadable": 2, "point_example": "1,000.00",
+                  "comma_example": null, "ambiguous_example": "1,250",
+                  "decision": "decimal_point"}
+```
+
+A cell PROVES its decimal mark (`point`, `comma`, with the first example)
+when its last separator is not followed by exactly three digits, when it
+holds both marks (the last is the decimal one), when one mark repeats
+("1,000,000": the other is the decimal), or when its first group starts with
+0 ("0,500" is no thousands group); "1,000" reads two ways (`ambiguous`: one
+thousand with a thousands comma, or one with a decimal comma). The examples
+are cells as written, their spaces trimmed and cut like any cell text the AI
+is shown. `unreadable` counts the non-blank cells no rule reads that pandas
+cannot read either ("1.5E3" is read by pandas, so it is not counted). `decision` is the mark the column proves for its ambiguous cells,
+`"ask"` when it proves neither or both and some cell is ambiguous (Review
+then asks), `null` when no cell depends on it. A cell that proves its own
+mark is read by it whatever the column says.
+
 `date_order` (`1.1`, session 2E-j, Thach) is present on a text column whose
 day-month-year or month-day-year dates - two numbers of one or two digits and
 a year of two or four, separated by `/`, `.`, `-` or spaces, anywhere in the
@@ -316,6 +345,14 @@ file Review judged by date only (2E-e2 doubt-review cycle 3 F1, resolved). A pla
 its answers has `source` "user_edited". A `2.0` plan reads as nothing
 confirmed.
 
+`confirmations.number_formats` (`4.1`, session 2E-u1, Thach) answers
+Review's number question per source column - `"decimal_point"` or
+`"decimal_comma"` - for a quantity or unit price column whose
+`number_format.decision` is `"ask"`. Never a default either way: stage 1
+refuses to execute (INVALID_PLAN) while such a column is unanswered, naming
+the column and a cell, and refuses an answer against a column's proof (the
+cells decide). Empty: nothing asked or answered.
+
 `confirmations.dates_day_first` (`3.1`, session 2E-j, Thach) answers Review's
 date question - `true`: the date column's day-month-year cells are written
 day first; `false`: month first; `null`: not asked or not answered. The
@@ -365,6 +402,15 @@ Rules for the values (no field changed):
 - `confirmations` (`2.1`, 2E-e2) are the plan's answers exactly as submitted
   (section 4); stages 2 and 3 read them here, with `column_mapping`. A `2.0`
   report reads as nothing confirmed.
+- `number_formats` (`4.1`, 2E-u1) records, per quantity and unit price
+  column, what stage 1's number reading did on the RAW file before any action
+  ran: `{format, rewritten, unreadable, answered}` - the mark its ambiguous
+  cells were read with (`null`: none needed one), the cells rewritten as
+  plain numbers (`"1,000.00"` -> `1000.00`, `"$12.50"` -> `12.50`, `"10,5"`
+  -> `10.5`), the non-blank cells no rule reads (left as written: stage 2
+  lists them as unmeasurable), and whether the mark was the user's answer.
+  Empty in an earlier report. Stages 2 and 3 read plain numbers in
+  `cleaned.csv`; nothing downstream reads this field.
 - `date_order` (`3.1`, 2E-j) is the order the transaction_date column's
   day-month-year cells were read in: the user's answer, else what the RAW
   file proved (decided before any action runs, so a plan dropping the rows
@@ -514,6 +560,22 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   figure; one outside revenue is still in the whole file's report of such
   lines (2E-t2) - and `undated_lines_reason` says so; it is null exactly
   when the count is 0.
+- **Lines dated after the upload** (Thach, 2026-10-02, 2E-u6; 16.1):
+  `period.upload_cutoff` is the last day a line may be dated - the run's
+  upload day on the clock furthest ahead, UTC+14 (the backend passes the
+  run's `created_at`; stage 2 alone uses `now`). A line dated after it, of
+  any class, is left out of choosing the period - `data_start`/`data_end`,
+  the month grain, `current`, `previous` and its coverage - and counted in
+  **`core.future_lines`**, with the counted ones' revenue in
+  `future_revenue` and `future_lines_reason` (null exactly when the count
+  is 0). Every other figure keeps it in its own month (the standing no-guess
+  rule: 2042 may be 2024 or 2012 mistyped), so `revenue_by_month` can hold a
+  month after the upload; it is outside both compared months by
+  construction. Stage 3 leaves the same lines out where it chooses its own
+  coverage end (`shared/periods.after_cutoff`); stage 5 shows the reason
+  beside the dates the file covers and ends its months with the last date
+  the period covers (`data_end`'s month): a later month holds only such
+  lines. A 16.0 file reads as `null`, 0, 0.0, `null`.
 - **The date order** (Thach, 2E-j): a cell written day-month-year or
   month-day-year is read in the order stage 1 recorded (section 5,
   `date_order`) - only such a cell; ISO, a month name or a time is read as
@@ -535,9 +597,11 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   is `current` once it has ended on every clock (12 hours past its end in
   UTC - the run's clock is UTC, the dates the shop's): a report pulled
   mid-month holds a month-to-date row, which compared as a whole month read
-  -36.7%, and a later stock-in row made an empty month current. One pulled
-  mid-month and analysed after that month ended cannot be told apart (a known
-  limit). With no customer column, the order-id check by date reads only the
+  -36.7%, and a later stock-in row made an empty month current. Since 2E-u6 the
+  clock is the run's upload, not the analysis: a report pulled mid-month
+  compares the month before however late it is analysed, and one uploaded
+  within 12 hours after a month ends (UTC) compares the month before it too,
+  for good - the safe side (a known limit). With no customer column, the order-id check by date reads only the
   month, and its reason says so. Stage 3's day-level steps do not apply
   (section 7).
 - **Lines the user classed as not products** (Thach, 2E-d2, 2E-l; plan
@@ -679,7 +743,17 @@ and `shared/periods.py`, so stage 3 recomputes exactly the same figures.
   walk-in placeholder** (2E-k; "Guest", "Walk-in", "0") names no one: its
   lines have no customer in every figure of both stages, and
   **`customers.placeholder_lines`** counts the revenue-counted ones, with
-  `placeholder_lines_reason` (null exactly when the count is 0).
+  `placeholder_lines_reason` (null exactly when the count is 0). **A
+  candidate left unanswered** (Thach, 2E-u3; 16.1) stays a customer in every
+  figure - the data cannot tell the walk-in default from a customer of that
+  name (CLAUDE.md 3.3a) - and is marked "suggested, not confirmed", like
+  Q17: **`customers.unconfirmed_placeholders`** lists each value stage 1
+  recorded (cleaning_report.json `unconfirmed_placeholders`: the candidates
+  for the column as mapped, neither confirmed nor answered "a real
+  customer" - `confirmations.customer_not_placeholders`), with its counted
+  lines in the file and the two compared months, and
+  `unconfirmed_placeholders_reason` (null exactly when the list is empty);
+  stage 5 shows the reason beside the KPIs and in the causes.
   **Known limit (for Thach, 2E-f doubt-review cycle 2 F2):** a per-day batch
   id (a Z-report, a shift, a daily returns desk) with one named line and
   unnamed walk-in lines looks exactly like a header-style receipt on its
@@ -1790,6 +1864,28 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-02: **session 2E-u3, an unanswered walk-in candidate marked
+  "suggested, not confirmed" (Thach, 2E-u F3).** Optional fields, minor:
+  the stage 1 contracts `4.2` (`confirmations.customer_not_placeholders`,
+  cleaning_report.json `unconfirmed_placeholders`; `schema_inference.json`
+  kept in step), `metrics.json` `16.1` with 2E-u6
+  (`customers.unconfirmed_placeholders`, `unconfirmed_placeholders_reason`),
+  `report.json` `2.2` with 2E-u6 (`layer_1_numbers.unconfirmed_placeholders_reason`).
+  No figure changes. Not a note code: a new code widens a closed enum
+  (major, above) and changes a section 11 type.
+- 2026-10-02: **session 2E-u6, lines dated after the upload (Thach, 2E-u
+  F6).** Optional fields, minor: `metrics.json` `16.1`
+  (`period.upload_cutoff`, `core.future_lines`, `future_revenue`,
+  `future_lines_reason`; section 6) and `report.json` `2.2`
+  (`layer_1_numbers.future_lines`, `future_lines_reason`); section 11 rows
+  added. A 16.0 / 2.1 file still reads. The period of a file with such a
+  line changes (it no longer moves to the line's month).
+- 2026-10-02: **session 2E-u1, the number format decided at stage 1 (Thach,
+  2E-u F1).** Optional fields, minor: `profile.json` `1.2` (per-column
+  `number_format`), the stage 1 contracts `4.1` (`confirmations.number_formats`,
+  `cleaning_report.json`'s `number_formats`; `schema_inference.json` kept in
+  step). Readers unaffected; `cleaned.csv` now holds plain numbers where the
+  raw file wrote them for people.
 - 2026-10-02: **session 3E1b, D1's pattern and the headline's size test
   (Thach, deciding 3E2-F1).** `diagnosis.json` 18.0 (major: the same data
   can say something else). D1 learns from the history months whose own
@@ -2259,6 +2355,7 @@ How the fields are read:
 | `period.previous_complete` | `bool` | 4A, 4B, 5, FE |
 | `period.previous_incomplete_reason` | `str \| None` | 4B, 5, FE |
 | `period.month_grain` | `bool` | 4A, 4B, 5, FE |
+| `period.upload_cutoff` | `date \| None` | 4B, 5 |
 | `core` | `object` | 4A, 4B, 5, FE |
 | `core.revenue_current` | `float` | 4B, 5, FE |
 | `core.revenue_previous` | `float` | 4B, 5, FE |
@@ -2283,6 +2380,9 @@ How the fields are read:
 | `core.revenue_by_month[].revenue` | `float` | 4A, 4B, 5, FE |
 | `core.undated_lines` | `int (ge=0)` | 4B, 5, FE |
 | `core.undated_lines_reason` | `str \| None` | 4B, 5, FE |
+| `core.future_lines` | `int (ge=0)` | 4B, 5, FE |
+| `core.future_revenue` | `float` | 4B, 5, FE |
+| `core.future_lines_reason` | `str \| None` | 4B, 5, FE |
 | `core.non_product` | `list[object]` | 4B, 5, FE |
 | `core.non_product[].line_class` | `Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']` | 4B, 5, FE |
 | `core.non_product[].lines` | `int (gt=0)` | 4B, 5, FE |
@@ -2354,6 +2454,12 @@ How the fields are read:
 | `customers.unfilled_receipt_lines_reason` | `str \| None` | 4B, 5, FE |
 | `customers.placeholder_lines` | `int (ge=0)` | 4B, 5, FE |
 | `customers.placeholder_lines_reason` | `str \| None` | 4B, 5, FE |
+| `customers.unconfirmed_placeholders` | `list[object]` | FE |
+| `customers.unconfirmed_placeholders[].value` | `str` | FE |
+| `customers.unconfirmed_placeholders[].lines` | `int (gt=0)` | FE |
+| `customers.unconfirmed_placeholders[].lines_current` | `int (ge=0)` | FE |
+| `customers.unconfirmed_placeholders[].lines_previous` | `int (ge=0)` | FE |
+| `customers.unconfirmed_placeholders_reason` | `str \| None` | 5, FE |
 | `products` | `object` | 4B, 5, FE |
 | `products.pareto` | `object` | 4B, 5, FE |
 | `products.pareto.products_for_80pct_revenue` | `int (ge=0)` | 4B, 5, FE |

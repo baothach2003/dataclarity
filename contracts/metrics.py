@@ -79,6 +79,11 @@ class Period(ContractModel):
     # month, once over, is then the current month, and stage 3's day-level
     # steps do not apply.
     month_grain: bool
+    # 16.1 (2E-u6, Thach 2026-10-02): the last day a line may be dated - the
+    # upload's day at UTC+14 (shared/periods.upload_cutoff). Lines after it
+    # are left out of choosing this period (core.future_lines); stage 3 reads
+    # it to choose its own coverage end the same way. Null in a 16.0 file.
+    upload_cutoff: date | None = None
 
     @model_validator(mode="after")
     def _reason_when_incomplete(self) -> Self:
@@ -148,6 +153,14 @@ class CoreMetrics(ContractModel):
     # line is reported once, in `unmeasurable` (Thach's Q24, 2E-t2).
     undated_lines: NonNegativeInt
     undated_lines_reason: str | None
+    # 16.1 (2E-u6): the lines dated after `period.upload_cutoff`, of any
+    # class, left out of choosing the period and the dates the file covers;
+    # every other figure keeps them in their own month (the standing no-guess
+    # rule, CLAUDE.md 3.3a). `future_revenue` is the counted ones' revenue.
+    # The reason is null exactly when the count is 0; 0 in a 16.0 file.
+    future_lines: NonNegativeInt = 0
+    future_revenue: float = 0.0
+    future_lines_reason: str | None = None
     # One row per class present, in the order charge, discount, pooled,
     # cost, adjustment, gift_card; empty when no line is classed (2E-d2, 2E-l,
     # 2E-t1).
@@ -171,6 +184,12 @@ class CoreMetrics(ContractModel):
         if (self.undated_lines == 0) != (self.undated_lines_reason is None):
             raise ValueError("undated_lines_reason says why lines were left out; it is null "
                              "exactly when undated_lines is 0")
+        if (self.future_lines == 0) != (self.future_lines_reason is None):
+            raise ValueError("future_lines_reason says why lines were left out of the period; it is "
+                             "null exactly when future_lines is 0")
+        if self.future_lines == 0 and self.future_revenue != 0:
+            raise ValueError("future_revenue is the revenue of the lines dated after the upload; it is 0 "
+                             "when there are none")
         if self.orders_basis == "order_id" and self.orders_basis_reason is not None:
             raise ValueError("orders_basis_reason explains a fallback to lines; "
                              "it is null when the basis is order_id")
@@ -205,6 +224,16 @@ class NewVsReturning(ContractModel):
     returning_revenue: float
 
 
+class UnconfirmedPlaceholder(ContractModel):
+    """A walk-in candidate left unanswered in Review (2E-u3): its counted
+    lines in the file and in the two compared months, by customer identity."""
+
+    value: str
+    lines: Annotated[int, Field(gt=0)]
+    lines_current: NonNegativeInt
+    lines_previous: NonNegativeInt
+
+
 class CustomerMetrics(ContractModel):
     rfm_reference_date: date
     segments: list[SegmentSummary]
@@ -223,9 +252,19 @@ class CustomerMetrics(ContractModel):
     # figures. The reason is null exactly when the count is 0.
     placeholder_lines: NonNegativeInt
     placeholder_lines_reason: str | None
+    # 16.1 (2E-u3, Thach 2026-10-02): the walk-in candidates stage 1 recorded
+    # as unanswered (cleaning_report.json `unconfirmed_placeholders`) - still
+    # customers in every figure (CLAUDE.md 3.3a), marked "suggested, not
+    # confirmed" like Q17. The reason is null exactly when the list is empty;
+    # empty in a 16.0 file.
+    unconfirmed_placeholders: list[UnconfirmedPlaceholder] = Field(default_factory=list)
+    unconfirmed_placeholders_reason: str | None = None
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
+        if (not self.unconfirmed_placeholders) != (self.unconfirmed_placeholders_reason is None):
+            raise ValueError("unconfirmed_placeholders_reason marks the values Review suggested; it is null "
+                             "exactly when unconfirmed_placeholders is empty")
         if (self.unfilled_receipt_lines == 0) != (self.unfilled_receipt_lines_reason is None):
             raise ValueError("unfilled_receipt_lines_reason says why lines were left "
                              "unattributed; it is null exactly when unfilled_receipt_lines is 0")
@@ -413,6 +452,19 @@ class MetricsContract(ContractFile):
         meeting in one segment's average (2E-v review 2 #2)."""
         for path, value in numbers_json_cannot_carry(self.model_dump()):
             raise ValueError(f"{path}: {TOO_LARGE_TO_ADD} ({value}): JSON cannot carry it")
+        return self
+
+    @model_validator(mode="after")
+    def _the_upload_bounds_the_period(self) -> Self:
+        """2E-u6 review 1, #9: lines dated after the upload need the cutoff
+        they were judged by, and no date the period covers is after it."""
+        cutoff = self.period.upload_cutoff
+        if cutoff is None:
+            if self.core.future_lines:
+                raise ValueError("future_lines counts lines after period.upload_cutoff, which is missing")
+            return self
+        if self.period.data_end > cutoff:
+            raise ValueError(f"period.data_end {self.period.data_end} is after period.upload_cutoff {cutoff}")
         return self
 
     @model_validator(mode="after")

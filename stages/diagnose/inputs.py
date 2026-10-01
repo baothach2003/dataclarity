@@ -20,6 +20,7 @@ import pandas as pd
 
 from contracts.cleaning import CleaningReportContract, OrderConfirmations
 from contracts.metrics import MetricsContract
+from shared.periods import after_cutoff
 from shared.periods import complete_months, shift_month  # noqa: F401  # re-exported: stage 3's modules read them here
 from shared.run_registry import run_file
 from shared.transactions import ParsedTransactions, parse_transactions
@@ -73,7 +74,9 @@ def build_run_data(
     parsed = parse_transactions(df, column_mapping, confirmations)
     months = parsed.dates.dt.to_period("M").astype(str)
     grain = metrics.period.month_grain
-    counted = parsed.dates[parsed.counted].dropna()
+    # A line dated after the upload chooses no coverage, as in stage 2 (2E-u6).
+    future = after_cutoff(parsed.dates, metrics.period.upload_cutoff)
+    counted = parsed.dates[parsed.counted & ~future].dropna()
     # In a month-grain file a month is covered from the first COUNTED one: an
     # uncounted row dated earlier added an empty history month (2E-o review
     # cycle 1 #9).

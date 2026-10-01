@@ -38,6 +38,6 @@ def test_pooled_is_an_answer() -> None:
 
 def test_stage_1_contracts_are_3_0() -> None:
     # 3.1 in 2E-j (optional fields: a minor bump); 4.0 since 2E-t1 ("gift_card").
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.0", "4.0", "4.0")
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.2", "4.2", "4.2")
     assert (SchemaInferenceContract.supported_major, CleaningPlanContract.supported_major,
             CleaningReportContract.supported_major) == (4, 4, 4)

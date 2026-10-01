@@ -37,8 +37,10 @@ def select_period(dates: pd.Series, now: datetime, counted_dates: pd.Series, *,
     mid-month holds a month-to-date row, which compared as a whole month read
     -36.7% (2E-j review cycle 1 #1, cycle 2 #5). A sale month, not the last
     dated line: a later stock-in or template row made an empty month current
-    (-100%, cycle 2 #1). One pulled mid-month and analysed after that month
-    ended cannot be told apart (a known limit)."""
+    (-100%, cycle 2 #1). The caller passes the run's upload as `now` (2E-u6):
+    one pulled mid-month compares the month before however late it is
+    analysed, and one uploaded within 12 hours after a month ends compares
+    the month before too, for good - the safe side (a known limit)."""
     valid = dates.dropna()
     if valid.empty:
         data_start = data_end = now.date()

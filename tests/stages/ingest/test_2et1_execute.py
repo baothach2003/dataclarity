@@ -197,10 +197,10 @@ def test_the_classes_are_read_from_the_file_as_the_later_stages_read_it(tmp_path
 # --- the contracts ------------------------------------------------------------------------
 
 def test_stage_1_contracts_are_4_0_and_metrics_16_0() -> None:
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.0", "4.0", "4.0")
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.2", "4.2", "4.2")
     assert (SchemaInferenceContract.supported_major, CleaningPlanContract.supported_major,
             CleaningReportContract.supported_major) == (4, 4, 4)
-    assert (assemble.SCHEMA_VERSION, MetricsContract.supported_major) == ("16.0", 16)
+    assert (assemble.SCHEMA_VERSION, MetricsContract.supported_major) == ("16.1", 16)
 
 
 def test_a_3_x_report_is_refused_with_the_reason() -> None:

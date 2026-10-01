@@ -19,19 +19,23 @@ changed column, a dropped row) before any repeats, then the other affected rows,
 then unaffected rows spread over the sample. Never `head()`.
 """
 
+from collections.abc import Mapping
 from pathlib import Path
 
 import pandas as pd
 from pydantic import BaseModel
 
 from contracts.cleaning import CleaningPlanContract
+from contracts.profile import NumberFormat, ProfileContract
 from shared.run_registry import run_file
 from stages.ingest import problem_rows
 from stages.ingest.ai_input import TRUNCATION_MARK
 from stages.ingest.cleaned_text import iso_dates
 from stages.ingest.cleaning import apply_plan
+from stages.ingest.number_apply import apply_number_formats
+from stages.ingest.number_format import proven_formats
 from stages.ingest.plan_validation import validate_final_plan
-from stages.ingest.profiling import RAW_FILENAME, read_csv_text
+from stages.ingest.profiling import PROFILE_FILENAME, RAW_FILENAME, read_csv_text
 
 PREVIEW_SAMPLE_MAX = 500  # SPECS section 8
 PREVIEW_ROWS = 20  # SPECS section 4.2 C
@@ -109,11 +113,23 @@ def preview_frame(
     *,
     rows: int = PREVIEW_ROWS,
     sample_max: int = PREVIEW_SAMPLE_MAX,
+    proven: Mapping[str, NumberFormat] | None = None,
 ) -> PreviewResult:
     """The preview of `plan` on `frame`, which is assumed to be the whole file
-    as `read_csv_text` returns it and the plan valid (`validate_final_plan`)."""
+    as `read_csv_text` returns it and the plan valid (`validate_final_plan`).
+    `proven`: the decimal mark the whole file proves per column
+    (`proven_formats` of its profile)."""
     sample = select_sample(frame, sample_max)
-    after, _ = apply_plan(sample, plan)
+    # Numbers written for people are read as execution reads them (2E-u1):
+    # decided by the whole file's proof - profile.json's, `proven` (review 2,
+    # N3; deciding on the whole column again cost 4 s a request on a 36 MB
+    # file, review 3 R3-1) - then the answers, on the sample only (review 1,
+    # F4); a column still undecided and unanswered is shown as written.
+    dropped = {a.source_name for a in plan.column_actions if a.action == "drop_column"}
+    read, _ = apply_number_formats(
+        sample, {a.source_name: a.canonical_field for a in plan.column_actions if a.source_name not in dropped},
+        {**(proven or {}), **plan.confirmations.number_formats}, refuse=False)
+    after, _ = apply_plan(read, plan)
     before_view, after_view = _display(sample), _display(after)
     tags = _tags(before_view, after_view)
     shown = _choose_rows(list(sample.index), tags, rows)
@@ -137,7 +153,15 @@ def preview_run(runs_root: Path, run_id: str, plan: CleaningPlanContract) -> Pre
         raise FileNotFoundError(f"{RAW_FILENAME} is missing for run {run_id}")
     frame = read_csv_text(raw_path.read_bytes()).frame
     validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=False)
-    return preview_frame(frame, plan)
+    return preview_frame(frame, plan, proven=run_proven_formats(runs_root, run_id))
+
+
+def run_proven_formats(runs_root: Path, run_id: str) -> dict[str, NumberFormat]:
+    """profile.json's proven decimal marks; none without a profile."""
+    path = run_file(runs_root, run_id, PROFILE_FILENAME)
+    if not path.exists():
+        return {}
+    return proven_formats(ProfileContract.model_validate_json(path.read_text(encoding="utf-8")))
 
 
 # --- what is shown ---------------------------------------------------------------------

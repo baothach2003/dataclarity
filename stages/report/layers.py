@@ -83,8 +83,11 @@ def _empty_current(metrics: MetricsContract) -> str | None:
     months = {m.period for m in core.revenue_by_month}
     if period.current in months:
         return None
+    if core.future_lines and months and min(months) > f"{period.data_end:%Y-%m}":
+        # Stage 2 then dates the period by the upload day (2E-u6).
+        return "every line counted in revenue is dated after the day this file was uploaded"
     if not months and core.undated_lines:
-        # Stage 2 then dates the period by the analysis day (review 3 #7).
+        # Stage 2 then dates the period by the upload day (review 3 #7; 2E-u6).
         return "no line counted in revenue carries a date the file can read"
     if period.current < f"{period.data_start:%Y-%m}":
         return f"the file starts on {period.data_start.isoformat()}, after {period.current}: it holds none of that month"
@@ -163,6 +166,12 @@ def _months(metrics: MetricsContract) -> list[MonthRevenue]:
     period = metrics.period
     covered = set(complete_months(period.data_start, period.data_end, month_grain=period.month_grain))
     revenue = {m.period: m.revenue for m in metrics.core.revenue_by_month}
+    if metrics.core.future_lines:
+        # A month after the last date the period covers holds only lines
+        # dated after the upload: no gap to draw, said once in
+        # `future_lines_reason` (2E-u6; review 1, #4: cut at the upload's
+        # month, a typo later in it drew 39 empty months).
+        revenue = {m: r for m, r in revenue.items() if m <= f"{period.data_end:%Y-%m}"}
     months: list[MonthRevenue] = []
     month = min(revenue, default=None)
     while month is not None and month <= max(revenue):
@@ -186,6 +195,8 @@ def numbers(metrics: MetricsContract, diagnosis: DiagnosisContract, has_customer
         kpis=_kpis(metrics, beside, has_customers), revenue_by_month=_months(metrics),
         current_note=_current_note(metrics),
         undated_lines=core.undated_lines, undated_lines_reason=core.undated_lines_reason,
+        future_lines=core.future_lines, future_lines_reason=core.future_lines_reason,
+        unconfirmed_placeholders_reason=metrics.customers.unconfirmed_placeholders_reason,
         unmeasurable=list(core.unmeasurable), non_product=list(core.non_product),
         outside_revenue=list(core.outside_revenue),
         how_to_read=[view(n) for n in _unique([*core.notes, *diagnosis.notes]) if n.always_on],

@@ -272,7 +272,10 @@ again. This is why the product can claim AI assistance without AI opacity.
   the column and flagged in the report
 - Negative/zero price or quantity: default flag-and-keep (may be a legitimate
   return), never a silent `abs()`
-- Duplicates: exact-row duplicates dropped; business-key duplicates flagged only
+- Duplicates: exact-row duplicates kept - a copy cannot be told from a genuine
+  repeat sale, so the AI never proposes removing them; the user may add the
+  removal in Review, which shows the lines and revenue it takes (Thach,
+  2026-10-02, 2E-u4); business-key duplicates flagged only
 - Category standardization: trim + case normalization, then merge near-identical
   labels with the mapping shown to the user
 - Outliers: IQR flagging by default; clipping is opt-in

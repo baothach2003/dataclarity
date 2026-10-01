@@ -36,12 +36,14 @@ STRICT RULES
 - Every column in the schema-inference result must appear exactly once in
   column_actions, with "source_name" copied exactly as given. Columns with no
   issues get flag_only with the note "no action needed".
-- "dataset_actions" use only "dataset_legal_actions". remove_exact_duplicates
-  when the dataset issues report duplicate_rows. flag_duplicate_keys only when
-  they report duplicate_business_key and "business_key" is not empty; its "keys"
-  must be exactly the "business_key" list. The alternative of a dataset action
-  is the other dataset action or none, never flag_only. Nothing to do at dataset
-  level -> an empty list.
+- "dataset_actions" use only "dataset_legal_actions". Never propose
+  remove_exact_duplicates, as an action or as an alternative: an exact copy of
+  a line cannot be told from a genuine repeat sale, so removing copies is the
+  user's choice in Review. flag_duplicate_keys only when the dataset issues
+  report duplicate_business_key and "business_key" is not empty; its "keys"
+  must be exactly the "business_key" list. The alternatives of a dataset
+  action are empty, never flag_only.
+  Nothing to do at dataset level -> an empty list.
 - "params" holds only the params listed under PARAMS for that action, and every
   required one; {} for an action with none.
 

@@ -421,6 +421,22 @@ describe('ReviewPage: walk-in placeholders (2E-k)', () => {
     // The key goes only when a value is confirmed; absent reads as none.
     expect(sent.confirmations?.customer_placeholders).toBeUndefined()
   })
+
+  it('sends a No as a real customer, so stage 1 can tell it from no answer (2E-u3)', async () => {
+    const executePlan = renderWithGuest()
+    fireEvent.click(screen.getByRole('button', { name: 'No, a real customer' }))
+
+    const sent = await confirmedPlan(executePlan)
+    expect(sent.confirmations?.customer_not_placeholders).toEqual(['Guest'])
+  })
+
+  it('sends neither list when the question is left unanswered (2E-u3)', async () => {
+    const executePlan = renderWithGuest()
+
+    const sent = await confirmedPlan(executePlan)
+    expect(sent.confirmations?.customer_placeholders).toBeUndefined()
+    expect(sent.confirmations?.customer_not_placeholders).toBeUndefined()
+  })
 })
 
 describe('ReviewPage: the fill question', () => {

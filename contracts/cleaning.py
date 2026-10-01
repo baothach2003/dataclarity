@@ -6,7 +6,7 @@ from typing import Any, ClassVar, Literal, get_args
 from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
 from contracts._base import ContractFile, ContractModel
-from contracts.profile import CanonicalField, DateOrder, LineClass, SemanticType
+from contracts.profile import CanonicalField, DateOrder, LineClass, NumberFormat, SemanticType
 
 # The transform catalog, docs/AI_PIPELINE.md section 6. Typing every action
 # field with it is the whitelist: an off-catalog action cannot reach a contract
@@ -92,6 +92,10 @@ class OrderConfirmations(ContractModel):
     # walk-ins ("Guest", "Walk-in", "0"), as written; stages 2 and 3 compare
     # them by customer identity, and their lines have no customer.
     customer_placeholders: list[str] = Field(default_factory=list)
+    # 4.2 (2E-u3): the candidates the user answered "a real customer", as
+    # written - so an unanswered one can be told from No (cleaning_report's
+    # `unconfirmed_placeholders`). Their lines keep their customer either way.
+    customer_not_placeholders: list[str] = Field(default_factory=list)
     # 2.3 (2E-d2): what the user said a product key's lines are when they are
     # not products. Unanswered, a key is not listed and its lines stay
     # products; "a product" is listed for a name (3.0, 2E-l review cycle 1:
@@ -103,6 +107,12 @@ class OrderConfirmations(ContractModel):
     # first. Asked only when the file proves neither (or both). In
     # cleaning_report.json the order that was applied is `date_order`.
     dates_day_first: StrictBool | None = None
+    # 4.1 (2E-u1): Review's answers to the number question, by source column
+    # - the decimal mark of the cells the file cannot prove ("1,000"). Asked
+    # only where the column proves neither (or both); cells that prove their
+    # own mark are read by it. In cleaning_report.json what ran is
+    # `number_formats`.
+    number_formats: dict[str, NumberFormat] = Field(default_factory=dict)
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------
@@ -174,6 +184,19 @@ class CleaningWarning(ContractModel):
     detail: str
 
 
+class AppliedNumberFormat(ContractModel):
+    """What stage 1 did to one quantity or price column before the plan ran
+    (2E-u1): the mark its ambiguous cells were read with (None: no cell
+    needed one), the cells it rewrote as plain numbers, the non-blank cells
+    no rule reads (left as written - stage 2 lists them as unmeasurable), and
+    whether the mark was the user's answer rather than the file's proof."""
+
+    format: NumberFormat | None
+    rewritten: NonNegativeInt
+    unreadable: NonNegativeInt
+    answered: bool
+
+
 class CleaningReportContract(ContractFile):
     filename: ClassVar[str | None] = "cleaning_report.json"
     # 2 since 2E-e: the canonical enum gained "order_id" (and the issue enum
@@ -201,6 +224,16 @@ class CleaningReportContract(ContractFile):
     # were read in - the user's answer, else what the raw file proved; None
     # when no such cell (or a 3.0 report, read as before).
     date_order: DateOrder | None = None
+    # 4.1 (2E-u1): per quantity and price column, what stage 1's number
+    # reading did; empty in an earlier report.
+    number_formats: dict[str, AppliedNumberFormat] = Field(default_factory=dict)
+    # 4.2 (2E-u3): Review's walk-in placeholder candidates for the customer
+    # column as mapped, measured on the raw file, that the user neither
+    # confirmed nor answered "a real customer" - as written most often,
+    # commonest first. They stay customers in every figure (the standing
+    # no-guess rule); stages 2 and 5 mark them "suggested, not confirmed".
+    # Empty in an earlier report.
+    unconfirmed_placeholders: list[str] = Field(default_factory=list)
 
     @field_validator("confirmations", mode="before")
     @classmethod

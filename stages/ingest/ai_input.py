@@ -14,7 +14,7 @@ import pandas as pd
 from contracts.profile import ProfileContract, SchemaInferenceContract
 from stages.ingest import problem_rows
 from stages.ingest.issue_counts import business_key_columns
-from stages.ingest.transform_catalog import legal_column_actions, legal_dataset_actions
+from stages.ingest.transform_catalog import ai_legal_dataset_actions, legal_column_actions
 
 # AI_PIPELINE section 1 allows up to 60; 25 because an answer for more columns
 # does not fit in the 3000 output tokens (1C doubt review, decided by Thach).
@@ -90,6 +90,9 @@ def build_profile_json(profile: ProfileContract) -> str:
         # Stage 1's own measure for Review (2E-j), not the AI's to read: its
         # examples are cells beyond the bounded sample (review cycle 1 #5).
         dumped.pop("date_order", None)
+        # The same for the number format (2E-u1 review 1, F3): its examples are
+        # cells outside the bounded sample.
+        dumped.pop("number_format", None)
         columns.append(dumped)
     dataset = profile.dataset.model_dump(mode="json")
     # The dataset figures cover the whole file; say how many columns are listed.
@@ -141,7 +144,7 @@ def build_plan_variables(
             {"code": i.code, "count": i.count, "severity": i.severity, "detail": _cut(i.detail)}
             for i in schema.dataset_issues
         ],
-        "dataset_legal_actions": legal_dataset_actions(),
+        "dataset_legal_actions": ai_legal_dataset_actions(),
         "business_key": business_key_columns(sent),
         "columns": [
             {

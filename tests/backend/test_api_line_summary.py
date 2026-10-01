@@ -28,7 +28,7 @@ def test_the_whole_files_summary_is_the_stages_and_changes_nothing(make_api: Mak
     expected = line_summary(read_csv_text(RAW_CSV).frame, CleaningPlanContract.model_validate(plan))
     assert body["summary"] == expected.summary.model_dump(mode="json")  # type: ignore[union-attr]  # classed: a summary
     assert (body["run_id"], body["reserved_renames"], body["summary_unavailable_reason"]) == (run_id, [], None)
-    assert body["summary"]["lines"] == 4  # the duplicate row is dropped, as execute drops it
+    assert body["summary"]["lines"] == 5  # the copy stays, as execute keeps it: the AI's removal is stripped (2E-u4)
     assert api.status(run_id) is RunStatus.PLANNED
     assert api.files(run_id) == files_before
 

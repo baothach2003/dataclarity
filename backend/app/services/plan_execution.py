@@ -28,7 +28,7 @@ from stages.ingest.ai_plan import OUTPUT_FILENAME as PROPOSAL_FILENAME
 from stages.ingest.cleaning import CleaningError, execute_run
 from stages.ingest.line_summary import line_summary
 from stages.ingest.plan_validation import InvalidPlanError, validate_final_plan
-from stages.ingest.preview import preview_frame
+from stages.ingest.preview import preview_frame, run_proven_formats
 from stages.ingest.profiling import RAW_FILENAME, ProfilingError, read_csv_text
 
 logger = logging.getLogger(__name__)
@@ -56,7 +56,9 @@ def preview_plan(
         # `preview_frame` trusts its plan (it is for the already-checked case), so the
         # check `preview_run` makes on a plan is made here, on the cached frame.
         validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=False)
-        result = preview_frame(frame, plan)
+        # The whole file's proven decimal marks are profile.json's: the
+        # sample is read by them, never the whole column again (2E-u1).
+        result = preview_frame(frame, plan, proven=run_proven_formats(settings.runs_dir, run_id))
     except InvalidPlanError as error:
         raise stage_errors.invalid_plan(error) from error
     except CleaningError as error:

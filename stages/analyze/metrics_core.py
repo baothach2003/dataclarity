@@ -40,6 +40,7 @@ from shared import line_report
 from shared.date_evidence import month_grain
 from shared.numbers import pct_change
 from shared.orders import count_orders
+from shared.periods import after_cutoff, upload_cutoff
 from shared.run_registry import run_file
 from shared.transactions import (
     # Re-exported deliberately: this error is part of what calling stage 2
@@ -49,6 +50,7 @@ from shared.transactions import (
     parse_transactions,
 )
 from stages.analyze import metrics_lines
+from stages.analyze.future_lines import future_lines
 from stages.analyze.period_selection import select_period
 
 __all__ = [
@@ -81,17 +83,35 @@ def core_metrics_for_run(
     return compute_core_metrics(frame, report.column_mapping, now, report.applied_confirmations())
 
 
+def choose_period(parsed: ParsedTransactions, now: datetime, uploaded_at: datetime | None = None
+                  ) -> tuple[Period, pd.Series]:
+    """The period, and the lines dated after the upload (2E-u6), for every
+    block of stage 2 - one choice, whichever block runs. Such a line chooses
+    nothing: not the dates the file covers, the month grain, the months
+    compared or their coverage. The upload is the reference - for those
+    lines and for a month-grain file's clock (`now` without one): a monthly
+    export uploaded mid-month holds a month-to-date row whatever day it is
+    analysed (2E-u6 review 1, #1: re-analysed after the month ended, the
+    row was compared as a whole month, -36.7%)."""
+    reference = uploaded_at or now
+    cutoff = upload_cutoff(reference)
+    future = after_cutoff(parsed.dates, cutoff)
+    dated = parsed.dates.where(~future)
+    period = select_period(dated, reference, dated[parsed.sale], grain=month_grain(dated[parsed.counted]))
+    return period.model_copy(update={"upload_cutoff": cutoff}), future
+
+
 def compute_core_metrics(
     df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None,
-    confirmations: OrderConfirmations | None = None,
+    confirmations: OrderConfirmations | None = None, *, uploaded_at: datetime | None = None,
 ) -> tuple[Period, CoreMetrics]:
     """Pure computation. `column_mapping` is cleaning_report.json's mapping of
     source column name -> canonical field, `confirmations` its answers from
-    Review (2E-e2)."""
+    Review (2E-e2), `uploaded_at` the run's upload time (2E-u6; `now`
+    without one)."""
     now = now or datetime.now(UTC)
     parsed = parse_transactions(df, column_mapping, confirmations)
-    period = select_period(parsed.dates, now, parsed.dates[parsed.sale],
-                           grain=month_grain(parsed.dates[parsed.counted]))
+    period, future = choose_period(parsed, now, uploaded_at)
 
     months = parsed.dates.dt.to_period("M").astype(str)
     current_mask = parsed.counted & (months == period.current)
@@ -130,6 +150,7 @@ def compute_core_metrics(
                      period.previous),
         revenue_by_month=_revenue_by_month(months[parsed.counted], parsed.revenue_amounts[parsed.counted]),
         **_undated(parsed),
+        **future_lines(parsed, future, period.upload_cutoff),
         non_product=_non_product(parsed, months, period),
         identity=metrics_lines.revenue_identity(parsed, months, period),
         outside_revenue=metrics_lines.outside_revenue(parsed, months, period),

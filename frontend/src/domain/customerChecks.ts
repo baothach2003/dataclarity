@@ -153,11 +153,33 @@ export function confirmedPlaceholders(
   schema: SchemaInferenceContract | null,
   stored: StoredPlaceholders,
 ): string[] {
+  return answeredPlaceholders(plan, profile, schema, stored, true)
+}
+
+/** The candidates answered "a real customer" for the plan's customer column:
+ * what `confirmations.customer_not_placeholders` carries (2E-u3), so stage 1
+ * can tell a No from no answer. */
+export function rejectedPlaceholders(
+  plan: CleaningPlan,
+  profile: ProfileContract,
+  schema: SchemaInferenceContract | null,
+  stored: StoredPlaceholders,
+): string[] {
+  return answeredPlaceholders(plan, profile, schema, stored, false)
+}
+
+function answeredPlaceholders(
+  plan: CleaningPlan,
+  profile: ProfileContract,
+  schema: SchemaInferenceContract | null,
+  stored: StoredPlaceholders,
+  value: boolean,
+): string[] {
   const column = customerColumn(plan)
   return placeholderCandidates(plan, profile, schema)
     .filter((c) => {
       const answer = stored[customerIdentity(c.value)]
-      return answer !== undefined && answer.value && answer.column === column
+      return answer !== undefined && answer.value === value && answer.column === column
     })
     .map((c) => c.value)
 }

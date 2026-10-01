@@ -24,6 +24,15 @@ def c4b() -> Sample:
     return Sample(rows, raw=as_csv(rows))
 
 
+def c4d() -> Sample:
+    # Every price written "1,000" (Mug) or "4,000" (Tea) - thousands or a
+    # decimal comma, and no cell in the column says which.
+    rows = base()
+    for row in rows:
+        row["Price"] = "1,000" if row["Product"] == "Mug" else "4,000"
+    return Sample(rows, raw=as_csv(rows))
+
+
 def c4c() -> Sample:
     # Every price with its currency sign.
     rows = base()

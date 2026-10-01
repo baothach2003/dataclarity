@@ -64,6 +64,7 @@ Design decisions (Thach, Phase 2B):
 """
 
 import calendar
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
@@ -75,14 +76,14 @@ from shared.run_registry import run_file
 from shared.first_purchase import first_purchase_months
 from shared.products import netting_keys
 from shared.numbers import is_negligible
-from shared.date_evidence import month_grain
 from shared.transactions import ParsedTransactions, parse_transactions
 from stages.analyze.metrics_core import (
     CLEANED_FILENAME,
     CLEANING_REPORT_FILENAME,
-    select_period,
+    choose_period,
 )
 from stages.analyze.rfm import rfm_snapshot
+from stages.analyze.unconfirmed_placeholders import unconfirmed_placeholders
 
 def _empty_new_vs_returning() -> NewVsReturning:
     # A fresh instance every call: ContractModel is not frozen, so a single
@@ -103,18 +104,19 @@ def customer_metrics_for_run(runs_root: Path, run_id: str, now: datetime | None 
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     parsed = parse_transactions(frame, report.column_mapping, report.applied_confirmations())
-    period = select_period(parsed.dates, now or datetime.now(UTC), parsed.dates[parsed.sale],
-                           grain=month_grain(parsed.dates[parsed.counted]))
-    return compute_customer_metrics(frame, report.column_mapping, period, report.applied_confirmations())
+    period, _ = choose_period(parsed, now or datetime.now(UTC))
+    return compute_customer_metrics(frame, report.column_mapping, period, report.applied_confirmations(),
+                                    report.unconfirmed_placeholders)
 
 
 def compute_customer_metrics(
     df: pd.DataFrame, column_mapping: dict[str, str], period: Period,
-    confirmations: OrderConfirmations | None = None,
+    confirmations: OrderConfirmations | None = None, unconfirmed: Sequence[str] = (),
 ) -> CustomerMetrics:
     """Pure computation. `period` is metrics_core's `Period` for this same
     run (docs/CONTRACTS.md section 6 has one `period` shared by every
-    block)."""
+    block); `unconfirmed` the walk-in candidates stage 1 recorded as
+    unanswered (2E-u3)."""
     parsed = parse_transactions(df, column_mapping, confirmations)
     reference_date = period.data_end + timedelta(days=1)
     customer_col = parsed.reverse.get("customer")
@@ -189,6 +191,7 @@ def compute_customer_metrics(
         revenue_share_reason=share_reason,
         **_unfilled(parsed),
         **_placeholders(parsed, confirmations),
+        **unconfirmed_placeholders(parsed, period, unconfirmed),
     )
 
 

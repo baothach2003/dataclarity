@@ -167,7 +167,7 @@ def test_contracts_carry_the_line_classes_and_are_2_3_or_later() -> None:
     assert OrderConfirmations().line_classes == []
     assert SchemaInferenceContract.model_fields["non_product_candidates"].default is None
     # 3.0 in 2E-l: "pooled" widened the line-class enum (test_2el_stage1.py); 3.1 since 2E-j.
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.0", "4.0", "4.0")
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.2", "4.2", "4.2")
 
 
 # "product" is an answer since 2E-l review cycle 1 - for a name it stops the

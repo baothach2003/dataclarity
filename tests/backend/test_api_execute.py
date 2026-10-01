@@ -30,14 +30,16 @@ def test_execute_cleans_the_file_and_moves_the_run_to_cleaned(make_api: MakeApi)
     assert body["status"] == "cleaned"
     assert body["notices"] == []
     report = body["report"]
-    assert (report["rows_in"], report["rows_out"]) == (5, 4)
+    # Rows 1 and 3 are the same row; the AI's removal of the copy is stripped
+    # (2E-u4: the user's to add in Review), so both stay.
+    assert (report["rows_in"], report["rows_out"]) == (5, 5)
     assert report["column_mapping"] == {
         "sku": "sku", "name": "product_name", "qty": "quantity",
         "price": "unit_price", "day": "transaction_date",
     }
     assert api.status(run_id) is RunStatus.CLEANED
     assert PLAN_FILES <= api.files(run_id)
-    assert api.read_json(run_id, "cleaning_report.json")["rows_out"] == 4
+    assert api.read_json(run_id, "cleaning_report.json")["rows_out"] == 5
 
 
 def test_execute_runs_the_plan_the_user_submitted_not_the_proposal(make_api: MakeApi) -> None:

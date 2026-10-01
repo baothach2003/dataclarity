@@ -82,6 +82,9 @@ def _numbers(numbers: Numbers, charts: dict[str, Chart]) -> str:
             f"{period.current} against {period.previous}: the current month's figures are withheld (see below)."
             if withheld else f"{period.current} compared with {period.previous}.")
     parts = ["<h2>What happened</h2>", para(f"{head} The file covers {period.data_start} to {period.data_end}.")]
+    if numbers.future_lines_reason:
+        # Why the dates covered end before the file's last line (2E-u6).
+        parts.append(para(numbers.future_lines_reason, "reason"))
     if incomplete:
         parts.append(para(incomplete, "reason"))
     if numbers.current_note:
@@ -97,6 +100,9 @@ def _numbers(numbers: Numbers, charts: dict[str, Chart]) -> str:
              _previous(kpi, None, kpi.change_reason, incomplete) if kpi.change_reason else "", links(kpi.notes)]
             for kpi in numbers.kpis]
     parts.append(table(["Figure", period.current, period.previous, "Change", "Notes"], rows))
+    if numbers.unconfirmed_placeholders_reason:
+        # Beside the customer figures it qualifies (2E-u3; CLAUDE.md 3.3a).
+        parts.append(para(numbers.unconfirmed_placeholders_reason, "reason"))
     if "revenue_trend" in charts:
         parts.append(_chart(charts["revenue_trend"]))
     month_rows = [[esc(m.period),

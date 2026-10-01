@@ -119,6 +119,49 @@ class DateOrderMeasure(ContractModel):
         return self
 
 
+# How a numeric column's numbers are written (2E-u1): the decimal mark.
+NumberFormat = Literal["decimal_point", "decimal_comma"]
+
+
+class NumberFormatMeasure(ContractModel):
+    """Stage 1's own measure of a column's cells read as numbers written
+    for people (2E-u1; Thach, 2E-u F1): "1,000.00", "$12.50", "10,5". A cell
+    whose last separator is not followed by three digits, or that holds both
+    marks, proves its decimal mark (`point`, `comma`); "1,000" reads two ways
+    (`ambiguous`). `decision`: the mark the column proves for its ambiguous
+    cells; "ask" when it proves neither or both and some cell is ambiguous -
+    Review then asks; None when no cell depends on it. `currency` counts the
+    readable cells that carried a currency symbol; `unreadable` the
+    non-blank cells no rule reads. The examples are cells as written."""
+
+    readable: NonNegativeInt
+    point: NonNegativeInt
+    comma: NonNegativeInt
+    ambiguous: NonNegativeInt
+    currency: NonNegativeInt
+    unreadable: NonNegativeInt
+    point_example: str | None
+    comma_example: str | None
+    ambiguous_example: str | None
+    decision: NumberFormat | Literal["ask"] | None
+
+    @model_validator(mode="after")
+    def _decision_follows_the_counts(self) -> Self:
+        if self.point and not self.comma:
+            expected: str | None = "decimal_point"
+        elif self.comma and not self.point:
+            expected = "decimal_comma"
+        else:
+            expected = "ask" if self.ambiguous else None
+        if self.decision != expected:
+            raise ValueError(f"decision must be {expected!r} for these counts")
+        if any((example is None) != (count == 0) for example, count in (
+                (self.point_example, self.point), (self.comma_example, self.comma),
+                (self.ambiguous_example, self.ambiguous))):
+            raise ValueError("an example is given exactly when its cells are counted")
+        return self
+
+
 class ColumnProfile(ContractModel):
     name: str
     dtype: str
@@ -137,6 +180,11 @@ class ColumnProfile(ContractModel):
     # 1.1 (2E-j): only for a column with a cell written day-month-year or
     # month-day-year; None otherwise, and in a 1.0 file.
     date_order: DateOrderMeasure | None = None
+    # 1.2 (2E-u1): for a text column with a cell read as a number written for
+    # people (a separator, a decimal comma or a currency sign), and for a
+    # column pandas reads as numbers only when it holds a question ("1.000",
+    # "2.500" - review 1, F1); None otherwise, and in an earlier file.
+    number_format: NumberFormatMeasure | None = None
 
 
 class ProfileContract(ContractFile):

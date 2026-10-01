@@ -25,6 +25,7 @@ from contracts.profile import (
 from shared.run_registry import run_file
 from shared.date_evidence import order_evidence_of_counts
 from stages.ingest.contract_files import write_contract
+from stages.ingest.number_format import format_measure
 
 # pandas 3.0 read_csv defaults, listed here so the definition of "missing" is
 # ours and cannot drift with a pandas upgrade (decided by Thach in 1B).
@@ -35,7 +36,7 @@ NA_TOKENS = [
 ]
 DELIMITER_CANDIDATES = ",;\t|"
 SAMPLE_VALUES_PER_COLUMN = 5  # evenly spaced rows (decided by Thach in 1B)
-SCHEMA_VERSION = "1.1"  # CONTRACTS.md section 1; 1.1 (2E-j): a column's date order
+SCHEMA_VERSION = "1.2"  # CONTRACTS.md section 1; 1.1 (2E-j): a column's date order; 1.2 (2E-u1): its number format
 RAW_FILENAME = "raw.csv"  # CONTRACTS.md section 1
 PROFILE_FILENAME = "profile.json"
 
@@ -175,6 +176,10 @@ def profile_column(name: str, values: pd.Series) -> ColumnProfile:
         # column's, and a remap or a manual plan needs no other measure. A
         # column of numbers holds no day-month-year cell.
         date_order=date_order_measure(counts) if numbers is None else None,
+        # "1,000.00", "$12.50" and "10,5" are text to pandas (2E-u1); a
+        # column it reads as numbers is measured only when it holds a
+        # question ("1.000", "2.500" - review 1, F1).
+        number_format=format_measure(counts, numeric=numbers is not None),
     )
 
 

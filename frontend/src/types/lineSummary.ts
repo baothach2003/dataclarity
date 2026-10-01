@@ -51,6 +51,12 @@ export interface FigureNote {
   measures: NoteMeasure[]
 }
 
+// 2E-u4: what the plan's exact-duplicate removal takes, when the user added it.
+export interface DuplicatesRemoved {
+  lines: number
+  revenue: number
+}
+
 export interface LineSummary {
   lines: number
   undated_lines: number
@@ -59,6 +65,7 @@ export interface LineSummary {
   unclassified: UnclassifiedLines
   unmeasurable: UnmeasurableLines[]
   notes: FigureNote[]
+  duplicates_removed?: DuplicatesRemoved | null
 }
 
 export interface ReservedRename {

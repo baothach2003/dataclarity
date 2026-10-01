@@ -29,7 +29,7 @@ a refund line is a sale (3E1 doubt-review cycle 4; 2E doubt-review F3).
 
 import calendar
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 
 import pandas as pd
 
@@ -122,3 +122,30 @@ def shift_month(year_month: str, months: int) -> str:
     year, month = int(year_month[:4]), int(year_month[5:7])
     index = year * 12 + (month - 1) + months
     return f"{index // 12:04d}-{index % 12 + 1:02d}"
+
+
+# Lines dated after the upload (Thach, 2026-10-02, 2E-u F6; before deploy): a
+# line typed 2042 made 2042-01 the current month and blocked the run. Such a
+# line is left out of choosing the period - by stage 2, and by stage 3 where it
+# chooses its own coverage end - and counted; every other figure keeps it (the
+# standing no-guess rule: 2042 may be 2024 or 2012 mistyped). The shop's dates
+# are its own clock's and the upload time is UTC, so the last day a line may
+# carry is the upload's date on the clock furthest ahead, UTC+14: a line is
+# after the upload only when it is after the upload's day everywhere.
+FURTHEST_AHEAD_OF_UTC = timedelta(hours=14)
+
+
+def upload_cutoff(uploaded_at: datetime) -> date:
+    """The last day a line may be dated: the upload's day at UTC+14. A naive
+    time is UTC (the app stores UTC)."""
+    utc = uploaded_at.replace(tzinfo=UTC) if uploaded_at.tzinfo is None else uploaded_at.astimezone(UTC)
+    return (utc + FURTHEST_AHEAD_OF_UTC).date()
+
+
+def after_cutoff(dates: pd.Series, cutoff: date | None) -> pd.Series:
+    """The lines dated after `cutoff` - by day, so a line on the cutoff day
+    stays whatever its time. None (a metrics.json written before 2E-u6) marks
+    none."""
+    if cutoff is None:
+        return pd.Series(False, index=dates.index)
+    return dates.notna() & (dates >= pd.Timestamp(cutoff + timedelta(days=1)))

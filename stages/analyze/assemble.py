@@ -5,7 +5,7 @@ writes it to runs/<run_id>/. Pure pandas; no AI call anywhere in this stage
 client involved, unlike stage 1.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from contextlib import AbstractContextManager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -40,21 +40,28 @@ from stages.analyze.metrics_products import compute_product_metrics
 # major of the migration, held through 2E-t3 - 2E-t2 added the identity, the
 # lines outside revenue, the unclassified and unmeasurable lines, the notes
 # and the suggested classes, and velocity became null on every file).
-SCHEMA_VERSION = "16.0"
+# 16.1 in 2E-u6 (additive: lines dated after the upload are left out of
+# choosing the period and counted - `period.upload_cutoff`,
+# `core.future_lines`).
+SCHEMA_VERSION = "16.1"
 METRICS_FILENAME = "metrics.json"
 
 
 def assemble_metrics(
     df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None,
-    confirmations: OrderConfirmations | None = None,
+    confirmations: OrderConfirmations | None = None, *, uploaded_at: datetime | None = None,
+    unconfirmed_placeholders: Sequence[str] = (),
 ) -> MetricsContract:
     """Pure computation: calls all four blocks' builders and validates the
     combined result against contracts/metrics.py. Writes nothing. `now` is
     resolved once here (not left to each block to resolve separately) so
-    `generated_at` and every block's own fallback timestamp agree."""
+    `generated_at` and every block's own fallback timestamp agree.
+    `uploaded_at` is the run's upload time, the reference for lines dated
+    after it (2E-u6); without one, `now`. `unconfirmed_placeholders`:
+    cleaning_report.json's walk-in candidates left unanswered (2E-u3)."""
     now = now or datetime.now(UTC)
-    period, core = compute_core_metrics(df, column_mapping, now, confirmations)
-    customers = compute_customer_metrics(df, column_mapping, period, confirmations)
+    period, core = compute_core_metrics(df, column_mapping, now, confirmations, uploaded_at=uploaded_at)
+    customers = compute_customer_metrics(df, column_mapping, period, confirmations, unconfirmed_placeholders)
     products = compute_product_metrics(df, column_mapping, period, confirmations)
     by_dimension = compute_dimension_metrics(df, column_mapping, period, core, confirmations)
 
@@ -70,7 +77,8 @@ def assemble_metrics(
 
 
 def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None,
-                around_write: Callable[[], AbstractContextManager[object]] | None = None) -> MetricsContract:
+                around_write: Callable[[], AbstractContextManager[object]] | None = None, *,
+                uploaded_at: datetime | None = None) -> MetricsContract:
     """Read runs/<run_id>/cleaned.csv and cleaning_report.json, assemble
     metrics.json and write it atomically. Re-running overwrites only this
     stage's own output (docs/CONTRACTS.md section 1: a stage never edits a
@@ -81,7 +89,8 @@ def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None,
         run_file(runs_root, run_id, CLEANING_REPORT_FILENAME).read_text(encoding="utf-8")
     )
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
-    metrics = assemble_metrics(frame, report.column_mapping, now, report.applied_confirmations())
+    metrics = assemble_metrics(frame, report.column_mapping, now, report.applied_confirmations(),
+                               uploaded_at=uploaded_at, unconfirmed_placeholders=report.unconfirmed_placeholders)
     write_atomically(run_file(runs_root, run_id, METRICS_FILENAME),
                      metrics.model_dump_json(indent=2).encode("utf-8"), around_replace=around_write)
     return metrics

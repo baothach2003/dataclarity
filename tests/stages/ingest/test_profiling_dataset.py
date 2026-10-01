@@ -37,7 +37,7 @@ def test_columns_keep_file_order_and_carry_their_stats() -> None:
 def test_header_fields_of_the_contract() -> None:
     profile = profile_csv(SMALL, now=NOW)
 
-    assert profile.schema_version == "1.1"  # 1.1 since 2E-j: a column's date order
+    assert profile.schema_version == "1.2"  # 1.2 since 2E-u1: its number format; 1.1 since 2E-j: a column's date order
     assert profile.generated_at == NOW
 
 

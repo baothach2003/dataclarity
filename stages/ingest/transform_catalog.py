@@ -199,3 +199,15 @@ def legal_column_actions(
 
 def legal_dataset_actions() -> list[TransformAction]:
     return [action for action in _CATALOG_ORDER if scope_of(action) == "dataset"]
+
+
+# The user's to add in Review, never the AI's to propose (Thach, 2026-10-02,
+# 2E-u4): an exact copy of a line cannot be told from a genuine repeat sale
+# (CLAUDE.md 3.3a) - on the Online Retail II sample the AI's removal dropped
+# 5,206 rows (DF-A7).
+NOT_PROPOSED_BY_AI: frozenset[TransformAction] = frozenset({"remove_exact_duplicates"})
+
+
+def ai_legal_dataset_actions() -> list[TransformAction]:
+    """The dataset actions the AI may propose."""
+    return [action for action in legal_dataset_actions() if action not in NOT_PROPOSED_BY_AI]

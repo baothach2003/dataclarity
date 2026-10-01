@@ -44,8 +44,8 @@ before 2E-u: the conformance case is its test (listed at the end).
 | DF-A4 | Bytes that are no CSV (a spreadsheet renamed) | binary check, sniffing | REFUSE: PARSE_FAILED (400) | backend, stage 1 | backend/test_upload_service.py::test_rejects_binary_content_renamed_to_csv |
 | DF-A5 | Not UTF-8 (latin-1, cp1252) | decoding | FLAG: read as latin-1, `encoding_used` and a warning in the cleaning report | stage 1 | stages/ingest/test_profiling_read.py::test_falls_back_to_latin1_when_the_bytes_are_not_utf8 |
 | DF-A6 | Semicolons for commas | delimiter sniff | correct: split on the semicolons | stage 1 | stages/ingest/test_profiling_read.py::test_semicolon_file_with_decimal_commas_is_not_split_on_commas |
-| DF-A6b | Decimal commas in the numbers ("10,0"), the whole file | - | LIMIT (finding): no step reads them - stage 1's cast is `pd.to_numeric` - so every price is unmeasurable and the run blocks with a wrong reason ("no sales ... the export was cut short") | stage 1 | - |
-| DF-A7 | Duplicate rows | profile count | FLAG: `duplicate_rows`. LIMIT (finding): the plan the AI proposes drops them, and a duplicate cannot be told from a genuine repeat - Online Retail II holds 5,206 such rows (2011-11 revenue -0.3%) | stage 1 | stages/ingest/test_issue_recount.py::test_the_duplicate_rows_description_is_rewritten_from_the_profile_count |
+| DF-A6b | Decimal commas in the numbers ("10,0"), the whole file | stage 1's number reading (2E-u1): "10,0" proves a decimal comma | FIX: stage 1 rewrites the quantity and price cells as plain numbers before the plan runs (was a LIMIT (finding): every price unmeasurable, the run blocked saying the export was cut short) | stage 1 | - |
+| DF-A7 | Duplicate rows | profile count | FLAG: `duplicate_rows`; KEPT (2E-u4; was a LIMIT - the AI's plan dropped them): a duplicate cannot be told from a genuine repeat (Online Retail II holds 5,206 such rows, 2011-11 revenue -0.3% if dropped), so the AI never proposes removing them; Review offers it and, added, shows the lines and revenue it takes | stage 1 | stages/ingest/test_issue_recount.py::test_the_duplicate_rows_description_is_rewritten_from_the_profile_count |
 | DF-A8 | A column with no value | profile `null_pct` 100 | FLAG: `all_null_column`; the AI's plan drops it (the default) | stage 1 | stages/ingest/test_ai_schema_checks.py::test_all_null_column_is_checked_against_the_profile |
 | DF-A9 | A column with one value | stage 1 count | FLAG: `constant_column` | stage 1 | stages/ingest/test_issue_counts.py::test_constant_column_counts_every_cell_holding_the_one_value |
 | DF-A10 | Numbers and words in one column | stage 1 count | FLAG: `mixed_types` | stage 1 | stages/ingest/test_issue_counts.py::test_mixed_types_counts_the_minority_kind_from_either_side |
@@ -75,8 +75,9 @@ before 2E-u: the conformance case is its test (listed at the end).
 | DF-B11 | A placeholder date ("0000-00-00") | the date reader | REFUSE: no date, as DF-B1 | shared | shared/test_2ej_dates.py::test_placeholder_dates_are_no_date |
 | DF-B12 | Excel's month-year cell ("Feb-24") | - | LIMIT: no day, so no date (8D "From 2E-j") - left out and counted | shared | - |
 | DF-B13 | A time with a word, no day ("klo 10.30") | - | LIMIT: no date (8D "From 2E-o") | shared | - |
-| DF-B14 | Year-month-day with two-digit years ("24/02/10"), the whole file | - | LIMIT (finding): no question is asked and the dates are misread - the calendar lands in 2001-2031 and the headline names a cause (8D "From 2E-j") | shared, stage 1 | - |
-| DF-B15 | One line typed in the future (2042) | - | LIMIT (finding): it moves the current month to 2042-01 and the run blocks, saying the export was cut short | stage 2 | - |
+| DF-B14 | Year-month-day with two-digit years ("24/02/10"), the whole file | - | LIMIT (finding; Thach's F2, 8D "From 2E-j" and "From 2E-u"): no question is asked and the dates are misread - the calendar lands in 2001-2031; since 2E-u6 the misread lines after the upload choose no period, so a misread month before it is compared (a rule-7 headline on the generator) | shared, stage 1 | - |
+| DF-B15 | One line typed in the future (2042) | - | HANDLED (2E-u6; was a LIMIT that moved the current month to 2042-01 and blocked the run): a line dated after the upload's day (at UTC+14) is left out of choosing the period and the dates covered, counted with its revenue (`core.future_lines`, the reason shown beside the dates covered) and kept in its own month; stage 3 ends its coverage the same way | stage 2 | - |
+| DF-B15b | One line typed a year past the data but before the upload (2025 in a 2024 file) | - | LIMIT (2E-u6 review 1): no rule tells it from a late sale - the period moves to its month and the run blocks, saying the export was cut short | stage 2 | - |
 | DF-B16 | Excel's serial date ("45332") | - | LIMIT: no date, left out and counted | shared | - |
 | DF-B17 | An AM/PM word ("SA", "CH") after the date | - | LIMIT: no date (8D "From 2E-j") | shared | - |
 
@@ -87,10 +88,11 @@ before 2E-u: the conformance case is its test (listed at the end).
 | DF-C1 | A quantity that is no number ("one") | the line reader | REFUSE: counted nowhere, listed as unmeasurable "no quantity" | shared, stage 2 | stages/analyze/test_2et2_notes_edges.py::test_a_line_with_neither_quantity_nor_price_is_unmeasurable_for_its_quantity |
 | DF-C2 | A blank price | the line reader | REFUSE: unmeasurable "no price" | shared, stage 2 | stages/analyze/test_2et2_stage2.py::test_the_unmeasurable_lines_by_scope_and_reason |
 | DF-C3 | "inf" or "nan" written as a number | finiteness | REFUSE: unmeasurable (never a sum that cannot add) | shared, stage 2 | - |
-| DF-C4 | A price with a currency sign ("$10.00"), one line | the line reader | REFUSE: unmeasurable, listed - no step reads it (the cast is `pd.to_numeric`) | shared, stage 2 | - |
-| DF-C4b | A thousands separator ("1,000.00") on one product's prices | - | LIMIT (finding): every line of that product is unmeasurable and revenue silently becomes the rest's - the lines are listed further down, nothing beside the figure | stages 1-2 | - |
-| DF-C4c | Currency signs on every price | - | LIMIT (finding): nothing reads; the run blocks, saying the export was cut short | stages 1-3 | - |
-| DF-C5 | A decimal comma in a comma file ("10,5", quoted) | the line reader | REFUSE: unmeasurable, listed, as DF-C4 | shared, stage 2 | - |
+| DF-C4 | A price with a currency sign ("$10.00"), one line | stage 1's number reading (2E-u1) | FIX: stage 1 strips the sign (Thach). A file reaching stage 2 without stage 1 (its own reader): REFUSE, unmeasurable and listed | stages 1-2 | - |
+| DF-C4b | A thousands separator ("1,000.00") on one product's prices | stage 1's number reading (2E-u1): both marks - the last is the decimal one | FIX: read as 1000.00 (was a LIMIT (finding): that product's revenue silently left out) | stage 1 | - |
+| DF-C4c | Currency signs on every price | stage 1's number reading (2E-u1) | FIX: stripped (was a LIMIT (finding): nothing read, the run blocked for a wrong reason) | stage 1 | - |
+| DF-C4d | A price column the file cannot prove ("1,000" and "4,000" only: thousands or decimal commas) | stage 1's number reading (2E-u1): profile.json's `number_format`, decision "ask" | ASK: Review's number question; unanswered, the plan is refused (INVALID_PLAN) with the column and the cell - never a default either way (Thach) | stage 1 | - |
+| DF-C5 | A decimal comma in a comma file ("10,5", quoted) | stage 1's number reading (2E-u1): the cell proves its own mark | FIX: read as 10.5 by stage 1. A file reaching stage 2 without stage 1: REFUSE, unmeasurable and listed | stages 1-2 | - |
 | DF-C6 | An outlying price | stage 1 count (quartile fence) | FLAG: `outliers_iqr`; the figure stands as the file has it | stage 1 | stages/ingest/test_issue_counts.py::test_outliers_iqr_counts_the_values_outside_the_fence |
 | DF-C7 | Every price x100 (cents read as units), three products or more | D2 | FLAG: trust caution, D2 supported | stage 3 | stages/diagnose/test_frame_and_trust.py::test_d2_flags_a_x100_shift_on_a_five_product_shop |
 | DF-C7b | The same with one or two products | - | LIMIT: D2 inconclusive ("no uniform to speak of", AI_PIPELINE 7.3) and the headline names like-for-like prices | stage 3 | - |
@@ -140,11 +142,11 @@ before 2E-u: the conformance case is its test (listed at the end).
 | Id | Mode | Detection | Handling | Owner | Covered by |
 |---|---|---|---|---|---|
 | DF-F1 | A walk-in placeholder ("Guest", "Walk-in", "0"), answered | stage 1 candidates | correct: no customer (2E-k) | stage 1, shared | shared/test_2ek_customers.py::test_a_confirmed_placeholder_has_no_customer_in_either_stage |
-| DF-F1b | The same, unanswered | stage 1 candidates | ASK. LIMIT (finding): unanswered, "Guest" is one customer buying for every walk-in, no note | shared | - |
+| DF-F1b | The same, unanswered | stage 1 candidates | ASK; unanswered, MARKED (2E-u3; was a LIMIT with no note): "Guest" stays one customer (the standing no-guess rule), recorded by stage 1 and marked "suggested, not confirmed" beside the customer figures and in the causes | stage 1, stage 2, stage 5 | - |
 | DF-F2 | Numbered walk-in labels ("Walk-in 1".."40") | stage 1 candidates | LIMIT: one question each; unanswered, forty customers (8D "From 2E-k") | stage 1 | - |
 | DF-F3 | Missing-value words ("N/A", "null", "NA") | stage 1's reader | correct: blank | stage 1 | - |
 | DF-F4 | A cell of invisible characters only | the shared text reading | correct: blank | shared | shared/test_2ei_text.py::test_a_cell_of_only_joiners_or_other_format_characters_is_blank |
-| DF-F5 | A dash for a walk-in ("-") | stage 1 candidates | ASK, as DF-F1b - and the same LIMIT unanswered | stage 1 | - |
+| DF-F5 | A dash for a walk-in ("-") | stage 1 candidates | ASK, as DF-F1b - and MARKED the same way unanswered | stage 1 | - |
 | DF-F6 | Two equal default accounts (two stores' off-list codes at the same share) | stage 1 candidates | LIMIT: they shield each other from the question (8D "From 2E-r"). No case: a candidate-ranking shape | stage 1 | - |
 
 ## G. Coverage
@@ -166,4 +168,4 @@ before 2E-u: the conformance case is its test (listed at the end).
 
 ## Modes with no test before 2E-u
 
-DF-A6B, DF-A14, DF-B7, DF-B9, DF-B10B, DF-B10C, DF-B12, DF-B13, DF-B14, DF-B15, DF-B16, DF-B17, DF-C3, DF-C4, DF-C4B, DF-C4C, DF-C5, DF-C7B, DF-D2, DF-D11, DF-D12, DF-D13, DF-E10, DF-E11, DF-E12, DF-F1B, DF-F2, DF-F3, DF-F5, DF-F6, DF-G1B, DF-G4, DF-G10, DF-G11, DF-G12 - each now has its conformance case, but DF-E10, DF-E12, DF-F6 and DF-G12, which have none for the reason their rows give.
+DF-A6B, DF-A14, DF-B7, DF-B9, DF-B10B, DF-B10C, DF-B12, DF-B13, DF-B14, DF-B15, DF-B15B, DF-B16, DF-B17, DF-C3, DF-C4, DF-C4B, DF-C4C, DF-C4D, DF-C5, DF-C7B, DF-D2, DF-D11, DF-D12, DF-D13, DF-E10, DF-E11, DF-E12, DF-F1B, DF-F2, DF-F3, DF-F5, DF-F6, DF-G1B, DF-G4, DF-G10, DF-G11, DF-G12 - each now has its conformance case, but DF-E10, DF-E12, DF-F6 and DF-G12, which have none for the reason their rows give.

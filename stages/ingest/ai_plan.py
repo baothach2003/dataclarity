@@ -29,11 +29,12 @@ from stages.ingest.plan_checks import (
     tidy_alternatives,
 )
 from stages.ingest.profiling import PROFILE_FILENAME
+from stages.ingest.transform_catalog import NOT_PROPOSED_BY_AI
 
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "cleaning_plan"  # prompts/cleaning_plan.md
 OUTPUT_FILENAME = "plan_proposed.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "4.0"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy
+SCHEMA_VERSION = "4.2"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number answers (optional); 2E-u3: the "real customer" answers (optional)
 
 
 
@@ -114,13 +115,17 @@ def propose_plan_run(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
         source="ai",
+        # Never an exact-duplicate removal, as an action or an alternative:
+        # the user's to add in Review (2E-u4). Stripped, not refused - a retry
+        # could degrade the whole plan for a step the user can still add.
         dataset_actions=[
             DatasetAction.model_validate({
                 **a.model_dump(),
-                "alternatives": tidy_alternatives(a.action, a.alternatives),
+                "alternatives": [alt for alt in tidy_alternatives(a.action, a.alternatives)
+                                 if alt not in NOT_PROPOSED_BY_AI],
                 "edited_by_user": False,
             })
-            for a in answer.dataset_actions
+            for a in answer.dataset_actions if a.action not in NOT_PROPOSED_BY_AI
         ],
         # File order, whatever order the AI used; then the columns it never saw.
         column_actions=[_column_action(c, planned.get(c.source_name)) for c in schema.columns],

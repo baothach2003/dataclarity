@@ -61,7 +61,7 @@ def test_the_report_holds_what_ran_in_the_order_it_ran(tmp_path: Path) -> None:
 
     report = execute_run(tmp_path, run_id, DEDUPLICATING, now=NOW)
 
-    assert (report.schema_version, report.generated_at) == ("4.0", NOW)  # 4.0 since 2E-t1 ("gift_card": major); 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
+    assert (report.schema_version, report.generated_at) == ("4.2", NOW)  # 4.2 since 2E-u3 (minor); 4.1 since 2E-u1 (minor); 4.0 since 2E-t1 ("gift_card": major); 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
     assert (report.rows_in, report.rows_out) == (5, 4)
     # 5 source columns, plus the two flag columns the run added, plus the
     # three line-taxonomy columns (2E-t1).
@@ -257,7 +257,8 @@ def test_the_files_are_plain_utf8_json_and_csv(tmp_path: Path) -> None:
 
     assert set(report) == {"schema_version", "generated_at", "rows_in", "rows_out", "columns_in",
                            "columns_out", "changes", "warnings", "column_mapping",
-                           "confirmations", "date_order"}  # 2E-e2; 2E-j
+                           "confirmations", "date_order", "number_formats",
+                           "unconfirmed_placeholders"}  # 2E-e2; 2E-j; 2E-u1; 2E-u3
 
 
 # --- cells that read back as missing (1F review) ---------------------------------------------
