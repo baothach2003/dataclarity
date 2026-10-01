@@ -112,10 +112,12 @@ def band(values: Sequence[float], errors: Sequence[float], logs: bool, point: fl
 
 
 def points(months: Sequence[str], values: Sequence[float],
-           current: str) -> tuple[list[RevenuePoint], bool, str | None]:
-    """The forecast of the HORIZON months after `current`, whether a season
-    was claimed, and the note when one was refused as the data cannot tell
-    it from a step (`seasonality.season_reading`)."""
+           current: str) -> tuple[list[RevenuePoint], int | None, str | None]:
+    """The forecast of the HORIZON months after `current`, the full years a
+    claimed season was read from (None when none is claimed), and the note
+    on the season reading - why none was claimed when the data cannot tell
+    it from a step, or that it rests on two years (`seasonality.season_
+    reading`)."""
     cycles, season_note = season_reading(months, values)
     found_indices = indices(cycles) if cycles else {}
     level = _level([value / found_indices.get(month[5:], 1.0)
@@ -127,7 +129,7 @@ def points(months: Sequence[str], values: Sequence[float],
         errors, logs = horizon_errors(months, values, cycles, h)
         low, high = band(values, errors, logs, point, h)
         found.append(RevenuePoint(period=month, point=point, low=low, high=high, confidence=CONFIDENCE))
-    return found, cycles is not None, season_note
+    return found, None if cycles is None else len(cycles), season_note
 
 
 def history(metrics: MetricsContract) -> tuple[list[tuple[str, float]], str | None]:
@@ -161,12 +163,13 @@ def forecast(metrics: MetricsContract) -> ForecastBlock:
     run, note = history(metrics)
     if len(run) < MIN_HISTORY:
         return ForecastBlock(method=INSUFFICIENT, horizon_periods=0, revenue=[], insufficient_history=True,
-                             months_used=len(run), history_note=note, season_note=None,
+                             months_used=len(run), history_note=note, season_years=None, season_note=None,
                              products_at_stockout_risk=None, products_at_stockout_risk_reason=STOCK_REASON)
     months, values = [m for m, _ in run], [r for _, r in run]
-    found, seasonal, season_note = points(months, values, metrics.period.current)
-    return ForecastBlock(method=_method(seasonal), horizon_periods=HORIZON, revenue=found, insufficient_history=False,
-                         months_used=len(run), history_note=note, season_note=season_note,
+    found, years, season_note = points(months, values, metrics.period.current)
+    return ForecastBlock(method=_method(years is not None), horizon_periods=HORIZON, revenue=found,
+                         insufficient_history=False, months_used=len(run), history_note=note, season_years=years,
+                         season_note=season_note,
                          products_at_stockout_risk=None, products_at_stockout_risk_reason=STOCK_REASON)
 
 

@@ -144,11 +144,12 @@ def test_a_step_between_the_years_is_no_season(start: str) -> None:
 
 def test_a_season_refused_for_another_reason_carries_no_note() -> None:
     # One big month: the years do not agree - no season, and nothing the
-    # data cannot tell apart, so no note; a claimed season has none either.
+    # data cannot tell apart, so no note. (A season claimed from two years
+    # carries a note since 4A-b - Thach's option (b): test_4ab_two_year_note.)
     values = [100.0] * 24
     values[12] = 400.0
     assert season_reading(sorted(months_from("2024-01", values)), values) == (None, None)
-    block = forecast(metrics_for(months_from("2024-01", [100 * p for p in SEASON * 2]), current="2025-12"))
+    block = forecast(metrics_for(months_from("2023-01", [100 * p for p in SEASON * 3]), current="2025-12"))
     assert (block.method, block.season_note) == (SEASONAL, None)
 
 

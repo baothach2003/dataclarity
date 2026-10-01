@@ -111,7 +111,7 @@ def test_a_stage_1_file_of_another_major_asks_for_the_file_again() -> None:
 @pytest.mark.parametrize(("model", "version", "name", "remedy"), [
     (DiagnosisContract, "16.0", "diagnosis.json", "Run the diagnosis again."),
     (ForecastContract, "0.9", "forecast.json", "Run the prediction again."),
-    (ReportContract, "2.0", "report.json", "Build the report again."),
+    (ReportContract, "1.0", "report.json", "Build the report again."),  # 2 since 4A-b
 ])
 def test_every_later_stages_output_asks_for_its_stage_again(model: Any, version: str, name: str,
                                                            remedy: str) -> None:

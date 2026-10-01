@@ -100,7 +100,10 @@ main ones:
   still read as a season: a change of level between the two years in a
   noisy history, one big month at the peak of a mild season, or a real
   season with a one-time step. On those the forecast and its band are
-  unreliable. None occurs on the demo files (`PROJECT_PLAN.md` 8D).
+  unreliable. None occurs on the demo files (`PROJECT_PLAN.md` 8D). A
+  season read from exactly two years - the fewest it can be read from, where
+  a one-time change of level cannot be fully told from the season - says so
+  beside the forecast; the demo sample's does.
 - **Speed.** On the 39 MB demo sample (below) the analysis takes about 18
   seconds and the diagnosis about 24; at the 50 MB upload cap, 25 and 31 -
   55 of the 60 seconds `docs/SPECS.md` section 11 gives stages 2-5

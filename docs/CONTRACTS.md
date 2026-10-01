@@ -1334,7 +1334,7 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
 
 ```json
 {
-  "schema_version": "1.0", "generated_at": "...", "model_used": "claude-sonnet-5",
+  "schema_version": "2.0", "generated_at": "...", "model_used": "claude-sonnet-5",
   "forecast": {
     "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3) with a monthly seasonality index",
     "horizon_periods": 3,
@@ -1344,7 +1344,8 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
       {"period": "2012-02", "point": 257218.16, "low": 205095.21, "high": 322587.64, "confidence": 0.8}
     ],
     "insufficient_history": false,
-    "months_used": 24, "history_note": null, "season_note": null,
+    "months_used": 24, "history_note": null, "season_years": 2,
+    "season_note": "The season is read from two years of history, the fewest a season can be read from: ...",
     "products_at_stockout_risk": null,
     "products_at_stockout_risk_reason": "stock figures are not supported in v1"
   },
@@ -1403,15 +1404,28 @@ metrics.json's `period` and `core.revenue_by_month` only (section 11).
   counted year (a straight line explaining 90% or more of the indices'
   logarithms) - the shape a step between two years leaves, which two
   years of data cannot tell from growth over a falling season (the
-  standing rule: no season is claimed, and `season_note` says why; null
-  otherwise - a season refused by another test is no ambiguity, so no
-  note; the gap is tested first). `history_note` and `season_note` are
-  sentences written by code, shown as written and never parsed, like a
-  `*_reason` - their presence is what a consumer decides on (`months_used`
-  carries the count); stage 4 never writes a season note beside a claimed
-  season (its tests pin it; the model does not check the method's
-  wording). Every index a positive number a float carries, or none is
-  measured.
+  standing rule: no season is claimed, and `season_note` says why - a
+  season refused by another test is no ambiguity, so no note; the gap is
+  tested first). `season_years` (forecast.json 2.0) is the number of full
+  years a CLAIMED season was read from, counted back from the compared
+  month - 2 for 24-35 months of history, 3 for 36-47, ... - and null when
+  no season is claimed: what a consumer decides on, never `method` or a
+  note's sentence. **A season claimed from exactly two years** carries
+  `season_note` too, saying the season rests on the fewest years it can be
+  read from - two years cannot fully tell a one-time change of level from
+  the season (Thach, 2026-10-01, 4A option (b); Hyndman & Kostenko 2007);
+  from three years or more, none. The model holds all of it: `season_years`
+  is `months_used // 12` and at least 2 (`MIN_SEASON_YEARS`, the one copy
+  stage 4 reads too), 2 with no note or 3+ with one is refused, and an
+  insufficient history carries neither (`contracts.forecast.check_season`,
+  which report.json's forecast view applies too). The note is keyed on
+  `NOTED_SEASON_YEARS` (2, Thach's "exactly two years"), not on the
+  minimum, so a later minimum cannot put "two years" beside three. `season_note` is a note on the season reading - why none
+  is claimed (`season_years` null), or that the one claimed rests on two
+  years (`season_years` 2) - and null otherwise. `history_note` and
+  `season_note` are sentences written by code, shown as written and never
+  parsed, like a `*_reason` (`months_used` carries the count). Every index a
+  positive number a float carries, or none is measured.
 - **The band**, `confidence` 0.8, from the method's own errors h months
   ahead over the history: the log of actual over forecast when the last
   twelve months are all positive (windows holding a month not positive
@@ -1470,14 +1484,14 @@ previous month is not complete - the endpoint's answer says which.
 
 ## 9. `report.json` (stage 5 output, data layer)
 
-Defined in session 5A (`contracts/report.py`; in place at `1.0` - no report.json
-had been written). An illustrative excerpt - its values from the example files
+Defined in session 5A (`contracts/report.py`; `2.0` since 4A-b - section 10).
+An illustrative excerpt - its values from the example files
 of sections 6-8, as a v1 run shows them (the AI strategy step off, no
 narration yet); "..." elides:
 
 ```json
 {
-  "schema_version": "1.0", "generated_at": "...",
+  "schema_version": "2.0", "generated_at": "...",
   "run_id": "...", "source_file": "sales_2011.csv",
   "data_quality": {"rows_in": 152430, "rows_out": 151988,
                    "issues_fixed": 2, "warnings": 1},
@@ -1518,7 +1532,8 @@ narration yet); "..." elides:
     "forecast": {"method": "...", "months_used": 24, "insufficient_history": false,
                  "points": [{"period": "2011-12", "point": 1210000.0, "low": 1040000.0,
                              "high": 1380000.0, "confidence": 0.8}],
-                 "history_note": null, "season_note": null, "notes": [],
+                 "history_note": null, "season_years": 2,
+                 "season_note": "The season is read from two years of history, ...", "notes": [],
                  "first_month_in_file": true, "partial_first_month_until": "2011-12-09"},
     "recommendations": null, "do_not_do": null,
     "recommendations_status": "switched_off", "notes": []
@@ -1611,7 +1626,8 @@ writes the file):
   "unavailable" (AI_PIPELINE 9).
 - **`layer_3_actions`** (forecast.json): the forecast with its notes -
   metrics.json's notes naming revenue (not always-on) and its own
-  `history_note` / `season_note`. `first_month_in_file` says the first
+  `history_note` / `season_note` - and its `season_years` (2.0), which a
+  reader of the report decides on, never the note's sentence. `first_month_in_file` says the first
   forecast month is one the file holds lines of - its revenue so far is
   never compared with the point; `partial_first_month_until` is the day a
   day-grain file ends in it (a month-grain file's month-to-date line has no
@@ -1745,6 +1761,27 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-01: **session 4A-b, forecast.json 2.0** (Thach, 4A option (b)):
+  `season_note` also notes a season CLAIMED from exactly two years, and the
+  new required `season_years` says how many years a claimed season was read
+  from (section 8) - a change of meaning, so a MAJOR bump: forecast.json
+  had been written (4C, 5C, the demo runs), and a 1.x file read today would
+  show a two-year season without its note (4A-b review 1 #1). A 1.x file is
+  refused - "run the prediction again" (`ForecastContract.supported_major`
+  2; the backend's and the CLI's answers already say so). **report.json
+  went to `2.0` with it** (4A-b review 2 #1, #7): its forecast view gains
+  the required `season_years` under forecast.json's rules
+  (`check_season`), and a report.json 1.x - built from a 1.x forecast, so a
+  two-year season without its note - is refused, "build the report again".
+  report.html has no version of its own: it is report.json rendered, so its
+  download first checks report.json's major; for another major it names
+  the earliest file the report is built from that another version wrote
+  ("run the prediction again" for a forecast.json 1.x - a report.json 1.x
+  always sits on one), else "build the report again"; SPECS 8 has every
+  answer. Every consumer updated in the same session: stage 4 writes it;
+  stage 5 carries `season_years` and shows the note as written; the
+  backend's page download; the Online Retail II sample's forecast gains
+  the note, Kaggle's does not change.
 - 2026-09-29: **session 5B, report.html.** report.json gains two checks, in
   place at `1.0` (no report.json has been written outside the tests): a
   chart's series are its own (the revenue line one series, `revenue`; the

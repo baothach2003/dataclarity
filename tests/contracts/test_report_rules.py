@@ -84,7 +84,8 @@ def test_rejects_a_first_forecast_month_in_the_file_with_no_forecast_or_another_
     _numbers_rejected(payload, "the day the file ends in the first forecast month")
     payload = report_payload()
     payload["layer_3_actions"]["forecast"].update(points=[], partial_first_month_until=None,
-                                                  insufficient_history=True, months_used=2)
+                                                  insufficient_history=True, months_used=2,
+                                                  season_years=None, season_note=None)  # 4A-b: no season either
     payload["charts"] = payload["charts"][:1]
     _numbers_rejected(payload, "first_month_in_file needs a forecast month")
     # 5B review 1 #6: points exactly when the history is long enough.

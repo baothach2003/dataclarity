@@ -50,7 +50,14 @@ def another_version(error: ValidationError) -> ApiError | None:
     if not any(UNSUPPORTED_MAJOR in str(problem["msg"]) or BEFORE_THE_LINE_TAXONOMY in str(problem["msg"])
                for problem in error.errors()):
         return None
-    model = _RUN_FILES.get(error.title)
+    return written_by_another_version(_RUN_FILES.get(error.title))
+
+
+def written_by_another_version(model: type[ContractFile] | None) -> ApiError:
+    """The answer to `model`'s file written by another version: run its
+    stage again, or upload the file again for a stage 1 file - also what
+    the page's download answers for a report.json of another major (4A-b
+    review 2 #1)."""
     details: dict[str, Any] = {"reason": "another_version"}
     if model is not None and model.filename is not None:
         details["file"] = model.filename

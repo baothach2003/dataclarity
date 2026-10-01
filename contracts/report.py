@@ -16,7 +16,7 @@ from pydantic import NonNegativeInt, model_validator
 
 from contracts._base import ContractFile, ContractModel
 from contracts.diagnosis import AiFindings, Headline, NotTestable
-from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint
+from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint, check_season
 from contracts.lines import NoteCode, OutsideRevenueLines, UnmeasurableLines
 from contracts.metrics import NonProductLines
 from contracts.profile import LineClass
@@ -133,6 +133,11 @@ class ForecastView(ContractModel):
     insufficient_history: bool
     points: list[RevenuePoint]
     history_note: str | None
+    # forecast.json's (2.0): the full years a claimed season was read from,
+    # null when none is claimed - what a consumer decides on, never the
+    # sentence (4A-b review 2 #7); its note says why none, or that it rests
+    # on two years.
+    season_years: int | None
     season_note: str | None
     notes: list[NoteCode]  # metrics.json's notes naming revenue, beside the forecast (CONTRACTS 11)
     # The first forecast month is one the file holds lines of, so its revenue
@@ -147,6 +152,7 @@ class ForecastView(ContractModel):
             raise ValueError(f"the history is too short exactly when fewer than {MIN_HISTORY_MONTHS} months were used")
         if self.insufficient_history == bool(self.points):
             raise ValueError("a forecast has points exactly when the history is long enough (5B review 1 #6)")
+        check_season(self.months_used, self.insufficient_history, self.season_years, self.season_note)
         if self.first_month_in_file and not self.points:
             raise ValueError("first_month_in_file needs a forecast month")
         until = self.partial_first_month_until
@@ -174,6 +180,11 @@ class Actions(ContractModel):
 
 
 class ReportContract(ContractFile):
+    # 2 since 4A-b (2026-10-01): the forecast it shows carries `season_years`
+    # and a season read from two years its note - a report built before shows
+    # such a season bare, so a 1.x file is refused ("build the report
+    # again"), its page with it (4A-b review 2 #1).
+    supported_major: ClassVar[int] = 2
     filename: ClassVar[str | None] = "report.json"
     written_by_stage: ClassVar[int] = 5
     stale_major_hint: ClassVar[str] = ": this file was written by an earlier stage 5; build the report again"

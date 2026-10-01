@@ -26,7 +26,8 @@ def test_the_charts_carry_the_trust_cautions_of_the_months_they_plot() -> None:
 def test_the_forecast_chart_carries_the_forecasts_own_notes() -> None:
     # Review 2 #8 (CONTRACTS 11): history_note and season_note beside it.
     forecast = forecast_payload()
-    forecast["forecast"] |= {"history_note": "The history starts at 2011-07.", "season_note": "No season: a ramp."}
+    forecast["forecast"] |= {"history_note": "The history starts at 2011-07.", "season_note": "No season: a ramp.",
+                             "season_years": None}
     chart = build(forecast=forecast).charts[1]
     assert (chart.id, chart.note) == ("forecast", "The history starts at 2011-07. No season: a ramp.")
     assert build().charts[1].note is None

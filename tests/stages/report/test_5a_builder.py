@@ -120,7 +120,7 @@ def test_the_forecast_and_the_partial_month_it_starts_in() -> None:
     # December 2011: that month is partly in the file.
     forecast = build().layer_3_actions.forecast
     assert [p.period for p in forecast.points] == ["2011-12", "2012-01", "2012-02"]
-    assert (forecast.months_used, forecast.partial_first_month_until) == (24, date(2011, 12, 9))
+    assert (forecast.months_used, forecast.partial_first_month_until) == (36, date(2011, 12, 9))
 
 
 def test_the_recommendations_are_shown_only_while_the_step_is_on() -> None:

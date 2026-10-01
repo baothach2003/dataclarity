@@ -38,7 +38,7 @@ from shared.run_registry import run_file
 from stages.report.html_report import REPORT_HTML, html_run
 from stages.report.layers import actions, causes, numbers, revenue_notes
 
-SCHEMA_VERSION = "1.0"  # report.json's first major: none had been written before (CONTRACTS 10)
+SCHEMA_VERSION = "2.0"  # 2 since 4A-b: the forecast's season_years, its two-year note (CONTRACTS 10)
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 

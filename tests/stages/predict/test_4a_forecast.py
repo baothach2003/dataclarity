@@ -264,7 +264,8 @@ def test_errors_past_e_to_the_709_are_too_large_not_a_crash() -> None:
 def _block(**changes: object) -> dict:
     point = {"period": "2024-04", "point": 10.0, "low": 9.0, "high": 11.0, "confidence": 0.8}
     return {"method": "m", "horizon_periods": 1, "revenue": [point], "insufficient_history": False,
-            "months_used": 3, "history_note": None, "season_note": None, "products_at_stockout_risk": None,
+            "months_used": 3, "history_note": None, "season_years": None, "season_note": None,
+            "products_at_stockout_risk": None,
             "products_at_stockout_risk_reason": "stock figures are not supported in v1"} | changes
 
 

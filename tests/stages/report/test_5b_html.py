@@ -108,7 +108,7 @@ def test_previous_scope_amounts_are_hidden_when_the_previous_month_is_incomplete
 def test_the_forecast_its_band_and_the_month_the_file_ends_in() -> None:
     actions = _page().section("actions")
     assert "2011-12 1,210,000.00 1,040,000.00 1,380,000.00" in actions
-    assert "80%" in actions and "24 complete months" in actions
+    assert "80%" in actions and "36 complete months" in actions
     assert "The file ends on 2011-12-09, part-way through 2011-12" in actions
 
 
@@ -117,7 +117,7 @@ def test_too_short_a_history_says_so_and_draws_no_forecast() -> None:
 
     forecast = forecast_payload()
     forecast["forecast"].update({"revenue": [], "horizon_periods": 0, "insufficient_history": True,
-                                 "months_used": 2, "season_note": None})
+                                 "months_used": 2, "season_note": None, "season_years": None})
     page = _page(build(forecast=forecast))
     assert "There is too little history for a forecast: 2 complete months, and 3 are needed." in page.section(
         "actions")

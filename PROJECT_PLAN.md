@@ -3121,7 +3121,7 @@ dataclarity/
       year-over-year change of the logs (a same-month change cancels the
       season; a median ignores one big month); a season only with two full
       years, every month positive, (strongest - weakest) / strongest above
-      40% (SPECS 7.5's most cautious reading: **for Thach to confirm**),
+      40% (SPECS 7.5's most cautious reading - confirmed by Thach, 2026-10-01),
       the years agreeing (mean correlation >= 0.6) and NOT a steady ramp
       through the counted year (a line explaining >= 90% of the indices'
       logs - a step's shape; refused, the standing rule); the band from the
@@ -3353,13 +3353,31 @@ dataclarity/
 - **DoD:** every recommendation cites a number that exists in the inputs; a
   manual review finds no fabricated figures
 
-- [ ] 4A-b **The two-year season note** (Thach, 2026-10-01, deciding 4A's
+- [x] 4A-b **The two-year season note** (Thach, 2026-10-01, deciding 4A's
       season claim - option (b); the reasoning is in 8D's season entry).
       Whenever a season is claimed from exactly two years of history, a note
       says the step/season split is not certain at the minimum of two cycles,
       through forecast.json and the report wherever the forecast is shown.
       Full process (stage 4 logic: method first, tests first, mutation,
-      doubt-review).
+      doubt-review). **Done 2026-10-01** (tenth run, session 1; method C1-C7,
+      tests first, mutation 44/44 over five rounds (two survivors, each
+      killed by a new test), doubt-review 3 cycles - cross-model skipped,
+      non-interactive - and a scoped review of the third cycle's fixes,
+      whose own fixes are tested and mutated, not reviewed: the bound). As built: `TWO_YEAR_NOTE` in
+      `stages/predict/seasonality.py`; **forecast.json 2.0** with the
+      required `season_years` (the full years a claimed season was read
+      from, `months_used // 12`, null when none); **report.json 2.0**, its
+      forecast view carrying `season_years` under the same rules
+      (`contracts.forecast.check_season`, one copy for both models);
+      `MIN_SEASON_YEARS` (SPECS 7.5's minimum) and `NOTED_SEASON_YEARS`
+      (Thach's "exactly two years", which the note names) in
+      contracts/forecast.py; a 1.x file of either is "run that stage
+      again", and the page's download checks report.json's major first,
+      answering with the earliest stale file it is built from. On the demo
+      files: the Online Retail II sample's forecast gains the note, its
+      points unchanged (401,224.73 / 319,850.95 / 257,218.16); Kaggle (36
+      months, no season) unchanged. Known limits: 8D (the season entry,
+      "From 5C").
 ### Phase 5 - Stage 5 Report
 - [x] 5A `builder.py`: assemble `report.json` (3 layers: numbers, causes,
       actions) from all prior contracts. Tests. First define the layer
@@ -3833,7 +3851,7 @@ dataclarity/
         December (0.97; 0.17-0.33 otherwise); the demo seasons read 0.30
         (Online Retail II in full) and 0.47 (the sample) (4A review 3 #10).
       - **the season claim, where it fabricates** (4A review 3; none on the
-        demo files; Thach to decide - options below). Reproduced on the
+        demo files; decided by Thach, 2026-10-01 - option (b), below). Reproduced on the
         4A sweep: a step between the two years at 10-20% noise is claimed
         as a season up to 59% of the time at 24 months (up to 29% at 36), the
         band then holding 44-63% at h=1; a step one month off the counted
@@ -3874,11 +3892,36 @@ dataclarity/
       - errors in money past about 1e154 square past a float, so their band
         is refused as "too large" though its width would fit one - amounts
         no shop reports, never a crash (4A review 3b #7).
-      - forecast.json's model accepts a `season_note` beside a claimed
-        season (it does not read the method's wording); stage 4 never
-        writes one, and its tests pin that (4A review 3b #4).
+      - forecast.json's model accepted a `season_note` beside a claimed
+        season (4A review 3b #4). Superseded by 4A-b (2026-10-01): since
+        forecast.json 2.0 a claimed season carries `season_years`, which the
+        model ties to the history (`months_used // 12`, at least
+        `MIN_SEASON_YEARS`) and to the note (two years: the note; three or
+        more: none). What the model cannot hold is whether a season should
+        have been claimed at all - `season_years` null with no note is a
+        valid file whatever the history (4A-b review 2 #2): that is stage
+        4's logic, pinned by its tests.
+      - an accepted answer of the strategy step inside a forecast.json 1.x
+        is not reused when the prediction is run again after 4A-b: the old
+        file is refused, so the step asks again (4A-b review 2 #3). It costs
+        one call per run predicted before 4A-b with the step switched on
+        (`STRATEGY_AI_ENABLED=true`, a supported setting); the step is off
+        by default in v1 (Thach, 2026-10-01, 4B option (c)).
+      - pure noise is claimed as a season now and then (4A-b review 3 #9,
+        the agreement test of 4A, not new code): of 3,000 histories of
+        independent months, 0.9% at +-30% noise and 2.8% at +-50% at 24
+        months (those carry the two-year note since 4A-b), 0.5% at +-50% at
+        36 months (no note from three years on). Not on the demo files.
+      - forecast.json's model does not tie the `method` sentence to
+        `season_years` (a method naming the seasonality index with
+        `season_years` null passes, and the page prints it), nor a refusal
+        note to a history long enough to read a season (4A-b review 4 #2):
+        stage 4 writes all three from one decision, pinned by its tests;
+        moving the method's sentences into the contract is a change for
+        later.
       - SPECS 7.5's 40% gap is read as (strongest - weakest) / strongest,
-        the most cautious reading (4A review 2 #9): Thach to confirm.
+        the most cautious reading (4A review 2 #9) - confirmed by Thach,
+        2026-10-01.
       - forecast.json's `months_used` (the compared month included, cut at
         a month with no revenue) and diagnosis.json's `frame.history_months`
         (before the compared month) are different figures: a consumer never
@@ -3998,10 +4041,21 @@ dataclarity/
         (~4.8 MB) until the run's retention cleanup.
       - on Windows a download holding report.html open for its read (a few
         ms) makes a step that sets it aside at that moment fail with a 500,
-        the previous files put back whole.
+        the previous files put back whole. Since 4A-b the download also
+        reads report.json first (its version), so the window covers both
+        files - and, for a page another version built, the files the report
+        is built from too (4A-b reviews 3 #3 and 4 #9).
       - an imported run without a report: the download says "Build the
         report first", which only an `analyzed` run can do (import is not
-        built yet - Phase 7 decides).
+        built yet - Phase 7 decides). The same for an imported run whose
+        report another version built: it gets the step that works for an
+        analyzed run ("Run the prediction again" for a ninth-run run), which
+        an imported run cannot take either (4A-b reviews 3 #8 and 4 #9).
+      - a metrics.json of this major from before the line taxonomy's blocks
+        passes the page download's major check, which then answers "Build
+        the report again"; the build answers "Run the analysis again" (4A-b
+        review 4 #10). No such file exists outside the ninth run's earlier
+        sessions.
       - a truncated or corrupt earlier-stage file is a 500 on /report, as on
         /predict (a run file this version wrote cannot be half written:
         atomic writes).
@@ -7103,6 +7157,21 @@ PREVIEW_CACHE_TTL_SECONDS=900
 - No auth in v1; public demo protected by rate limits and retention cleanup.
 - Forecasting (Phase 4A) deliberately uses interpretable statistics, not ML
   models, so every number in the report can be explained in an interview.
+
+- 2026-10-01, session 4A-b (tenth run): **forecast.json 2.0** (CONTRACTS 10:
+  a change of meaning is a major). `season_note` also notes a season claimed
+  from exactly two years (Thach's 4A option (b)), and a new required
+  `season_years` says how many years a claimed season was read from. A 1.x
+  forecast.json is refused - "run the prediction again" - so a forecast
+  written before the change is never shown without the note. Every
+  consumer updated in the session: stage 4 writes 2.0; stage 5 and its CLI
+  show the note as written; the backend answers an old file with
+  INVALID_STATE "Run the prediction again" (stage_errors.another_version).
+  **report.json went to 2.0 with it** (4A-b review 2 #1, #7): its forecast
+  view carries `season_years`, a 1.x report.json is "build the report
+  again", and the page's download checks report.json's major first (the
+  page has no version of its own). `MIN_SEASON_YEARS` (2) lives in
+  contracts/forecast.py, the one copy stage 4 and the model read.
 
 ## 13. Definition of Done for every sub-phase
 

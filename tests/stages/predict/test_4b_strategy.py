@@ -94,7 +94,7 @@ def test_the_prompt_carries_the_three_parts_and_nothing_else_of_the_files() -> N
     messages = FakeMessages(FakeResponse(json.dumps(ANSWER)))
     recommend(MetricsContract.model_validate(metrics), *_files()[1:], AIClient(messages), "m", RetryBudget())
     prompt = messages.calls[0]["messages"][0]["content"]
-    assert '"revenue_current": 1150000.0' in prompt and '"headline"' in prompt and '"months_used": 24' in prompt
+    assert '"revenue_current": 1150000.0' in prompt and '"headline"' in prompt and '"months_used": 36' in prompt
     assert "A SENTENCE THE FILE CARRIES" not in prompt and '"evidence"' not in prompt
 
 

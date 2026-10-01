@@ -154,7 +154,7 @@ def test_diagnosis_json_is_17_0_with_the_notes_and_the_marks(data) -> None:
 
 def test_stage_4s_stockout_risk_is_not_supported_in_v1() -> None:
     base = {"method": "rolling", "horizon_periods": 0, "revenue": [], "insufficient_history": True,
-            "months_used": 2, "history_note": None, "season_note": None}  # 4A: the enforced shape
+            "months_used": 2, "history_note": None, "season_years": None, "season_note": None}  # 4A: the enforced shape
     block = ForecastBlock.model_validate({**base, "products_at_stockout_risk": None,
                                           "products_at_stockout_risk_reason": "stock figures are not supported in v1"})
     assert block.products_at_stockout_risk is None

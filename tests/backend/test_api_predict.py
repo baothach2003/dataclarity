@@ -58,7 +58,7 @@ def test_predict_writes_the_forecast_with_the_ai_step_off_by_default(make_api: M
     assert "The forecast is written" in body["notices"][0]["message"]
     forecast = ForecastContract.model_validate(body["forecast"])
     assert forecast == ForecastContract.model_validate(api.read_json(run_id, "forecast.json"))
-    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("1.0", None, None)
+    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("2.0", None, None)
     assert forecast.forecast.insufficient_history is False
     assert api.ai_requests == calls  # the AI was never called
     assert api.status(run_id) is RunStatus.ANALYZED

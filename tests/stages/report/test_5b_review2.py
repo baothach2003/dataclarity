@@ -153,7 +153,7 @@ def test_no_forecast_no_forecast_notes_and_a_caution_the_gap_note_says_once() ->
     # 5B review 2 #6 and #11.
     forecast = forecast_payload()
     forecast["forecast"].update({"revenue": [], "horizon_periods": 0, "insufficient_history": True,
-                                 "months_used": 2, "season_note": None})
+                                 "months_used": 2, "season_note": None, "season_years": None})
     metrics = metrics_data(notes=metrics_payload()["core"]["notes"] + [REVENUE_NOTE])
     actions = Page(render_html(build(metrics=metrics, forecast=forecast))).section("actions")
     assert "Read the forecast with" not in actions

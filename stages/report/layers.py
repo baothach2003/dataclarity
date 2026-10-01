@@ -233,7 +233,8 @@ def actions(metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: Fo
     return Actions(
         forecast=ForecastView(
             method=block.method, months_used=block.months_used, insufficient_history=block.insufficient_history,
-            points=list(block.revenue), history_note=block.history_note, season_note=block.season_note,
+            points=list(block.revenue), history_note=block.history_note, season_years=block.season_years,
+            season_note=block.season_note,
             notes=revenue_notes(metrics), first_month_in_file=in_file, partial_first_month_until=until),
         recommendations=[RecommendationView(
             priority=r.priority, insight=r.insight, cause=r.cause, action=r.action, expected_impact=r.expected_impact,

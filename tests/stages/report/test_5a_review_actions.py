@@ -22,7 +22,7 @@ from tests.stages.report.report_fixtures import NOW, RUN, build, metrics_data, r
 def _insufficient() -> dict:
     forecast = forecast_payload()
     forecast["forecast"].update({"revenue": [], "horizon_periods": 0, "insufficient_history": True,
-                                 "months_used": 2, "season_note": None})
+                                 "months_used": 2, "season_note": None, "season_years": None})
     return forecast
 
 

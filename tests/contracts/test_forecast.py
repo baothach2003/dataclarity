@@ -7,9 +7,11 @@ from contracts.forecast import ForecastContract
 
 
 def forecast_payload() -> dict[str, Any]:
-    # The example from docs/CONTRACTS.md section 8 ("..." product name filled in).
+    # docs/CONTRACTS.md section 8's example ("..." product name filled in) at
+    # three years, so a season with no note - the two-year example and its
+    # note are pinned in test_4ab_two_year_note.
     return {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "generated_at": "2026-09-18T04:17:00Z",
         "model_used": "claude-sonnet-5",
         "forecast": {
@@ -26,7 +28,9 @@ def forecast_payload() -> dict[str, Any]:
                  "high": 860000.0, "confidence": 0.8},
             ],
             "insufficient_history": False,
-            "months_used": 24,
+            # Three years: a season claimed from three or more carries no
+            # note (4A-b; a two-year one always does - CONTRACTS 8).
+            "months_used": 36, "season_years": 3,
             "history_note": None, "season_note": None,
             # Null on every file since 2E-t2: stock figures are not supported in v1.
             "products_at_stockout_risk": None,
@@ -61,7 +65,8 @@ def test_accepts_documented_example() -> None:
 
 def test_accepts_insufficient_history_with_no_revenue_points() -> None:
     payload = forecast_payload()
-    payload["forecast"].update({"insufficient_history": True, "revenue": [], "horizon_periods": 0, "months_used": 2})
+    payload["forecast"].update({"insufficient_history": True, "revenue": [], "horizon_periods": 0, "months_used": 2,
+                                "season_years": None})
 
     contract = ForecastContract.model_validate(payload)
 

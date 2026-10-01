@@ -53,8 +53,8 @@ def test_the_forecast_and_the_checked_recommendations_make_the_file() -> None:
     metrics, diagnosis = _files()
     prediction = predict(metrics, diagnosis, _answering, NOW)
     contract = prediction.contract
-    assert (contract.schema_version, contract.generated_at, contract.model_used) == ("1.0", NOW, "served-model")
-    assert SCHEMA_VERSION == "1.0"
+    assert (contract.schema_version, contract.generated_at, contract.model_used) == ("2.0", NOW, "served-model")
+    assert SCHEMA_VERSION == "2.0"  # 2 since 4A-b (the season reading noted)
     assert (contract.recommendations, contract.do_not_do) == (STRATEGY.recommendations, STRATEGY.do_not_do)
     assert (prediction.ai, prediction.code) == ("answered", None)
 

@@ -35,7 +35,7 @@ from stages.predict.forecast import forecast
 
 logger = logging.getLogger(__name__)
 
-SCHEMA_VERSION = "1.0"  # forecast.json's first major: no file has been written before (CONTRACTS 10)
+SCHEMA_VERSION = "2.0"  # 2 since 4A-b: the season reading noted, and its years (CONTRACTS 10)
 METRICS_FILENAME = "metrics.json"
 DIAGNOSIS_FILENAME = "diagnosis.json"
 FORECAST_FILENAME = "forecast.json"

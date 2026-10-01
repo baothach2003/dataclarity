@@ -10,8 +10,11 @@ same pattern in every year (a correlation), so noise is no season; and not
 a steady ramp through the year, which is what a step between two years
 looks like - with two years the data cannot tell a step from a season, and
 the standing rule (CLAUDE.md 3.3a) never guesses: no season, and a note
-saying why. The tests' known limits (a noisy step, a step on top of a
-season, one big month at a mild season's peak) are 8D's.
+saying why. A season claimed from exactly two years carries a note too: two
+cycles are the theoretical minimum, where the step/season split is not
+certain (Thach, 2026-10-01, 4A option b). The tests' known limits (a noisy
+step, a step on top of a season, one big month at a mild season's peak) are
+8D's.
 """
 
 import math
@@ -19,11 +22,13 @@ import statistics
 from collections.abc import Sequence
 from typing import Literal
 
+from contracts.forecast import MIN_SEASON_YEARS, NOTED_SEASON_YEARS
+
 # SPECS 7.5: a season needs two full cycles, and "the gap between the highest
 # and lowest period exceeds 40%" - read as (strongest - weakest) / strongest,
-# the most cautious of its readings (4A review 2 #9; Thach may read it
-# otherwise). A floating-point tie at 40% is not above it.
-SEASONAL_MIN_MONTHS = 24
+# the most cautious of its readings (4A review 2 #9; confirmed by Thach,
+# 2026-10-01). A floating-point tie at 40% is not above it.
+SEASONAL_MIN_MONTHS = 12 * MIN_SEASON_YEARS
 SEASONAL_MIN_GAP = 0.40
 # The same season every year: each year's pattern against the other years'
 # (Pearson correlation of the detrended months), at least this - chosen on
@@ -41,6 +46,13 @@ _TIE = 1e-9
 RAMP_NOTE = ("No season is claimed: measured against the business's trend, the months rise or fall steadily "
              "through the year - a pattern a one-time change of level between the years also leaves, so v1 does "
              "not read it as a season.")
+# Thach, 2026-10-01 (4A option b): a season claimed from exactly two years -
+# the theoretical minimum of two cycles, where the step/season split is not
+# certain (Hyndman & Kostenko 2007: minimum sample sizes assume almost no
+# noise). True wherever it is written: it never says a step happened.
+TWO_YEAR_NOTE = ("The season is read from two years of history, the fewest a season can be read from: two years "
+                 "cannot fully tell a one-time change of level between them from the season itself, so the "
+                 "forecast's monthly shape is less certain than more years would make it.")
 
 Refusal = Literal["gap", "agreement", "ramp"]
 
@@ -128,8 +140,9 @@ def refusal(cycles: Sequence[dict[str, float]], order: Sequence[str]) -> Refusal
 
 def season_reading(months: Sequence[str], values: Sequence[float]) -> tuple[list[dict[str, float]] | None, str | None]:
     """The years of detrended ratios when the history holds a season, else
-    None; and a note when a season was refused because the data cannot tell
-    it from a step between the years (the standing rule)."""
+    None; and a note on the reading: why a season was refused when the data
+    cannot tell it from a step between the years (the standing rule), or
+    that a season claimed rests on two years only (4A option b)."""
     if len(months) < SEASONAL_MIN_MONTHS:
         return None, None
     counted = 12 * (len(months) // 12)
@@ -147,7 +160,7 @@ def season_reading(months: Sequence[str], values: Sequence[float]) -> tuple[list
         # large by the contract if they cannot be carried.
         return None, None
     if refused is None:
-        return cycles, None
+        return cycles, TWO_YEAR_NOTE if len(cycles) == NOTED_SEASON_YEARS else None
     return None, RAMP_NOTE if refused == "ramp" else None
 
 

@@ -42,7 +42,8 @@ def _rich() -> dict[str, Any]:
         "new_members": ["POSTAGE"], "removed_members": []})
     diagnosis["suggested_classes"] = {"POSTAGE": "charge"}
     forecast = forecast_payload()
-    forecast["forecast"] |= {"history_note": "The history starts at 2011-07.", "season_note": "No season: a ramp."}
+    forecast["forecast"] |= {"history_note": "The history starts at 2011-07.", "season_note": "No season: a ramp.",
+                             "season_years": None}
     payload: dict[str, Any] = build(metrics=metrics, diagnosis=diagnosis, forecast=forecast,
                                     cleaning=cleaning_data()).model_dump(mode="json")
     return payload
@@ -133,7 +134,7 @@ def test_the_forecasts_own_notes_stand_beside_it_once_even_without_a_forecast() 
     # 5B review 1 #3 and #12.
     forecast = forecast_payload()
     forecast["forecast"].update({"revenue": [], "horizon_periods": 0, "insufficient_history": True,
-                                 "months_used": 1, "season_note": None,
+                                 "months_used": 1, "season_note": None, "season_years": None,
                                  "history_note": "The history starts at 2011-11: 2011-10 holds no revenue."})
     actions = Page(render_html(build(forecast=forecast))).section("actions")
     assert ("There is too little history for a forecast: 1 complete month, and 3 are needed. The history starts at "

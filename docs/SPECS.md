@@ -309,12 +309,15 @@ again. This is why the product can claim AI assistance without AI opacity.
   after the history is unforeseeable), 54-67% on a trend of 3-4 months;
   CONTRACTS section 8 has the details. 7.5's "gap between the highest and
   lowest period exceeds 40%" is read as (strongest calendar month's index -
-  weakest) / strongest, the most cautious of its readings - a reading for
-  Thach to confirm - measured against the business's own trend; and a
+  weakest) / strongest, the most cautious of its readings - confirmed by
+  Thach, 2026-10-01 - measured against the business's own trend; and a
   season must repeat from year to year and must not be a steady ramp
   through the year, the shape a step between two years leaves (the
   standing rule: the data cannot tell them apart, so none is claimed, and
-  the forecast says why). The method's known limits (a noisy step, a step
+  the forecast says why). A season claimed from exactly two years carries a
+  note that it rests on the fewest years a season can be read from (Thach,
+  2026-10-01, 4A option (b): the step/season split is not certain at two
+  cycles - Hyndman & Kostenko 2007). The method's known limits (a noisy step, a step
   on top of a season, one big month at a mild season's peak) are
   PROJECT_PLAN 8D's.
 - 7.5 Seasonality is only claimed when the gap between the highest and lowest
@@ -457,8 +460,19 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
   attachment (`report_<name>.html`, the name sanitized as the cleaned file's
   is; `X-Content-Type-Options: nosniff`, on every download). From
   `analyzed` or `imported`; no report yet: INVALID_STATE "Build the report
-  first" (`details.missing`); a report being built again, its page set
-  aside for the moment: INVALID_STATE `step_in_progress` ("wait"); its
+  first" (`details.missing`). A page is served only beside a report.json
+  of this version (4A-b): a report another version of DataClarity built
+  (report.json of another major), or a page with no report.json, gets the
+  first step that works - what `POST /report` answers for a missing
+  earlier file (EXPIRED, or "Run ... first"), else the earliest file the
+  report is built from that another version wrote (`another_version`:
+  INVALID_STATE "Run the prediction again" for a forecast.json 1.x;
+  EXPIRED "Upload the file again" for a stage 1 file), else INVALID_STATE
+  "Build the report again"; a report.json or page that cannot be read:
+  INVALID_STATE `unreadable` ("Build the report again"). While a step holds
+  the run (a report being built again, or an earlier stage run again), any
+  of those answers - and a page set aside for the moment - is INVALID_STATE
+  `step_in_progress` ("wait"); a current page is served even then. Its
   files gone: EXPIRED (the cleaned file's download too). No work claim:
   downloads never hold each other off. report.json needs no
   download: the report's response carries it (as `execute`'s carries the
