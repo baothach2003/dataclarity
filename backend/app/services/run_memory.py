@@ -222,12 +222,24 @@ class RunWork:
     its release, so a run that is really executing is never seen as abandoned.
     """
 
-    def __init__(self, max_ai_attempts: int = MAX_AI_ATTEMPTS_PER_STEP) -> None:
+    def __init__(self, max_ai_attempts: int = MAX_AI_ATTEMPTS_PER_STEP, heavy_steps: int = 1) -> None:
         self._max_attempts = max_ai_attempts
+        # Heavy steps across every run of the process (MAX_CONCURRENT_HEAVY_STEPS):
+        # a step over the limit waits for a slot rather than failing.
+        self.heavy_steps = heavy_steps
+        self._heavy = threading.BoundedSemaphore(heavy_steps)
         self._active: set[str] = set()
         self._summaries: set[str] = set()
         self._attempts: dict[tuple[str, str], int] = {}
         self._lock = threading.Lock()
+
+    @contextmanager
+    def heavy(self) -> Iterator[None]:
+        """One of the process's heavy-step slots for the time of the step - a
+        step reading a whole file (Thach, 2026-10-02: one at a time by
+        default; each needs about 0.5-0.7 GB on a 50 MB file)."""
+        with self._heavy:
+            yield
 
     @contextmanager
     def ai_step(self, run_id: str, step: str) -> Iterator[None]:

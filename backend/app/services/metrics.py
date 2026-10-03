@@ -51,7 +51,7 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
         )
     _require_cleaned_files(runs_root, run_id)
 
-    with work.execution(run_id):
+    with work.execution(run_id), work.heavy():
         try:
             # The later stages' outputs describe the metrics this run
             # replaces: set aside around the new file's rename, deleted once

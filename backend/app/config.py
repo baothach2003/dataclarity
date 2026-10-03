@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     # memory across all cached files, and seconds a file may sit unused.
     preview_cache_max_mb: Annotated[int, Field(gt=0)]
     preview_cache_ttl_seconds: Annotated[int, Field(gt=0)]
+    # How many heavy steps (profiling, Review's whole-file summary, cleaning,
+    # analysis, diagnosis) one process runs at a time; a step over the limit
+    # waits for a slot (Thach, 2026-10-02, for deploy: each needs about
+    # 0.5-0.7 GB of its own on a 50 MB file - PROJECT_PLAN Phase 9).
+    max_concurrent_heavy_steps: Annotated[int, Field(gt=0)]
     # Stage 4's AI strategy step (4B): false in v1 - its review found numbers
     # and words it lets through (PROJECT_PLAN 4B); Thach turns it on once he
     # has decided. Off, forecast.json carries the forecast alone.

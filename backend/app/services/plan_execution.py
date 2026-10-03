@@ -52,7 +52,10 @@ def preview_plan(
     session.commit()  # the read transaction ends here: a preview can take seconds
     try:
         _require_raw(settings.runs_dir, run_id)
-        frame = cache.get_or_load(run_id, lambda: _read_frame(settings.runs_dir, run_id))
+        # Parsing the whole file on a cache miss is a heavy step (Thach,
+        # 2026-10-02); a hit costs nothing. Review's summary holds its slot
+        # around its own load - never a second one (one slot would deadlock).
+        frame = cache.get_or_load(run_id, lambda: _read_frame_heavy(work, settings.runs_dir, run_id))
         # `preview_frame` trusts its plan (it is for the already-checked case), so the
         # check `preview_run` makes on a plan is made here, on the cached frame.
         validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=False)
@@ -89,7 +92,7 @@ def summarise_lines(
     session.commit()  # the read transaction ends here: the whole file takes seconds
     try:
         _require_raw(settings.runs_dir, run_id)
-        with work.summary(run_id):
+        with work.summary(run_id), work.heavy():
             frame = cache.get_or_load(run_id, lambda: _read_frame(settings.runs_dir, run_id))
             found = line_summary(frame, plan)
     except InvalidPlanError as error:
@@ -144,11 +147,12 @@ def execute_plan(
         try:
             schema = read_schema(runs_root, run_id)
             plan = plan.model_copy(update={"source": _source_of(plan, runs_root, run_id)})
-            report = execute_run(
-                runs_root, run_id, plan,
-                # Generic cleaning of a file that is not inventory data has nothing to map.
-                require_required_fields=not is_not_inventory(schema),
-            )
+            with work.heavy():
+                report = execute_run(
+                    runs_root, run_id, plan,
+                    # Generic cleaning of a file that is not inventory data has nothing to map.
+                    require_required_fields=not is_not_inventory(schema),
+                )
         except InvalidPlanError as error:
             _settle(session, run_id, "release the claim",
                     lambda: run_state.release(session, run_id, taken_from))
@@ -209,6 +213,11 @@ def _require_raw(runs_root: Path, run_id: str) -> None:
     inside a stage (a bad deployment) is not mistaken for it."""
     if not run_file(runs_root, run_id, RAW_FILENAME).exists():
         raise stage_errors.files_gone()
+
+
+def _read_frame_heavy(work: RunWork, runs_root: Path, run_id: str) -> pd.DataFrame:
+    with work.heavy():
+        return _read_frame(runs_root, run_id)
 
 
 def _read_frame(runs_root: Path, run_id: str) -> pd.DataFrame:

@@ -195,7 +195,9 @@ cd backend && python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
 cd ..
 python -m uvicorn app.main:app --app-dir backend --reload
-pytest    # from the repo root or from backend/
+pytest    # from the repo root or from backend/ - the FULL suite, before every commit
+pytest -m "not slow_suite"   # a quick run while iterating: leaves out the scenario
+                             # and failure-mode suites (conftest.py SLOW_SUITES)
 
 # run stage 5 standalone (proves stage independence; only stage 5 has a CLI)
 python -m stages.report --run <run_id> [--source-file <name>] [--runs-dir <dir>]

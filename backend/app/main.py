@@ -47,7 +47,7 @@ def create_app(
         ttl_seconds=settings.preview_cache_ttl_seconds,
     )
     app.state.retry_budgets = RetryBudgets()
-    app.state.run_work = RunWork()
+    app.state.run_work = RunWork(heavy_steps=settings.max_concurrent_heavy_steps)
     # Middleware added first is innermost: the catch-all must sit inside CORS so
     # that the 500 envelope carries the CORS headers (errors.py).
     app.add_middleware(BaseHTTPMiddleware, dispatch=unexpected_error_middleware)

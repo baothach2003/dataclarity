@@ -84,7 +84,8 @@ def analyze_schema(
             # 50 MB file or a call of up to a minute must not hold a connection.
             session.commit()
             if run.status is RunStatus.UPLOADED or not _profile_exists(runs_root, run_id):
-                _profile(session, run, runs_root)
+                with work.heavy():
+                    _profile(session, run, runs_root)
             session.commit()
             try:
                 schema: SchemaInferenceContract | None = infer_schema_run(

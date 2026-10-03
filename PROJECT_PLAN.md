@@ -3019,18 +3019,109 @@ dataclarity/
         revenue it removes. Item 2E-u4.
       - **F5:** into 3E1b's D1 learning (that item).
       - **F2 and F7:** 8D known limits.
-- [ ] 2E-u1 **The number format decided at stage 1** (2E-u F1; Thach,
+- [x] 2E-u1 **The number format decided at stage 1** (2E-u F1; Thach,
       2026-10-02 - an exception to the scope freeze, before deploy). See
       2E-u's decisions. Full process for the reading rule (it decides
-      figures): method first, tests first, mutation, review.
-- [ ] 2E-u6 **Lines dated after the upload date** (2E-u F6; before deploy):
+      figures): method first, tests first, mutation, review. **Done
+      (eleventh run; method `C:\Users\Happy\2E-u1-method.txt`).** Per cell
+      (`stages/ingest/number_format.py`): plain, point-proving,
+      comma-proving or two-way ("1,000"); currency signs (Unicode Sc) at
+      either end stripped; a sign before or after; spaces, no-break spaces
+      and apostrophes group. Per quantity/price column, on the RAW file
+      before the plan runs (`number_apply.py`): the cells' proof decides
+      the two-way cells, else Review's answer
+      (`confirmations.number_formats`); unanswered and unproven, or an
+      answer against a one-way proof, the plan is refused with the true
+      reason - never a default. profile.json measures each column
+      (`number_format`, 1.2), Review asks (NumberFormatNotice) and Confirm
+      waits; the preview reads its sample by profile.json's proof and the
+      answers; cleaning_report.json records what ran (`number_formats`;
+      stage 1 contracts 4.1). The AI never sees the measure. Demo files:
+      cleaned.csv and metrics.json byte-identical. DF-C4b/C4c/A6b fixed
+      (Online Retail II's January read 1,218 of 1,302 before), DF-C4d added
+      (a file the reading cannot decide is refused, then answered).
+      Reviews: 3 cycles (cross-model skipped: non-interactive). Cycle 1
+      (F1-F9): a numbers column's question never reached Review, "0,500"
+      read as 500, the measure leaked to the AI, profiling +5 s - fixed;
+      F5 (no change-log entry: its action enum is closed - the rewrite is in
+      `number_formats`) and F7 (confirmations recorded as submitted) by
+      contract. Cycle 2 (N1-N8): "+2.500" was read by no rule and counted
+      nowhere, so stage 2 read it with a point x1000 against a comma answer
+      - fixed; the preview never got the answers, nor the whole file's
+      proof - fixed; examples cut; N6 (a profile.json 1.1 run asks nothing
+      and execution refuses - v1 not deployed) recorded. Cycle 3 (R3-1..7):
+      deciding the preview on the whole column cost 4 s a request - the
+      proof now comes from profile.json; a quoted cell's carriage return
+      left "2.500" unread - stripped; the letter-cell pass vectorised; a
+      typed column no longer crashes the shortcut; wording. Fixes after
+      cycle 3 tested and mutated, not reviewed (the bound). Mutation: 23/26
+      (3 equivalent), the review fixes' mutants killed but equivalents.
+      Known limits in 8D "From 2E-u1".
+- [x] 2E-u6 **Lines dated after the upload date** (2E-u F6; before deploy):
       excluded from period selection, counted and reported; the upload date
-      is the reference.
-- [ ] 2E-u3 **An unanswered walk-in placeholder marked "suggested, not
-      confirmed"** (2E-u F3), like Q17's suggested classes.
-- [ ] 2E-u4 **No exact-duplicate removal proposed by default** (2E-u F4;
+      is the reference. **Done (eleventh run; method
+      `C:\Users\Happy\2E-u6-method.txt`).** The cutoff is the upload's day on
+      the clock furthest ahead, UTC+14 (`shared/periods.upload_cutoff`; the
+      backend passes the run's `created_at`, stage 2 alone uses `now`); a
+      line dated after it, of any class, chooses nothing - not the dates the
+      file covers, the month grain, the months compared or their coverage
+      (`metrics_core.choose_period`, one choice for every block) - and is
+      counted with its revenue (`core.future_lines`, `future_revenue`,
+      `future_lines_reason`; `period.upload_cutoff`; metrics.json 16.1).
+      Every other figure keeps it in its own month (CLAUDE.md 3.3a). Stage 3
+      ends its month-grain coverage the same way (`after_cutoff`); stage 5
+      says it beside the dates the file covers (report.json 2.2) and draws no
+      month after the last date the period covers. The upload is also the
+      clock of a month-grain file (review 1 #1: re-analysed after the month
+      ended, a mid-month export's month-to-date row was compared as a whole
+      month, -36.7%). DF-B15 HANDLED; DF-B14's pinned values moved (still
+      Thach's F2 limit); DF-B15b added (a year typo before the upload: a
+      LIMIT). Demo files unchanged. Reviews: 2 cycles (cross-model skipped:
+      non-interactive). Cycle 1 (11): #1 the month-grain clock (above,
+      fixed), the month list cut at the upload's month drew 39 empty months
+      (now `data_end`'s), the per-block helpers chose the period apart (one
+      `choose_period`), the contract's missing checks (revenue with no line,
+      lines with no cutoff, a cutoff before `data_end` - added), wording;
+      the rest recorded in 8D "From 2E-u6". Cycle 2: nothing fabricates; the
+      demo files and 996 stored metrics.json files unchanged by the new
+      checks; its findings low or already recorded - stopped there.
+      Mutation 22/22.
+- [x] 2E-u3 **An unanswered walk-in placeholder marked "suggested, not
+      confirmed"** (2E-u F3), like Q17's suggested classes. **Done (eleventh
+      run; method `C:\Users\Happy\2E-u3-method.txt`).** Review now sends its
+      "a real customer" answers (`confirmations.customer_not_placeholders`,
+      stage 1 contracts 4.2), so no answer can be told from No; execution
+      measures the candidates for the plan's own customer column on the raw
+      file and records the unanswered ones (cleaning_report.json
+      `unconfirmed_placeholders`); stage 2 marks them in the customers block
+      (`unconfirmed_placeholders` with their lines, the reason; 16.1) with
+      no figure changed (CLAUDE.md 3.3a); stage 5 shows the reason beside
+      the KPIs and in the causes. Not a note code: a new code widens a
+      closed enum, a major and a section 11 type change (3.7). DF-F1b and
+      DF-F5 MARKED. Review (1 cycle, display - CLAUDE.md 3.6): prices written
+      for people left nothing measured, so no mark (now measured after the
+      number reading); the values went to stage 4's AI input (now left out:
+      CLAUDE.md 3.2); the wording claimed Review had asked ("The file
+      suggests" now); five values named, the rest counted; the customers
+      helper. Recorded: a cast of the customer column loses the mark.
+- [x] 2E-u4 **No exact-duplicate removal proposed by default** (2E-u F4;
       before deploy); a user-added removal shows its lines and revenue in
-      Review.
+      Review. **Done (eleventh run; method `C:\Users\Happy\2E-u4-method.txt`).**
+      Review had no control for dataset actions: the AI's proposal was the
+      only way the removal reached a plan. Now the prompt says never (as an
+      action or an alternative), the AI's legal dataset actions omit it and
+      ai_plan strips it from the answer (stripped, not refused: no retry
+      spent). Review's DuplicatesNotice offers "Remove the copies" when
+      profile.json counts exact copies; added, the whole-file summary
+      reports `duplicates_removed` (lines, revenue - the plan re-run without
+      the step) and the notice shows them. DF-A7: the AI's plan no longer
+      drops the Online Retail II sample's 5,206 rows (22,605.57 of revenue,
+      as the summary shows once added). Review (1 cycle, with 2E-u3): the
+      pre-summary wording quoted the profile's raw count (removed); SPECS
+      updated; recorded: medians and bounds move with the copies, the
+      summary runs twice while the step is on (demo 20 s, +736 MiB), an
+      overflow of the copies alone refuses the summary. Mutation of every
+      logic change: all killed.
 - [x] **SCOPE FREEZE for v1** (Thach, 2026-09-28; **effective 2026-09-29,
       now**, no longer after 2E-u), recorded here and in CLAUDE.md 3.6: the
       foundational definitions (line classes, orders, customers, products,
@@ -4452,6 +4543,76 @@ dataclarity/
         calendar, a short stockout) are left to the table (Thach, with F1); a
         seasonal retailer's movements are its season (3E1b-F1, for Thach); a
         history under 8 months cannot be gated and says so.
+      From 2E-u (Thach, 2026-10-02: F2 and F7 are known limits):
+      - F2: two-digit year-first dates ("24/02/10") are read day-first with
+        no question - the calendar lands in 2001-2031 and the headline names
+        a cause (DF-B14, a FABRICATE on that shape; not on the demo files).
+      - F7: a NUL byte past the upload's first 8 KB ends its cell - a price
+        "1", NUL, "0.0" reads 1, nothing flagged (DF-A13).
+      From 2E-u1 (the number format; none fabricates on the demo files):
+      - left as written, so in no figure (stage 2's unmeasurable lines):
+        Indian grouping ("1,00,000"), a currency code instead of a sign
+        ("USD 10"), full-width or other non-ASCII digits.
+      - scientific notation is read by pandas with a point whatever the
+        column's mark ("1.5E3" in a decimal-comma column is 1,500).
+      - a run profiled before 2E-u1 (profile.json 1.1) has no measure:
+        Review asks nothing and execution refuses a two-way column (review
+        2, N6; local runs only - re-upload).
+      - the rewrite is recorded in cleaning_report.json `number_formats`,
+        not as a change-log entry (its action enum is closed; review 1, F5);
+        an answer for a column not asked is recorded as submitted (F7).
+      - every Review answer re-runs the preview on its sample (review 3,
+        R3-6); a column pandas types as numbers that proves its mark but
+        whose sample holds only "1.000" cells is previewed as written
+        (display only).
+      - cost on the worst case (36 MB, 500,000 distinct "1,234.56" prices,
+        read one distinct value at a time): profiling +4.1 s, execute and
+        the whole-file summary +8.6 s each (Phase 9); the demo sample +0.3 s.
+      From 2E-u3 and 2E-u4 (review 1; none fabricates, none on the demo
+      files - the sample's walk-ins are blank cells, nothing is marked):
+      - a cast of the customer column ("0.0" -> "0") loses the mark, as it
+        already loses a Yes for "0.0" (2E-k cycle 1 F1, the same shape).
+      - the copies' revenue Review shows is theirs: with impute_median or
+        clip_outliers_iqr on the price, removing them also moves the median
+        or the bounds, so net revenue changes by more (900.00 shown, 983-997
+        moved on the reviewer's case).
+      - adding the removal makes Review's whole-file summary run the plan
+        twice: the demo sample 10.9 -> 20.4 s and +492 -> +736 MiB, the
+        process's largest step while it is on (Phase 9's memory record holds
+        without it).
+      - copies that alone overflow a float refuse the whole summary as too
+        large to add.
+      - the prompt's catalog still lists remove_exact_duplicates (the rule
+        beside it says never; the AI's legal list omits it and ai_plan strips
+        it).
+      From 2E-u6 (review 1; none fabricates on the demo files):
+      - a file whose every line is dated after the upload withholds its
+        current month, but stage 3's reason still says "re-export the file"
+        and, when the lines share the upload's month, stage 5 names the
+        wrong start (#3).
+      - a month-end monthly export's month-to-date row (dated the 30th,
+        uploaded the 15th) is dated after the upload: it chooses no period,
+        stage 4's "the file already holds a line for that month" is not said
+        and stage 5's month table leaves the month out, while the forecast
+        is drawn for it (#5; review 2, D) - only the reason says the file
+        holds it.
+      - a monthly export uploaded within 12 hours after a month ends (UTC)
+        compares the month before, for good (review 2, B; the 2E-j 12-hour
+        rule, now on the upload's clock - before, a re-analysis could flip
+        it): the safe side.
+      - the per-block helpers (`core/product/customer_metrics_for_run`,
+        used by tests only) take no upload time and judge by `now` (review
+        2, C).
+      - with no customer column, the orders check's month-grain clause is
+        judged over every counted line, a line after the upload included
+        (review 2, E: one 2042 line drops "the file records months, not
+        days" from `orders_basis_reason`).
+      - one day of grace: a line dated the shop's tomorrow (UTC+14) can
+        close a month one trading day short (#6).
+      - an unmeasurable line dated after the upload is counted in both
+        reports (#7).
+      - a year typo between the data and the upload (2025 in a 2024 file)
+        cannot be told from a late sale: DF-B15b, the run blocks (#10).
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -4515,6 +4676,26 @@ dataclarity/
       environment settings (local defaults as today; hosted values chosen
       later), heavy steps one at a time by default. Measure peak memory at 5,
       10 and 20 MB for the curve. Do not start reducing the peak in code yet.
+      **Done (eleventh run).** MAX_UPLOAD_MB (cap 50, may only lower it) and
+      PREVIEW_CACHE_MAX_MB were already settings; MAX_CONCURRENT_HEAVY_STEPS
+      is new (required, default 1 in .env.example): profiling, Review's
+      summary, execute, analyze and diagnose each take one of the process's
+      slots (`RunWork.heavy()`, a bounded semaphore across runs); a step over
+      the limit waits for a slot, it never fails (tests/backend/
+      test_heavy_steps.py). **The curve** (the same app view (1), the same
+      sample cut to size, one heavy step at a time): process peak working set
+      5 MB 326 MB, 10 MB 390, 20 MB 560 (tenth run: 39 MB 834, 50 MB 988);
+      214-215 MB after imports at every size. Each frame-reading step's peak
+      per size - profiling 295 / 355 / 481, Review's summary 308 / 376 / 531,
+      execute 324 / 389 / 559, analyze 305 / 373 / 471, diagnose 310 / 374 /
+      489; predict, report and the download stay near the resting level.
+      Execute is the peak at every size. The process peak grows linearly
+      with the file at about 14-16 MB per MB of file above ~250 MB (5 -> 20:
+      +234 MB for +15 MB; 20 -> 50: +428 for +30), so a hosted worker's
+      memory follows: ~0.33 GB at 5 MB, ~0.56 GB at 20 MB, ~1 GB at the cap,
+      each further concurrent heavy step adding its own increment.
+      Private commit 1,050 / 1,096 / 1,260 MB (~890 MB reserved at start).
+      Scripts: scratchpad mem/mem_app.py (eleventh run).
       **Test time** (Thach): the suite takes about 7 minutes; a pytest marker
       for the scenario and failure-mode suites makes a quick run possible
       while iterating; the full suite still runs before every commit.
@@ -4688,6 +4869,23 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Eleventh overnight run** (2026-10-02; Thach's decisions on the tenth report
+recorded with their reasons at 3E2-F1/F2/F3, 2E-u's F1-F7, Phase 9's memory
+and test-time notes). Done: **3E1b** (D1's pattern, 2E-u F5, the headline
+size gate = 3E2-F1) and **the 3E2 re-run** (STOPPED at F2 and F3 as decided)
+- commit fb0fd0f; **2E-u1** (the number format), **2E-u6** (lines after the
+upload), **2E-u3** (unanswered walk-ins marked), **2E-u4** (no duplicate
+removal by default) - commit d417275; **the memory settings**
+(MAX_CONCURRENT_HEAVY_STEPS) and **the 5/10/20 MB curve**, **the
+slow_suite marker** - built and tested, its commit
+(`C:\Users\Happy\commit-memory.ps1`) WAITS: its full-suite run was stopped by
+the machine running low on memory, and the rule is a full run before every
+commit. Open for Thach: 3E1b-F1 (the demo's seasonal month now rule 7),
+3E1b-K (D1_SPREAD_K provisional), the F2/F3 stops, S11's "too short", S3's
+R3 veto; MAX_CONCURRENT_HEAVY_STEPS=1 in his .env. Stopped before 3F,
+Phase 6, any deploy step and any real AI call. Report:
+`C:\Users\Happy\overnight-report.txt` (the tenth run's kept as
+`overnight-report-run10.txt`).
 **Tenth overnight run** approved by Thach (2026-10-01, after reading the
 ninth run's report, while he designs the Insights frame in Figma). Decisions
 recorded: **4A (b)** - the two-year season note (8D's season entry has the

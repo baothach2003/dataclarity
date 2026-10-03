@@ -17,3 +17,16 @@ def pytest_configure(config: pytest.Config) -> None:
     if any(invocation_dir.is_relative_to(path) for path in testpaths):
         return
     config.args = [str(path) for path in testpaths]
+
+
+# Thach, 2026-10-02: the slow suites carry a marker so a quick run can leave
+# them out (`pytest -m "not slow_suite"`); plain `pytest` still runs everything,
+# and that is what runs before every commit. By path, so no test file changes.
+SLOW_SUITES = ("tests/scenarios/", "tests/data_failures/", "tests/stages/diagnose/test_3e2_")
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    for item in items:
+        path = item.path.relative_to(config.rootpath).as_posix()
+        if path.startswith(SLOW_SUITES):
+            item.add_marker(pytest.mark.slow_suite)

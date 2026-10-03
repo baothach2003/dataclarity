@@ -45,7 +45,7 @@ def diagnose(session: Session, run_id: str, *, settings: Settings, work: RunWork
     run_state.require_status(run, *DIAGNOSABLE_STATUSES, step="diagnose")
     _require_run_files(runs_root, run_id)
 
-    with work.execution(run_id):
+    with work.execution(run_id), work.heavy():
         try:
             # The forecast and the report describe the diagnosis this run
             # replaces: set aside around its rename (as stage 2's).

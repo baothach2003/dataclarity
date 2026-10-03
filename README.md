@@ -92,12 +92,28 @@ main ones:
 - **No verdict on whether a month was unusual.** A month is compared with
   the same month a year earlier; the file rarely holds enough years for a
   robust verdict (`docs/adr/0007-no-step4-verdicts-in-v1.md`).
-- **Numbers written for people are not read.** A price with a thousands
-  separator ("1,000.00"), a currency sign ("$10.00") or a decimal comma
-  ("10,5") is counted nowhere: its lines are listed as unmeasurable, but
-  the revenue shown beside them silently leaves them out. Export plain
-  numbers (`docs/DATA_FAILURE_MODES.md`, which lists every input shape and
-  how it is handled).
+- **Numbers written for people are read only when the file says how.** A
+  price with a thousands separator ("1,000.00"), a currency sign ("$10.00")
+  or a decimal comma ("10,5") is read at upload - from the cells that prove
+  the format; when nothing in the column says whether "1,000" is one
+  thousand or one, Review asks and cleaning waits for the answer. Indian
+  grouping ("1,00,000") and a currency code ("USD 10") are not read: their
+  lines are listed as unmeasurable
+  (`docs/DATA_FAILURE_MODES.md` lists every input shape and how it is
+  handled).
+- **A mistyped year is caught only when it lands after the upload.** A line
+  dated after the day the file was uploaded (a 2042 for 2024) is left out of
+  choosing the months compared, counted and reported beside the dates the
+  file covers. A typo that lands between the data and the upload (a 2025 in
+  a 2024 file) cannot be told from a late sale: it moves the period, and the
+  run says the export was cut short.
+- **Walk-in placeholders are only marked until confirmed.** A customer value
+  such as "Guest" that Review asked about and nobody answered stays a
+  customer - it cannot be told from a customer called Guest - and is marked
+  "suggested, not confirmed" beside the customer figures and the causes.
+- **Exact copies of a line are kept.** A repeated line cannot be told from a
+  genuine repeat sale, so the AI never proposes removing them; Review offers
+  it, and says how many lines and how much revenue removing them takes.
 - **A small change names no cause.** The headline singles a cause out only
   when the month moved at least twice the shop's median month-to-month
   movement; inside that it says the change is within the shop's usual range
@@ -136,7 +152,11 @@ main ones:
   13 times the file's size; the analysis and the diagnosis reach 680-780
   MB), and keeps about 300 MB of caches between steps. One 50 MB file needs
   about 1 GB; each run processed at the same time adds about 0.5-0.7 GB
-  (`PROJECT_PLAN.md` Phase 9).
+  (`PROJECT_PLAN.md` Phase 9). The peak grows with the file: about 330 MB at
+  5 MB, 390 MB at 10 MB, 560 MB at 20 MB. `MAX_UPLOAD_MB`,
+  `PREVIEW_CACHE_MAX_MB` and `MAX_CONCURRENT_HEAVY_STEPS` (profiling,
+  Review's summary, cleaning, the analysis and the diagnosis; one at a time
+  by default - a step over the limit waits) bound it.
 
 ## Demo data
 
