@@ -134,15 +134,15 @@ def test_the_context_cause_is_gated_too() -> None:
     assert choose_headline(_trust(), hypotheses, None, _moved(INSIDE)).rule == 7
 
 
-def test_too_short_a_history_keeps_the_cause_and_says_the_size_is_unknown() -> None:
-    """The standing rule's shape (CLAUDE.md 3.3a): the data cannot tell whether
-    the change is ordinary, so the existing headline stands, and says so."""
+def test_too_short_a_history_names_no_cause() -> None:
+    """Thach, 2026-10-03 (decision 5; was: the cause stood and said the size
+    could not be said): without enough history the engine cannot tell a cause
+    from noise, and naming one is still a guess - S11 plants nothing and
+    named one in 30 of 30 seeds."""
     headline = choose_headline(_trust(), _all(_h("B1", "supported", 12.0, 1.0)), None, _moved(SHORT))
-    assert (headline.rule, headline.hypothesis_id) == (6, "B1")
-    assert headline.message.endswith(
-        "(lever lens, 100% of the change). Whether this change is larger than this shop's usual "
-        "month-to-month movement cannot be said: only 4 month-to-month changes before it can be "
-        "measured, and 7 are needed.")
+    assert (headline.rule, headline.hypothesis_id, headline.lens, headline.movement) == (7, None, None, SHORT)
+    assert headline.message == ("Revenue went from 1,000.00 to 1,012.00 (+12.00). "
+                                "The history is too short to tell whether this change is larger than this shop's ordinary month-to-month movement (only 4 month-to-month changes before it can be measured, and 7 are needed); the table shows what each hypothesis measured.")
 
 
 def test_rules_1_to_4_are_not_gated() -> None:
@@ -215,9 +215,21 @@ def test_nothing_supported_with_too_short_a_history_adds_no_size_sentence() -> N
     assert headline.rule == 7 and "cannot be said" not in headline.message and headline.movement == SHORT
 
 
-def test_a_context_cause_with_too_short_a_history_says_the_size_is_unknown() -> None:
+def test_a_context_cause_with_too_short_a_history_is_not_named_either() -> None:
     headline = choose_headline(_trust(), _all(_h("T2", "supported", 12.0, 1.0)), None, _moved(SHORT))
-    assert headline.rule == 5 and headline.message.endswith("and 7 are needed.")
+    assert (headline.rule, headline.hypothesis_id) == (7, None)
+    assert "too short to tell" in headline.message
+
+
+def test_a_change_with_no_percentage_keeps_its_cause_and_says_the_size_is_unknown() -> None:
+    # Outside decision 5 (too short only): the test cannot run for another
+    # reason, the cause stands and says so, as before.
+    nopct = HeadlineMovement(change_pct=None, typical_pct=None, movements=23, factor=2.0, singled_out=None,
+                             reason="this month's change has no percentage: the previous month had no revenue")
+    headline = choose_headline(_trust(), _all(_h("B1", "supported", 12.0, 1.0)), None, _moved(nopct))
+    assert (headline.rule, headline.hypothesis_id) == (6, "B1")
+    assert headline.message.endswith("cannot be said: this month's change has no percentage: the previous "
+                                     "month had no revenue.")
 
 
 @pytest.mark.parametrize("fields", [

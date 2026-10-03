@@ -11,7 +11,7 @@ import pytest
 
 from contracts.forecast import ForecastBlock
 from stages.predict.forecast import forecast
-from stages.predict.seasonality import RAMP_NOTE, TWO_YEAR_NOTE, season_reading
+from shared.seasonality import RAMP_NOTE, TWO_YEAR_NOTE, season_reading
 from tests.stages.predict.forecast_fixtures import NONE, SEASON, SEASONAL, metrics_for, months_from
 
 
@@ -153,7 +153,7 @@ def test_every_history_length_has_its_years(months: int, years: int, note: str |
 def test_the_minimum_is_the_contracts_one_copy() -> None:
     # Review 2 #4: stage 4 and the model read one minimum (SPECS 7.5).
     from contracts.forecast import MIN_SEASON_YEARS
-    from stages.predict.seasonality import SEASONAL_MIN_MONTHS
+    from shared.seasonality import SEASONAL_MIN_MONTHS
 
     assert (MIN_SEASON_YEARS, SEASONAL_MIN_MONTHS) == (2, 24)
 
@@ -187,7 +187,7 @@ def test_a_report_written_before_is_refused_build_the_report_again() -> None:
     del old["layer_3_actions"]["forecast"]["season_years"]
     with pytest.raises(ValidationError, match="build the report again"):
         ReportContract.model_validate(old)
-    assert build().schema_version == "2.2"  # 2.2 since 2E-u6 (the lines after the upload); 2.1 since 3E1b (the headline's optional movement)
+    assert build().schema_version == "2.3"  # 2.3 since 3E1b-F1 (b), the hypotheses note; 2.2 since 2E-u6 (the lines after the upload); 2.1 since 3E1b (the headline's optional movement)
 
 
 def test_the_cli_answers_a_forecast_of_the_version_before_with_run_the_prediction_again(
@@ -275,7 +275,7 @@ def test_the_model_keys_the_note_on_the_two_years_not_the_minimum(monkeypatch: p
 
 
 def test_stage_4_keys_the_note_on_the_two_years_not_the_minimum(monkeypatch: pytest.MonkeyPatch) -> None:
-    import stages.predict.seasonality as seasonality
+    import shared.seasonality as seasonality
 
     monkeypatch.setattr(seasonality, "MIN_SEASON_YEARS", 3)
     values = [100 * p for p in SEASON * 2]

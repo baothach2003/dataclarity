@@ -9,7 +9,7 @@ import math
 import pytest
 
 from stages.predict.forecast import forecast, horizon_errors
-from stages.predict.seasonality import season
+from shared.seasonality import season
 from tests.stages.predict.forecast_fixtures import SEASON, SEASONAL, T, metrics_for, months_from
 
 # Year 1 is 100 x SEASON; year 2 the same with November 30% higher (208).

@@ -49,7 +49,9 @@ COLUMNS = ["Date", "Cust", "Sku", "Name", "Qty", "Price"]
 
 
 def _days():
-    day = date(2026, 3, 1)
+    # From November: eight month-to-month movements before August, enough for
+    # the headline's size test (Thach, 2026-10-03: too short names no cause).
+    day = date(2025, 11, 1)
     while day <= date(2026, 8, 31):
         yield day
         day += timedelta(days=1)
@@ -94,10 +96,7 @@ def test_a_promotion_month_headlines_the_discounts_not_a_mix_sliver() -> None:
     assert (headline.rule, headline.hypothesis_id) == (6, "P4")
     assert headline.message == (
         "Revenue went from 1,550.00 to 770.00 (-780.00). The best-supported explanation: "
-        "discounts and other deductions took more revenue away (returns lens, 99% of the change). "
-        # 3E1b: a five-month file is too short for the size test, and says so.
-        "Whether this change is larger than this shop's usual month-to-month movement cannot be said: "
-        "only 4 month-to-month changes before it can be measured, and 7 are needed.")
+        "discounts and other deductions took more revenue away (returns lens, 99% of the change).")
 
 
 def test_a_month_of_cheaper_postage_headlines_the_charges_not_a_mix_sliver() -> None:

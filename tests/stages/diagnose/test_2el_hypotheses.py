@@ -37,7 +37,8 @@ MAPPING = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price",
 
 
 def _shop(kind: str, p0_change: int = 0) -> pd.DataFrame:
-    rows, day, i = [], date(2026, 3, 1), 0
+    # From November: enough history for the headline's size test (decision 5).
+    rows, day, i = [], date(2025, 11, 1), 0
     customers = [f"C{n}" for n in range(12)]
     while day <= date(2026, 8, 31):
         for k in range(6):

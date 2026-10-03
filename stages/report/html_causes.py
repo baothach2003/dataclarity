@@ -71,6 +71,10 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
              esc(h.rule), items(f"{esc(k)}: {esc(evidence_value(v, causes.suggested_classes))}"
                                 for k, v in h.evidence.items())]
             for h in causes.hypotheses]
+    if causes.hypotheses_note:
+        # Above the table it qualifies (decision 4): the verdicts describe a
+        # change too small, or a history too short, to single one out.
+        parts.append(para(causes.hypotheses_note, "reason"))
     parts.append(table(["ID", "Hypothesis", "Verdict", "Contribution", "Share", "Rule", "Evidence"], rows,
                        "Every hypothesis tested, the ruled-out ones included"))
     if causes.not_testable:

@@ -758,6 +758,76 @@ dataclarity/
       `D1_SPREAD_K` 2.5 is PROVISIONAL: neither 2.5 (random closures at 18
       months 5.4%) nor 3.0 (a gap behind half-gapped history 91% at 24 months,
       weaker detection) meets the method's rule on every cell.
+      **DECIDED (Thach, 2026-10-03; twelfth run):** (1) 3E1b-F1 - **option
+      (b)**, "the error was mine": measuring the typical movement on RAW
+      month-over-month changes counts a seasonal shop's season as noise, so
+      the demo's 2011-11 (+27.2%, a real season) was gated as "within the
+      usual range". The gate asks whether the change exceeds noise, and noise
+      must be measured net of what the engine already explains: when a
+      season is claimed by 4A's existing rule (the same definition, no new
+      threshold), the typical movement is measured on changes net of the
+      season; otherwise on raw changes as now. NOT option (c): the 3E2-F2
+      measurement showed noise fits as closely as a real season (0.085
+      against 0.218). STOP if 2011-11 does not get its seasonality headline
+      back, or nothing-planted scenarios name a cause in more than 3 of 30
+      seeds; report the demo's rule-7 count before and after. (2) 3E1b-K -
+      **D1_SPREAD_K = 2.5, final**, by the asymmetry rule: a false caution
+      only adds a badge and never changes the headline; a missed gap can let
+      the headline blame the season. The 5.4% cell (random 3% closures at 18
+      months) becomes a known limit (8D).
+      **Twelfth run (2026-10-03): (1) STOPPED by its own condition.** Built
+      (method C:\Users\Happy\3E1b-F1-method.txt, amendment 1 before
+      measuring: the demo's 2011-11 has 23 complete months before it, under
+      4A's 24, so the season is read on the months THROUGH the current one,
+      the forecast's own claim): 4A's rule moved to `shared/seasonality.py`
+      unchanged; the typical movement net of a claimed season;
+      `headline.movement.net_of_season`. 2011-11 got its seasonality headline
+      back (rule 5, T2; typical 4.2% net against 16.2% raw) and the suite's S0
+      named a cause in 1 of 30 - but S0's store never claims a season, so it
+      never tested the change. Review 1 ran S0 in a SEASONAL store (August
+      and September at equal indices): a cause named in 9 of 30 seeds, 0
+      before (the limit is 3); every month pair of that store 31 of 39, 10
+      before. Why: the change is judged raw (month length and season in it)
+      against a typical measured net; the season is fitted on the same two
+      years whose movements it measures (the typical understated, median
+      0.74x). Variant (a), the change netted too, measured not shipped:
+      seasonal S0 still 5 of 30 and 2011-11 loses its headline (-4.6% net
+      inside 4.2%). Neither meets both conditions - Thach decides (options in
+      the twelfth run's report). Uncommitted. (2) built: the comment says
+      final.
+      **DECIDED (Thach, 2026-10-03, on the twelfth report):** the shipped form
+      is never committed (it fails his limit, 9 of 30); its gate change is
+      reverted, the move of 4A's rule to `shared/seasonality.py` kept (no
+      behaviour change). **Decision 1 redesigned: a stated FACT, with no
+      seasonal index estimated at all** - it never fits a season to the
+      months it measures, so the overfitting found (0.74x) cannot happen, and
+      it needs no third year. The season switch is 4A's existing rule,
+      computed ONCE by the shared function on the SAME history window for
+      stages 3 and 4, so the report can never say "net of the season" beside
+      "no seasonality claimed" (review F4). When a season is claimed, this
+      month's change is compared with the SAME calendar month's change a year
+      earlier (with 3+ years, the median of the earlier years' same-month
+      changes); the typical size of that year-on-year difference is measured
+      over the other months, each compared only with its own year-ago month
+      (a difference of two noisy changes is larger than one change's noise:
+      the cautious side). Within the gate's factor (2) of that typical size,
+      the headline states the fact ("Revenue rose 27.2%, in line with last
+      November's rise of 25.0%: the change matches the season; no other cause
+      is singled out" - a new headline form, additive to the consumer
+      contract). Clearly different: the difference is what needs explaining
+      and the ranking rules apply as today (review F2's case - a strong season
+      with 30% of customers lost in November - must reach the customer cause:
+      a test). No season claimed: the raw gate as now. A seasonal
+      nothing-planted scenario (August and September at equal indices) joins
+      the suite: "in line with the season" or "within the usual movement",
+      never a cause. STOP if 2011-11 does not get the season-matching
+      headline, or the seasonal or the non-seasonal nothing-planted scenario
+      names a cause in more than 3 of 30 seeds; report the demo's rule-7
+      count before and after and every demo month pair whose headline
+      changes. Decisions made alone in the twelfth run accepted (amendment 1,
+      R3 not accepted beside S3, no percentage keeps the old behaviour, the
+      ranking tests' fixtures - the two bypasses review found unnecessary are
+      tidied). S1 at 23 of 30 decoys: a known limit, not relaxed (8D).
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -890,6 +960,14 @@ dataclarity/
       times - F2), S11 0 (too short for the size test: the cause stands with
       "cannot be said" - decided alone in 3E1b by the standing rule; the spec
       expects rule 7 - **Thach: should "too short" name no cause instead?**).
+      **DECIDED (Thach, 2026-10-03): S11, too short to size, names NO
+      cause.** Without enough history the engine cannot tell a cause from
+      noise, and naming one with "the size cannot be said" is still a guess;
+      S11 plants nothing, so it fabricated in 30 of 30 seeds. Headline: the
+      history is too short to tell whether this change is larger than
+      ordinary movement; the table shows what each hypothesis measured.
+      **S3's R3:** accepted only if R3 follows by definition from S3's
+      planted cause - the reasoning in the spec, the rule applied by Claude.
       A2 (S0 with nothing supported) 0/30 - the table is unchanged by Thach's
       F1 decision. A3 (one decoy in the suite) 0/30 - **STOPPED** (3E2-F3).
       A4 the masked alert: S6 29/30, nowhere else. F2 **STOPPED** (3E2-F2).
@@ -955,6 +1033,15 @@ dataclarity/
       For Thach: the criterion's arithmetic cannot pass while S0/S11's table
       is unchanged - drop S0/S11 from the decoy count, or state the criterion
       per scenario, or keep it failing.
+      **DECIDED (Thach, 2026-10-03):** when the size gate fires, the
+      hypothesis table carries ONE table-level note: the change is within the
+      shop's usual movement, so the verdicts below describe a change too small
+      to single out. Those verdicts are not false (the components did move
+      that much), so a note fits. S0 and S11 leave the decoy count; their
+      criterion becomes: no cause in the headline, and that note present.
+      Every other scenario's criterion is per scenario: at most one decoy
+      (outside its accepted consequences) in at least 25 of 30 seeds. Report
+      any scenario that fails; do not relax further.
 - [ ] 3E2-F2 **The context cause loses rule 5 to B1** (found by 3E2; Thach
       to decide). Rules 5 and 6 ranked under one fit (2E-o Q1): on the
       calendar (S1) B1 "customers bought less often" took the headline in
@@ -977,6 +1064,10 @@ dataclarity/
       seed 1, 0.915 of the change) and 0.087 (S0 seed 21) - noise fits as
       closely as the season. Kaggle 2024-12's T2 is 1.48 (0.48). Nothing built;
       the distributions are in scratchpad 3e2/analyse2.py's output.
+      **DECIDED (Thach, 2026-10-03): no context precedence.** The one-fit
+      ranking stays; the season losing the headline to B1 in S9 is a known
+      limit (8D; the table still shows T2). The measurement proved there is
+      no safe gap.
 - [x] 2E Stage 2 definitions (closed 2026-09-24; session log below). Three
       definitions stage 3 had exposed, each ONE shared definition in
       `shared/`: **an order is a sale row** (counted, quantity > 0) in both
@@ -3952,7 +4043,24 @@ dataclarity/
       text rendered escaped, SPECS SEC-3). Always-on notes once, in "How to
       read these figures", as stage 5 does (Thach, 2026-09-29, adjustment 1);
       notes rendered by code (adjustment 2)
+      **Design gap decisions (Thach, 2026-10-03; the review:
+      `C:\Users\Happy\design-gap-review.txt`):** REMOVE as listed - KPI
+      deltas other than revenue's, the AI narrative headline (3F not built),
+      the recommendation cards (off in v1), the weekly forecast (it is
+      monthly), every stock figure. The full hypothesis table replaces the
+      two-column diagnosis card (verdicts, not-testable, the table note);
+      "How to read these figures" is one card at the end of Insights; notes on
+      KPI cards are a small marker on the card that reveals the note, not
+      inline text; the monthly revenue chart: yes; "lines in no figure": yes,
+      in the data-quality section; the signals table is NOT in the v1 UI
+      (descriptive only since ADR-0007 - shown, it reads as an alert; it stays
+      in the downloadable report). Claude builds the ADD items with the
+      existing components and design tokens, following FIGMA_DESIGN_NOTES;
+      Thach reviews them in the browser, not in new frames. The CHANGE column
+      applies as listed in the review.
 - [ ] 6F Dashboard page: charts + low-stock table + report download
+      **OUT of v1 (Thach, 2026-10-03):** without stock it repeats Insights -
+      into the v2 item (Backlog), with Phase 7.
       **Stock assumption (Thach, 2E-g):** 2C derived stock on hand from the
       file's own stock-in lines ("net in minus out, floored at 0"), which
       assumed files with inbound movements - most POS exports are sales
@@ -3974,6 +4082,9 @@ dataclarity/
 - **DoD:** a non-technical user completes upload -> report without instructions
 
 ### Phase 7 - Import and Persistence
+> **OUT of v1 (Thach, 2026-10-03), into the v2 item (Backlog):** the
+> Dashboard (6F) and this import go together. Phase 7 is the project's SQL
+> showcase (PostgreSQL), to be built after deploy.
 - [ ] 7A Alembic migrations for `products`, `transactions` (`runs` is done in
       1A2)
 - [ ] 7B Import service: approved clean data -> canonical tables, upsert by
@@ -4541,8 +4652,22 @@ dataclarity/
         not seen (a SUPPRESS, the safe side).
       - the size gate: causes whose effect sits inside ordinary noise (the
         calendar, a short stockout) are left to the table (Thach, with F1); a
-        seasonal retailer's movements are its season (3E1b-F1, for Thach); a
-        history under 8 months cannot be gated and says so.
+        history under 8 months names no cause (Thach, 2026-10-03: too short
+        to tell a cause from noise). A season 4A's rule does not claim (under
+        two full years, a gap under 40%, years that disagree, a ramp) is
+        measured raw, so its own swings still count as noise (3E1b-F1 (b)
+        nets only a claimed season).
+      - D1_SPREAD_K 2.5 final (Thach, 2026-10-03, the asymmetry rule): a shop
+        closed on 3% of days at random cautions 5.4% of the time at 18
+        months with nothing missing - a badge only, never the headline.
+      From the twelfth run (Thach, 2026-10-03):
+      - 3E2-F2: no context precedence - where the calendar or the season
+        works through customers buying less often, B1 fits closer and takes
+        the headline (S9's planted season, S1's calendar); the table still
+        shows the context cause (T1, T2).
+      - S1 (the calendar): more than one decoy in 7 of 30 seeds (T2 9, P2 9,
+        C1 4 across them) - its per-scenario criterion is met in 23 of 30, not
+        25 (Thach, 2026-10-03: a known limit, not relaxed).
       From 2E-u (Thach, 2026-10-02: F2 and F7 are known limits):
       - F2: two-digit year-first dates ("24/02/10") are read day-first with
         no question - the calendar lands in 2001-2031 and the headline names
@@ -4714,6 +4839,10 @@ dataclarity/
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
 
+**v2: the Dashboard and the PostgreSQL import** (Thach, 2026-10-03): 6F and
+Phase 7 (7A-7C), out of v1 - without stock the Dashboard repeats Insights.
+Phase 7 is the project's SQL showcase, to be built after deploy.
+
 **v2: the stock ledger and source signals** (Thach, 2026-09-28, the v1 scope
 cut of the line taxonomy - `docs/LINE_TAXONOMY.md`). v1 analyses sales, not
 inventory: every stock KPI (days to stockout, velocity, any low-stock figure,
@@ -4869,6 +4998,19 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Twelfth overnight run** (2026-10-03; Thach's decisions on the eleventh
+report recorded with their reasons at 3E1b, 3E2's S11, 3E2-F2 and 3E2-F3). The
+waiting commit (memory settings + marker) pushed as 14ab008 after a full run
+(4399 passed). Decision 1 (3E1b-F1 option b) STOPPED by its own condition -
+the 3E1b item. Built, UNCOMMITTED: decisions 2 (K final), 4 (the hypotheses
+note, diagnosis.json 18.1, report.json 2.3), 5 (too short names no cause), 6
+(R3 beside S3 not accepted: it follows by chance, not by definition); 3
+recorded in 8D. The 3E2 re-run (seeds 1-30, the new criteria): every scenario
+passes but S1's decoys (23 of 30) - reported, not relaxed. The design gap
+review: `C:\Users\Happy\design-gap-review.txt`. Stopped for Thach's
+approval, before 3F, any deploy step and any real AI call. Report:
+`C:\Users\Happy\overnight-report.txt` (the eleventh run's as
+`overnight-report-run11.txt`).
 **Eleventh overnight run** (2026-10-02; Thach's decisions on the tenth report
 recorded with their reasons at 3E2-F1/F2/F3, 2E-u's F1-F7, Phase 9's memory
 and test-time notes). Done: **3E1b** (D1's pattern, 2E-u F5, the headline

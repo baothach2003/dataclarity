@@ -40,6 +40,10 @@ class Expected:
     rule: int | None = None  # the headline rule
     names: str | None = None  # the cause it names: a hypothesis id (rule 6) or T1/T2 (rule 5)
     supported: str | None = None  # instead of a headline: this hypothesis supported (S10)
+    # Thach, 2026-10-03 (decision 4): nothing planted - no cause in the
+    # headline AND the hypothesis table's note present (the change within the
+    # usual movement, or a history too short to tell).
+    table_note: bool = False
 
 
 @dataclass(frozen=True)
@@ -50,6 +54,10 @@ class Scenario:
     implied: frozenset[str]
     build: Callable[[int], pd.DataFrame] = field(repr=False)
     consequences: frozenset[str] = frozenset()
+    # Thach, 2026-10-03 (decision 4): S0 and S11 plant nothing and leave the
+    # decoy count - their table keeps every verdict (3E2-F1), and the note
+    # says what those verdicts describe.
+    counts_decoys: bool = True
 
 
 def _sep(day: int) -> date:
@@ -161,19 +169,22 @@ _FEWER_ORDERS = frozenset({"B1", "C2", "C3"})
 # have been it buys nothing that month (C2: counted lapsed). No substitute is
 # drawn (store.py), so both follow from the plant itself.
 _LOST_PRODUCT_ORDERS = frozenset({"B1", "C2"})
-# R3 reads only sales days ("may have run out of stock", verify on the shelf):
-# a product picked a third as often goes its zero-run of trading days without
-# a sale by construction of R3's definition. Flagged for Thach's veto - its
-# statement is about stock, not the demand that moved; the re-run reports the
-# decoys with and without it.
-FLAGGED_CONSEQUENCES = {"S3": frozenset({"R3"})}
+# R3 for S3 - NOT accepted (Thach, 2026-10-03, decision 6: "only if R3
+# follows by definition from S3's planted cause"; applied by Claude). S3 picks
+# the five dearest products of each category a third as often: that lowers
+# each one's daily chance of a sale, and R3 needs one to go
+# R3_MIN_ZERO_RUN_DAYS consecutive trading days without one. Whether that
+# happens depends on the product's own rate and the seed's draws - the 30-seed
+# re-run found R3 supported on some seeds only - so it follows by chance, not
+# by definition. A consequence by definition holds whatever the draws (B1 and
+# C2 beside a lost product: the orders and customers whose only purchase it
+# was are gone by construction). R3 beside S3 is a decoy.
 
 SCENARIOS: tuple[Scenario, ...] = (
-    Scenario("S0", "nothing", Expected(rule=7), frozenset(), s0),
+    Scenario("S0", "nothing", Expected(rule=7, table_note=True), frozenset(), s0, counts_decoys=False),
     Scenario("S1", "calendar", Expected(rule=5, names="T1"), _FEWER_ORDERS | {"T1"}, s1),
     Scenario("S2", "like-for-like price cut", Expected(rule=6, names="P1"), frozenset({"P1"}), s2),
-    Scenario("S3", "mix shift", Expected(rule=6, names="P2"), frozenset({"P2"}), s3,
-             consequences=FLAGGED_CONSEQUENCES["S3"]),
+    Scenario("S3", "mix shift", Expected(rule=6, names="P2"), frozenset({"P2"}), s3),
     Scenario("S4", "lapsed customers", Expected(rule=6, names="C2"), frozenset({"C2"}), s4),
     Scenario("S5", "missing days", Expected(rule=2), _FEWER_ORDERS | {"D1"}, s5),
     Scenario("S6", "masked shift", Expected(rule=4), frozenset({"C2", "B2"}), s6),
@@ -186,5 +197,5 @@ SCENARIOS: tuple[Scenario, ...] = (
     # included (C1, C3 hold by their definitions).
     Scenario("S10", "x100 price error", Expected(supported="D2"), frozenset({"D2", "P1"}), s10,
              consequences=frozenset({"C1", "C3"})),
-    Scenario("S11", "nothing, 6 months", Expected(rule=7), frozenset(), s11),
+    Scenario("S11", "nothing, 6 months", Expected(rule=7, table_note=True), frozenset(), s11, counts_decoys=False),
 )

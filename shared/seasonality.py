@@ -1,5 +1,7 @@
-"""Stage 4 Predict - whether the history holds a season, and its indices
-(docs/SPECS.md 7.5; docs/CONTRACTS.md section 8). Split from forecast.py.
+"""Whether a history holds a season, and its indices - one definition for stage 4's
+forecast (docs/SPECS.md 7.5; docs/CONTRACTS.md section 8) and stage 3's headline size
+test, which measures ordinary movement net of a claimed season (Thach, 2026-10-03,
+3E1b-F1 (b)); moved here from stages/predict unchanged (CLAUDE.md 3.1).
 
 A season is claimed only when every test holds (SPECS 7.5 and session 4A's
 reviews): two full years; every month positive; measured against the

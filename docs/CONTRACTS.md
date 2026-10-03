@@ -1377,9 +1377,16 @@ complete months, in percent, the number of movements measured, the factor
 (2.0); `singled_out` true when |change| reaches factor x typical, false
 when it does not (then `rule` is 7: no cause singled out, the change within
 the shop's usual range), null with `reason` when the test could not run
-(fewer than 7 movements, or no percentage for the change) - rules 5-7 then
-stand and the message says the size cannot be judged. Null for rules 1-4,
-and in a report.json written before 18.0. A consumer decides on `rule` and
+(fewer than 7 movements, or no percentage for the change). Fewer than 7
+movements names NO cause (Thach, 2026-10-03): a rule-5/6 headline becomes
+rule 7, "the history is too short to tell whether this change is larger
+than ordinary movement; the table shows what each hypothesis measured"; no
+percentage for the change keeps rules 5-6, the message saying the size
+cannot be judged. **`hypotheses_note`** (18.1): the hypothesis table's one note when
+the size test kept every cause out of the headline - within the usual
+movement, or a history too short to tell - null otherwise; stage 5 shows
+it above the table (report.json 2.3, `layer_2_causes.hypotheses_note`).
+Null for rules 1-4, and in a report.json written before 18.0. A consumer decides on `rule` and
 `singled_out`, never on the message. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
 section 4. All money and share figures are floats; counts are integers.
@@ -1470,7 +1477,7 @@ verdict (`docs/AI_PIPELINE.md` section 7, step 8).
 }
 ```
 **The forecast as built (4A, `stages/predict/forecast.py` and
-`seasonality.py`; redesigned after each of its first two reviews, validated
+`shared/seasonality.py`; redesigned after each of its first two reviews, validated
 on swept series; its third review's limits are 8D's).** Revenue only
 (per-product demand served the stockout risk, not supported in v1). It reads
 metrics.json's `period` and `core.revenue_by_month` only (section 11).
@@ -1864,6 +1871,15 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-03: **Thach's decisions on the eleventh run, 4 and 5.** Optional
+  fields, minor: `diagnosis.json` `18.1` (`hypotheses_note`, the hypothesis
+  table's one note when the size test keeps every cause out of the headline)
+  and `report.json` `2.3` (`layer_2_causes.hypotheses_note`); section 11 row
+  added. A history too short for the size test now names no cause (rule 7)
+  - the same data can say something else, but no field changed meaning: a
+  rule-7 headline already meant "no cause singled out". 4A's season rule
+  moved to `shared/seasonality.py` unchanged (one definition for the stages
+  that will read it).
 - 2026-10-02: **session 2E-u3, an unanswered walk-in candidate marked
   "suggested, not confirmed" (Thach, 2E-u F3).** Optional fields, minor:
   the stage 1 contracts `4.2` (`confirmations.customer_not_placeholders`,
@@ -2635,6 +2651,7 @@ How the fields are read:
 | `headline.movement.factor` | `float (gt=0)` | 4B, 5, FE |
 | `headline.movement.singled_out` | `bool \| None` | 4B, 5, FE |
 | `headline.movement.reason` | `str \| None` | 4B, 5, FE |
+| `hypotheses_note` | `str \| None` | 5, FE |
 | `ai_findings` | `object \| None` | 5, FE |
 | `ai_findings.summary` | `str` | 5, FE |
 | `ai_findings.headline_explanation` | `str` | 5, FE |

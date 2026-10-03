@@ -115,6 +115,9 @@ def _once_each(codes: list[str]) -> None:
 
 class Causes(ContractModel):
     headline: Headline
+    # 2.3 (Thach, 2026-10-03): diagnosis.json's table note, shown above the
+    # hypothesis table; null in a 2.2 file.
+    hypotheses_note: str | None = None
     hypotheses: list[HypothesisView]
     not_testable: list[NotTestable]
     signals: list[SignalView] | None

@@ -331,12 +331,13 @@ CALENDAR_MIN_WEEKS = 8
 # smallest K keeping false cautions at or under 5% on every shape with
 # nothing missing (nine shapes x 40 seeds x 12 current months; scratchpad
 # 3e1b/fc.json): K 2.5 - worst 2.1% (a shop closed on 3% of days at random);
-# K 2.0 gave 6.0% there. PROVISIONAL since the two review cycles' fixes: re-run
-# through the shipped rule (d1_pattern.judge) over files of 4-36 months, K 2.5
-# gives 6.7% on that random-closure shop at 18 months, and K 3.0 detects a
-# 7-day gap behind half-gapped history months less (91% vs 99.8% at 24
-# months), so neither meets the rule on every cell - Thach decides (the 3E1b
-# method, "review 2"). The fixed 3 days / 10% it replaces cautioned 27% of
+# K 2.0 gave 6.0% there. Re-run through the shipped rule (d1_pattern.judge)
+# over files of 4-36 months, neither K met the rule on every cell: K 2.5 gives
+# 5.4% on that random-closure shop at 18 months, K 3.0 detects a 7-day gap
+# behind half-gapped history months less (91% vs 99.8% at 24 months). FINAL
+# at 2.5 (Thach, 2026-10-03) by the asymmetry rule: a false caution only adds
+# a badge and never changes the headline; a missed gap can let the headline
+# blame the season. The 5.4% cell is a known limit (PROJECT_PLAN 8D). The fixed 3 days / 10% it replaces cautioned 27% of
 # shops trading on 45% of days and 58% of seasonal shops with nothing
 # missing, and let two lost days pass in a shop that never misses one (2E-u
 # F5): one whole day beyond the pattern is now enough - in a shop whose

@@ -15,7 +15,7 @@ import math
 import pytest
 
 from stages.predict.forecast import forecast
-from stages.predict.seasonality import (
+from shared.seasonality import (
     RAMP_NOTE,
     _agreement,
     _cycles,

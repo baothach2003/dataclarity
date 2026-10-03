@@ -207,6 +207,7 @@ def causes(diagnosis: DiagnosisContract, orders_basis: str) -> Causes:
     labels = _SERIES_LABELS | (_SERIES_LINES_LABELS if orders_basis == "lines" else {})
     return Causes(
         headline=diagnosis.headline,
+        hypotheses_note=diagnosis.hypotheses_note,
         hypotheses=[HypothesisView(id=h.id, statement=h.statement, verdict=h.verdict, contribution=h.contribution,
                                    share=h.share, rule=h.rule, evidence=dict(h.evidence))
                     for h in diagnosis.hypotheses],

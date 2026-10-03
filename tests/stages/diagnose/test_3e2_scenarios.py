@@ -20,7 +20,9 @@ from tests.stages.diagnose.scenario_runs import SEVERAL, Outcome, outcome_of, ru
 BY_ID = {scenario.id: scenario for scenario in SCENARIOS}
 # What the engine says at the seed: (headline rule, the cause it names, every
 # supported hypothesis). Measured 2026-10-01 with MASKED_MIN_CONTRIBUTION_SHARE 0.25;
-# again 2026-10-02 after 3E1b (S0 and S7 changed: the size test).
+# again 2026-10-02 after 3E1b (S0 and S7 changed: the size test); again
+# 2026-10-03 after Thach's decisions on the eleventh run (S11: too short names
+# no cause).
 SAID = {
     "S0": (7, set(), {"B1", "P2", "T1"}),
     "S1": (6, {"B1"}, {"B1", "T1"}),
@@ -33,9 +35,9 @@ SAID = {
     "S8": (6, {"R2"}, {"B1", "R2"}),
     "S9": (6, {"B1"}, {"B1", "T2"}),
     "S10": (6, {"P1"}, {"D2", "P1"}),
-    "S11": (6, {"B1"}, {"B1", "P2", "T1"}),
+    "S11": (7, set(), {"B1", "P2", "T1"}),
 }
-MEETS_THE_SPEC = ("S0", "S2", "S3", "S4", "S5", "S6", "S8", "S10")
+MEETS_THE_SPEC = ("S0", "S2", "S3", "S4", "S5", "S6", "S8", "S10", "S11")
 
 
 @pytest.fixture(scope="module")
@@ -62,16 +64,18 @@ def test_f1_a_month_with_nothing_planted_names_no_cause(outcomes: dict[str, Outc
     outcome = outcomes["S0"]
     assert (outcome.rule, outcome.named, outcome.supported) == (7, set(), {"B1", "P2", "T1"})
     assert "within this shop's usual month-to-month range" in outcome.message
+    assert outcome.noted  # decision 4: the table's note says what those verdicts describe
 
 
-def test_known_limit_six_months_are_too_short_for_the_size_test(outcomes: dict[str, Outcome]) -> None:
-    """KNOWN LIMIT (3E1b, the standing rule's shape): S11's six complete
-    months give 4 month-to-month changes before the current one, 7 needed -
-    the size test cannot run, so rule 6 stands and says so."""
+def test_six_months_are_too_short_to_size_and_name_no_cause(outcomes: dict[str, Outcome]) -> None:
+    """Thach, 2026-10-03 (decision 5; was a known limit naming B1): S11's six
+    complete months give 4 month-to-month changes before the current one, 7
+    needed - too short to tell a cause from noise, so none is named, and the
+    table carries its note."""
     outcome = outcomes["S11"]
-    assert not outcome.meets(BY_ID["S11"])
-    assert (outcome.rule, outcome.named, outcome.supported) == (6, {"B1"}, {"B1", "P2", "T1"})
-    assert outcome.message.endswith("only 4 month-to-month changes before it can be measured, and 7 are needed.")
+    assert outcome.meets(BY_ID["S11"]) and outcome.noted
+    assert (outcome.rule, outcome.named, outcome.supported) == (7, set(), {"B1", "P2", "T1"})
+    assert "the history is too short to tell whether this change is larger" in outcome.message.lower()
 
 
 def test_known_limit_a_stockout_inside_ordinary_noise_names_no_cause(outcomes: dict[str, Outcome]) -> None:
@@ -85,25 +89,29 @@ def test_known_limit_a_stockout_inside_ordinary_noise_names_no_cause(outcomes: d
 @pytest.mark.parametrize("scenario_id,context", [("S1", "T1"), ("S9", "T2")])
 def test_known_limit_f2_the_mechanism_takes_the_context_causes_place(
         scenario_id: str, context: str, outcomes: dict[str, Outcome]) -> None:
-    """KNOWN LIMIT, 3E2-F2 (awaiting Thach). The spec: rule 5 naming the
-    calendar (S1) or the season (S9). Today the context cause is supported
-    but B1 - fewer orders from every customer, the way a calendar or a
-    season works - fits closer under the one fit of rules 5 and 6 (2E-o Q1)
-    and takes the headline: true, and it hides the cause."""
+    """KNOWN LIMIT, 3E2-F2 (decided by Thach, 2026-10-03: no context
+    precedence - the re-run proved there is no safe gap). The spec: rule 5
+    naming the calendar (S1) or the season (S9). The context cause is
+    supported but B1 - fewer orders from every customer, the way a calendar
+    or a season works - fits closer under the one fit of rules 5 and 6 (2E-o
+    Q1) and takes the headline: true, and it hides the cause; the table still
+    shows the context cause."""
     outcome = outcomes[scenario_id]
     assert not outcome.meets(BY_ID[scenario_id])
     assert context in outcome.supported and (outcome.rule, outcome.named) == (6, {"B1"})
 
 
 def test_the_scores_the_readme_quotes(outcomes: dict[str, Outcome], capsys: pytest.CaptureFixture[str]) -> None:
-    """The README quotes these: a change here is a change there. The spec
-    allows one decoy in the suite; today 6 - F1's six (Thach's F1 decision
-    gates the headline and keeps the table, so S0's and S11's noise verdicts
-    stay). C2 beside the stockout (S7) and B1 beside the discontinued
-    products (S8) are accepted consequences since Thach's 3E2-F3 decision
-    (scenarios.py). S10 meets its expectation by its
-    verdict (D2 supported), not by its headline, which names the price
-    change the x100 error made - 7 headlines name the planted cause."""
+    """The README quotes these: a change here is a change there. S0 and S11
+    leave the decoy count (Thach, 2026-10-03, decision 4: their criterion is
+    no cause and the table's note); every other scenario's criterion is at
+    most one decoy in 25 of 30 seeds (the 30-seed re-run). C2 beside the
+    stockout (S7) and B1 beside the discontinued products (S8) are accepted
+    consequences (3E2-F3); R3 beside S3 is not (decision 6: it follows by
+    chance, not by definition). S10 meets its expectation by its verdict
+    (D2 supported), not by its headline, which names the price change the
+    x100 error made - 8 headlines name what was planted, S0's and S11's
+    "nothing" included."""
     accuracy = sum(outcomes[s.id].meets(s) for s in SCENARIOS)
     by_headline = sum(outcomes[s.id].meets(s) for s in SCENARIOS if s.expected.supported is None)
     decoys = sorted((s.id, d) for s in SCENARIOS for d in outcomes[s.id].decoys(s))
@@ -111,8 +119,8 @@ def test_the_scores_the_readme_quotes(outcomes: dict[str, Outcome], capsys: pyte
     with capsys.disabled():
         print(f"\n3E2 suite at seed {SEED}: expectation met {accuracy}/12 ({by_headline} by the headline), "
               f"decoys {len(decoys)} {decoys}, false alarms {len(alarms)} {alarms}")
-    assert (accuracy, by_headline, alarms) == (8, 7, ["S11"])
-    assert decoys == [("S0", "B1"), ("S0", "P2"), ("S0", "T1"), ("S11", "B1"), ("S11", "P2"), ("S11", "T1")]
+    assert (accuracy, by_headline, alarms) == (9, 8, [])
+    assert decoys == []
 
 
 def test_the_masked_shift_fires_on_s6_only(outcomes: dict[str, Outcome]) -> None:
@@ -126,7 +134,7 @@ def test_a_tie_names_no_single_cause_and_counts_as_a_false_alarm() -> None:
     # contract does not list - scored conservatively, never as "named nothing".
     from types import SimpleNamespace as NS
 
-    tie = NS(headline=NS(rule=6, hypothesis_id=None, message="Equally well supported: ..."), tree=None,
+    tie = NS(headline=NS(rule=6, hypothesis_id=None, message="Equally well supported: ..."), tree=None, hypotheses_note=None,
              hypotheses=[NS(id="P1", verdict="supported"), NS(id="B1", verdict="supported")])
     outcome = outcome_of(BY_ID["S2"], tie)  # type: ignore[arg-type]  # a stub of the diagnosis
     assert outcome.named == {SEVERAL}
@@ -138,7 +146,7 @@ def test_missing_days_where_another_cause_was_planted_is_a_false_alarm() -> None
     # price cut says days were lost when none was.
     from types import SimpleNamespace as NS
 
-    lost_days = NS(headline=NS(rule=2, hypothesis_id=None, message="... days that have no sales ..."), tree=None,
+    lost_days = NS(headline=NS(rule=2, hypothesis_id=None, message="... days that have no sales ..."), tree=None, hypotheses_note=None,
                    hypotheses=[NS(id="D1", verdict="supported")])
     outcome = outcome_of(BY_ID["S2"], lost_days)  # type: ignore[arg-type]  # a stub of the diagnosis
     assert outcome.false_alarm(BY_ID["S2"]) and not outcome.false_alarm(BY_ID["S5"])
@@ -150,7 +158,7 @@ def test_a_blocked_run_is_no_false_alarm_where_a_data_problem_was_planted() -> N
     # does not.
     from types import SimpleNamespace as NS
 
-    blocked = NS(headline=NS(rule=1, hypothesis_id=None, message="The data cannot be diagnosed: ..."), tree=None,
+    blocked = NS(headline=NS(rule=1, hypothesis_id=None, message="The data cannot be diagnosed: ..."), tree=None, hypotheses_note=None,
                  hypotheses=[])
     for scenario_id, alarm in (("S10", False), ("S5", False), ("S2", True)):
         outcome = outcome_of(BY_ID[scenario_id], blocked)  # type: ignore[arg-type]  # a stub of the diagnosis

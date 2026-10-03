@@ -620,7 +620,8 @@ class HeadlineMovement(ContractModel):
     month's change at least `factor` times the shop's median month-over-month
     movement of complete months? Rules 5 and 6 single a cause out only when it
     is (`singled_out` true); false - rule 7, the change within the usual
-    range; null - the test could not run (`reason`), and rules 5-6 stand with
+    range; null - the test could not run (`reason`): too short a history names
+    no cause (rule 7, Thach 2026-10-03), no percentage keeps rules 5-6 with
     that said."""
 
     change_pct: float | None
@@ -755,6 +756,11 @@ class DiagnosisContract(ContractFile):
     hypotheses: list[Hypothesis]
     not_testable: list[NotTestable]
     headline: Headline
+    # 18.1 (Thach, 2026-10-03, decision 4): the hypothesis table's one note
+    # when the size test kept every cause out of the headline - the change
+    # within the shop's usual movement, or a history too short to tell
+    # (stages/diagnose/headline.hypotheses_note). Null otherwise and in 18.0.
+    hypotheses_note: str | None = None
     ai_findings: AiFindings | None
     # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5; an always-on note is
     # said once, section 3): metrics.json's notes,

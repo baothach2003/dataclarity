@@ -57,12 +57,26 @@ def _shop(p0_price: str, p0_days: int, refunds_july: int, refunds_august: int,
     return pd.DataFrame(rows, columns=COLUMNS)
 
 
+def _ranked(df, classes):
+    """The ranking alone: these shops' planted changes sit inside a flat
+    shop's own days-in-month movement, so the size gate (tested in
+    test_3e1b_headline_gate.py and test_3e1b_size_note.py) would keep
+    every cause out - since their history became long enough to measure it
+    (Thach, 2026-10-03, decision 5). A Changes with no movement is ungated."""
+    from dataclasses import replace
+
+    inputs, results, _ = _run(df, classes)
+    headline = choose_headline(inputs.trust, list(results.values()), inputs.tree,
+                               replace(changes(inputs), movement=None))
+    return inputs, results, headline
+
+
 def test_rule_6_ranks_by_the_share_of_the_net_change() -> None:
     # P0 at 6 on 10 days: P1 = -40; P7 sold 3 days in July only: R2 = -30;
     # gross 2,200 -> 2,130 (-70). 12 refunds at 5 in August: P3 = -60. Net
     # 2,200 -> 2,070 (-130). Gross is 54% of it and the products carry all of
     # it, so the gate is open under either reading.
-    inputs, results, headline = _run(_shop("6", 10, 0, 12, 0, p7_july_days=3), {})
+    inputs, results, headline = _ranked(_shop("6", 10, 0, 12, 0, p7_july_days=3), {})
 
     # P1 is 40 of 70 gross (0.57) but 40 of 130 net (0.31); P3 is 60 of 130.
     assert (results["P1"].verdict, results["P1"].contribution, results["P1"].share) == (
@@ -81,7 +95,7 @@ def test_the_gate_reads_the_products_share_as_breadth_does() -> None:
     # G - the refunds that stopped are the returns class, P3's). Under 2E-m's
     # reading, the products' net change -80 + 45 = 35%, the gate closed and
     # P4 was named; P1 is the closer cause (0.80 against 0.65).
-    inputs, results, headline = _run(_shop("2", 10, 9, 0, 13), {"D": "discount"})
+    inputs, results, headline = _ranked(_shop("2", 10, 9, 0, 13), {"D": "discount"})
 
     breadth = inputs.localization.breadth
     assert breadth.products_share_of_change == pytest.approx(0.80)

@@ -21,7 +21,7 @@ from shared.run_registry import run_file
 from stages.diagnose.calendar_effect import compute_calendar
 from stages.diagnose.catalog import NOT_TESTABLE
 from stages.diagnose.frame import build_frame, history_window
-from stages.diagnose.headline import choose_headline
+from stages.diagnose.headline import choose_headline, hypotheses_note
 from stages.diagnose.hypotheses import evaluate_hypotheses
 from stages.diagnose.inputs import RunData, load_run
 from stages.diagnose.lever import month_revenue
@@ -34,7 +34,7 @@ from stages.diagnose.trust import evaluate_trust
 
 # The major the engine writes (contracts/diagnosis.py's supported_major; its
 # comment says what each major changed).
-SCHEMA_VERSION = "18.0"
+SCHEMA_VERSION = "18.1"  # 18.1 (Thach, 2026-10-03): hypotheses_note - additive
 DIAGNOSIS_FILENAME = "diagnosis.json"
 
 
@@ -56,6 +56,7 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
             data, month_revenue(data, period.current) - month_revenue(data, period.previous))
     inputs = Step7Inputs(data, history, frame, trust, calendar, signals, tree, localization)
     hypotheses = evaluate_hypotheses(inputs)
+    headline = choose_headline(trust, hypotheses, tree, changes(inputs))
     return DiagnosisContract(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
@@ -68,7 +69,8 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
         localization=localization,
         hypotheses=hypotheses,
         not_testable=[NotTestable(**asdict(spec)) for spec in NOT_TESTABLE],
-        headline=choose_headline(trust, hypotheses, tree, changes(inputs)),
+        headline=headline,
+        hypotheses_note=hypotheses_note(headline),
         ai_findings=None,
         notes=stage_3_notes(data),
         suggested_classes=named_suggestions(data, localization, hypotheses),

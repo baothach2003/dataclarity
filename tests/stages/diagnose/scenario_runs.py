@@ -29,16 +29,22 @@ class Outcome:
     supported: frozenset[str]
     alert: bool
     message: str
+    noted: bool = False  # diagnosis.json's hypotheses_note is present (decision 4)
 
     def meets(self, scenario: Scenario) -> bool:
         expected = scenario.expected
         if expected.supported is not None:
             return expected.supported in self.supported
+        if expected.table_note:
+            return self.rule == 7 and not self.named and self.noted
         return self.rule == expected.rule and (expected.names is None or self.named == {expected.names})
 
     def decoys(self, scenario: Scenario) -> frozenset[str]:
         """Supported, but neither implied nor an accepted consequence of the
-        planted cause (Thach's 3E2-F3: both written in the spec)."""
+        planted cause (Thach's 3E2-F3: both written in the spec). None for a
+        scenario out of the decoy count (S0, S11: decision 4)."""
+        if not scenario.counts_decoys:
+            return frozenset()
         return self.supported - scenario.implied - scenario.consequences
 
     def false_alarm(self, scenario: Scenario) -> bool:
@@ -81,7 +87,8 @@ def outcome_of(scenario: Scenario, diagnosis: DiagnosisContract) -> Outcome:
     lever = diagnosis.tree.lever if diagnosis.tree is not None else None
     return Outcome(scenario.id, headline.rule, named,
                    frozenset(h.id for h in diagnosis.hypotheses if h.verdict == "supported"),
-                   bool(lever and lever.masked_shift_alert), headline.message)
+                   bool(lever and lever.masked_shift_alert), headline.message,
+                   noted=diagnosis.hypotheses_note is not None)
 
 
 def run(scenario: Scenario, seed: int) -> Outcome:

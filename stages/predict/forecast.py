@@ -4,7 +4,7 @@ section 8's `forecast` block). Computed by code, never by the AI.
 Interpretable on purpose: the next months' revenue is a weighted level of
 the latest three complete months (the latest counts most), times each
 calendar month's seasonality index when the history holds a season
-(`seasonality.py` says when it does). The 80% band at h months comes from
+(`shared/seasonality.py` says when it does). The 80% band at h months comes from
 the method's own h-months-ahead errors over the history - the log of
 actual over forecast when the recent months are positive (so the band
 stays above zero and a lag behind a trend counts), in money otherwise;
@@ -24,7 +24,7 @@ from scipy.stats import t as student_t
 from contracts.forecast import MIN_HISTORY_MONTHS, ForecastBlock, RevenuePoint
 from contracts.metrics import MetricsContract
 from shared.periods import complete_months, shift_month
-from stages.predict.seasonality import indices, season_reading
+from shared.seasonality import indices, season_reading
 
 HORIZON = 3  # months after the current one
 CONFIDENCE = 0.8

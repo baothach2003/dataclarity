@@ -26,9 +26,6 @@ from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.stages.diagnose.test_2el_review1 import COLUMNS, _days, _run
 from tests.stages.diagnose.test_headline import catalog, tree, trust
 
-# 3E1b: a five-month file is too short for the headline's size test, and says so.
-SHORT_HISTORY = ("Whether this change is larger than this shop's usual month-to-month movement cannot be "
-                 "said: only 4 month-to-month changes before it can be measured, and 7 are needed.")
 
 
 
@@ -268,10 +265,7 @@ def test_a_price_rise_against_a_refund_month_is_named_as_the_movement_up() -> No
     assert headline.message == (
         "Revenue went from 1,550.00 to 1,405.00 (-145.00). The change is what remains of movements in "
         "opposite directions, among them: down, returns took more revenue away (returns lens, -300.00); "
-        "up, like-for-like prices changed (product lens, +155.00). "  # 2E-o Q5 #1: signed, "among them"
-        # 3E1b: a five-month file is too short for the size test, and says so.
-        "Whether this change is larger than this shop's usual month-to-month movement cannot be said: "
-        "only 4 month-to-month changes before it can be measured, and 7 are needed.")
+        "up, like-for-like prices changed (product lens, +155.00).")  # 2E-o Q5 #1: signed, "among them"
 
 
 def test_the_no_fit_message_claims_no_fit_a_gated_cause_would_contradict() -> None:
@@ -382,7 +376,7 @@ def test_the_products_share_counts_their_sale_lines_not_their_refunds() -> None:
     assert (results["P2"].verdict, results["P2"].contribution) == ("supported", pytest.approx(-420.0))
     assert (results["P3"].verdict, results["P3"].contribution) == ("supported", pytest.approx(-200.0))
     assert (headline.rule, headline.hypothesis_id) == (6, "P3")
-    assert headline.message.endswith("(returns lens, 51% of the change). " + SHORT_HISTORY)
+    assert headline.message.endswith("(returns lens, 51% of the change).")
 
 
 def test_r1_names_the_product_whose_revenue_moved_not_an_order_cancelled() -> None:

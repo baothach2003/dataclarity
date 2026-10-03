@@ -226,9 +226,9 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
     # only beyond twice the shop's median month-to-month movement - inside it
     # any decomposition of noise has a term holding a fifth of the change, and
     # every month with nothing planted named a cause (30 of 30 seeds). The
-    # verdicts and the table are untouched. Untestable (too short a history,
-    # no percentage): rules 5-7 stand and say so - the data cannot tell
-    # (CLAUDE.md 3.3a's shape).
+    # verdicts and the table are untouched. Too short a history names no
+    # cause (Thach, 2026-10-03); no percentage: rules 5-7 stand and say so -
+    # the data cannot tell (CLAUDE.md 3.3a's shape).
     gate = moved.movement
     found = _ranked(hypotheses, by_id, moved, change)
     # Only a cause singled out is gated: a rule 7 keeps its own sentence and
@@ -242,11 +242,46 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
                                 f"movement of about {gate.typical_pct:.{places}f}% over the "
                                 f"{gate.movements} month-to-month changes before it. No single cause "
                                 "is singled out.")
+    if gate is not None and gate.singled_out is None and gate.change_pct is not None and found.rule in (5, 6):
+        # Too short to size names NO cause (Thach, 2026-10-03, decision 5): the
+        # engine cannot tell a cause from noise, and naming one with "the
+        # size cannot be said" is still a guess - S11 plants nothing and named
+        # one in 30 of 30 seeds.
+        return Headline(rule=7, hypothesis_id=None, lens=None, movement=gate,
+                        message=f"{change} The history is too short to tell whether this change is larger "
+                                f"than this shop's ordinary month-to-month movement ({gate.reason}); the table "
+                                "shows what each hypothesis measured.")
     if gate is not None and gate.singled_out is None and found.rule in (5, 6):
+        # A change with no percentage: the test cannot run for another reason
+        # - the cause stands and says so (3E1b, outside decision 5).
         found = found.model_copy(update={"message": (
             f"{found.message} Whether this change is larger than this shop's usual month-to-month "
             f"movement cannot be said: {gate.reason}.")})
     return found.model_copy(update={"movement": gate})
+
+
+WITHIN_NOTE = ("This month's change is within the shop's usual month-to-month movement, so the verdicts below "
+               "describe a change too small to single out: each shows what its hypothesis measured, and none is "
+               "named as the cause.")
+TOO_SHORT_NOTE = ("The history is too short to tell whether this change is larger than ordinary movement, so the "
+                  "verdicts below describe a change that cannot be singled out: each shows what its hypothesis "
+                  "measured, and none is named as the cause.")
+
+
+def hypotheses_note(headline: Headline) -> str | None:
+    """The hypothesis table's one note when the size test kept every cause
+    out of the headline (Thach, 2026-10-03, decision 4): the verdicts are not
+    false - the components did move that much - but they describe a change
+    too small, or a history too short, to single one out. Rules 1-4 judge
+    something else and carry none."""
+    gate = headline.movement
+    if headline.rule != 7 or gate is None:
+        return None
+    if gate.singled_out is False:
+        return WITHIN_NOTE
+    if gate.singled_out is None and gate.change_pct is not None:
+        return TOO_SHORT_NOTE
+    return None
 
 
 def _places(change_pct: float, typical_pct: float, factor: float) -> int:
