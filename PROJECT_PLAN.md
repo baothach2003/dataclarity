@@ -1062,6 +1062,20 @@ dataclarity/
       A4 the masked alert: S6 29/30, nowhere else. F2 **STOPPED** (3E2-F2).
       Seed pins hold (test_3e2_scenarios.py); the 30-seed rows: scratchpad
       3e2/sweep2.jsonl, analyse2.py. README and AI_PIPELINE 7.11 updated.
+      **RE-RUN 2026-10-04 after decision 1 (thirteenth run, b67e97b; S0-S13,
+      seeds 1-30, one scenario per process, sequentially; peak 219 MB).**
+      The headline meets the spec in (pass >= 25): S0 29, S2 29, S3 25, S4
+      30, S5 29, S6 29, S8 26, S10 30, S11 30, S12 30, S13 30; S1 2, S7 9
+      and S9 16 as before (recorded limits). At most one decoy per scenario
+      in 25+ of 30 for every scenario that counts decoys but S1 (23, a known
+      limit); the masked alert on S6 only (29 of 30). Identical to the
+      twelfth run's re-run for S0-S11 but one S9 seed: the only seed of S0-S11
+      where 4A claims a season, its month consistent with it - rule 7, "the
+      change is consistent with the season", where it named B1 before (S9's
+      spec expects rule 5 naming T2: still a miss, a truer one). A season
+      was compared on 1 S9 seed, all 30 of S12 (26 consistent, 4
+      inconclusive) and all 30 of S13 (30 shortfall). README updated. Rows:
+      thirteenth run scratchpad `demo/rerun.jsonl`, `rerun_report.py`.
 - [ ] 3E2-F1 **A month that barely moved names a cause** (found by 3E2;
       Thach to decide - a FABRICATE on the commonest shape there is, so it
       blocks the verdict sessions, 3F included). S0 and S11 plant nothing
@@ -5140,10 +5154,14 @@ of 30, S13 never C2); **Thach decided again (2026-10-04): option (A) plus a
 stated shortfall/excess** - built, its stop conditions measured on the
 final code (all pass), three review cycles, mutation, pytest 4474 - the
 3E1b item. Measured one heavy process at a time (peaks: stage 1 646 MB,
-stage 3 581 MB, a scenario run 211 MB). Next in the run: commit and push,
-the 3E2 re-run (S0-S13 over 30 seeds), then Phase 6. Stop before any deploy
-step and any real AI call. Report: `C:\Users\Happy\overnight-report.txt`
-(the run's first part as `overnight-report-run13.txt`).
+stage 3 581 MB, a scenario run 219 MB). Committed and pushed as b67e97b;
+the 3E2 re-run (S0-S13 over 30 seeds) done - the 3E2 item. **STOPPED before
+Phase 6** for one question: its first item, installing the Wave 3 skills,
+fetches and runs npm code from GitHub and needs the chrome-devtools MCP
+server configured - outward-facing and a change to the agent's own
+configuration, so it waits for Thach. Stop before any deploy step and any
+real AI call. Report: `C:\Users\Happy\overnight-report.txt` (the run's
+first part as `overnight-report-run13.txt`).
 **Twelfth overnight run** (2026-10-03; Thach's decisions on the eleventh
 report recorded with their reasons at 3E1b, 3E2's S11, 3E2-F2 and 3E2-F3). The
 waiting commit (memory settings + marker) pushed as 14ab008 after a full run

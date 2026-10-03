@@ -229,7 +229,10 @@ discontinued products 26; a mix shift 25; a season 16 (customers buying less
 often fits closer and takes the headline - the table still shows the season);
 a stockout 9 and the calendar 2 - their effect sits inside the store's
 ordinary month-to-month movement, so the headline names no cause and leaves
-them to the table. At most one decoy (a cause supported that was not
+them to the table. In a strongly seasonal store: nothing planted 30 (consistent
+with the season, or within the usual movement - never a cause); the season
+masking lapsed customers 30 (the shortfall against the season stated, its
+cause not named). At most one decoy (a cause supported that was not
 planted) in at least 25 of 30 seeds holds for every scenario but the
 calendar (23 of 30), a known limit (`PROJECT_PLAN.md` 8D).
 
