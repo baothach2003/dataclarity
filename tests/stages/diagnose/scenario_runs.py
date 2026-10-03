@@ -30,13 +30,15 @@ class Outcome:
     alert: bool
     message: str
     noted: bool = False  # diagnosis.json's hypotheses_note is present (decision 4)
+    season: str | None = None  # headline.movement.season.band, when a season was compared
 
     def meets(self, scenario: Scenario) -> bool:
         expected = scenario.expected
         if expected.supported is not None:
             return expected.supported in self.supported
         if expected.table_note:
-            return self.rule == 7 and not self.named and self.noted
+            return (self.rule == 7 and not self.named and self.noted
+                    and (expected.season is None or self.season == expected.season))
         return self.rule == expected.rule and (expected.names is None or self.named == {expected.names})
 
     def decoys(self, scenario: Scenario) -> frozenset[str]:
@@ -85,10 +87,11 @@ def outcome_of(scenario: Scenario, diagnosis: DiagnosisContract) -> Outcome:
     else:
         named = frozenset()
     lever = diagnosis.tree.lever if diagnosis.tree is not None else None
+    season = headline.movement.season if headline.movement is not None else None
     return Outcome(scenario.id, headline.rule, named,
                    frozenset(h.id for h in diagnosis.hypotheses if h.verdict == "supported"),
                    bool(lever and lever.masked_shift_alert), headline.message,
-                   noted=diagnosis.hypotheses_note is not None)
+                   noted=diagnosis.hypotheses_note is not None, season=season.band if season else None)
 
 
 def run(scenario: Scenario, seed: int) -> Outcome:

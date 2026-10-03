@@ -25,6 +25,8 @@ from collections.abc import Sequence
 from typing import Literal
 
 from contracts.forecast import MIN_SEASON_YEARS, NOTED_SEASON_YEARS
+from contracts.metrics import MetricsContract
+from shared.periods import complete_months, shift_month
 
 # SPECS 7.5: a season needs two full cycles, and "the gap between the highest
 # and lowest period exceeds 40%" - read as (strongest - weakest) / strongest,
@@ -164,6 +166,48 @@ def season_reading(months: Sequence[str], values: Sequence[float]) -> tuple[list
     if refused is None:
         return cycles, TWO_YEAR_NOTE if len(cycles) == NOTED_SEASON_YEARS else None
     return None, RAMP_NOTE if refused == "ramp" else None
+
+
+def season_window(metrics: MetricsContract) -> tuple[list[str], list[float], str | None]:
+    """The contiguous run of complete months holding revenue, ending at the
+    compared month (`period.current`), their revenue, and a note when an
+    earlier stretch of months holding revenue was cut off by a complete month
+    with none - a closed month or missing data, which the file cannot tell
+    apart; it is never read as a zero (the standing rule, CLAUDE.md 3.3a). A
+    month is complete as stage 3's history reads it (`shared/periods.complete_
+    months`); a month after the current one is the partial month the file
+    ends in. The ONE window stage 4's forecast and stage 3's season
+    comparison read (moved from stages/predict/forecast.py, Thach 2026-10-03:
+    the season comparison is made only where the forecast claims the season -
+    review F4; T2's own rule-5 sentence predates it and needs only a year-ago
+    pair, 8D)."""
+    period = metrics.period
+    complete = complete_months(period.data_start, period.data_end, month_grain=period.month_grain)
+    revenue = {m.period: m.revenue for m in metrics.core.revenue_by_month}
+    run: list[tuple[str, float]] = []
+    month = period.current
+    while month in complete and month in revenue:
+        run.append((month, revenue[month]))
+        month = shift_month(month, -1)
+    run.reverse()
+    months, values = [m for m, _ in run], [r for _, r in run]
+    cut = [m for m in complete if m < month and m in revenue]
+    if not cut:
+        return months, values, None
+    # With nothing run up, the current month itself holds none (4A review 3
+    # #8): it is complete, as a month before it is.
+    start = f"The history starts at {months[0]}: {month}" if months else f"The compared month {month}"
+    return months, values, (f"{start} holds no revenue - a closed month or missing data, which the file cannot "
+                            f"tell apart - so the {len(cut)} earlier month(s) with revenue are not used.")
+
+
+def season_claim(metrics: MetricsContract) -> tuple[list[dict[str, float]] | None, str | None]:
+    """4A's claim on the one window (`season_reading`): the years of
+    detrended ratios when a season is claimed, else None, and the note -
+    computed here once, for stages 3 and 4 (under two full years
+    `season_reading` claims none)."""
+    months, values, _ = season_window(metrics)
+    return season_reading(months, values)
 
 
 def season(months: Sequence[str], values: Sequence[float]) -> list[dict[str, float]] | None:

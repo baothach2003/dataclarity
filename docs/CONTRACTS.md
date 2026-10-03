@@ -1382,12 +1382,53 @@ movements names NO cause (Thach, 2026-10-03): a rule-5/6 headline becomes
 rule 7, "the history is too short to tell whether this change is larger
 than ordinary movement; the table shows what each hypothesis measured"; no
 percentage for the change keeps rules 5-6, the message saying the size
-cannot be judged. **`hypotheses_note`** (18.1): the hypothesis table's one note when
+cannot be judged. **`headline.movement.season`** (18.2, optional; Thach,
+2026-10-04, decision 1): when 4A's rule claims a season on the window stage
+4 reads (`shared/seasonality.season_window`, `season_claim` - one claim for
+both stages), this month's change against the same calendar month's change
+in the earlier years, no index estimated: `{expected_change_pct, years,
+difference_pct, typical_pct, differences, band, beyond_factor}` - the
+same-month change a year earlier (`years` 1) or the median of the earlier
+years' (`years` 2+), in percent; the gap (this month's change minus it), in
+points; the median |gap| of every other month of the window against its own
+year-ago month (`differences` of them); `band` on |gap| / typical:
+`consistent` under `factor` (2) - rule 7 states both changes, the gap and
+the years compared, "the change is consistent with the season", and names
+no cause; `inconclusive` from 2 to under `beyond_factor` (4) - the size test
+above decides, exactly as without a season; `shortfall` (gap below 0) or
+`excess` (above) from 4 - where the size-tested headline (ranked as
+without a season) names no cause, or names T2 (the season's own
+prediction, which cannot explain a gap from the season), rule 7 states the
+gap ("far below the same month ...: the gap ... None of the tested causes
+measures this gap from the season, so none is named for the shortfall");
+where it names another cause or the movements that offset each other, that
+headline stands and the gap is stated after it ("Against the same month
+..., this month's change ... is far below: ..."). A gap or a year-on-year
+difference that is only float residue (on the percent scale too) reads as
+0, and a gap that is a band's bound but for residue reads as the bound.
+Printed to as many decimals as it takes (up to 10) for the printed gap to
+stay on its band's side of the printed bound and for nothing that is not 0
+to print as 0; the printed gap is the printed changes' difference (so it
+can differ from `difference_pct` rounded on its own by one unit of its
+last place); where no precision agrees, the four numbers print to ten
+significant digits and the sentence makes no claim about the bound. The contract
+refuses a band its own gap and typical contradict
+(at `factor` and `beyond_factor`) and a shortfall or excess on the wrong side
+of 0. Null when no season is claimed or no comparison can be made (the
+window holds fewer than 7 such gaps; the same month a year earlier has no
+change - an older year is never passed off as last year's; or every other
+month repeated its year-ago change exactly and this one did not - a typical
+of 0 sizes nothing), and in an earlier file. The comparison is made only where stage 4 claims the season;
+T2's own rule-5 sentence ("consistent with seasonality (the same months a
+year earlier moved the same way)") predates it and needs only a year-ago
+pair, so it can still stand beside a forecast that claims no season (8D). **`hypotheses_note`** (18.1): the hypothesis table's one note when
 the size test kept every cause out of the headline - within the usual
-movement, or a history too short to tell - null otherwise; stage 5 shows
+movement, a history too short to tell, consistent with the season, or far
+from it (18.2) - null otherwise; stage 5 shows
 it above the table (report.json 2.3, `layer_2_causes.hypotheses_note`).
-Null for rules 1-4, and in a report.json written before 18.0. A consumer decides on `rule` and
-`singled_out`, never on the message. Every `evidence` value is a
+Null for rules 1-4, and in a report.json written before 18.0. A consumer decides on `rule`,
+`singled_out` and `season.band` (a consistent band is rule 7 whatever `singled_out` says), never on
+the message. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
 section 4. All money and share figures are floats; counts are integers.
 `ai_findings` (when present) is `{summary, headline_explanation,
@@ -1871,6 +1912,16 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-04: **decision 1, the season as a stated fact (Thach, on the
+  twelfth and thirteenth reports).** Optional fields, minor:
+  `diagnosis.json` `18.2` (`headline.movement.season`, section 7) and
+  `report.json` `2.4` (it carries the Headline model); section 11 rows
+  added. Where a season is claimed, a month consistent with it is rule 7
+  with its own sentence and table note, and a clear shortfall or excess
+  is stated; no field changed meaning - a rule-7 headline still means "no
+  cause singled out". A consumer decides on `band`, never on the message.
+  Stage 4's history window moved to `shared/seasonality.season_window`
+  unchanged, with `season_claim` - the one claim stages 3 and 4 read.
 - 2026-10-03: **Thach's decisions on the eleventh run, 4 and 5.** Optional
   fields, minor: `diagnosis.json` `18.1` (`hypotheses_note`, the hypothesis
   table's one note when the size test keeps every cause out of the headline)
@@ -2651,6 +2702,14 @@ How the fields are read:
 | `headline.movement.factor` | `float (gt=0)` | 4B, 5, FE |
 | `headline.movement.singled_out` | `bool \| None` | 4B, 5, FE |
 | `headline.movement.reason` | `str \| None` | 4B, 5, FE |
+| `headline.movement.season` | `object \| None` | 4B, 5, FE |
+| `headline.movement.season.expected_change_pct` | `float` | 4B, 5, FE |
+| `headline.movement.season.years` | `int (ge=1)` | 4B, 5, FE |
+| `headline.movement.season.difference_pct` | `float` | 4B, 5, FE |
+| `headline.movement.season.typical_pct` | `float (ge=0)` | 4B, 5, FE |
+| `headline.movement.season.differences` | `int (ge=1)` | 4B, 5, FE |
+| `headline.movement.season.band` | `Literal['consistent', 'inconclusive', 'shortfall', 'excess']` | 4B, 5, FE |
+| `headline.movement.season.beyond_factor` | `float (gt=0)` | 4B, 5, FE |
 | `hypotheses_note` | `str \| None` | 5, FE |
 | `ai_findings` | `object \| None` | 5, FE |
 | `ai_findings.summary` | `str` | 5, FE |

@@ -6,10 +6,11 @@ functions and the verdict rule can both import it without a cycle."""
 from dataclasses import dataclass
 
 from contracts.diagnosis import Calendar, Frame, HeadlineMovement, Localization, Signal, Tree, Trust
+from shared.seasonality import season_claim, season_window
 from stages.diagnose.inputs import RunData, money_moved
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.localization import products_hold_the_change
-from stages.diagnose.movement import measure_movement
+from stages.diagnose.movement import compare_with_season, measure_movement
 
 
 @dataclass(frozen=True)
@@ -81,6 +82,15 @@ def changes(inputs: Step7Inputs) -> Changes:
     movement = measure_movement(inputs.history, {month: month_revenue(inputs.data, month)
                                                  for month in inputs.history},
                                 revenue_prev=prev, revenue_cur=cur, scale=scale)
+    # The season, when 4A's rule claims one on the window stage 4 reads -
+    # the same claim, the same months (Thach, 2026-10-03, decision 1).
+    cycles, _ = season_claim(inputs.data.metrics)
+    if cycles is not None:
+        months, values, _ = season_window(inputs.data.metrics)
+        season = compare_with_season(months, dict(zip(months, values, strict=True)), period.current)
+        # Built, not copied: model_copy skips the contract's check that the
+        # band agrees with its numbers (review 2, #7).
+        movement = HeadlineMovement(**{**dict(movement), "season": season})
     return Changes(prev, cur, cur - prev, gross, alert, scale,
                    # The basis the lever counted on (F10): the same shared
                    # rule stage 2 wrote into metrics.json.

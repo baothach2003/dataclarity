@@ -44,7 +44,7 @@ def test_report_writes_report_json_and_the_page(make_api: MakeApi) -> None:
     assert body["html_url"] == f"/api/runs/{run_id}/download/report.html"
     report = ReportContract.model_validate(body["report"])
     assert report == ReportContract.model_validate(api.read_json(run_id, "report.json"))
-    assert (report.run_id, report.source_file, report.schema_version) == (run_id, "sales.csv", "2.3")
+    assert (report.run_id, report.source_file, report.schema_version) == (run_id, "sales.csv", "2.4")  # 2.4: the season
     # v1's default: the AI step is off - the page says so, whatever the file holds.
     assert report.layer_3_actions.recommendations_status == "switched_off"
     assert "<title>DataClarity report - sales.csv</title>" in api.file(run_id, "report.html").read_text(

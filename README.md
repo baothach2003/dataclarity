@@ -121,9 +121,22 @@ main ones:
   inside ordinary noise - a calendar shift of a few percent, a short
   stockout - are then left to the table, with a note above it saying so. A
   file with fewer than eight months before the compared one is too short to
-  measure the usual movement: the headline names no cause and says why. A
-  seasonal shop's season still counts as ordinary movement (a seasonal month
-  can read "within the usual range"; `PROJECT_PLAN.md` 3E1b).
+  measure the usual movement: the headline names no cause and says why. In
+  a shop with a season (one the forecast also claims: two full years that
+  agree), the month is compared with the same month's change in the
+  earlier years instead: within twice the shop's usual year-on-year
+  difference it reads "consistent with the season" and names no cause;
+  four times beyond it or more it is stated as a shortfall or an excess
+  against the season; in between, the month-to-month test above decides
+  (`PROJECT_PLAN.md` 3E1b).
+- **A season can mask a loss.** When a season predicts a rise and a cause -
+  customers lost, say - cancels most of it, revenue still rises a little:
+  where the month falls short of the same month in earlier years by four
+  times the shop's usual year-on-year difference or more, the headline says
+  so, but cannot name why, because no tested cause measures the gap from
+  the season. Where the month-to-month
+  test still names a cause, it stands and the gap is stated beside it
+  (`PROJECT_PLAN.md` 8D).
 - **Missing days in a quiet shop.** Days with no sales are judged against
   the shop's own pattern and its month-to-month spread: in a shop that
   trades every day one lost day is caught, but in a shop that trades on a
@@ -201,12 +214,15 @@ recorded sample, prints its checksum and exits with 1.
 
 A fixed-seed synthetic store (`tests/scenarios/`) plants one known cause per
 scenario - a price cut, a mix shift, lapsed customers, a lost week, a
-stockout, a season and more (`docs/AI_PIPELINE.md` 7.11). At the fixed seed
-the diagnosis says what was planted in **9 of 12** scenarios - 8 by the
-headline (the two with nothing planted name no cause, the table's note says
-why), and the x100 price-entry error by its trust caution (its headline names
-the price change the error made, the caution beside it) - with **no decoy**
-and **no false alarm**. Over 30 seeds (the planted cause in the headline, or
+stockout, a season, a season masking lapsed customers and more
+(`docs/AI_PIPELINE.md` 7.11). At the fixed seed the diagnosis says what was
+planted in **10 of 14** scenarios - 9 by the headline (the three with
+nothing planted name no cause, the table's note says why), and the x100
+price-entry error by its trust caution (its headline names the price change
+the error made, the caution beside it) - with **no decoy** and **no false
+alarm**. The season masking lapsed customers meets its own expectation - the
+headline states the shortfall against the season - but cannot name the lost
+customers (a known limit). Over 30 seeds (the planted cause in the headline, or
 the x100 caution): lapsed customers, the x100 error and the six-month build
 30 of 30; nothing planted, the price cut, a lost week and a masked shift 29;
 discontinued products 26; a mix shift 25; a season 16 (customers buying less

@@ -20,7 +20,7 @@ def _noted() -> dict:
 
 
 def test_the_versions_are_additive() -> None:
-    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.1", "2.3")
+    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.2", "2.4")  # 18.1 / 2.3 the note; 18.2 / 2.4 the season
 
 
 def test_report_json_carries_the_note() -> None:

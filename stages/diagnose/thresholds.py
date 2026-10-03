@@ -32,6 +32,17 @@ HEADLINE_CONTEXT_MIN_SHARE = 0.50
 # table (a known limit). A factor of 1 is not viable: by the definition of a
 # median, about half of ordinary months exceed it.
 HEADLINE_MOVEMENT_FACTOR = 2.0
+# Where a season is claimed, this month's gap from the same month's change in
+# the earlier years is "clearly" beyond the season from 4 x the median
+# year-on-year difference (Thach, 2026-10-04, decision 1's bands): measured,
+# not guessed - over seeds 1-30, the seasonal store with nothing planted (S12)
+# reached at most 3.27, the season masking a loss (S13) at least 4.85; 4 x a
+# median of |differences| is about 2.7 standard deviations of the gap with one
+# earlier year, 3.1 with two under a normal approximation - too kind for a
+# peak month, whose gap in points scales with its season ratio: about 10% of
+# ordinary demo-shaped Novembers reach it (review 1's simulation; 8D).
+# Between 2 and 4 the raw size test decides.
+SEASON_BEYOND_FACTOR = 4.0
 
 # --- Metric tree (7.6) --------------------------------------------------------
 

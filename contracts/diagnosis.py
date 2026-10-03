@@ -615,6 +615,56 @@ class NotTestable(ContractModel):
     reason: str
 
 
+SeasonBand = Literal["consistent", "inconclusive", "shortfall", "excess"]
+
+
+def season_band(gap: float, typical: float, factor: float, beyond_factor: float) -> SeasonBand:
+    """The band of this month's gap from the season (Thach, 2026-10-04): |gap|
+    / typical under `factor` (2) consistent, under `beyond_factor` (4)
+    inconclusive, from it a shortfall or an excess - compared without
+    dividing, so a typical of 0 reads a gap of 0 as consistent and any other
+    gap as beyond it. Here, not in stage 3, so the contract can refuse a band
+    its own numbers contradict: consumers decide on the band (CLAUDE.md 3.7)."""
+    size = abs(gap)
+    if size == 0 or size < factor * typical:
+        return "consistent"
+    if size >= beyond_factor * typical:
+        return "shortfall" if gap < 0 else "excess"
+    return "inconclusive"
+
+
+class SeasonChange(ContractModel):
+    """18.2 (Thach, 2026-10-03, decision 1 redesigned; bands 2026-10-04):
+    when 4A's rule claims a season (shared/seasonality.season_claim - the
+    forecast's own claim), this month's change against the same calendar
+    month's change a year earlier (`years` 1), or the median of the earlier
+    years' (`years` 2+), in percent; `difference_pct` = this month's change
+    minus it, in points (the gap); `typical_pct` the median |difference| of
+    every other month pair of the window against its own year-ago pair
+    (`differences` of them). `band` on |gap| / typical: under the gate's
+    factor (2) "consistent" - the season fact; under `beyond_factor` (4)
+    "inconclusive" - the raw size test decides, as without a season; from it,
+    "shortfall" (below) or "excess" (above) - a stated fact. No index is
+    estimated."""
+
+    expected_change_pct: float
+    years: int = Field(ge=1)
+    difference_pct: float
+    typical_pct: float = Field(ge=0)
+    differences: int = Field(ge=1)
+    band: SeasonBand
+    beyond_factor: float = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _direction(self) -> Self:
+        # A shortfall lies below the season and an excess above it: a band
+        # that contradicts its own gap would print "far below" for a rise.
+        if (self.band == "shortfall" and self.difference_pct >= 0) or (
+                self.band == "excess" and self.difference_pct <= 0):
+            raise ValueError(f"a {self.band} has a gap of {self.difference_pct}")
+        return self
+
+
 class HeadlineMovement(ContractModel):
     """The headline's size test (3E1b, Thach's 3E2-F1 decision): is this
     month's change at least `factor` times the shop's median month-over-month
@@ -630,6 +680,9 @@ class HeadlineMovement(ContractModel):
     factor: float = Field(gt=0)
     singled_out: bool | None
     reason: str | None
+    # 18.2: the season comparison, when 4A's rule claims a season and the
+    # window allows one; null otherwise and in an earlier file.
+    season: SeasonChange | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -637,6 +690,11 @@ class HeadlineMovement(ContractModel):
             raise ValueError("a movement carries a reason exactly when its test could not run")
         if self.singled_out is not None and (self.change_pct is None or self.typical_pct is None):
             raise ValueError("a movement that was tested carries both percentages")
+        season = self.season
+        if season is not None and season.band != season_band(season.difference_pct, season.typical_pct, self.factor,
+                                                             season.beyond_factor):
+            raise ValueError(f"a season band {season.band!r} its gap ({season.difference_pct}) and typical "
+                             f"({season.typical_pct}) contradict")
         return self
 
 

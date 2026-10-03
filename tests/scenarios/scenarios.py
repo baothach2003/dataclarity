@@ -44,6 +44,10 @@ class Expected:
     # headline AND the hypothesis table's note present (the change within the
     # usual movement, or a history too short to tell).
     table_note: bool = False
+    # Thach, 2026-10-04 (decision 1's bands): the band of the season
+    # comparison the headline must report - a code (headline.movement.season.
+    # band), never a sentence parsed.
+    season: str | None = None
 
 
 @dataclass(frozen=True)
@@ -149,6 +153,28 @@ def s9(seed: int) -> pd.DataFrame:
     return generate(FIRST, LAST, seed=seed, season=lambda month: SEASON[month])
 
 
+# S12 and S13 (Thach, 2026-10-03, decision 1 redesigned): a strong season 4A
+# claims (gap (1.6 - 0.7) / 1.6 = 56%, two full years and more, the same every
+# year). S12's August and September are equal - nothing planted, no season in
+# the change. S13's September is 1.5 x August - the season predicts a rise -
+# and 30% of the customers active on 1 September buy nothing in it (review
+# F2: the loss cancels most of the season's rise; revenue still rises).
+FLAT_AUGUST_SEASON = {1: 0.7, 2: 0.7, 3: 0.8, 4: 0.9, 5: 1.0, 6: 1.0, 7: 1.0, 8: 1.0, 9: 1.0, 10: 1.1,
+                      11: 1.6, 12: 1.4}
+RISING_SEPTEMBER_SEASON = {1: 0.7, 2: 0.7, 3: 0.8, 4: 0.9, 5: 1.0, 6: 1.0, 7: 1.0, 8: 1.0, 9: 1.5, 10: 1.1,
+                           11: 1.3, 12: 1.2}
+
+
+def s12(seed: int) -> pd.DataFrame:
+    return generate(FIRST, LAST, seed=seed, season=lambda month: FLAT_AUGUST_SEASON[month])
+
+
+def s13(seed: int) -> pd.DataFrame:
+    gone = _some(_active_on(_sep(1), seed), 0.30, seed, 13)
+    return generate(FIRST, LAST, seed=seed, plans={CURRENT: MonthPlan(dropped_customers=gone)},
+                    season=lambda month: RISING_SEPTEMBER_SEASON[month])
+
+
 def s10(seed: int) -> pd.DataFrame:
     # Every September price entered x100 (cents read as units).
     factor = dict.fromkeys(range(len(build_catalog(seed).names)), 100.0)
@@ -198,4 +224,20 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario("S10", "x100 price error", Expected(supported="D2"), frozenset({"D2", "P1"}), s10,
              consequences=frozenset({"C1", "C3"})),
     Scenario("S11", "nothing, 6 months", Expected(rule=7, table_note=True), frozenset(), s11, counts_decoys=False),
+    # Nothing planted in a seasonal store: "consistent with the season" or
+    # "within the usual movement" (both rule 7, with the table's note), never
+    # a cause. Out of the decoy count, as S0.
+    Scenario("S12", "nothing, a seasonal store", Expected(rule=7, table_note=True), frozenset(), s12,
+             counts_decoys=False),
+    # Lapsed customers against a season predicting a rise: the headline states
+    # the shortfall against the season and names no cause, with the table's
+    # note (Thach, 2026-10-04: no ranking of today's hypotheses can name C2 -
+    # each measures the change from last month, and C2 moves against it; the
+    # v2 item measures them against the season). Implied: C2 (planted); T2
+    # (the season the store holds, true by construction); B1 (the season
+    # raises every customer's order rate). Out of the decoy count by decision
+    # 4's rule, as S0 and S11: its criterion is no cause and the table's note
+    # (decided alone, 2026-10-04).
+    Scenario("S13", "lapsed customers in a seasonal store", Expected(rule=7, table_note=True, season="shortfall"),
+             frozenset({"C2", "T2", "B1"}), s13, counts_decoys=False),
 )

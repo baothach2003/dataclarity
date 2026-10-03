@@ -1285,12 +1285,78 @@ while the month fell 450 short of its season. Written as a band, not
    noise - they stay in the table (a known limit). A factor of 1 is not
    viable: by the definition of a median, about half of ordinary months
    exceed it. With fewer than 7 movements (the 8 months a baseline needs,
-   7.5) or no percentage for the change, the test cannot run: rules 5-7
-   stand and the message adds "Whether this change is larger than this
-   shop's usual month-to-month movement cannot be said: <why>." - the data
-   cannot tell, so the existing behaviour is kept and said (CLAUDE.md 3.3a's
-   shape; decided alone, 3E1b). `headline.movement` carries the test
-   (CONTRACTS section 7). Rules 1-4 are not gated.
+   7.5) the history is too short to tell a cause from noise: NO cause is
+   named (Thach, 2026-10-03, decision 5) - rule 7, "the history is too short
+   to tell whether this change is larger than this shop's ordinary
+   month-to-month movement". With no percentage for the change the test
+   cannot run for another reason: rules 5-7 stand and the message adds
+   "Whether this change is larger than this shop's usual month-to-month
+   movement cannot be said: <why>." (CLAUDE.md 3.3a's shape; decided alone,
+   3E1b). `headline.movement` carries the test (CONTRACTS section 7). Rules
+   1-4 are not gated.
+
+   **A claimed season, a stated fact** (Thach, 2026-10-03 and 10-04,
+   decision 1; method C:\Users\Happy\season-fact-method.txt). Measured raw,
+   the movement counts a seasonal shop's season as noise (the demo's
+   November 2011, a real season, read "within the usual range"). When 4A's
+   rule claims a season - one claim for stages 3 and 4, on the window stage 4
+   reads (`shared/seasonality.season_claim`) - this month's change is
+   compared with the same calendar month's change in the earlier years (the
+   median with three or more), with no index estimated: nothing is fitted
+   to the months it measures. The gap's typical size is the median |gap| of
+   every other month of the window against its own year-ago month (7
+   needed; float residue reads as 0, on the percent scale too, and a gap on
+   a bound but for residue as the bound; the same month a year earlier must
+   have a change; a typical of 0 - every other month repeated its year-ago
+   change exactly, as fixed fees do - sizes nothing, so a gap beside it gets
+   no comparison). Three bands on |gap| / typical: under 2 - rule 7 states
+   both changes, the gap (printed as the printed changes' difference) and the
+   years compared, to as many decimals as it takes (up to 10; beyond that the
+   sentence claims no bound) for the printed gap to stay inside its printed
+   bound (the demo's unanswered plan): "This month's change (+27.1%)
+   compares with +39.1% in the same month a year earlier (one earlier year
+   compared); the gap (-12.0 points) is within this shop's usual
+   year-on-year difference: under twice its median of about 8.5 points over
+   the 10 other months compared. The change is consistent with the season;
+   no other cause is singled out." 2 to under 4 - the size test above
+   decides, exactly as without a season (lifting it named a cause not
+   planted in 29 of 30 seeds of a season masking a loss). 4 or more
+   (`SEASON_BEYOND_FACTOR`; S12, nothing planted in a seasonal store, reached
+   at most 3.27 over seeds 1-30, S13, a season masking a loss, at least
+   4.85) - where the size-tested headline (ranked as without a season) names
+   no cause, or names T2 - the season's own prediction, which cannot explain
+   a gap from the season (review 2: "consistent with seasonality" then "far
+   below the same month"; ranking without T2 promoted a weaker cause to
+   "best-supported", review 3) - rule 7 states the gap: "This
+   month's change (+14.6%) is far below the same month in the 2 earlier
+   years (median +48.5%): the gap (-33.9 points) is at least four times this
+   shop's median year-on-year difference of about 6.4 points. None of the
+   tested causes measures this gap from the season, so none is named for
+   the shortfall." ("above ... excess" the other way) - true even where a
+   tested cause does explain the gap (review 1: "the tested causes do not
+   explain the shortfall" was false in S13 itself); where it names a cause
+   or the movements that offset each other, that headline stands and the gap
+   is stated after it, with no connective ("Against the same month ..., this month's change ... is far
+   below: ...") - a season that predicts no movement makes the change from
+   last month the gap itself, lapsed customers there are named truly, and
+   the engine cannot tell that from a season masking the cause (CLAUDE.md
+   3.3a, decided alone). How often ordinary months land beyond the bands:
+   the typical is made of the same kind of gap, so 2 x its median is only
+   about 1.35-1.56 standard deviations of the gap (17.7% / 11.9% of ordinary
+   months beyond it with one / two earlier years, normal approximation), 4 x
+   about 2.7-3.1. That approximation is too kind for a peak month (review
+   1, simulated: 5% multiplicative noise, a claimed season): a gap in
+   percentage points scales with the season's own ratio for the month
+   (November over October 1.45 in a demo-shaped season), while the median
+   is set mostly by months near 1 - an ordinary November lands at 4 x or
+   more in about 10% of trials with 24 months (7% with 26, 6% with 36), a
+   flat month pair in about 3%. Measured on the generator: S12 (an August ->
+   September pair at equal indices) 0 of 30. A known limit (8D); measuring
+   gaps relative to the revenue the season predicts would remove the ratio,
+   at the cost of S13's gaps (Thach's call).
+   **Known limit:** a season can mask a loss - the headline states the
+   shortfall but names no cause, since no hypothesis measures the gap from
+   the season (v2: hypotheses measured against the season).
 5. Calendar or seasonality explains at least `HEADLINE_CONTEXT_MIN_SHARE` -
    state that - when it fits BEST: rules 5 and 6 are ranked together under
    the one fit (Thach, 2E-o Q1), so a context cause no longer wins by coming
@@ -1515,11 +1581,19 @@ points, comfortably above the minimum.
 
 A fixed-seed generator builds a synthetic store (26 complete months, ~400
 customers, 6 categories x 10 products, retail weekday weights, a small share of
-returns). Twelve scenarios each plant exactly one cause - S0 nothing, S1
+returns). Twelve scenarios (fourteen since decision 1, below) each plant exactly one cause - S0 nothing, S1
 calendar, S2 like-for-like price cut, S3 mix shift, S4 lapsed customers, S5
 missing days, S6 masked shift, S7 stockout, S8 discontinued products, S9
 seasonality, S10 a x100 price error, S11 the same build truncated to its last
-6 complete months. **S0 and S11 both plant no cause and both expect headline
+6 complete months. Two more since decision 1 (Thach, 2026-10-03/04), in a
+strong season 4A claims (gap 56%): S12 nothing planted, August and September
+at equal indices - rule 7, consistent with the season or within the usual
+movement, never a cause; S13 the same store with September 1.5 x August and
+30% of the customers active on 1 September buying nothing in it - rule 7
+stating the shortfall against the season, no cause named (a known limit:
+no hypothesis measures the gap from the season, and the lost customers moved
+against the change from last month). S12 and S13 leave the decoy count as S0 and S11 do.
+**S0 and S11 both plant no cause and both expect headline
 rule 7 with zero `supported` hypotheses** (ADR-0007). S0 used to be expected
 to produce rule 3, "within normal variation"; since no step-4 row is a
 verdict in v1, T3 cannot be supported and rule 3 is dormant. What the pair

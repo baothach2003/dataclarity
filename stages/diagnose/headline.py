@@ -8,10 +8,11 @@ Every number in a message comes from the blocks it is chosen from; nothing is
 estimated here.
 """
 
-from contracts.diagnosis import Headline, Hypothesis, Tree, Trust
+from contracts.diagnosis import Headline, HeadlineMovement, Hypothesis, Tree, Trust
 from stages.diagnose.catalog import BY_ID
 from stages.diagnose.step7_inputs import Changes
 from stages.diagnose.numbers import is_negligible
+from stages.diagnose.season_headline import beyond, consistent
 from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 
 # Their finding IS the trust caution, shown beside every headline; 7.8 says
@@ -230,7 +231,38 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
     # cause (Thach, 2026-10-03); no percentage: rules 5-7 stand and say so -
     # the data cannot tell (CLAUDE.md 3.3a's shape).
     gate = moved.movement
-    found = _ranked(hypotheses, by_id, moved, change)
+    season = gate.season if gate is not None else None
+    found, named = _ranked(hypotheses, by_id, moved, change)
+    head = _size_tested(found, gate, change)
+    # A season 4A's rule claims (Thach, 2026-10-03, decision 1; its bands
+    # 2026-10-04): this month's change against the same month's in the
+    # earlier years - a stated fact, no index estimated. Consistent: the
+    # headline says so and names no other cause. Inconclusive: the size test
+    # above decides, exactly as without a season (lifting it named a cause
+    # not planted in 29 of 30 S13 seeds). A shortfall or excess: stated as a
+    # fact where the size test names no cause; where it names one, the cause
+    # stands and the gap is stated after it - the change from last month may
+    # BE the gap (a flat season), and the engine cannot tell that from a
+    # season masking the cause (CLAUDE.md 3.3a; method amendment 2, B8).
+    # (`_ranked` returns rules 5-7 only, so every rule here is one of them.)
+    if season is None or season.band == "inconclusive":
+        return head
+    if season.band == "consistent":
+        return Headline(rule=7, hypothesis_id=None, lens=None, movement=gate,
+                        message=f"{change} {consistent(season, gate.factor)}")
+    # T2 IS the season's prediction (the same months a year earlier), so a
+    # headline naming it cannot stand beside a gap FROM the season (review 2,
+    # #1: "consistent with seasonality ... far below the same month"); ranking
+    # without it promoted a weaker cause to "best-supported" (review 3, #1).
+    # The ranking stays 6e9b224's, and the gap is stated instead.
+    if head.rule == 7 or "T2" in named:
+        return Headline(rule=7, hypothesis_id=None, lens=None, movement=gate,
+                        message=f"{change} {beyond(season, stated=True)}")
+    return head.model_copy(update={"message": f"{head.message} {beyond(season, stated=False)}"})
+
+
+def _size_tested(found: Headline, gate: HeadlineMovement | None, change: str) -> Headline:
+    """Rules 5-7 through the size test, as before any season (HEAD 6e9b224)."""
     # Only a cause singled out is gated: a rule 7 keeps its own sentence and
     # its "partly consistent" list (3E1b review 1, F6).
     if gate is not None and gate.singled_out is False and found.rule in (5, 6):
@@ -263,6 +295,11 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
 WITHIN_NOTE = ("This month's change is within the shop's usual month-to-month movement, so the verdicts below "
                "describe a change too small to single out: each shows what its hypothesis measured, and none is "
                "named as the cause.")
+SEASON_NOTE = ("This month's change is consistent with the season, so none of the verdicts below is named as the "
+               "cause: each shows what its hypothesis measured.")
+BEYOND_NOTE = ("This month's change is far from the season's, so the verdicts below describe the change from last "
+               "month, not the gap from the season: each shows what its hypothesis measured, and none is named as "
+               "the cause.")
 TOO_SHORT_NOTE = ("The history is too short to tell whether this change is larger than ordinary movement, so the "
                   "verdicts below describe a change that cannot be singled out: each shows what its hypothesis "
                   "measured, and none is named as the cause.")
@@ -277,6 +314,10 @@ def hypotheses_note(headline: Headline) -> str | None:
     gate = headline.movement
     if headline.rule != 7 or gate is None:
         return None
+    if gate.season is not None and gate.season.band == "consistent":
+        return SEASON_NOTE
+    if gate.season is not None and gate.season.band in ("shortfall", "excess"):
+        return BEYOND_NOTE
     if gate.singled_out is False:
         return WITHIN_NOTE
     if gate.singled_out is None and gate.change_pct is not None:
@@ -297,8 +338,9 @@ def _places(change_pct: float, typical_pct: float, factor: float) -> int:
 
 
 def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: Changes,
-            change: str) -> Headline:
-    """Rules 5 to 7, as they stood before the size test."""
+            change: str) -> tuple[Headline, frozenset[str]]:
+    """Rules 5 to 7, as they stood before the size test, and the hypotheses
+    the headline names (none for the offsetting movements or rule 7)."""
     # 5 and 6, ranked together under the one fit (Thach, 2E-o Q1): rule 5's
     # context causes - the calendar or seasonality, supported and at least
     # half of the change - and rule 6's share causes compete, and the
@@ -322,7 +364,7 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
         else:
             what = "; and equally with ".join(f"{CONTEXT[h.id]}: {_size(h, moved)}" for h in named)
         return Headline(rule=5, hypothesis_id=None, lens=None,
-                        message=f"{change} The change is consistent with {what}.")
+                        message=f"{change} The change is consistent with {what}."), _ids(named)
 
     # 6. The best-fitting supported cause, closest to the net change (a tie
     # across the two rules named in rule 6's words); then a supported
@@ -330,17 +372,21 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
     # directional R1 before the movements); the movements that offset each
     # other are the last resort.
     if named:
-        return _explanation(named, moved, change)
+        return _explanation(named, moved, change), _ids(named)
     directional = [h for h in supported if h.contribution is None]
     if directional:
-        return _explanation(directional, moved, change)
+        return _explanation(directional, moved, change), _ids(directional)
     if shares:
         return Headline(rule=6, hypothesis_id=None, lens=None,
-                        message=f"{change} {_opposing(hypotheses, moved)}")
+                        message=f"{change} {_opposing(hypotheses, moved)}"), frozenset()
 
     # 7. Nothing supported - the engine does not invent a cause.
     partial = [h for h in hypotheses if h.verdict == "partial"]
     tail = ("" if not partial else " Partly consistent: "
             + "; ".join(f"{_statement(h)} ({h.id})" for h in partial) + ".")
     return Headline(rule=7, hypothesis_id=None, lens=None,
-                    message=f"{change} No single tested cause explains most of the change.{tail}")
+                    message=f"{change} No single tested cause explains most of the change.{tail}"), frozenset()
+
+
+def _ids(named: list[Hypothesis]) -> frozenset[str]:
+    return frozenset(h.id for h in named)

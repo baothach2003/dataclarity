@@ -828,6 +828,95 @@ dataclarity/
       R3 not accepted beside S3, no percentage keeps the old behaviour, the
       ranking tests' fixtures - the two bypasses review found unnecessary are
       tidied). S1 at 23 of 30 decoys: a known limit, not relaxed (8D).
+      **Thirteenth run (2026-10-04): the redesign STOPPED by its own
+      limits.** Built before the restart (method
+      C:\Users\Happy\season-fact-method.txt; 18 tests first): one window
+      and one claim for stages 3 and 4 (`shared/seasonality.season_window`,
+      `season_claim`), `stages/diagnose/movement.compare_with_season`,
+      `headline.movement.season`, S12 and S13 in the spec. **Demo: passes** -
+      2011-11 gets the season-matching headline on both plans (+27.2%
+      against last November's +27.1%; +27.1% against +39.1%, inside twice
+      the typical 8.5); rule 7 63 of 81 before and after; only those two
+      pairs' headlines change; no verdict changes. **Seeds 1-30: fails** - S0
+      names a cause in 1 of 30 (passes), S12 in 4 of 30 (limit 3), S13 names
+      C2 in 0 of 30 and a cause NOT planted in 29 (HEAD: S12 0, S13 0 - both
+      "within the usual range"; every verdict identical). Why: "2 x the
+      median |year-on-year difference|" is about 1.56 SDs of the difference
+      with two earlier years (11.9% false alarms expected, normal
+      approximation; 17.7% with one), and when the season does not match
+      the redesign lifts the raw gate, so the ranking explains a small
+      month-over-month rise in which C2 moves against the change. Nothing
+      after the stop was started (no contract bump, docs, mutation, review,
+      commit). Uncommitted. Thach decides among four options (the
+      thirteenth run's report): the fact on a match only (recommended),
+      a larger factor, hypotheses measured against the season, or drop it.
+      **DECIDED (Thach, 2026-10-04, on the thirteenth report): option (A)
+      plus a stated fact for a clear shortfall or excess.** Two errors of
+      his, recorded at his request, both exposed by the measurement: (1)
+      the claim that a difference of two noisy changes is "the cautious
+      side" was wrong - the typical is made of the same differences, so
+      2 x their median is only about 1.56 standard deviations of this
+      month's difference (with two earlier years); (2) "S13 must name C2"
+      asked for something no ranking of today's hypotheses can do - every
+      one measures the change from last month, none the shortfall against
+      the season, and C2 moves against the net change there. **Three bands
+      on |this month's year-on-year difference| / the typical:** under 2 -
+      the season-matching fact as built, REWORDED to state both changes,
+      the gap and how many earlier years were compared, so a wide band
+      never reads oddly; 2 to under 4 - HEAD's behaviour exactly (the raw
+      gate, never lifted); 4 or more - a stated fact naming no cause ("This
+      month's change (+14.6%) is far below the same month in the earlier
+      years (median +48.5%); the tested causes do not explain the
+      shortfall", "above ... excess" the other way). **Why 4:** from the
+      measurement, not a guess - S12's largest ratio over 30 seeds 3.27,
+      S13's smallest 4.85; 4 x the median is about 2.7 standard deviations
+      (roughly 1% false). Additive contract change (diagnosis.json 18.2).
+      **Known limit for v1** (8D, README): a season can mask a loss - the
+      headline warns of the shortfall but does not name its cause. Option
+      (C), hypotheses measured against the season, to the v2 item
+      (Backlog). **Stop conditions, measured before the full process:** S12
+      names no cause in any of 30 seeds and states a shortfall/excess in at
+      most 1; S13 states the shortfall in at least 27 of 30 and names no
+      cause; S0 unchanged (no season claimed); the demo's 2011-11 gets the
+      reworded season sentence on both plans and no other demo pair's
+      headline changes. **Phase 6 note** (recorded at 6E): a verdict ruled
+      out because the cause moved AGAINST the net change is labelled "moved
+      against the change (-X)" in the UI, not "ruled out"; the verdict code
+      is unchanged.
+      **Built 2026-10-04 (thirteenth run; method
+      C:\Users\Happy\season-fact-method.txt, amendments 2-4; full
+      process).** As decided, with these decisions made alone (each in the
+      report): **B8 under CLAUDE.md 3.3a** - measured before any code: in a
+      season that predicts no movement, 30% of customers lapsing, the
+      change from last month IS the gap and 6e9b224 names C2 truly (29 of
+      30 seeds), so band 3 replaces only a headline that names no cause or
+      names T2 (the season's own prediction); otherwise that headline
+      stands word for word and the gap is appended ("Against the same month
+      ..., this month's change ... is far below: ..."). **The band-3
+      sentence** (Thach's was an "e.g."; review 1 found "the tested causes do
+      not explain the shortfall" false in S13 itself, lapsed customers being
+      a tested cause): "None of the tested causes measures this gap from the
+      season, so none is named for the shortfall." **The consistent
+      sentence** names the median itself ("under twice its median of about
+      8.5 points"), in the raw gate's words, not "about 17 points". **S13
+      leaves the decoy count** by decision 4's rule. **A typical of 0**
+      (every other month repeating exactly, as fixed fees do) sizes nothing:
+      no comparison. **Printing**: the gap is printed as the printed
+      changes' difference. **Stop conditions, measured on the final code**
+      (one heavy process at a time): S12 0 of 30 named, 0 beyond; S13 the
+      shortfall stated in 30 of 30, 0 named; S0 identical seed by seed; the
+      demo's 2011-11 the reworded sentence on both plans ("+27.2% compares
+      with +27.1% ... the gap (+0.1 points)"; "+27.1% compares with +39.1%
+      ... the gap (-12.0 points) ... about 8.5 points"), no other of the 81
+      pairs changed (rule 7 63 -> 63, no verdict changed); the flat-season
+      check C2 kept in all 29. Mutation 30 + 18 + 11 + 8 mutants, every
+      non-equivalent one killed; three doubt-review cycles (cross-model
+      skipped, non-interactive; 17, 10, 6 findings), the third cycle's fixes
+      tested and mutated, not reviewed - the bound. diagnosis.json 18.2,
+      report.json 2.4. pytest 4474 passed. Recorded in 8D for Thach: the
+      bands in percentage points reach "far" more often in a peak month
+      (review 1's simulation: about 10% of ordinary demo-shaped Novembers);
+      T2's rule-5 sentence beside "no seasonality claimed".
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -4054,7 +4143,11 @@ dataclarity/
       inline text; the monthly revenue chart: yes; "lines in no figure": yes,
       in the data-quality section; the signals table is NOT in the v1 UI
       (descriptive only since ADR-0007 - shown, it reads as an alert; it stays
-      in the downloadable report). Claude builds the ADD items with the
+      in the downloadable report). **Ruled out against the change (Thach,
+      2026-10-04):** when a cause's verdict is `ruled_out` because it moved
+      AGAINST the net change, the hypothesis table labels it "moved against
+      the change (-X)", not "ruled out", so the table never reads as if 30%
+      of the customers did not lapse (S13); the verdict code is unchanged. Claude builds the ADD items with the
       existing components and design tokens, following FIGMA_DESIGN_NOTES;
       Thach reviews them in the browser, not in new frames. The CHANGE column
       applies as listed in the review.
@@ -4668,6 +4761,38 @@ dataclarity/
       - S1 (the calendar): more than one decoy in 7 of 30 seeds (T2 9, P2 9,
         C1 4 across them) - its per-scenario criterion is met in 23 of 30, not
         25 (Thach, 2026-10-03: a known limit, not relaxed).
+      From the thirteenth run (Thach, 2026-10-04):
+      - A cause that moves AGAINST the net change is `ruled_out`: S13 (30%
+        of the customers lapse in a month the season lifts by about 50%, so
+        revenue still rises) reads C2 "ruled out" in 30 of 30 seeds, at HEAD
+        6e9b224 as with decision 1's redesign - a false verdict (the
+        opposite-sign class of 3E1b part C). Generated data only; not seen on
+        the demo files. Repro: thirteenth run scratchpad `demo/seeds_head.jsonl`.
+        The verdict code stays; the UI labels it "moved against the change
+        (-X)" (6E, Thach).
+      - A season can mask a loss (Thach, a known limit for v1): when a
+        claimed season predicts a rise and a cause cancels most of it, the
+        headline states the shortfall against the season but names no cause
+        (3E1b, decision 1); naming it needs hypotheses measured against the
+        season (the v2 item).
+      - The season's bands in a peak month (review 1 of decision 1; not yet
+        decided): the gap is in percentage points, which scale with the
+        season's own ratio for the month (November over October 1.45 in a
+        demo-shaped season), while the typical is a median set mostly by
+        months near 1 - simulated with 5% multiplicative noise and a claimed
+        season, an ordinary November reaches "far below/above" (4 x) in about
+        10% of trials at 24 months (7% at 26, 6% at 36; a flat month pair 3%),
+        not the "roughly 1%" of the normal approximation. The sentence names
+        no cause and its numbers are true; "far" is the misleading part. A
+        relative gap (against the revenue the season predicts) would remove
+        the ratio but shrink S13's gaps below 4 - Thach's call. Not on the
+        demo files (2011-11 is consistent on both plans).
+      - T2's rule-5 sentence ("consistent with seasonality (the same months a
+        year earlier moved the same way)") needs only a year-ago pair, not
+        4A's claim, so a file of 13-23 months can show it beside a forecast
+        that says "no seasonality claimed" (review 1, M3; it predates decision
+        1 - 6e9b224 does the same). The season COMPARISON is made only where
+        the forecast claims the season.
       From 2E-u (Thach, 2026-10-02: F2 and F7 are known limits):
       - F2: two-digit year-first dates ("24/02/10") are read day-first with
         no question - the calendar lands in 2001-2031 and the headline names
@@ -4877,6 +5002,15 @@ reduce the influence of one spike month on the season (4A review 3: one big
 month at a mild season's peak makes the season claimed with a made-up peak).
 Needs its own sweep before it replaces the indices.
 
+**v2: hypotheses measured against the season** (Thach, 2026-10-04, option
+(C) of the thirteenth report): when a claimed season predicts a movement and
+the month falls far short of it (or far beyond), explain the GAP from the
+season, not the change from last month - each hypothesis measured against
+the same month's pair a year earlier - so a season that masks a loss (S13:
+30% of the customers lapse in a month the season lifts by about 50%) can
+name the lost customers. In v1 the headline states the shortfall and names
+no cause (3E1b, decision 1).
+
 **After deploy: 4B as structured claims, designed once with 3F** (Thach,
 2026-10-01): code selects the claims and writes every sentence of fact or
 figure; the AI writes only the action and the reason for each pre-selected
@@ -4998,6 +5132,18 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Thirteenth overnight run** (2026-10-03/04, continued after a restart;
+the session that restarted it was closed mid-measurement and its outputs
+were not used). Decisions 2-6 committed and pushed as 6e9b224. Decision 1
+redesigned (the season as a stated fact) STOPPED by its own limits (S12 4
+of 30, S13 never C2); **Thach decided again (2026-10-04): option (A) plus a
+stated shortfall/excess** - built, its stop conditions measured on the
+final code (all pass), three review cycles, mutation, pytest 4474 - the
+3E1b item. Measured one heavy process at a time (peaks: stage 1 646 MB,
+stage 3 581 MB, a scenario run 211 MB). Next in the run: commit and push,
+the 3E2 re-run (S0-S13 over 30 seeds), then Phase 6. Stop before any deploy
+step and any real AI call. Report: `C:\Users\Happy\overnight-report.txt`
+(the run's first part as `overnight-report-run13.txt`).
 **Twelfth overnight run** (2026-10-03; Thach's decisions on the eleventh
 report recorded with their reasons at 3E1b, 3E2's S11, 3E2-F2 and 3E2-F3). The
 waiting commit (memory settings + marker) pushed as 14ab008 after a full run

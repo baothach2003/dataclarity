@@ -23,8 +23,8 @@ from scipy.stats import t as student_t
 
 from contracts.forecast import MIN_HISTORY_MONTHS, ForecastBlock, RevenuePoint
 from contracts.metrics import MetricsContract
-from shared.periods import complete_months, shift_month
-from shared.seasonality import indices, season_reading
+from shared.periods import shift_month
+from shared.seasonality import indices, season_claim, season_reading, season_window
 
 HORIZON = 3  # months after the current one
 CONFIDENCE = 0.8
@@ -111,14 +111,16 @@ def band(values: Sequence[float], errors: Sequence[float], logs: bool, point: fl
     return point - width, point + width
 
 
-def points(months: Sequence[str], values: Sequence[float],
-           current: str) -> tuple[list[RevenuePoint], int | None, str | None]:
+def points(months: Sequence[str], values: Sequence[float], current: str,
+           claim: tuple[list[dict[str, float]] | None, str | None] | None = None,
+           ) -> tuple[list[RevenuePoint], int | None, str | None]:
     """The forecast of the HORIZON months after `current`, the full years a
     claimed season was read from (None when none is claimed), and the note
     on the season reading - why none was claimed when the data cannot tell
     it from a step, or that it rests on two years (`seasonality.season_
-    reading`)."""
-    cycles, season_note = season_reading(months, values)
+    reading`). `claim`: the shared claim on these months (`season_claim`),
+    read here when given rather than computed again."""
+    cycles, season_note = claim if claim is not None else season_reading(months, values)
     found_indices = indices(cycles) if cycles else {}
     level = _level([value / found_indices.get(month[5:], 1.0)
                     for month, value in zip(months, values, strict=True)])
@@ -133,42 +135,22 @@ def points(months: Sequence[str], values: Sequence[float],
 
 
 def history(metrics: MetricsContract) -> tuple[list[tuple[str, float]], str | None]:
-    """The contiguous run of complete months holding revenue, ending at the
-    compared month (`period.current`), and a note when an earlier stretch of
-    months holding revenue was cut off by a complete month with none - a
-    closed month or missing data, which the file cannot tell apart; it is
-    never read as a zero (the standing rule, CLAUDE.md 3.3a). A month is
-    complete as stage 3's history reads it (`shared/periods.complete_
-    months`); a month after the current one is the partial month the file
-    ends in."""
-    period = metrics.period
-    complete = complete_months(period.data_start, period.data_end, month_grain=period.month_grain)
-    revenue = {m.period: m.revenue for m in metrics.core.revenue_by_month}
-    run: list[tuple[str, float]] = []
-    month = period.current
-    while month in complete and month in revenue:
-        run.append((month, revenue[month]))
-        month = shift_month(month, -1)
-    cut = [m for m in complete if m < month and m in revenue]
-    if not cut:
-        return run[::-1], None
-    # With nothing run up, the current month itself holds none (4A review 3
-    # #8): it is complete, as a month before it is.
-    start = f"The history starts at {run[-1][0]}: {month}" if run else f"The compared month {month}"
-    return run[::-1], (f"{start} holds no revenue - a closed month or missing data, which the file cannot tell "
-                       f"apart - so the {len(cut)} earlier month(s) with revenue are not used.")
+    """The forecast's history as (month, revenue) pairs and its note: the one
+    window stages 3 and 4 read (`shared/seasonality.season_window`)."""
+    months, values, note = season_window(metrics)
+    return list(zip(months, values, strict=True)), note
 
 
 def forecast(metrics: MetricsContract) -> ForecastBlock:
-    run, note = history(metrics)
-    if len(run) < MIN_HISTORY:
+    # The one window and the one claim stage 3 reads too (shared/seasonality).
+    months, values, note = season_window(metrics)
+    if len(months) < MIN_HISTORY:
         return ForecastBlock(method=INSUFFICIENT, horizon_periods=0, revenue=[], insufficient_history=True,
-                             months_used=len(run), history_note=note, season_years=None, season_note=None,
+                             months_used=len(months), history_note=note, season_years=None, season_note=None,
                              products_at_stockout_risk=None, products_at_stockout_risk_reason=STOCK_REASON)
-    months, values = [m for m, _ in run], [r for _, r in run]
-    found, years, season_note = points(months, values, metrics.period.current)
+    found, years, season_note = points(months, values, metrics.period.current, season_claim(metrics))
     return ForecastBlock(method=_method(years is not None), horizon_periods=HORIZON, revenue=found,
-                         insufficient_history=False, months_used=len(run), history_note=note, season_years=years,
+                         insufficient_history=False, months_used=len(months), history_note=note, season_years=years,
                          season_note=season_note,
                          products_at_stockout_risk=None, products_at_stockout_risk_reason=STOCK_REASON)
 

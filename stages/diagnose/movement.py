@@ -10,13 +10,14 @@ asked whether the change was larger than usual. This asks it once, for the
 headline only: the verdicts and the hypothesis table are unchanged.
 """
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
+from math import copysign
 from statistics import median
 
-from contracts.diagnosis import HeadlineMovement
-from shared.numbers import pct_change
+from contracts.diagnosis import HeadlineMovement, SeasonBand, SeasonChange, season_band
+from shared.numbers import is_negligible, pct_change
 from shared.periods import shift_month
-from stages.diagnose.thresholds import HEADLINE_MOVEMENT_FACTOR, XMR_MIN_BASELINE_POINTS
+from stages.diagnose.thresholds import HEADLINE_MOVEMENT_FACTOR, SEASON_BEYOND_FACTOR, XMR_MIN_BASELINE_POINTS
 
 # The 8 months the engine already asks of a baseline (step 4): 7 movements.
 MIN_MOVEMENTS = XMR_MIN_BASELINE_POINTS - 1
@@ -24,6 +25,80 @@ MIN_MOVEMENTS = XMR_MIN_BASELINE_POINTS - 1
 
 def singled_out(change_pct: float, typical_pct: float) -> bool:
     return abs(change_pct) >= HEADLINE_MOVEMENT_FACTOR * typical_pct
+
+
+def band(gap: float, typical: float) -> SeasonBand:
+    """The contract's band (contracts/diagnosis.season_band) at the engine's
+    factors: under 2 consistent, 2 to under 4 inconclusive, 4 or more a
+    shortfall or an excess (Thach, 2026-10-04)."""
+    return season_band(gap, typical, HEADLINE_MOVEMENT_FACTOR, SEASON_BEYOND_FACTOR)
+
+
+def _gap(this: float, other: float) -> float:
+    # Two changes equal but for floating-point residue have no gap: an exactly
+    # repeated season read "far above" itself (review 1, M1). Judged on the
+    # percent scale too - two changes near 0% made 1e-14 points "large" next
+    # to themselves (review 2, #2).
+    return 0.0 if is_negligible(this - other, this, other, 100.0) else this - other
+
+
+def _on_the_bound(gap: float, typical: float) -> float:
+    """A gap that is a band's bound but for floating-point residue IS the
+    bound: Thach's "2 to under 4" put an exact 2 x on the inconclusive side
+    and an exact 4 x on the far side, and residue flipped both (review 2,
+    #3: revenue in cents, a gap of exactly 2 x read "within" it)."""
+    for factor in (HEADLINE_MOVEMENT_FACTOR, SEASON_BEYOND_FACTOR):
+        bound = factor * typical
+        if bound and is_negligible(abs(gap) - bound, gap, bound, 100.0):
+            return copysign(bound, gap)
+    return gap
+
+
+def compare_with_season(months: Sequence[str], revenue: Mapping[str, float], current: str
+                        ) -> SeasonChange | None:
+    """This month's change against the same calendar month's change in the
+    earlier years of `months` (the season window: consecutive complete months
+    through `current`), and the typical size of such a year-on-year
+    difference over every other month pair (Thach, 2026-10-03; method:
+    C:/Users/Happy/season-fact-method.txt). No seasonal index is estimated,
+    so no season is fitted to the months it measures. None when this month or
+    the same month a year earlier gives no change (an older year is never
+    passed off as last year's), when fewer than MIN_MOVEMENTS differences can
+    be measured, or when they are all 0 and this month's is not - the raw
+    gate applies then."""
+    present = set(months)
+
+    def change(month: str) -> float | None:
+        before = shift_month(month, -1)
+        if month not in present or before not in present:
+            return None
+        return pct_change(revenue[month], revenue[before]).value
+
+    now = change(current)
+    if now is None or change(shift_month(current, -12)) is None:
+        return None
+    earlier = [c for k in range(1, len(months) // 12 + 1)
+               if (c := change(shift_month(current, -12 * k))) is not None]
+    differences = []
+    for month in months:
+        if month == current:
+            continue
+        this, year_ago = change(month), change(shift_month(month, -12))
+        if this is not None and year_ago is not None:
+            differences.append(abs(_gap(this, year_ago)))
+    if len(differences) < MIN_MOVEMENTS:
+        return None
+    expected = median(earlier)
+    typical = median(differences)
+    gap = _on_the_bound(_gap(now, expected), typical)
+    if typical == 0 and gap != 0:
+        # Every other month repeated its year-ago change exactly (fixed fees,
+        # memberships, rents): a typical of 0 sizes nothing, and every gap,
+        # +0.2 points included, read "far" (review 3, #2). No comparison -
+        # the raw gate decides. An exact repeat (a gap of 0) still matches.
+        return None
+    return SeasonChange(expected_change_pct=expected, years=len(earlier), difference_pct=gap, typical_pct=typical,
+                        differences=len(differences), band=band(gap, typical), beyond_factor=SEASON_BEYOND_FACTOR)
 
 
 def measure_movement(history: list[str], revenue: Mapping[str, float], *, revenue_prev: float,

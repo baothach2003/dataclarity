@@ -22,7 +22,8 @@ BY_ID = {scenario.id: scenario for scenario in SCENARIOS}
 # supported hypothesis). Measured 2026-10-01 with MASKED_MIN_CONTRIBUTION_SHARE 0.25;
 # again 2026-10-02 after 3E1b (S0 and S7 changed: the size test); again
 # 2026-10-03 after Thach's decisions on the eleventh run (S11: too short names
-# no cause).
+# no cause); S12 and S13 added 2026-10-04 (decision 1: a claimed season, a
+# stated fact).
 SAID = {
     "S0": (7, set(), {"B1", "P2", "T1"}),
     "S1": (6, {"B1"}, {"B1", "T1"}),
@@ -36,8 +37,10 @@ SAID = {
     "S9": (6, {"B1"}, {"B1", "T2"}),
     "S10": (6, {"P1"}, {"D2", "P1"}),
     "S11": (7, set(), {"B1", "P2", "T1"}),
+    "S12": (7, set(), {"B1", "P2", "T1"}),
+    "S13": (7, set(), {"B1", "C1", "P2"}),
 }
-MEETS_THE_SPEC = ("S0", "S2", "S3", "S4", "S5", "S6", "S8", "S10", "S11")
+MEETS_THE_SPEC = ("S0", "S2", "S3", "S4", "S5", "S6", "S8", "S10", "S11", "S12", "S13")
 
 
 @pytest.fixture(scope="module")
@@ -86,6 +89,30 @@ def test_known_limit_a_stockout_inside_ordinary_noise_names_no_cause(outcomes: d
     assert (outcome.rule, outcome.named) == (7, set()) and "R3" in outcome.supported
 
 
+def test_a_seasonal_store_with_nothing_planted_states_the_season(outcomes: dict[str, Outcome]) -> None:
+    """Decision 1 (Thach, 2026-10-03/04): S12's August and September have
+    equal indices - its month moved +0.28% against a median of -0.06% in the
+    two earlier Septembers, a gap of +0.34 points (printed as +0.3 - (-0.1) =
+    +0.4) within twice the usual 3.87: consistent with the season, no cause
+    named, the table's note."""
+    outcome = outcomes["S12"]
+    assert (outcome.rule, outcome.named, outcome.season, outcome.noted) == (7, set(), "consistent", True)
+    assert "The change is consistent with the season; no other cause is singled out." in outcome.message
+
+
+def test_a_season_masking_lapsed_customers_is_stated_as_a_shortfall(outcomes: dict[str, Outcome]) -> None:
+    """KNOWN LIMIT, recorded by Thach (2026-10-04): the season predicts about
+    +46% and 30% of the customers lapse, so the month still rose (+5.3%) - 40.5
+    points short of the two earlier Septembers. The headline states the
+    shortfall and names no cause: every hypothesis measures the change from
+    last month (T2 the change the season predicts) and none the gap from the
+    season, and C2 moved against the change (its verdict ruled out - 8D)."""
+    outcome = outcomes["S13"]
+    assert (outcome.rule, outcome.named, outcome.season, outcome.noted) == (7, set(), "shortfall", True)
+    assert outcome.message.endswith("None of the tested causes measures this gap from the season, so none is "
+                                    "named for the shortfall.")
+
+
 @pytest.mark.parametrize("scenario_id,context", [("S1", "T1"), ("S9", "T2")])
 def test_known_limit_f2_the_mechanism_takes_the_context_causes_place(
         scenario_id: str, context: str, outcomes: dict[str, Outcome]) -> None:
@@ -102,24 +129,25 @@ def test_known_limit_f2_the_mechanism_takes_the_context_causes_place(
 
 
 def test_the_scores_the_readme_quotes(outcomes: dict[str, Outcome], capsys: pytest.CaptureFixture[str]) -> None:
-    """The README quotes these: a change here is a change there. S0 and S11
-    leave the decoy count (Thach, 2026-10-03, decision 4: their criterion is
-    no cause and the table's note); every other scenario's criterion is at
+    """The README quotes these: a change here is a change there. S0, S11, S12
+    and S13 leave the decoy count (Thach, 2026-10-03, decision 4: their
+    criterion is no cause and the table's note); every other scenario's criterion is at
     most one decoy in 25 of 30 seeds (the 30-seed re-run). C2 beside the
     stockout (S7) and B1 beside the discontinued products (S8) are accepted
     consequences (3E2-F3); R3 beside S3 is not (decision 6: it follows by
     chance, not by definition). S10 meets its expectation by its verdict
     (D2 supported), not by its headline, which names the price change the
-    x100 error made - 8 headlines name what was planted, S0's and S11's
-    "nothing" included."""
+    x100 error made - 10 headlines meet their expectation: 9 say what was
+    planted (S0's, S11's and S12's "nothing" included) and S13's states the
+    shortfall against the season without the cause (a known limit)."""
     accuracy = sum(outcomes[s.id].meets(s) for s in SCENARIOS)
     by_headline = sum(outcomes[s.id].meets(s) for s in SCENARIOS if s.expected.supported is None)
     decoys = sorted((s.id, d) for s in SCENARIOS for d in outcomes[s.id].decoys(s))
     alarms = sorted(s.id for s in SCENARIOS if outcomes[s.id].false_alarm(s))
     with capsys.disabled():
-        print(f"\n3E2 suite at seed {SEED}: expectation met {accuracy}/12 ({by_headline} by the headline), "
-              f"decoys {len(decoys)} {decoys}, false alarms {len(alarms)} {alarms}")
-    assert (accuracy, by_headline, alarms) == (9, 8, [])
+        print(f"\n3E2 suite at seed {SEED}: expectation met {accuracy}/{len(SCENARIOS)} "
+              f"({by_headline} by the headline), decoys {len(decoys)} {decoys}, false alarms {len(alarms)} {alarms}")
+    assert (accuracy, by_headline, alarms) == (11, 10, [])
     assert decoys == []
 
 
@@ -129,12 +157,55 @@ def test_the_masked_shift_fires_on_s6_only(outcomes: dict[str, Outcome]) -> None
     assert sorted(i for i, outcome in outcomes.items() if outcome.alert) == ["S6"]
 
 
+def test_lapsed_customers_in_a_flat_season_are_still_named() -> None:
+    """Method amendment 2, B7/B8 (decided alone under CLAUDE.md 3.3a): S4's
+    plant in S12's store, whose season leaves September flat - the change
+    from last month IS the gap from the season, so C2 explains it and the
+    size test names it, as at HEAD 6e9b224 (29 of 30 seeds). Its headline
+    stands word for word; the gap is stated after it, never "the tested
+    causes do not explain the shortfall". Not a spec scenario: a check."""
+    from tests.scenarios.scenarios import CURRENT, FIRST, FLAT_AUGUST_SEASON, LAST, Expected, Scenario, _active_on, \
+        _sep, _some
+    from tests.scenarios.store import MonthPlan, generate
+
+    def flat_lapse(seed: int):
+        gone = _some(_active_on(_sep(1), seed), 0.30, seed, 4)
+        return generate(FIRST, LAST, seed=seed, plans={CURRENT: MonthPlan(dropped_customers=gone)},
+                        season=lambda month: FLAT_AUGUST_SEASON[month])
+
+    outcome = run(Scenario("S4F", "lapsed customers, a flat season", Expected(rule=6, names="C2"),
+                           frozenset({"C2"}), flat_lapse), SEED)
+    assert (outcome.rule, outcome.named, outcome.season) == (6, {"C2"}, "shortfall")
+    assert outcome.message == (
+        "Revenue went from 57,282.05 to 40,073.50 (-17,208.55). The best-supported explanation: lapsed customers "
+        "took more revenue away (customers lens, 89% of the change). Against the same month in the 2 earlier years "
+        "(median -0.1%), this month's change (-30.0%) is far below: the gap (-29.9 points) is at least four "
+        "times this shop's median year-on-year difference of about 3.9 points.")
+
+
+def test_s13_is_met_only_by_the_shortfall() -> None:
+    # Decision 1 (Thach, 2026-10-04): naming nothing with the table's note is
+    # not enough - the headline must report the season's shortfall (its band,
+    # a code; never the sentence).
+    from types import SimpleNamespace as NS
+
+    def outcome(band: str | None) -> Outcome:
+        season = NS(band=band) if band else None
+        stub = NS(headline=NS(rule=7, hypothesis_id=None, message="...", movement=NS(season=season)), tree=None,
+                  hypotheses_note="a note", hypotheses=[])
+        return outcome_of(BY_ID["S13"], stub)  # type: ignore[arg-type]  # a stub of the diagnosis
+
+    assert outcome("shortfall").meets(BY_ID["S13"])
+    assert not any(outcome(band).meets(BY_ID["S13"]) for band in ("consistent", "inconclusive", "excess", None))
+
+
 def test_a_tie_names_no_single_cause_and_counts_as_a_false_alarm() -> None:
     # Review 1 #13: a tie or the offsetting movements name several causes the
     # contract does not list - scored conservatively, never as "named nothing".
     from types import SimpleNamespace as NS
 
-    tie = NS(headline=NS(rule=6, hypothesis_id=None, message="Equally well supported: ..."), tree=None, hypotheses_note=None,
+    tie = NS(headline=NS(rule=6, hypothesis_id=None, message="Equally well supported: ...", movement=None), tree=None,
+             hypotheses_note=None,
              hypotheses=[NS(id="P1", verdict="supported"), NS(id="B1", verdict="supported")])
     outcome = outcome_of(BY_ID["S2"], tie)  # type: ignore[arg-type]  # a stub of the diagnosis
     assert outcome.named == {SEVERAL}
@@ -146,7 +217,8 @@ def test_missing_days_where_another_cause_was_planted_is_a_false_alarm() -> None
     # price cut says days were lost when none was.
     from types import SimpleNamespace as NS
 
-    lost_days = NS(headline=NS(rule=2, hypothesis_id=None, message="... days that have no sales ..."), tree=None, hypotheses_note=None,
+    lost_days = NS(headline=NS(rule=2, hypothesis_id=None, message="... days that have no sales ...", movement=None),
+                   tree=None, hypotheses_note=None,
                    hypotheses=[NS(id="D1", verdict="supported")])
     outcome = outcome_of(BY_ID["S2"], lost_days)  # type: ignore[arg-type]  # a stub of the diagnosis
     assert outcome.false_alarm(BY_ID["S2"]) and not outcome.false_alarm(BY_ID["S5"])
@@ -158,7 +230,8 @@ def test_a_blocked_run_is_no_false_alarm_where_a_data_problem_was_planted() -> N
     # does not.
     from types import SimpleNamespace as NS
 
-    blocked = NS(headline=NS(rule=1, hypothesis_id=None, message="The data cannot be diagnosed: ..."), tree=None, hypotheses_note=None,
+    blocked = NS(headline=NS(rule=1, hypothesis_id=None, message="The data cannot be diagnosed: ...", movement=None),
+                 tree=None, hypotheses_note=None,
                  hypotheses=[])
     for scenario_id, alarm in (("S10", False), ("S5", False), ("S2", True)):
         outcome = outcome_of(BY_ID[scenario_id], blocked)  # type: ignore[arg-type]  # a stub of the diagnosis
