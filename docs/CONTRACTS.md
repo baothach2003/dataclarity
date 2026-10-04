@@ -186,7 +186,10 @@ by the AI), and schema_inference / plan / cleaning_report are `2.0`. An issue's 
 invents one); the key is always present. An issue's `count` is never the AI's
 estimate: it comes from `profile.json` (`missing_values`, `all_null_column`,
 `duplicate_rows`) or is computed by pandas from the raw file, and an issue whose
-count is 0 is left out (`docs/AI_PIPELINE.md` section 11).
+count is 0 is left out (`docs/AI_PIPELINE.md` section 11). It is always an
+integer in the file: the AI's ANSWER may give null where it has no figure to
+copy (Thach, 2026-10-05), but the recount fills or drops every null before the
+file is written, and this model refuses one.
 `receipt_fill_lines` (`2.1`, session 2E-e2) is stage 1's own measure, never
 the AI's: on the raw file and these columns' mapping, the lines with no
 customer that the customer fill (section 6) would give their receipt's one

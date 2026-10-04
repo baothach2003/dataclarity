@@ -11,6 +11,10 @@ STRICT RULES
 - Give "pct" only for "missing_values" and "all_null_column", copied from the
   column's null_pct. For every other issue code the profile holds no
   percentage: use null.
+- Give "count" as the profile's figure, or null when it holds none: the
+  column's null_count for "missing_values" and "all_null_column", the
+  dataset's duplicate_rows for "duplicate_rows". For every other code the
+  profile holds no count: use null. Never invent a count.
 - Copy each "source_name" exactly as it appears in the profile, including any
   spaces or capitals.
 - "examples" are row references from the sample rows, as strings: ["row 4",
@@ -60,14 +64,14 @@ OUTPUT SCHEMA
 {
   "domain_confidence": <float 0..1>,
   "domain_reasoning": "<one sentence>",
-  "dataset_issues": [{"code": "...", "count": <int>, "severity": "...", "detail": "..."}],
+  "dataset_issues": [{"code": "...", "count": <int|null>, "severity": "...", "detail": "..."}],
   "columns": [
     {
       "source_name": "...",
       "semantic_type": "...",
       "canonical_field": "...",
       "confidence": <float 0..1>,
-      "issues": [{"code": "...", "count": <int>, "pct": <float|null>, "examples": ["row 4"]}]
+      "issues": [{"code": "...", "count": <int|null>, "pct": <float|null>, "examples": ["row 4"]}]
     }
   ]
 }

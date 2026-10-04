@@ -12,6 +12,7 @@ from tests.backend.api_support import (
     plan_reply,
     planned,
     schema_reply,
+    schema_reply_with_nulls,
     unusable_reply,
 )
 
@@ -35,6 +36,19 @@ def test_plan_proposes_and_moves_the_run_to_planned(make_api: MakeApi) -> None:
     assert api.status(run_id) is RunStatus.PLANNED
     assert "plan_proposed.json" in api.files(run_id)
     assert api.messages.calls[1]["model"] == api.settings.model_reasoning
+
+
+def test_the_real_models_null_counts_leave_the_runs_retry_to_the_plan(make_api: MakeApi) -> None:
+    # The schema answer with null counts is accepted first time, so the plan's broken first answer still
+    # has the run's one retry (Thach, 2026-10-05: the smoke test spent it on the schema 7 times of 7).
+    api = make_api(schema_reply_with_nulls(), unusable_reply(), plan_reply())
+    run_id = analyzed_run(api)
+
+    response = api.post(run_id, "plan")
+
+    assert response.status_code == 200
+    assert (response.json()["notices"], response.json()["plan"]["source"]) == ([], "ai")
+    assert len(api.messages.calls) == 3  # schema once, the plan twice
 
 
 def test_plan_before_the_schema_is_409_and_asks_nothing(make_api: MakeApi) -> None:

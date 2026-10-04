@@ -39,6 +39,17 @@ def schema_reply(domain_confidence: float = 0.93, **overrides: Any) -> FakeRespo
     return answer(SCHEMA_COLUMNS, domain_confidence=domain_confidence, **overrides)
 
 
+def schema_reply_with_nulls() -> FakeResponse:
+    """The real model's shape (the seventeenth run's smoke test, 7 of 7 first answers): a count of null
+    where the profile holds no figure - a dataset-level issue the profile gives no count for, and a code
+    pandas recounts (Thach, 2026-10-05). The fakes before it never returned null."""
+    columns = copy.deepcopy(SCHEMA_COLUMNS)
+    columns[2]["issues"] = [{"code": "negative_values", "count": None, "pct": None, "examples": []}]
+    return answer(columns, domain_confidence=0.93, dataset_issues=[
+        {"code": "duplicate_rows", "count": 1, "severity": "low", "detail": "row 3 repeats row 1"},
+        {"code": "missing_values", "count": None, "severity": "medium", "detail": "several columns have gaps"}])
+
+
 def plan_reply() -> FakeResponse:
     return plan_answer(
         [

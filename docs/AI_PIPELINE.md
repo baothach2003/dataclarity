@@ -1865,6 +1865,20 @@ rewrites it:
   to copy for these codes, so an estimate from at most 30 sample rows is
   expected to be off. (An impossible count, more than the file's rows or cells,
   is still rejected by `check_answer` before this step.)
+- **A count may be null where the AI has no figure to copy** (Thach,
+  2026-10-05, on the seventeenth report): the codes pandas recounts, and a
+  dataset-level issue the profile gives no count for. The prompt says "the
+  profile's figure, or null when it holds none" beside its `pct` rule; a code
+  the profile counts still requires its figure, and a null there is refused
+  with that figure named. Why: the prompt forbade inventing a count while the
+  answer schema demanded an integer - the real-AI smoke test refused 7 of 7
+  first answers on that one contradiction, spending every run's retry on the
+  schema step (the fakes never returned null; the real Kaggle answers are now
+  test fixtures, `tests/stages/ingest/real_answers/`). Only the ANSWER may
+  hold a null (`ai_schema.AnswerColumnIssue`, `AnswerDatasetIssue`): the
+  recount fills or drops every one, and the answer is converted into the
+  contract's own models, which require an integer - so Review, the plan step
+  and the cleaning report never read a null count.
 - A count of 0 removes the issue, whatever its source. An issue at a level its
   code cannot describe (`duplicate_rows` under a column, `negative_values` on
   the dataset) and a code repeated for one column are dropped: they have no

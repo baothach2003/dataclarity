@@ -4590,7 +4590,10 @@ dataclarity/
       sales match this store's usual December: 4 beyond its weekday pattern,
       against about 2 in other years." Thach's exact sentence stays wherever
       it is what was measured (the two figures equal, rounded: a pure
-      closure - 8 and 8, 10 and 10). FOR THACH: keep, or reword. Required,
+      closure - 8 and 8, 10 and 10). FOR THACH: keep, or reword. **Thach
+      (2026-10-05, on the seventeenth report): the correction accepted** -
+      his sentence said "as in other years" where the data showed 4 against
+      about 2; stating both figures is the truth. Required,
       fixed: the rule text's basis ("|change in gross sales|") still keyed
       on `spec.lens == "product"` - now `measured_on_gross_sales`, and the
       one-copy test is behavioural (moved to the returns lens, the total,
@@ -5585,6 +5588,79 @@ dataclarity/
       null when it holds none"); a profiled code keeps requiring the
       profile's figure (check_answer already checks it). Measured cost of
       leaving it: every run's retry spent on the schema step.
+      **Thach decided (2026-10-05, on the seventeenth report): the finding
+      is a contradiction in our own design, not a model fault** - the prompt
+      says "never invent counts" while the contract demands an integer
+      where the profile holds none. (1) `count` may be null exactly where
+      the AI has no figure to copy: the codes stage 1 recounts with pandas
+      (their count is overwritten anyway, 1E) and dataset-level issues the
+      profile gives no count for; a code the profile counts still requires
+      the profile's figure; the schema prompt says so beside the pct rule
+      ("the profile's figure, or null when it holds none"); every consumer
+      of a count handles null - nothing ever prints "None" (Review, the
+      cleaning report, the plan step). (2) The root cause of why the tests
+      missed it - the fakes never returned null: the smoke test's real
+      Kaggle answers (public data; failed and passed ones) kept as test
+      fixtures, and fakes with null counts in the shapes the real model
+      produced; tests first - the real failing answer fails on today's
+      code and passes after the fix. (3) The full process for an AI
+      pipeline change: tests first, mutation on the check, one review
+      cycle, full pytest, commit and checked push. (4) Then a confirmation
+      smoke test: at most 4 real calls (~$0.11) - 3 Kaggle schema calls in
+      fresh runs and 1 Online Retail II schema call, the same local error
+      logging; pass = every FIRST answer accepted with no retry; each call
+      reported as before; nothing changed during it; any first answer that
+      fails stops it and is shown. Then stop, before any deploy step.
+      **Built (the eighteenth run).** Only the ANSWER may hold a null:
+      `ai_schema.AnswerColumnIssue` / `AnswerDatasetIssue` (`count: int |
+      null`); `check_answer` still requires the profile's figure for the
+      codes it counts (column `missing_values` and `all_null_column`, dataset
+      `duplicate_rows`), refusing a null with the figure named ("must be the
+      profile's figure (N), not null" - never "None"), and skips nulls in its
+      size bounds; after the recount the answer is converted into the
+      contract's own models, which require an integer - the recount fills
+      (pandas) or drops (the wrong level) every null, and one that survived
+      would be refused, never written. So `schema_inference.json` keeps an
+      integer for every count, and Review's badges, the plan step's input and
+      the cleaning report never read a null. The prompt beside its pct rule:
+      "Give "count" as the profile's figure, or null when it holds none: the
+      column's null_count for "missing_values" and "all_null_column", the
+      dataset's duplicate_rows for "duplicate_rows". For every other code the
+      profile holds no count: use null. Never invent a count."; the shape
+      `"count": <int|null>`. A null filled by pandas is no longer counted as
+      "replaced" in the recount's log.
+      **Tests first.** Fixtures: `tests/stages/ingest/real_answers/` - the six
+      real Kaggle first answers (raw text, fence included) and the Kaggle
+      profile they were checked against (its sample and top values emptied:
+      no cell of the file is committed; the check reads none of them). On
+      the old code all six fail with the smoke test's error; on the new they
+      pass. Fakes in the real shapes (Kaggle's dataset-level nulls; Online
+      Retail II's nulls on recounted column codes and the business key), in
+      `tests/stages/ingest/test_null_counts.py` and the backend's
+      `schema_reply_with_nulls` - whose API test (checked failing on the old
+      code) shows the point of it: the schema accepted first time, the
+      plan's broken first answer still has the run's retry (3 calls).
+      **Not met in full - said plainly:** the decision asked for the smoke
+      test's failed AND passed Kaggle answers; only the failed ones exist -
+      the seventeenth run's hook logged failures only. The confirmation
+      smoke test keeps every Kaggle answer's raw text, passed ones too (in
+      the scratchpad), for Thach to add as fixtures. **Known, unchanged:**
+      the recount drops a dataset-level issue of a column code (Kaggle's
+      dataset-level `missing_values`, "Discount Applied stored as text") as
+      the wrong level - it never reached Review before this change either.
+      **Mutation:** 12 mutants on the check, the conversion, the prompt rule
+      and the recount's stat - 11 killed (two after tests were added: the
+      conversion of a dataset issue, the business key's stat), 1 equivalent
+      (`(count or 0) > rows`). **Review cycle (one; cross-model skipped:
+      non-interactive):** no critical or required finding - every path a
+      null could take into the file traced and covered. Optional, fixed: the
+      refusals tied to `issue_counts.PROFILED_CODES` by a test; the
+      fixture's cells emptied; one prompt sentence that was not true ("stage
+      1 counts the cells itself" - for dataset-level codes the recount drops
+      instead) reworded; the "replaced" stat; a test reading the written
+      file, not the returned model. Noted: a null on a profiled code whose
+      figure is 0 is refused and spends the retry, where 0 would pass - the
+      decision's letter, measured in no answer so far.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5768,6 +5844,12 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Eighteenth overnight run** (2026-10-05, on the seventeenth report; Thach's
+decisions recorded at Phase 9's smoke-test item and 6E's Q3). Order: the
+null-count fix with the full process (fixtures from the real answers first),
+committed and pushed; then the confirmation smoke test (at most 4 calls);
+then stop before any deploy step. Report: `C:\Users\Happy\overnight-report.txt`
+(the seventeenth run's as `overnight-report-run17.txt`).
 **Seventeenth overnight run** (2026-10-05, on the sixteenth report; Thach's
 decisions recorded at 3E1b (Q1), 6E (Q2, Q3) and Phase 9's smoke-test item
 (Q4)). Order: Q1-Q3 with the full process, committed; then the smoke test;

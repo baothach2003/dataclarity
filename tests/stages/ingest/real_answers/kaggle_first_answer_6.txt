@@ -1,0 +1,98 @@
+```json
+{
+  "domain_confidence": 0.97,
+  "domain_reasoning": "The dataset contains transactions with items, categories, prices, quantities and totals typical of retail sales/inventory data.",
+  "dataset_issues": [
+    {"code": "missing_values", "count": null, "severity": "medium", "detail": "Several columns (Item, Price Per Unit, Quantity, Total Spent, Discount Applied) have missing values, overall missing_cells_pct is 5.23%."}
+  ],
+  "columns": [
+    {
+      "source_name": "Transaction ID",
+      "semantic_type": "identifier",
+      "canonical_field": "order_id",
+      "confidence": 0.85,
+      "issues": []
+    },
+    {
+      "source_name": "Customer ID",
+      "semantic_type": "identifier",
+      "canonical_field": "customer",
+      "confidence": 0.95,
+      "issues": []
+    },
+    {
+      "source_name": "Category",
+      "semantic_type": "categorical_nominal",
+      "canonical_field": "category",
+      "confidence": 0.95,
+      "issues": []
+    },
+    {
+      "source_name": "Item",
+      "semantic_type": "categorical_nominal",
+      "canonical_field": "product_name",
+      "confidence": 0.8,
+      "issues": [
+        {"code": "missing_values", "count": 1213, "pct": 9.646123260437376, "examples": ["row 6", "row 8", "row 6938", "row 9539"]}
+      ]
+    },
+    {
+      "source_name": "Price Per Unit",
+      "semantic_type": "numeric_continuous",
+      "canonical_field": "unit_price",
+      "confidence": 0.9,
+      "issues": [
+        {"code": "missing_values", "count": 609, "pct": 4.842942345924453, "examples": ["row 6", "row 6938"]}
+      ]
+    },
+    {
+      "source_name": "Quantity",
+      "semantic_type": "numeric_discrete",
+      "canonical_field": "quantity",
+      "confidence": 0.9,
+      "issues": [
+        {"code": "missing_values", "count": 604, "pct": 4.8031809145129225, "examples": ["row 8", "row 5204", "row 9539"]}
+      ]
+    },
+    {
+      "source_name": "Total Spent",
+      "semantic_type": "numeric_continuous",
+      "canonical_field": "ignore",
+      "confidence": 0.7,
+      "issues": [
+        {"code": "missing_values", "count": 604, "pct": 4.8031809145129225, "examples": ["row 8", "row 5204", "row 9539"]}
+      ]
+    },
+    {
+      "source_name": "Payment Method",
+      "semantic_type": "categorical_nominal",
+      "canonical_field": "ignore",
+      "confidence": 0.95,
+      "issues": []
+    },
+    {
+      "source_name": "Location",
+      "semantic_type": "categorical_nominal",
+      "canonical_field": "ignore",
+      "confidence": 0.9,
+      "issues": []
+    },
+    {
+      "source_name": "Transaction Date",
+      "semantic_type": "datetime",
+      "canonical_field": "transaction_date",
+      "confidence": 0.95,
+      "issues": []
+    },
+    {
+      "source_name": "Discount Applied",
+      "semantic_type": "boolean",
+      "canonical_field": "ignore",
+      "confidence": 0.85,
+      "issues": [
+        {"code": "missing_values", "count": 4199, "pct": 33.39165009940358, "examples": ["row 4", "row 6", "row 868"]}
+      ]
+    }
+  ]
+}
+```

@@ -92,7 +92,7 @@ _NEAR_DUPLICATE_TYPES = TEXTUAL_TYPES
 
 @dataclass(frozen=True)
 class RecountStats:
-    replaced: int  # issues whose count differed from the AI's and was overwritten
+    replaced: int  # issues whose count the AI gave, differed from pandas', and was overwritten
     dropped: int  # issues removed: nothing found, wrong level, or repeated
 
 
@@ -123,7 +123,8 @@ def recount_issues(
                     dropped += 1
                     continue
                 if count != issue.count:
-                    replaced += 1
+                    # A null is filled, not replaced: the AI gave no figure (Thach, 2026-10-05).
+                    replaced += issue.count is not None
                     issue = issue.model_copy(update={"count": count})
             elif issue.count == 0:
                 # A figure the profile holds, equal to it, and 0 ("0 missing
@@ -158,7 +159,7 @@ def recount_issues(
             if count == 0:
                 dropped += 1
                 continue
-            if count != dataset_issue.count:
+            if dataset_issue.count is not None and count != dataset_issue.count:
                 replaced += 1
             # The description is rewritten even when the count was right: the
             # AI's sentence may quote another figure, and two numbers for one

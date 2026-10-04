@@ -11,10 +11,11 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, NonNegativeInt
 
 from contracts.profile import (
     ColumnInference,
+    ColumnIssue,
     DatasetIssue,
     ProfileContract,
     SchemaInferenceContract,
@@ -37,14 +38,34 @@ OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
 SCHEMA_VERSION = "4.2"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates; 2E-l: "pooled" (enum, major); 2E-j: no change, kept in step with the plan and the report; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: no change, kept in step; 2E-u3: no change, kept in step
 
 
+# A count may be null where the AI has no figure to copy (Thach, 2026-10-05,
+# on the seventeenth report): the codes stage 1 recounts with pandas (their
+# count is overwritten anyway, 1E) and dataset-level issues the profile gives
+# no count for. The prompt forbids inventing a count, and the strict integer
+# refused 7 of 7 first answers in the real-AI smoke test. A code the profile
+# counts still requires the profile's figure (check_answer). Only the ANSWER
+# may hold a null: the recount fills or drops every one, and the stored
+# contract keeps requiring an integer.
+class AnswerColumnIssue(ColumnIssue):
+    count: NonNegativeInt | None
+
+
+class AnswerDatasetIssue(DatasetIssue):
+    count: NonNegativeInt | None
+
+
+class AnswerColumn(ColumnInference):
+    issues: list[AnswerColumnIssue]
+
+
 class SchemaInferenceAnswer(BaseModel):
     """What the AI returns: the contract without the header fields, which
     are ours to set (schema_version, generated_at, model_used)."""
 
     domain_confidence: Annotated[float, Field(ge=0, le=1)]
     domain_reasoning: str
-    dataset_issues: list[DatasetIssue]
-    columns: list[ColumnInference]
+    dataset_issues: list[AnswerDatasetIssue]
+    columns: list[AnswerColumn]
 
 
 def check_answer(answer: SchemaInferenceAnswer, profile: ProfileContract) -> None:
@@ -74,9 +95,10 @@ def check_answer(answer: SchemaInferenceAnswer, profile: ProfileContract) -> Non
     # prompts/schema_inference.md). A column issue counts cells in one column,
     # so it is bounded by the rows; a dataset issue may count cells anywhere.
     cells = rows * profile.dataset.columns
-    for count in sorted({i.count for c in answer.columns for i in c.issues if i.count > rows}):
+    for count in sorted({i.count for c in answer.columns for i in c.issues
+                         if i.count is not None and i.count > rows}):
         problems.append(f"issue count {count} exceeds the {rows} data rows")
-    for count in sorted({i.count for i in answer.dataset_issues if i.count > cells}):
+    for count in sorted({i.count for i in answer.dataset_issues if i.count is not None and i.count > cells}):
         problems.append(f"dataset issue count {count} exceeds the {cells} cells")
     problems += _figure_mismatches(answer, resolved, profile)
     if problems:
@@ -95,7 +117,10 @@ def _figure_mismatches(
     by_name = {c.name: c for c in profile.columns}
     rows = profile.dataset.rows
     for issue in answer.dataset_issues:
-        if issue.code == "duplicate_rows" and issue.count != profile.dataset.duplicate_rows:
+        if issue.code == "duplicate_rows" and issue.count is None:
+            problems.append(f"duplicate_rows count must be the profile's figure "
+                            f"({profile.dataset.duplicate_rows}), not null")
+        elif issue.code == "duplicate_rows" and issue.count != profile.dataset.duplicate_rows:
             problems.append(f"duplicate_rows count {issue.count}, but the profile has "
                             f"{profile.dataset.duplicate_rows}")
     for column, name in zip(answer.columns, resolved, strict=True):
@@ -104,7 +129,10 @@ def _figure_mismatches(
         stats = by_name[name]
         for issue in column.issues:
             if issue.code == "missing_values":
-                if issue.count != stats.null_count:
+                if issue.count is None:
+                    problems.append(f"{name}: missing_values count must be the profile's figure "
+                                    f"({stats.null_count}), not null")
+                elif issue.count != stats.null_count:
                     problems.append(f"{name}: missing_values count {issue.count}, "
                                     f"but the profile has {stats.null_count}")
                 if issue.pct is not None and abs(issue.pct - stats.null_pct) > PCT_TOLERANCE:
@@ -114,6 +142,9 @@ def _figure_mismatches(
                 if stats.null_count != rows:
                     problems.append(f"{name}: all_null_column, but the profile counts "
                                     f"{stats.null_count} missing of {rows} rows")
+                elif issue.count is None:
+                    problems.append(f"{name}: all_null_column count must be the profile's figure "
+                                    f"({stats.null_count}), not null")
                 elif issue.count != rows:
                     problems.append(f"{name}: all_null_column count {issue.count}, "
                                     f"but the file has {rows} data rows")
@@ -194,8 +225,13 @@ def infer_schema_run(
     checks = order_checks(frame, mapping, parse_for_checks(frame, mapping))
     placeholders = placeholder_candidates(frame, mapping)
     non_products = non_product_candidates(frame, mapping)
-    columns, dataset_issues, _ = recount_issues(
+    recounted, recounted_dataset, _ = recount_issues(
         answered, answer.dataset_issues, frame, order_check=checks.spanning)
+    # Into the contract's own models, which require an integer count: the
+    # recount filled or dropped every null the answer may hold, and one that
+    # survived would be refused here, never written.
+    columns = [ColumnInference.model_validate(c.model_dump()) for c in recounted]
+    dataset_issues = [DatasetIssue.model_validate(i.model_dump()) for i in recounted_dataset]
     contract = SchemaInferenceContract(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
