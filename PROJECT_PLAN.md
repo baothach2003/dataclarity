@@ -5661,6 +5661,29 @@ dataclarity/
       file, not the returned model. Noted: a null on a profiled code whose
       figure is 0 is refused and spends the retry, where 0 would pass - the
       decision's letter, measured in no answer so far.
+      Committed and pushed as 7fe6e7d (pytest 4575).
+      **Confirmation smoke test (the eighteenth run, on 7fe6e7d) - PASS: 4
+      of 4 FIRST answers accepted, no retry; 4 of 4 calls, ~$0.104.** Stage
+      1's own schema step in-process, the run's retry spent (so a pass is a
+      first answer); nothing changed during it; Sonnet 5 at $2 / $10 per
+      million tokens.
+        1 Kaggle schema   7085 in  1212 out   8.4 s  $0.0263  accepted
+        2 Kaggle schema   7085 in  1213 out   8.1 s  $0.0263  accepted
+        3 Kaggle schema   7085 in  1222 out   8.1 s  $0.0264  accepted
+        4 ORII schema     6639 in  1194 out   8.0 s  $0.0252  accepted
+      (8-9 s a call; 17.3 s for Online Retail II's step with its 39 MB
+      profile.) The rule changed what the model writes: the three Kaggle
+      answers no longer carry a dataset-level issue with a null count - each
+      reports `duplicate_rows` with the profile's own 0 (dropped as nothing
+      to show) and the five columns' `missing_values` with the profile's
+      counts; no failure was logged. Online Retail II's accepted issues
+      carry pandas' counts for the recounted codes (e.g. Quantity
+      negative_values 9789, Description trailing_whitespace 91629). The
+      prompt's new rule costs ~98 input tokens a call (7085 against 6987).
+      The three passed Kaggle answers' raw text is kept in the scratchpad
+      (`run18/smoke_passed_answers.jsonl`) - not yet fixtures: adding them is
+      Thach's call (the decision asked for passed answers too; the
+      seventeenth run had kept none).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5848,7 +5871,11 @@ significance threshold, making a one-cent price rise a step change.
 decisions recorded at Phase 9's smoke-test item and 6E's Q3). Order: the
 null-count fix with the full process (fixtures from the real answers first),
 committed and pushed; then the confirmation smoke test (at most 4 calls);
-then stop before any deploy step. Report: `C:\Users\Happy\overnight-report.txt`
+then stop before any deploy step. Done: the fix built tests-first (the six
+real failed answers fail on the old code, pass on the new), mutated (11 of
+12, 1 equivalent), reviewed (no critical or required finding), pytest 4575,
+pushed as 7fe6e7d; the confirmation PASSED - 4 of 4 first answers accepted,
+no retry, ~$0.104. Stopped before any deploy step. Report: `C:\Users\Happy\overnight-report.txt`
 (the seventeenth run's as `overnight-report-run17.txt`).
 **Seventeenth overnight run** (2026-10-05, on the sixteenth report; Thach's
 decisions recorded at 3E1b (Q1), 6E (Q2, Q3) and Phase 9's smoke-test item
