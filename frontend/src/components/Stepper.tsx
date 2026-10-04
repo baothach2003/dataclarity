@@ -15,7 +15,7 @@ interface StepperProps {
 export function Stepper({ collectStatus }: StepperProps) {
   return (
     <header className="app-header">
-      <span className="app-brand">CleanStock</span>
+      <span className="app-brand">DataClarity</span>
       <ol className="stepper" aria-label="Pipeline progress">
         {STAGES.map((name, index) => {
           const isCollect = index === 0

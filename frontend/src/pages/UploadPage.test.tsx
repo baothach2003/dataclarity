@@ -1,12 +1,18 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UploadPage } from './UploadPage.tsx'
+import * as limitsApi from '../api/limits.ts'
 import * as runsApi from '../api/runs.ts'
 import { ApiError } from '../api/errors.ts'
 import type { RunUpload } from '../api/runs.ts'
 import type { RunCreated } from '../types/contracts.ts'
 
 vi.mock('../api/runs.ts', () => ({ createRun: vi.fn() }))
+vi.mock('../api/limits.ts', () => ({ fetchLimits: vi.fn() }))
+
+beforeEach(() => {
+  vi.mocked(limitsApi.fetchLimits).mockResolvedValue({ maxUploadMb: 50 })
+})
 
 afterEach(() => {
   cleanup()
@@ -28,6 +34,40 @@ function selectFile(file: File) {
 }
 
 describe('UploadPage', () => {
+  it("states and checks the server's own limit (6A: one source of truth)", async () => {
+    vi.mocked(limitsApi.fetchLimits).mockResolvedValue({ maxUploadMb: 10 })
+    const createRun = vi.mocked(runsApi.createRun)
+    render(<UploadPage baseUrl="http://localhost:8000" onUploaded={vi.fn()} />)
+
+    expect(await screen.findByText('CSV only, up to 10MB')).toBeDefined()
+    selectFile(csvFile('sales.csv', 11 * 1024 * 1024))
+
+    expect(screen.getByText('This file is too large')).toBeDefined()
+    expect(createRun).not.toHaveBeenCalled()
+    expect(vi.mocked(limitsApi.fetchLimits).mock.calls[0]?.[0]).toBe('http://localhost:8000')
+  })
+
+  // The 6A-6D review (B3): an unknown limit is never shown as a limit. Until
+  // the server answers, and if it never does, the hint names none; the client
+  // refuses only what no server accepts (the SPECS ceiling, SEC-1), and says so.
+  it('names no limit while the server has not said one, and checks only the ceiling', async () => {
+    let fail: ((reason: Error) => void) | undefined
+    vi.mocked(limitsApi.fetchLimits).mockReturnValue(new Promise((_, reject) => { fail = reject }))
+    render(<UploadPage baseUrl="http://localhost:8000" onUploaded={vi.fn()} />)
+
+    expect(screen.getByText('CSV only')).toBeDefined()
+    await act(async () => {
+      fail?.(new Error('HTTP 500'))
+      await Promise.resolve()
+    })
+    expect(vi.mocked(limitsApi.fetchLimits)).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('CSV only')).toBeDefined()
+    expect(screen.queryByText(/up to/)).toBeNull()
+
+    selectFile(csvFile('sales.csv', 61 * 1024 * 1024))
+    expect(screen.getByText(/^Files over 50\.0MB are never accepted/)).toBeDefined()
+  })
+
   it('rejects a non-CSV file client-side without calling the API', () => {
     const createRun = vi.mocked(runsApi.createRun)
     const onUploaded = vi.fn()

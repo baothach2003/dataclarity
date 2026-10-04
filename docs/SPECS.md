@@ -333,6 +333,13 @@ again. This is why the product can claim AI assistance without AI opacity.
 
 ## 8. API Contracts
 
+- `GET /api/limits` -> `{max_upload_mb}`: the server's own `MAX_UPLOAD_MB`,
+  which the Upload page checks before uploading (PROJECT_PLAN 6A: one source
+  of truth for a number that can differ per deployment). Until it answers, or
+  if it fails, the page names no limit and checks only section 1's 50 MB
+  ceiling, which no server exceeds, saying so if it refuses a file - never
+  showing the ceiling as the server's limit; the server still enforces its
+  own (SEC-1)
 - `POST /api/runs` (multipart) -> 201 `{run_id, filename, size_bytes, status}`
 - `GET /api/runs/{id}` -> status + which contract files exist
 - `GET /api/runs/{id}/profile` -> `profile.json`
@@ -523,7 +530,7 @@ warning in the import summary when it would go negative).
 | Run id that names no run (unknown, or not a UUID) | rejected | NOT_FOUND (404) |
 | Malformed request (no `file` part, a body that is not a JSON object, a wrong type) | rejected; the message lists where, never the value sent | INVALID_REQUEST (400) |
 | Unexpected server error (a database that is down, a bug) | generic message, nothing of the exception; logged on the server | INTERNAL_ERROR (500) |
-| Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason | INVALID_PLAN (422) |
+| Plan contains an unknown or illegal action, or is not a valid plan document | whole plan rejected; `details.problems` lists every reason; a refusal about how the dates or numbers read (an unanswered date or number question, an answer the file's cells disprove, a parse step that would write dates wrong) adds `details.reason` `reading` - its problems say what to do in Review, and the UI shows them, no other INVALID_PLAN's (6D) | INVALID_PLAN (422) |
 | Plan (at execute) leaves `product_name`, `transaction_date` or `quantity` unmapped, or drops it | whole plan rejected; the preview allows it while the user is still mapping | INVALID_PLAN (422) |
 | A valid plan fails on this data (an action raises, or no row is left) | run `failed`, nothing written; the message names the action and the column | CLEANING_FAILED (422) |
 | Stage 2 cannot compute metrics for this data (a required canonical field, `unit_price`, was never mapped; or the file was flagged NOT_INVENTORY at schema inference) (2D); or cleaned.csv's line classes are not stage 1's - a value outside a closed list, or some of the three columns without the others (2E-t2); or a figure's amounts or quantities - any month's - are too large to add up (2E-t3, 2E-v); or stage 3 cannot diagnose this data: its classes changed after the analysis, or its attribution multiplies the amounts past a float (3G-lite); or stage 4's forecast carries the amounts past a float (4C) | run stays as it was - `cleaned.csv` is still valid and downloadable (and, at stage 3, metrics.json), only the later stages are unavailable, nothing is written or removed; the message names the missing field, the domain reasoning, or the class column and says to re-upload; or says the amounts are too large to add up (`details.reason` `amounts_too_large`: the file's own amounts, so re-uploading it would not help) | ANALYSIS_FAILED (422) |

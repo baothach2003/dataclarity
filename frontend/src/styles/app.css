@@ -372,6 +372,14 @@
   margin-top: var(--space-1);
   font-size: var(--type-body-size);
 }
+/* One sentence per line inside a Notice's detail paragraph (a <p> cannot
+   hold another <p>). */
+.notice__line {
+  display: block;
+}
+.notice__line + .notice__line {
+  margin-top: var(--space-1);
+}
 .notice__actions {
   display: flex;
   gap: var(--space-3);

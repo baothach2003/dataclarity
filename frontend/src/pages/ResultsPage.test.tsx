@@ -125,7 +125,7 @@ describe('ResultsPage', () => {
 
     fireEvent.click(screen.getByText('Download cleaned_sales.csv'))
 
-    expect(await screen.findByText('This run has expired')).toBeDefined()
+    expect(await screen.findByText("This run's files are no longer available")).toBeDefined()
     expect(runsApi.downloadCleanedCsv).toHaveBeenCalledWith('http://localhost:8000', 'run-1')
   })
 
@@ -156,5 +156,36 @@ describe('ResultsPage', () => {
     )
 
     expect(screen.getByText('Generic cleaning only')).toBeDefined()
+  })
+})
+
+// PROJECT_PLAN 6D, the design gap review's Results ADD: one info Notice says
+// how stage 1 read the file (resultsReading.ts), and none when nothing needed
+// a reading decision.
+describe('ResultsPage: how the file was read', () => {
+  it('shows the reading decisions in one info notice', () => {
+    render(
+      <ResultsPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="sales.csv"
+        report={makeReport({ column_mapping: { qty_sold: 'quantity', cust: 'customer', day: 'transaction_date' }, date_order: 'month_first' })}
+        notices={[]}
+      />,
+    )
+
+    expect(screen.getByText('How the file was read')).toBeDefined()
+    expect(screen.getByText('Dates in "day" written like 05/01/2026 were read month first, as the file\'s own dates show.')).toBeDefined()
+    // The browser check (2026-10-04): a <p> per sentence inside the Notice's
+    // own <p> is invalid HTML, which React logs as an error.
+    expect(document.querySelector('p p')).toBeNull()
+  })
+
+  it('shows no such notice when nothing needed deciding', () => {
+    render(
+      <ResultsPage baseUrl="http://localhost:8000" runId="run-1" filename="sales.csv" report={makeReport()} notices={[]} />,
+    )
+
+    expect(screen.queryByText('How the file was read')).toBeNull()
   })
 })

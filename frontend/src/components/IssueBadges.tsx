@@ -18,7 +18,10 @@ export function IssueBadges({ issues, canonicalField }: IssueBadgesProps) {
     <span className="issue-badges">
       {issues.map((issue) => {
         const severity = columnIssueSeverity(issue.code, canonicalField, issue.pct)
-        const title = issue.examples.length > 0 ? issue.examples.join(', ') : undefined
+        // Each quoted, so an example holding a comma stays one (6A-6D review
+        // S7); AI text of unknown shape, shown as given (6B).
+        const title =
+          issue.examples.length > 0 ? `Examples: ${issue.examples.map((example) => `"${example}"`).join(', ')}` : undefined
         return (
           <span key={issue.code} className={`badge badge--${severity}`} title={title}>
             {ISSUE_LABELS[issue.code]} · {issue.count}

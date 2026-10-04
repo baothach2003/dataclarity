@@ -318,6 +318,24 @@ export interface CleaningReport {
   // 3.1 (2E-j): the order the date column was read in - the answer, else
   // the raw file's proof.
   date_order?: DateOrder | null
+  // 4.1 (2E-u1): per quantity and price column (by source name), what the
+  // number reading did; absent in an earlier report.
+  number_formats?: Record<string, AppliedNumberFormat>
+  // 4.2 (2E-u3): walk-in candidates the user neither confirmed nor answered
+  // "a real customer", commonest first; they stay customers in every figure.
+  unconfirmed_placeholders?: string[]
+}
+
+// What stage 1 did to one quantity or price column before the plan ran
+// (contracts/cleaning.py AppliedNumberFormat): the mark its ambiguous cells
+// were read with (null: no cell needed one), the cells rewritten as plain
+// numbers, the non-blank cells no rule reads (left as written), and whether
+// the mark was the user's answer rather than the file's proof.
+export interface AppliedNumberFormat {
+  format: NumberFormat | null
+  rewritten: number
+  unreadable: number
+  answered: boolean
 }
 
 // --- preview (stages/ingest/preview.py PreviewResult) --------------------------

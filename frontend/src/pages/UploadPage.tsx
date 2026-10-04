@@ -7,10 +7,11 @@ import type { DragEvent, KeyboardEvent } from 'react'
 import { createRun } from '../api/runs.ts'
 import type { RunUpload } from '../api/runs.ts'
 import { describeError } from '../domain/errorCopy.ts'
-import { formatBytes, UPLOAD_CEILING_MB, validateFile } from '../domain/upload.ts'
+import { formatBytes, validateFile } from '../domain/upload.ts'
 import { FileIcon, InfoIcon } from '../components/Icon.tsx'
 import { Notice } from '../components/Notice.tsx'
 import { Stepper } from '../components/Stepper.tsx'
+import { useUploadLimit } from './useUploadLimit.ts'
 
 type State =
   | { kind: 'idle' }
@@ -32,13 +33,14 @@ interface UploadPageProps {
 export function UploadPage({ baseUrl, onUploaded }: UploadPageProps) {
   const [state, setState] = useState<State>({ kind: 'idle' })
   const inputRef = useRef<HTMLInputElement>(null)
+  const limitMb = useUploadLimit(baseUrl)
 
   function openPicker() {
     inputRef.current?.click()
   }
 
   function startUpload(file: File) {
-    const problem = validateFile(file)
+    const problem = validateFile(file, limitMb)
     if (problem) {
       setState({ kind: 'error', error: problem, fileSizeBytes: file.size })
       return
@@ -170,7 +172,7 @@ export function UploadPage({ baseUrl, onUploaded }: UploadPageProps) {
                 Drop your CSV here or <span className="dropzone__browse">browse</span>
               </p>
             )}
-            <span className="dropzone__hint">CSV only, up to {UPLOAD_CEILING_MB}MB</span>
+            <span className="dropzone__hint">{limitMb === null ? 'CSV only' : `CSV only, up to ${String(limitMb)}MB`}</span>
             <input
               ref={inputRef}
               type="file"

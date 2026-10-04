@@ -4166,7 +4166,9 @@ dataclarity/
 > without the Wave 3 skills. Insights (6E) and Dashboard (6F) still wait for
 > Phase 2-5, whose data they need. Full account in section 12 Notes, dated
 > 2026-09-22.
-- [ ] Install skills Wave 3 (see docs/SKILLS.md) - **approved by Thach
+- [x] Install skills Wave 3 (see docs/SKILLS.md) - **installed 2026-10-04**
+      (both skills, source and hash in skills-lock.json; chrome-devtools-mcp
+      1.10.1 in `.mcp.json`, `--isolated`). **Approved by Thach
       (2026-10-04, on the fourteenth report):** frontend-ui-engineering from
       the same source as Waves 1 and 2, source and hash in skills-lock.json;
       browser-testing-with-devtools with the chrome-devtools MCP server added
@@ -4175,18 +4177,55 @@ dataclarity/
       memory rules: never with a measurement, the test suite or a mutation
       run. Display work in Phase 6: failing tests first, one review cycle,
       every page checked in the browser for console errors before it is done.
-- [ ] 6A Upload page + analyzing states (SPECS 4.1); decide how the
+- [x] 6A Upload page + analyzing states (SPECS 4.1); decide how the
       client-side size check learns `MAX_UPLOAD_MB` without a second source of
       truth for the limit
-- [ ] 6B Review screen part 1: column table with editable type / mapping / action
+      **Built 2026-10-04 (fifteenth run).** `GET /api/limits` ->
+      `{max_upload_mb}` (routers/limits.py, the Settings value itself; SPECS
+      8). The page states and checks the server's limit; until it answers, or
+      if it fails, it names NO limit ("CSV only") and checks only the 50 MB
+      ceiling, which no server exceeds, saying so when it refuses (review
+      B3). Decided alone: the endpoint and its shape (the item asked for
+      the mechanism).
+- [x] 6B Review screen part 1: column table with editable type / mapping / action
       (AI rationale rendered escaped, SPECS SEC-3). Issue examples are AI text
       of unknown shape (a real call returned the string "null"): render them
       as given, escaped, without assuming they are row references
-- [ ] 6C Review screen part 2: before/after preview + confirm/cancel/reset
-- [ ] 6D Results page: cleaning summary + downloads. The error copy for
+      **Checked 2026-10-04 (fifteenth run):** already met by the built
+      screen (no `dangerouslySetInnerHTML` anywhere; React escapes every AI
+      string); now pinned by IssueBadges tests ("null", markup, a comma
+      inside an example - each quoted so ["1,000", "2,500"] stays two,
+      review S7). Known limit for Thach: the examples are in the badge's
+      hover title only, as the design says (1:215) - not reachable by
+      keyboard or touch.
+- [x] 6C Review screen part 2: before/after preview + confirm/cancel/reset
+      **Checked 2026-10-04 (fifteenth run):** built earlier. The browser
+      check found Review's whole-file summary sent twice under React
+      StrictMode (the second answered 409 `summary_in_progress`, logged as
+      a console error): `useLineSummary` now shares one request per plan in
+      flight, aborted once nobody listens (review S2).
+- [x] 6D Results page: cleaning summary + downloads. The error copy for
       EXPIRED and INVALID_STATE must branch on `details.reason`
       `another_version` (2E-v): the fixed EXPIRED line "files are deleted 24
       hours after upload" is false for a run another version wrote
+      **Built 2026-10-04 (fifteenth run).** EXPIRED and INVALID_STATE branch
+      on `another_version` ("a different version", never "updated since":
+      an older server can read a newer file - review B4). The design gap
+      review's Results and Errors items: one info Notice "How the file was
+      read" (the date order for dates written like 05/01/2026, the numbers
+      rewritten, the decimal mark of those that read two ways, cells not
+      read as numbers in the uploaded file, walk-in candidates not
+      confirmed - only what stage 1 measured, review B1/B2/S4); the
+      "Duplicates removed" tile only when the plan ran it; INVALID_PLAN
+      shows its problems only for a reading refusal - stage 1's
+      `DateFormatMisreads` class and `details.reason` `reading` (SPECS 10;
+      review S1), never a validation dump; the product named DataClarity.
+      Also corrected, false for cases the backend sends (review B5, S5,
+      M8): RATE_LIMITED is today only the per-run AI cap (its own message);
+      EXPIRED names no hours (RETENTION_HOURS is a setting); EMPTY_FILE and
+      PARSE_FAILED claim no header row or separator search. **Open for
+      Thach:** the review's GLOBAL CHANGE on the stepper ("Predict" is a
+      forecast only in v1) names no new label - left as "Predict".
 - [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
       text rendered escaped, SPECS SEC-3). Always-on notes once, in "How to
       read these figures", as stage 5 does (Thach, 2026-09-29, adjustment 1);
@@ -5200,7 +5239,9 @@ built, tested, mutated, reviewed, re-checked (outcomes identical, wording
 only), pytest 4495 - committed (the 3E1b item). Stopped once on low memory
 (1.3 GB free; another program held about 4 GB) and resumed on Thach's
 "continue". Two questions for Thach at 3E1b (rule 4's hedge; T2's wording
-when a season is claimed). Next: Wave 3, then Phase 6. Report:
+when a season is claimed). Wave 3 installed; 6A-6D built (one review
+cycle: 5 blockers, all false sentences, fixed; every page checked in an
+isolated headless browser, no console error). Next: 6E. Report:
 `C:\Users\Happy\overnight-report.txt` (the fourteenth run's as
 `overnight-report-run14.txt`).
 **Thirteenth overnight run** (2026-10-03/04, continued after a restart;

@@ -30,7 +30,29 @@ describe('validateFile', () => {
     expect(error?.code).toBe('FILE_TOO_LARGE')
   })
 
+  it("marks a refusal at the ceiling as not the server's limit while that is unknown (6A-6D review B3)", () => {
+    const error = validateFile(fileOfSize('sales.csv', UPLOAD_CEILING_BYTES + 1), null)
+
+    expect(error?.details).toEqual({ max_bytes: UPLOAD_CEILING_BYTES, limit_known: false })
+  })
+
   it('accepts a file at exactly the ceiling', () => {
     expect(validateFile(fileOfSize('sales.csv', UPLOAD_CEILING_BYTES))).toBeNull()
+  })
+
+  it("rejects at the server's own lower limit when it is known (6A)", () => {
+    const tenMb = 10 * 1024 * 1024
+
+    expect(validateFile(fileOfSize('sales.csv', tenMb), 10)).toBeNull()
+    const error = validateFile(fileOfSize('sales.csv', tenMb + 1), 10)
+    expect(error?.code).toBe('FILE_TOO_LARGE')
+    expect(error?.message).toBe('The file is larger than the 10 MB limit.')
+    expect(error?.details).toEqual({ max_bytes: tenMb })
+  })
+
+  it('never lets a limit above the SPECS ceiling raise it (SEC-1)', () => {
+    expect(validateFile(fileOfSize('sales.csv', UPLOAD_CEILING_BYTES + 1), 80)?.code).toBe(
+      'FILE_TOO_LARGE',
+    )
   })
 })

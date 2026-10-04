@@ -11,6 +11,9 @@ import { ApiError } from './api/errors.ts'
 import type { RunUpload } from './api/runs.ts'
 import type { ProfileContract, RunCreated, SchemaInferenceContract } from './types/contracts.ts'
 
+vi.mock('./api/limits.ts', () => ({
+  fetchLimits: vi.fn().mockResolvedValue({ maxUploadMb: 50 }),
+}))
 vi.mock('./api/runs.ts', () => ({
   createRun: vi.fn(),
   getProfile: vi.fn(),

@@ -27,6 +27,12 @@ from stages.ingest.plan_validation import InvalidPlanError
 _WORDS: dict[DateOrder, str] = {"day_first": "day first", "month_first": "month first"}
 
 
+class DateFormatMisreads(InvalidPlanError):
+    """The plan's parse step would read the date column against the order
+    decided for it: cleaning would write some dates wrong (2E-j). Its own
+    class so a caller can say so by code (6A-6D review S1)."""
+
+
 class DateQuestionUnanswered(InvalidPlanError):
     """The date column reads either way and nobody has said which: Review's
     question is open (2E-j). A plan in that state is not executed; Review's
@@ -58,7 +64,7 @@ def execution_order(plan: CleaningPlanContract, frame: pd.DataFrame) -> DateOrde
     if step.action == "parse_datetime":
         problem = _misread(column, values, step.params, order, evidence, answer is not None)
         if problem is not None:
-            raise InvalidPlanError([problem])
+            raise DateFormatMisreads([problem])
     return order
 
 

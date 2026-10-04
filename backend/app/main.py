@@ -15,7 +15,7 @@ from app.errors import (
     unexpected_error_middleware,
     validation_error_handler,
 )
-from app.routers import health, runs
+from app.routers import health, limits, runs
 from app.services.analysis import AiClientFactory, default_ai_client_factory
 from app.services.run_memory import BYTES_PER_MB, FrameCache, RetryBudgets, RunWork
 from app.services.stage_errors import run_file_version_handler
@@ -64,6 +64,7 @@ def create_app(
     # refusal is re-raised to the 500 above.
     app.add_exception_handler(ValidationError, run_file_version_handler)
     app.include_router(health.router)
+    app.include_router(limits.router)
     app.include_router(runs.router)
     return app
 

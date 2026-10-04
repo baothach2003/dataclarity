@@ -8,6 +8,7 @@ import { Notice } from '../components/Notice.tsx'
 import { Stepper } from '../components/Stepper.tsx'
 import { downloadJson, triggerBlobDownload } from '../domain/browserDownload.ts'
 import { describeError } from '../domain/errorCopy.ts'
+import { describeReading } from '../domain/resultsReading.ts'
 import { buildSummaryTiles, changesWithEffect } from '../domain/resultsSummary.ts'
 import type { CleaningReport, Notice as NoticeContract } from '../types/contracts.ts'
 
@@ -24,6 +25,7 @@ export function ResultsPage({ baseUrl, runId, filename, report, notices }: Resul
   const tiles = buildSummaryTiles(report)
   const effectiveChanges = changesWithEffect(report)
   const isNotInventory = notices.some((n) => n.code === 'NOT_INVENTORY')
+  const reading = describeReading(report, { analysis: !isNotInventory })
 
   const handleDownloadCsv = async () => {
     setDownloadError(null)
@@ -70,6 +72,16 @@ export function ResultsPage({ baseUrl, runId, filename, report, notices }: Resul
           <h2 className="columns-card__title">What ran</h2>
           <ChangeLogTable changes={effectiveChanges} />
         </section>
+
+        {reading.length > 0 && (
+          <Notice tone="info" title="How the file was read">
+            {reading.map((sentence) => (
+              <span className="notice__line" key={sentence}>
+                {sentence}
+              </span>
+            ))}
+          </Notice>
+        )}
 
         {report.warnings.length > 0 && (
           <Notice tone="info" title="Warnings">

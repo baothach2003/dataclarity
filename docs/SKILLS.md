@@ -77,6 +77,21 @@ References: `performance-checklist.md`.
 
 References: `accessibility-checklist.md`.
 
+**Installed 2026-10-04** (approved by Thach on the fourteenth report): both
+skills via `npx skills add addyosmani/agent-skills -a claude-code --copy -y
+-s frontend-ui-engineering -s browser-testing-with-devtools` (source and hash
+in `skills-lock.json`; the files were read before installing and are
+identical to the source at commit 1401c8b), `accessibility-checklist.md`
+copied into `.claude/references/`. The chrome-devtools MCP server is in the
+project's `.mcp.json`: the official package `chrome-devtools-mcp` **1.10.1**
+(github.com/ChromeDevTools/chrome-devtools-mcp, Apache-2.0, published by
+Google's npm account), pinned rather than `@latest`, with `--isolated` (a
+temporary Chrome profile wiped on close - never the daily profile) and the
+`cmd /c` wrapper Windows needs for `npx`. Claude Code asks to approve a new
+project MCP server and loads it at the next session start. Under the memory
+rules the automated browser is a heavy process: never with a measurement,
+the test suite or a mutation run.
+
 ### Wave 4: deployment phase
 
 | Skill / persona | Used for |

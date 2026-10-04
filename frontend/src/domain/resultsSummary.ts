@@ -31,8 +31,12 @@ export function buildSummaryTiles(report: CleaningReport): SummaryTile[] {
   const { changes, column_mapping } = report
   const droppedMissing = changes.filter((c) => c.action === 'drop_rows_missing' && c.rows_affected > 0)
   const droppedFields = [...new Set(droppedMissing.map((c) => fieldLabel(c.column, column_mapping)))]
+  // The AI never proposes removing exact copies (2E-u4): "0 removed" when the
+  // user did not ask would read as "the file has none" (design gap review,
+  // Results CHANGE). Shown only when the plan ran it, even at 0.
+  const dedupeRan = changes.some((c) => c.action === 'remove_exact_duplicates')
 
-  return [
+  const tiles: (SummaryTile | null)[] = [
     { label: 'Rows in → out', value: report.rows_out, caption: `${report.rows_in.toLocaleString()} → ${report.rows_out.toLocaleString()}` },
     {
       label: 'Cells imputed',
@@ -44,11 +48,13 @@ export function buildSummaryTiles(report: CleaningReport): SummaryTile[] {
       value: sum(changes, (c) => c.action === 'drop_rows_missing', 'rows_affected'),
       caption: droppedFields.length > 0 ? `missing ${droppedFields.join(', ')}` : '',
     },
-    {
-      label: 'Duplicates removed',
-      value: sum(changes, (c) => c.action === 'remove_exact_duplicates', 'rows_affected'),
-      caption: 'exact-row',
-    },
+    dedupeRan
+      ? {
+          label: 'Duplicates removed',
+          value: sum(changes, (c) => c.action === 'remove_exact_duplicates', 'rows_affected'),
+          caption: 'exact-row',
+        }
+      : null,
     {
       label: 'Categories standardized',
       value: sum(changes, (c) => c.action === 'standardize_categories', 'cells_affected'),
@@ -60,6 +66,7 @@ export function buildSummaryTiles(report: CleaningReport): SummaryTile[] {
       caption: 'to ISO 8601',
     },
   ]
+  return tiles.filter((tile): tile is SummaryTile => tile !== null)
 }
 
 /** Rows with no effect (`flag_only`, or any action that changed nothing:

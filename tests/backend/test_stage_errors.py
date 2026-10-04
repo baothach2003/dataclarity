@@ -10,6 +10,8 @@ from app.errors import STATUS_BY_CODE, ApiError
 from app.services import stage_errors
 from contracts import CleaningPlanContract
 from stages.ingest.cleaning import CleaningError
+from stages.ingest.date_order import DateFormatMisreads, DateQuestionUnanswered
+from stages.ingest.number_apply import NumberAnswerContradicted, NumberQuestionUnanswered
 from stages.ingest.plan_validation import InvalidPlanError
 from stages.ingest.profiling import CsvParseError, EmptyCsvError
 
@@ -34,6 +36,19 @@ def test_an_invalid_plan_is_422_with_its_problems() -> None:
 
     assert (error.code, STATUS_BY_CODE[error.code]) == ("INVALID_PLAN", 422)
     assert error.details == {"problems": ["a is wrong", "b is wrong"], "problem_count": 2}
+
+
+@pytest.mark.parametrize("refusal", [DateQuestionUnanswered, DateFormatMisreads, NumberQuestionUnanswered,
+                                     NumberAnswerContradicted])
+def test_a_refusal_about_how_dates_or_numbers_read_says_so_by_code(refusal: type[InvalidPlanError]) -> None:
+    # The frontend shows these problems as written - they say what to do in
+    # Review - and no other INVALID_PLAN's, which can be validation dumps
+    # (CLAUDE.md 3.7: a consumer decides on a code, never a message; 6A-6D
+    # review S1).
+    error = stage_errors.invalid_plan(refusal(["answer the date question in Review"]))
+
+    assert error.details == {"problems": ["answer the date question in Review"], "problem_count": 1,
+                             "reason": "reading"}
 
 
 def test_a_flood_of_problems_is_cut_but_counted() -> None:

@@ -18,6 +18,8 @@ from contracts._base import UNSUPPORTED_MAJOR, ContractFile
 from contracts.lines import refused_as_too_large
 from contracts.metrics import BEFORE_THE_LINE_TAXONOMY
 from stages.ingest.cleaning import CleaningError
+from stages.ingest.date_order import DateFormatMisreads, DateQuestionUnanswered
+from stages.ingest.number_apply import NumberAnswerContradicted, NumberQuestionUnanswered
 from stages.ingest.plan_validation import InvalidPlanError
 from stages.ingest.profiling import ProfilingError
 
@@ -88,10 +90,18 @@ def profiling_failed(error: ProfilingError) -> ApiError:
     return ApiError(cast(ErrorCode, error.code), str(error))
 
 
+# Refusals about how the dates or numbers read: their problems are sentences
+# that say what to do in Review, which a client may show as written - no other
+# INVALID_PLAN's, which can be validation dumps (CLAUDE.md 3.7: decided by a
+# code, never a message; 6A-6D review S1).
+_READING = (DateQuestionUnanswered, DateFormatMisreads, NumberQuestionUnanswered, NumberAnswerContradicted)
+
+
 def invalid_plan(error: InvalidPlanError) -> ApiError:
-    return ApiError(
-        "INVALID_PLAN", "The plan cannot run.",
-        {"problems": error.problems[:MAX_PROBLEMS], "problem_count": len(error.problems)})
+    details: dict[str, Any] = {"problems": error.problems[:MAX_PROBLEMS], "problem_count": len(error.problems)}
+    if isinstance(error, _READING):
+        details["reason"] = "reading"
+    return ApiError("INVALID_PLAN", "The plan cannot run.", details)
 
 
 def analysis_failed(message: str, details: dict[str, Any] | None = None) -> ApiError:
