@@ -69,8 +69,9 @@ class Changes:
     # rules 5 and 6 are not gated.
     movement: HeadlineMovement | None = None
     # Does 4A's rule claim a season on the forecast's window (shared/
-    # seasonality.season_claim)? Only then does rule 4's hedge say "This may
-    # be seasonal." (Thach, 2026-10-04, (i)); T2 is worded without "season"
+    # seasonality.season_claim)? Only then - and beside a consistent or
+    # inconclusive season comparison (Thach, 2026-10-05, Q1) - does rule 4's
+    # hedge say "This may be seasonal." ((i)); T2 is worded without "season"
     # either way ((ii)). `changes()` always sets it; a hand-built Changes
     # claims none - the honest default.
     season_claimed: bool = False

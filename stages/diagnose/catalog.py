@@ -75,7 +75,8 @@ CATALOG: tuple[HypothesisSpec, ...] = (
         "D1", "data_quality", "data", "expectation",
         "Days with no sales (missing data or a closure) explain the change",
         "the previous month's estimated revenue gap minus the current month's, each "
-        "priced at its own month's pace; `ruled_out` when the D1 check is `ok`",
+        "priced at its own month's pace; `ruled_out` when D1's own test finds no days beyond the "
+        "weekday pattern in either month (`trust.months_beyond_pattern`), whatever the badge",
         "none"),
     HypothesisSpec(
         "D2", "data_quality", "data", "directional",

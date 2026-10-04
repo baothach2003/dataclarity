@@ -73,7 +73,10 @@ step 4, and each closed with a deeper open item on the same block.
    on the fifteenth report: the hedge says "This may be seasonal." only when
    4A claims a season - only that claim may say "season" - and otherwise
    "Shifts like this can happen in an ordinary month; treat it as a pointer,
-   not a finding." The hedge itself stays.)
+   not a finding." The hedge itself stays. Amended again 2026-10-05, Q1 on
+   the sixteenth report: "This may be seasonal." also needs the season
+   comparison's band to be consistent or inconclusive - beside a shortfall,
+   an excess or no comparison, the plain hedge.)
 4. **3D4's and 3D6's base guards stay, for display.** A descriptive row is
    still shown to a reader, and +399,900% must not be printed as a growth
    rate.

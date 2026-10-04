@@ -350,7 +350,19 @@ counted in the verdict; 2E-j).
   November - with one expectation for both, an annual closure lifted B1's
   refusal and stopped explaining the change (3E1b review 1, F1; Online
   Retail II 2010-12). The D1 hypothesis is found when its pattern excess
-  passes the same caution test, whatever the badge says.
+  passes the same caution test, whatever the badge says - and an "ok" badge
+  then says so (Thach, 2026-10-05, Q3: "Coverage matches this store's normal
+  trading pattern" stood beside rule 2's "days with no sales ... explain the
+  change" on a shop closed over Christmas every year): "Days with no sales
+  match this store's usual <month>: N beyond its weekday pattern, as in
+  other years.", one sentence per compared month the hypothesis finds, the
+  current first (`trust.months_beyond_pattern`, the one predicate the badge
+  and the hypothesis read). Both measures stay. "As in other years" only
+  where it is what was measured (N equal, rounded, to what the same month of
+  other years held beyond its pattern); otherwise "...: 4 beyond its weekday
+  pattern, against about 2 in other years." - the data cannot tell whether
+  the difference is lost days or ordinary variation (CLAUDE.md 3.3a; the Q3
+  review cycle, finding 1, a decision made alone).
   **`caution` (3E1b) when the excess is at least the floor AND above the
   shop's own spread.** The floor is `D1_CAUTION_MIN_DAYS` (one whole day)
   once `D1_FULL_YEAR_MONTHS` (12) months are LEARNED (review 2, N1: keyed on
@@ -1052,7 +1064,7 @@ grew 2.7x.
 
 | Id | Family | Lens | Verdict | Statement (tested) | Rendered as | Contribution or test | Requires |
 |---|---|---|---|---|---|---|---|
-| D1 | data_quality | data | expectation | Days with no sales (missing data or a closure) explain the change | - | the previous month's estimated revenue gap minus the current month's, each priced at its own month's pace; `ruled_out` when the D1 check is `ok` | none |
+| D1 | data_quality | data | expectation | Days with no sales (missing data or a closure) explain the change | - | the previous month's estimated revenue gap minus the current month's, each priced at its own month's pace; `ruled_out` when D1's own test finds no days beyond the weekday pattern in either month (`trust.months_beyond_pattern`), whatever the badge | none |
 | D2 | data_quality | data | directional | Prices shifted uniformly (possible unit or currency issue) | - | directional: supported when D2 cautions | comparable products |
 | D3 | data_quality | data | directional | Flagged rows concentrated in the current period | - | directional: supported when D3 cautions | none |
 | T1 | time | time | expectation | The calendar explains the change | - | `calendar_effect` | none (day-count fallback) |
@@ -1124,7 +1136,10 @@ to explain: every share hypothesis is `ruled_out` with `share` null. One
 ruled out because its contribution has the OPPOSITE sign is marked
 `against_the_change` (18.3; Thach, 2026-10-04, (vii)) - the sign half of
 this test on the same `D`'s total, stated once, so report.html and the page
-label it "moved against the change (+X)" without re-deriving it.
+label it "moved against the change (+X)" without re-deriving it - for the
+product lens "moved against the change in gross sales (+X)", the total it
+is measured on (Thach, 2026-10-05, Q2; `contracts.diagnosis
+.measured_on_gross_sales`, the one copy this test and the label read).
 
 **When the masked-shift alert is on, `D` for a `term` is the gross of the
 decomposition the term belongs to** (3E1, the question 3D6b left open): level
@@ -1141,10 +1156,14 @@ numerator comes from one split and denominator from another is not bounded
 by 1: on the pair review's S6-like case B1's frequency term (+756.7) is
 0.31 of level 1's gross (2,406.7) and would be 0.95 of the pair's (800).
 
-**D1 follows its check** (Thach, 3E1). When the D1 check is `ok`, D1 is
+**D1 follows its check's test** (Thach, 3E1). When the days beyond the
+weekday pattern pass the check's caution test in neither month, D1 is
 `ruled_out`: a few excess zero days under the check's thresholds are noise in
 a sparse shop, and D1 came out supported on 17-24 of 40 sparse shops with no
-missing data; its rule states the excess days the check found. Otherwise its
+missing data; its rule states the excess days the check found. Since 3E1b
+the test reads the days beyond the weekday PATTERN, not the badge (review 1,
+F1): an "ok" badge its season explains can stand beside a found D1, and
+then says so (Q3, 7.3). Otherwise its
 contribution is `estimated_revenue_gap_prev - estimated_revenue_gap` (7.3):
 days with no sales this month pull the change down, last month's push it up.
 
@@ -1277,9 +1296,13 @@ while the month fell 450 short of its season. Written as a band, not
 4. Masked-shift alert - the total looks stable but components shifted strongly,
    naming the two opposing contributions of `tree.lever.masked_shift_pair`
    (orders and AOV), **always hedged** (ADR-0007): "This may be seasonal."
-   when 4A claims a season, otherwise "Shifts like this can happen in an
-   ordinary month; treat it as a pointer, not a finding." - only 4A's claim
-   may say "season" (Thach, 2026-10-04, decision (i)). Nothing establishes
+   when 4A claims a season and its comparison's band is consistent or
+   inconclusive, otherwise "Shifts like this can happen in an ordinary month;
+   treat it as a pointer, not a finding." - only 4A's claim may say "season"
+   (Thach, 2026-10-04, decision (i)), and not beside a shortfall or excess
+   (the month measured as off its season) or where no comparison was
+   possible (2026-10-05, Q1). Rule 4 is chosen before the comparison is read
+   and shows none; its hedge reads it. Nothing establishes
    that the movement was unusual, only that it was large and cancelled out,
    and a seasonal shoulder month has exactly that shape. This belongs here and not
    only in 7.9: the headline is written by code and is still produced in

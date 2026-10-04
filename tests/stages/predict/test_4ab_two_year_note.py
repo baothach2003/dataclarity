@@ -187,7 +187,7 @@ def test_a_report_written_before_is_refused_build_the_report_again() -> None:
     del old["layer_3_actions"]["forecast"]["season_years"]
     with pytest.raises(ValidationError, match="build the report again"):
         ReportContract.model_validate(old)
-    assert build().schema_version == "2.5"  # 2.5 the labels, evidence text and outside reasons (Thach, 2026-10-04, (vii)-(ix)); 2.4 the headline's season comparison (decision 1); 2.3 since 3E1b-F1 (b), the hypotheses note; 2.2 since 2E-u6 (the lines after the upload); 2.1 since 3E1b (the headline's optional movement)
+    assert build().schema_version == "2.6"  # 2.6 each hypothesis's lens (Thach, 2026-10-05, Q2); 2.5 the labels, evidence text and outside reasons (Thach, 2026-10-04, (vii)-(ix)); 2.4 the headline's season comparison (decision 1); 2.3 since 3E1b-F1 (b), the hypotheses note; 2.2 since 2E-u6 (the lines after the upload); 2.1 since 3E1b (the headline's optional movement)
 
 
 def test_the_cli_answers_a_forecast_of_the_version_before_with_run_the_prediction_again(

@@ -38,7 +38,7 @@ not bounded by 1 - B1's frequency term is 0.31 of level 1's gross and would be
 0.95 of the pair's on the pair review's S6-like case.
 """
 
-from contracts.diagnosis import Hypothesis, Tree
+from contracts.diagnosis import Hypothesis, Tree, measured_on_gross_sales
 from stages.diagnose.catalog import CATALOG, HypothesisSpec
 from stages.diagnose.hypothesis_evidence import EVIDENCE
 from stages.diagnose.numbers import is_negligible
@@ -75,7 +75,7 @@ def decomposition_gross(tree: Tree, name: str) -> float | None:
 def _measured_total(spec: HypothesisSpec, moved: Changes) -> float | None:
     """The change a share hypothesis claims to explain - gross sales for the
     product lens, revenue otherwise - or None where it did not move."""
-    total = moved.gross if spec.lens == "product" else moved.net
+    total = moved.gross if measured_on_gross_sales(spec.lens) else moved.net
     if total is None or is_negligible(total, moved.revenue_prev, moved.revenue_cur, moved.scale):
         return None
     return total
@@ -106,7 +106,7 @@ def share_verdict(spec: HypothesisSpec, contribution: float, inputs: Step7Inputs
         basis = f"gross of {DECOMPOSITION[spec.id]} (masked-shift alert on)"
     else:
         denominator = abs(total)
-        basis = "|change in gross sales|" if spec.lens == "product" else "|change in revenue|"
+        basis = "|change in gross sales|" if measured_on_gross_sales(spec.lens) else "|change in revenue|"
     if not denominator:
         return "ruled_out", None, f"D = {basis} is zero"
     share = contribution / denominator

@@ -661,12 +661,10 @@ def test_a_claimed_season_in_the_inconclusive_band_names_t2_without_the_word() -
     assert "season" not in headline.message.lower()
 
 
-def test_rules_1_to_4_are_untouched_by_the_season() -> None:
+def test_rules_1_to_3_are_untouched_by_the_season() -> None:
     from contracts.diagnosis import Trust, TrustCheck
-    from stages.diagnose.headline import SEASON_HEDGE, choose_headline
-    from stages.diagnose.step7_inputs import Changes
+    from stages.diagnose.headline import choose_headline
     from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _moved
-    from tests.stages.diagnose.test_headline import catalog, tree, trust
 
     blocked = Trust(verdict="blocked", checks=[TrustCheck(id="D1", status="blocked", message="cut short",
                                                           evidence={})], limitations=[])
@@ -674,15 +672,49 @@ def test_rules_1_to_4_are_untouched_by_the_season() -> None:
         season = _season(band, gap=2.2 if band == "consistent" else -30.0)
         headline = choose_headline(blocked, _all(_h("T2", "supported", 12.0, 1.0)), None, _moved(_gate(season)))
         assert headline.rule == 1
-    # Rule 4 is chosen before the comparison is read, and its hedge reads the claim alone (Thach,
-    # 2026-10-04, (i)) - whatever band stands beside it, and with none. Whether a band should change
-    # the hedge is an open question for Thach (3E1b, the sixteenth run), not a rule.
-    for season in (None, *(_season(band, gap=gap) for band, gap in
-                           (("consistent", 2.2), ("inconclusive", 8.0), ("shortfall", -30.0), ("excess", 30.0)))):
-        moved = Changes(1000.0, 840.0, -160.0, -160.0, True, movement=_gate(season), season_claimed=True)
-        masked = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0), moved)
-        assert (masked.rule, masked.movement) == (4, None)
-        assert masked.message.endswith(SEASON_HEDGE)
+
+
+# Thach, 2026-10-05 (Q1, on the sixteenth report): rule 4 is chosen before the comparison is read and
+# shows none, but its hedge reads it - "This may be seasonal." only under 4A's claim AND a band the
+# season is consistent with (consistent, inconclusive); a shortfall or excess measures the month as off
+# its season, and no comparison measures nothing: the plain hedge there.
+@pytest.mark.parametrize("band,gap,hedge", [
+    ("consistent", 2.2, "This may be seasonal."),
+    ("inconclusive", 8.0, "This may be seasonal."),
+    ("shortfall", -30.0, "PLAIN"),
+    ("excess", 30.0, "PLAIN"),
+    (None, None, "PLAIN"),  # 4A claims a season, but no comparison was possible
+])
+def test_rule_4s_hedge_reads_the_claim_and_its_band(band, gap, hedge) -> None:
+    from stages.diagnose.headline import PLAIN_HEDGE, choose_headline
+    from stages.diagnose.step7_inputs import Changes
+    from tests.stages.diagnose.test_headline import catalog, tree, trust
+
+    season = None if band is None else _season(band, gap=gap)
+    moved = Changes(1000.0, 840.0, -160.0, -160.0, True, movement=_gate(season), season_claimed=True)
+    masked = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0), moved)
+
+    assert (masked.rule, masked.movement) == (4, None)
+    assert masked.message.endswith(PLAIN_HEDGE if hedge == "PLAIN" else hedge)
+
+
+def test_the_seasonal_hedges_bands_are_bands_the_contract_has() -> None:
+    from typing import get_args
+
+    from contracts.diagnosis import SeasonBand
+    from stages.diagnose.headline import SEASON_HEDGE_BANDS
+
+    assert set(SEASON_HEDGE_BANDS) == {"consistent", "inconclusive"} and set(SEASON_HEDGE_BANDS) <= set(get_args(SeasonBand))
+
+
+def test_a_claim_with_no_size_test_measured_is_no_comparison_either() -> None:
+    # A Changes with no movement at all (changes() always measures one; a hand-built one need not).
+    from stages.diagnose.headline import PLAIN_HEDGE, choose_headline
+    from stages.diagnose.step7_inputs import Changes
+    from tests.stages.diagnose.test_headline import catalog, tree, trust
+
+    moved = Changes(1000.0, 840.0, -160.0, -160.0, True, season_claimed=True)
+    assert choose_headline(trust(), catalog(), tree(True, -480.0, 320.0), moved).message.endswith(PLAIN_HEDGE)
 
 
 # --- one claim for stages 3 and 4 (review F4), the pipeline ------------------------------------------
@@ -832,10 +864,13 @@ def test_rule_4s_hedge_says_season_only_under_4as_claim() -> None:
     from stages.diagnose.step7_inputs import Changes
     from tests.stages.diagnose.test_headline import catalog, tree, trust
 
+    # A consistent band on both: only the claim differs (a band without a claim is no claim - Q1).
+    consistent = _gate(_season("consistent", gap=2.2))
     claimed = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0),
-                              Changes(1000.0, 840.0, -160.0, -160.0, True, season_claimed=True))
+                              Changes(1000.0, 840.0, -160.0, -160.0, True, movement=consistent,
+                                      season_claimed=True))
     unclaimed = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0),
-                                Changes(1000.0, 840.0, -160.0, -160.0, True))
+                                Changes(1000.0, 840.0, -160.0, -160.0, True, movement=consistent))
     assert claimed.rule == unclaimed.rule == 4
     assert claimed.message.endswith("This may be seasonal.")
     assert unclaimed.message.endswith("Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding.")
@@ -849,7 +884,8 @@ def test_the_document_quotes_rule_4s_two_hedges_word_for_word() -> None:
     from stages.diagnose.headline import PLAIN_HEDGE, SEASON_HEDGE
 
     doc = " ".join((Path(__file__).parents[3] / "docs" / "AI_PIPELINE.md").read_text(encoding="utf-8").split())
-    assert f'"{SEASON_HEDGE}" when 4A claims a season, otherwise "{PLAIN_HEDGE}' in doc
+    assert (f'"{SEASON_HEDGE}" when 4A claims a season and its comparison\'s band is consistent or '
+            f'inconclusive, otherwise "{PLAIN_HEDGE}') in doc
 
 
 def test_no_season_claimed_no_comparison() -> None:

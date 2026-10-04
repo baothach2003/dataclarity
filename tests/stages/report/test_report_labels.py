@@ -52,8 +52,9 @@ P1_UP = {"id": "P1", "lens": "product", "statement": "Like-for-like prices chang
          "contribution": 3000.0, "share": 0.0214, "against_the_change": True}  # gross sales fell
 
 
-def test_the_version_is_2_5() -> None:
-    assert SCHEMA_VERSION == "2.5"  # 2.5: the hypotheses' labels and evidence text, the outside lines' reasons
+def test_the_version_is_2_6() -> None:
+    # 2.5: the hypotheses' labels and evidence text, the outside lines' reasons; 2.6: each row's lens (Q2).
+    assert SCHEMA_VERSION == "2.6"
 
 
 # (vii) One label, from stage 3's own sign test as diagnosis.json states it.
@@ -62,8 +63,10 @@ def test_a_cause_stage_3_ruled_out_against_the_change_is_labelled_so() -> None:
 
     assert (_row(report, "C2").moved_against, _row(report, "C2").verdict_label) == (
         True, "moved against the change (+5,000.00)")
-    assert (_row(report, "P1").moved_against, _row(report, "P1").verdict_label) == (
-        True, "moved against the change (+3,000.00)")
+    # Q2 (Thach, 2026-10-05): the product lens names its total - gross sales, shown nowhere else.
+    assert (_row(report, "P1").moved_against, _row(report, "P1").verdict_label, _row(report, "P1").lens) == (
+        True, "moved against the change in gross sales (+3,000.00)", "product")
+    assert _row(report, "C2").lens == "customers"
     assert _row(report, "C2").verdict == "ruled_out"  # the code is unchanged
 
 
@@ -110,8 +113,35 @@ def test_never_beside_a_month_the_report_does_not_compare(row: dict) -> None:
 
 
 def test_the_label_is_the_contracts_one_copy() -> None:
-    assert against_label(5000.0) == "moved against the change (+5,000.00)"
-    assert against_label(-1234.567) == "moved against the change (-1,234.57)"
+    assert against_label(5000.0, "customers") == "moved against the change (+5,000.00)"
+    assert against_label(-1234.567, "lever") == "moved against the change (-1,234.57)"
+    assert against_label(-50.0, "product") == "moved against the change in gross sales (-50.00)"
+    assert against_label(-50.0, None) == "moved against the change (-50.00)"  # a 2.5 row: no lens written
+
+
+def test_one_copy_says_which_total_a_share_is_measured_on(monkeypatch) -> None:
+    # Stage 3's share test - its total and the basis its rule prints - and the label read the same rule
+    # (CLAUDE.md 3.1), by behaviour: moved to the returns lens, all three follow (review, findings 2-3).
+    from types import SimpleNamespace
+
+    import contracts.diagnosis
+    import contracts.report_views as views
+    from contracts.diagnosis import measured_on_gross_sales
+    from stages.diagnose import hypotheses
+    from stages.diagnose.catalog import BY_ID
+    from stages.diagnose.step7_inputs import Changes
+
+    assert [lens for lens in ("product", "customers", "lever", "time", "data", "returns", None)
+            if measured_on_gross_sales(lens)] == ["product"]
+    assert hypotheses.measured_on_gross_sales is views.measured_on_gross_sales is contracts.diagnosis.measured_on_gross_sales
+    p3 = BY_ID["P3"]  # the returns lens
+    moved = Changes(1000.0, 800.0, -200.0, 100.0, False)  # revenue fell, gross sales rose
+    for module in (hypotheses, views):
+        monkeypatch.setattr(module, "measured_on_gross_sales", lambda lens: lens in ("product", "returns"))
+    _, _, rule = hypotheses.share_verdict(p3, 50.0, SimpleNamespace(tree=None), moved)
+    assert "|change in gross sales|" in rule
+    assert hypotheses.against_the_change(p3, -50.0, moved) is True  # against the gross sales' rise
+    assert views.against_label(-50.0, "returns") == "moved against the change in gross sales (-50.00)"
 
 
 def test_the_contract_refuses_a_label_its_code_does_not_give() -> None:
@@ -119,6 +149,16 @@ def test_the_contract_refuses_a_label_its_code_does_not_give() -> None:
            "evidence": {"k": 1.0}, "evidence_text": ["k: 1.00"]}
     good = row | {"moved_against": True, "verdict_label": "moved against the change (-3,000.00)"}
     assert HypothesisView.model_validate(good).moved_against is True
+    gross = good | {"lens": "product", "verdict_label": "moved against the change in gross sales (-3,000.00)"}
+    # A lens the catalog does not have, its bare label consistent - only the vocabulary refuses it (review,
+    # finding 4): "products" must not pass as a lens whose total goes unnamed.
+    with pytest.raises(ValidationError, match="Input should be"):
+        HypothesisView.model_validate(good | {"lens": "products"})
+    assert HypothesisView.model_validate(gross).moved_against is True
+    with pytest.raises(ValidationError, match="against"):  # the product lens's label names its total
+        HypothesisView.model_validate(gross | {"verdict_label": "moved against the change (-3,000.00)"})
+    with pytest.raises(ValidationError, match="against"):  # and only the product lens's
+        HypothesisView.model_validate(good | {"verdict_label": "moved against the change in gross sales (-3,000.00)"})
     for wrong in ({"verdict": "supported", "verdict_label": "moved against the change (-3,000.00)"},  # code
                   {"verdict_label": "moved against the change (+5.00)"},  # another figure
                   {"verdict_label": None},  # no label
@@ -185,6 +225,17 @@ def test_the_report_refuses_against_beside_a_month_it_does_not_compare() -> None
     ReportContract.model_validate(unflagged)
     with pytest.raises(ValidationError, match="against"):
         ReportContract.model_validate(withheld)
+
+
+def test_a_2_6_report_names_every_rows_lens() -> None:
+    from contracts.report import ReportContract
+
+    payload = build().model_dump(mode="json")
+    lensless = deepcopy(payload)
+    lensless["layer_2_causes"]["hypotheses"][0]["lens"] = None
+    with pytest.raises(ValidationError, match="2.6"):
+        ReportContract.model_validate(lensless)
+    ReportContract.model_validate(lensless | {"schema_version": "2.5"})  # written before: as it was
 
 
 def test_a_2_5_report_labels_every_row_and_words_every_outside_line() -> None:

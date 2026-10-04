@@ -40,7 +40,7 @@ SHORTFALL = _season("shortfall", 48.5, -33.9, 8.0)  # 33.9 >= 4 x 8.0
 
 
 def test_the_versions_are_additive() -> None:
-    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.3", "2.5")  # 18.3 against_the_change; 2.5 the labels, evidence text, outside reasons
+    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.3", "2.6")  # 18.3 against_the_change; 2.5 the labels, evidence text, outside reasons; 2.6 the lens
 
 
 def test_report_json_carries_the_season() -> None:

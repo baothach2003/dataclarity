@@ -8,6 +8,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, NonNegativeInt, PositiveInt, model_validator
 
 from contracts._base import ContractModel, YearMonth
+from contracts.diagnosis import Lens, measured_on_gross_sales
 from contracts.lines import (
     NOTE_TEXTS,
     OUTSIDE_REVENUE_TEXTS,
@@ -184,11 +185,14 @@ class MonthRevenue(ContractModel):
 AGAINST = "moved against the change"
 
 
-def against_label(contribution: float) -> str:
+def against_label(contribution: float, lens: str | None) -> str:
     """The verdict label of a hypothesis ruled out for moving against the
     change: its contribution, signed, to the cent - the one copy stage 5
-    writes and this contract checks (Thach, 2026-10-04, (vii))."""
-    return f"{AGAINST} ({'+' if contribution > 0 else '-'}{abs(contribution):,.2f})"
+    writes and this contract checks (Thach, 2026-10-04, (vii)). The product
+    lens names its total, gross sales, which the report shows nowhere else
+    (2026-10-05, Q2); a 2.5 row has no lens and keeps the bare label."""
+    total = " in gross sales" if measured_on_gross_sales(lens) else ""
+    return f"{AGAINST}{total} ({'+' if contribution > 0 else '-'}{abs(contribution):,.2f})"
 
 
 def prints_as_zero(value: float) -> bool:
@@ -197,6 +201,9 @@ def prints_as_zero(value: float) -> bool:
 
 class HypothesisView(ContractModel):
     id: str
+    # 2.6 (Thach, 2026-10-05, Q2): the lens, as diagnosis.json has it - the
+    # label names the total the lens is measured on. Absent before 2.6.
+    lens: Lens | None = None
     statement: str
     verdict: Literal["supported", "partial", "ruled_out", "inconclusive", "not_testable"]
     contribution: float | None
@@ -221,9 +228,9 @@ class HypothesisView(ContractModel):
             if (self.verdict != "ruled_out" or self.contribution is None or self.share is None
                     or prints_as_zero(self.contribution)):
                 raise ValueError("only a ruled_out share hypothesis whose contribution prints moved against the change")
-            if self.verdict_label != against_label(self.contribution):
-                raise ValueError(f"moved against the change is labelled {against_label(self.contribution)!r}, "
-                                 f"not {self.verdict_label!r}")
+            if self.verdict_label != against_label(self.contribution, self.lens):
+                raise ValueError(f"moved against the change is labelled "
+                                 f"{against_label(self.contribution, self.lens)!r}, not {self.verdict_label!r}")
         elif self.verdict_label is not None and self.verdict_label != self.verdict.replace("_", " "):
             raise ValueError(f"the label {self.verdict_label!r} is not its code's ({self.verdict.replace('_', ' ')!r})")
         if (self.verdict_label is not None or self.evidence_text) and (

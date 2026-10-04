@@ -338,8 +338,9 @@ class Lever(ContractModel):
     no complete trading month - because the check could not run.
     `masked_shift_basis` is gone with the signals it described: nothing now
     establishes that the movement was UNUSUAL, so headline rule 4 is always
-    hedged: "This may be seasonal." where 4A's rule claims a season, else as
-    a shift an ordinary month can show (Thach, 2026-10-04, (i)).
+    hedged: "This may be seasonal." where 4A's rule claims a season and its
+    comparison's band is consistent or inconclusive, else as a shift an
+    ordinary month can show (Thach, 2026-10-04, (i); 2026-10-05, Q1).
 
     `reasons` carries one entry per null field, keyed by field name.
     """
@@ -590,6 +591,20 @@ class Localization(ContractModel):
 
 
 # --- Step 7 (session 3E): hypotheses and headline -----------------------------
+
+
+# The lenses the hypothesis catalog uses (stages/diagnose/catalog.py; a test
+# pins every one of them here): report.json names a row's lens from these, so
+# a misspelt "products" cannot pass as a lens with the bare label (2.6).
+Lens = Literal["customers", "data", "lever", "localization", "product", "returns", "time"]
+
+
+def measured_on_gross_sales(lens: str | None) -> bool:
+    """Which total a share hypothesis is measured against: gross sales for the
+    product lens, revenue otherwise (AI_PIPELINE 7.8). One copy - stage 3's
+    share test reads it, and so does the label that names the total
+    (contracts.report_views.against_label; Thach, 2026-10-05, Q2)."""
+    return lens == "product"
 
 
 class Hypothesis(ContractModel):

@@ -60,6 +60,14 @@ def test_no_hypothesis_is_worded_with_season() -> None:
         assert "season" not in f"{spec.statement} {spec.reason}".lower(), spec.id
 
 
+def test_every_lens_the_catalog_uses_is_one_the_report_contract_names() -> None:
+    from typing import get_args
+
+    from contracts.diagnosis import Lens
+
+    assert {spec.lens for spec in CATALOG} <= set(get_args(Lens))
+
+
 def test_t2s_rules_and_the_headlines_words_for_it_never_say_season() -> None:
     # The time family's refusals ship as T2's Rule column; every string the module writes is checked,
     # its docstrings (never shipped) aside. The headline names T2 by CONTEXT; rule 4's plain hedge too.

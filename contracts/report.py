@@ -225,14 +225,17 @@ class ReportContract(ContractFile):
     def _causes_as_2_5_shows_them(self) -> Self:
         """2.5 (Thach, 2026-10-04, (vii)-(ix)): every hypothesis carries its
         label and every line outside revenue its reason - the shape the page
-        reads, so one definition of a 2.5 report - and "moved against the
-        change" stands only beside a comparison the report shows, whoever
-        wrote the file."""
+        reads, so one definition of a 2.5 report; 2.6 (2026-10-05, Q2): every
+        hypothesis its lens. And "moved against the change" stands only
+        beside a comparison the report shows, whoever wrote the file."""
         numbers, hypotheses = self.layer_1_numbers, self.layer_2_causes.hypotheses
-        if tuple(int(part) for part in self.schema_version.split(".")[:2]) >= (2, 5) and (
+        version = tuple(int(part) for part in self.schema_version.split(".")[:2])
+        if version >= (2, 5) and (
                 any(h.verdict_label is None for h in hypotheses)
                 or any(o.reason is None for o in numbers.outside_revenue)):
             raise ValueError("a 2.5 report labels every hypothesis and words every line outside revenue")
+        if version >= (2, 6) and any(h.lens is None for h in hypotheses):
+            raise ValueError("a 2.6 report names every hypothesis's lens")
         if any(h.moved_against for h in hypotheses) and not compared_month_shown(numbers):
             raise ValueError("moved against the change is shown only beside a comparison the report shows")
         return self

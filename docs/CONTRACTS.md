@@ -1793,7 +1793,11 @@ writes the file):
   contribution that prints as zero; `stages/report/hypothesis_rows.py`),
   `verdict_label`
   (`contracts.report_views.against_label`, "moved against the change
-  (+X)", else the verdict code's words) and
+  (+X)" - for the product lens "moved against the change in gross sales
+  (+X)", the total it is measured on, since 2.6 (Thach, 2026-10-05, Q2;
+  `lens` carried for it, `contracts.diagnosis.measured_on_gross_sales` the
+  one copy stage 3's share test reads too) - else the verdict code's words)
+  and
   `evidence_text` (`html_parts.evidence_value`, key by key, a product
   nobody confirmed marked); absent from a 2.4 report; the
   not-testable list; the signals (a description, never a verdict -
@@ -1943,12 +1947,20 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-05: **Q2 on the sixteenth report (Thach).** `report.json` `2.6`,
+  additive: `hypotheses[].lens` (as diagnosis.json has it), so the product
+  lens's label names its total - "moved against the change in gross sales
+  (-X)"; a 2.6 report names every row's lens (refused otherwise), a 2.5 row
+  keeps the bare label. Which total a share is measured on is one function,
+  `contracts.diagnosis.measured_on_gross_sales`, read by stage 3's share
+  test and the label alike.
 - 2026-10-04: **decisions (vii)-(ix) on the fifteenth report (Thach).**
   `report.json` `2.5`, additive: `hypotheses[].moved_against`,
   `.verdict_label`, `.evidence_text`, and `outside_revenue[].reason`
   (worded by class code, `contracts.lines.OUTSIDE_REVENUE_TEXTS`) - one copy
   of the words report.html and the page print. The contract refuses a
-  label other than `against_label(contribution)` or the verdict's words, an
+  label other than `against_label` (since 2.6 `against_label(contribution,
+  lens)`) or the verdict's words, an
   against flag on anything but a ruled-out share whose contribution prints,
   evidence text that is not its evidence key by key in order (the value's
   wording is stage 5's, not re-checked), a reason other than its class's, a

@@ -79,6 +79,75 @@ def test_a_gap_in_a_month_the_season_explains_shows_in_the_cause_not_the_badge()
     assert verdicts["B1"].verdict == "inconclusive" and verdicts["D1"].verdict != "ruled_out"
 
 
+# --- Q3 (Thach, 2026-10-05, option C): the badge says what the D1 hypothesis reads --------------------
+# One judge, two measures (3E1b review 1, F1): the badge reads the days beyond the weekday pattern AND the
+# month's season, the D1 hypothesis the days beyond the weekday pattern. Where the season explains days the
+# hypothesis still finds, an "ok" badge saying "Coverage matches this store's normal trading pattern" sat
+# beside rule 2's "days with no sales ... explain the change". Both measures stay; the badge says so.
+
+USUAL = "Days with no sales match this store's usual {month}: {n} beyond its weekday pattern, as in other years."
+# Review (the seventeenth run), finding 1 - 3.3a's shape: the data cannot tell whether this month's days
+# beyond what its season held in other years are lost or ordinary variation, so the badge states both
+# measured figures rather than "as in other years" (Thach's sentence, kept wherever the two agree).
+AGAINST = ("Days with no sales match this store's usual {month}: {n} beyond its weekday pattern, against about {m} "
+           "in other years.")
+
+
+def _christmas(days: tuple[int, ...], lost: bool = False, last: date = date(2023, 12, 31)):
+    closed = tuple(date(year, 12, day) for year in (2021, 2022, 2023) for day in days)
+    extra = (date(2023, 12, 10), date(2023, 12, 11)) if lost else ()
+    return _run(daily_rows(date(2021, 1, 1), last, skip=closed + extra))
+
+
+def test_the_reproduction_closed_25_26_december_every_year_and_two_days_lost() -> None:
+    """The seventeenth run's reproduction: 3.872 days beyond the weekday pattern (over December's bar of
+    3.432, so D1 is found and rule 2 fires), 1.983 beyond the pattern and the season (under it: "ok"); the
+    earlier Decembers held 1.889 beyond their pattern - about 2, not 4."""
+    _, verdicts, headline, check = _christmas((25, 26), lost=True)
+
+    assert (check.status, verdicts["D1"].verdict, headline.rule) == ("ok", "supported", 2)
+    assert check.message == AGAINST.format(month="December", n=4, m=2)
+
+
+def test_a_christmas_closure_moves_january_against_its_december() -> None:
+    # Closed 24-31 December every year: January against December finds December's 8 days (rule 2); the
+    # badge names the month it means - the previous one.
+    _, verdicts, headline, check = _christmas(tuple(range(24, 32)), last=date(2024, 1, 31))
+
+    assert (check.status, verdicts["D1"].verdict, headline.rule) == ("ok", "supported", 2)
+    assert check.message == USUAL.format(month="December", n=8)
+
+
+def test_days_the_d1_test_does_not_find_leave_the_badge_as_it_was() -> None:
+    # Closed 25-26 December only: 1.872 beyond the pattern, under the bar - D1 ruled out, nothing to say.
+    _, verdicts, _, check = _christmas((25, 26))
+
+    assert (check.status, verdicts["D1"].verdict) == ("ok", "ruled_out")
+    assert check.message == "Coverage matches this store's normal trading pattern."
+
+
+def test_the_badge_reads_the_d1_hypothesis_own_test_month_by_month() -> None:
+    # One predicate on the same evidence (trust.months_beyond_pattern): the badge and D1 agree at the
+    # boundary; both months found -> the current month first.
+    from stages.diagnose.trust import months_beyond_pattern, usual_days_sentence
+
+    evidence = {"excess_zero_days_cur": 3.872, "caution_bar_days_cur": 3.432,
+                "excess_zero_days_prev": 3.432, "caution_bar_days_prev": 3.432, "caution_min_days": 1.0,
+                "expected_zero_days_cur": 0.128, "seasonal_expected_zero_days_cur": 2.017,
+                "expected_zero_days_prev": 0.0, "seasonal_expected_zero_days_prev": 5.2}
+    assert months_beyond_pattern(evidence) == ["cur"]  # 3.432 is not MORE than its bar
+    both = evidence | {"excess_zero_days_prev": 5.4}
+    assert months_beyond_pattern(both) == ["cur", "prev"]
+    # The current month 4 beyond its pattern against 1.889 its season held (about 2); the previous 5 and 5.2.
+    assert usual_days_sentence(both, "2023-12", "2023-11") == " ".join(
+        (AGAINST.format(month="December", n=4, m=2), USUAL.format(month="November", n=5)))
+    # A shop closed some weekdays: its pattern expects 0.6 of them; the season 2.9 in all - 2.3 beyond the
+    # pattern, so "about 2", never the season's whole 2.9 (review mutation: the pattern not subtracted).
+    weekdays = evidence | {"expected_zero_days_cur": 0.6, "seasonal_expected_zero_days_cur": 2.9}
+    assert usual_days_sentence(weekdays, "2023-12", "2023-11") == AGAINST.format(month="December", n=4, m=2)
+    assert months_beyond_pattern(evidence | {"caution_min_days": 4.0}) == []  # under the floor
+
+
 def test_a_seasonal_shops_off_season_month_is_expected() -> None:
     """Daily April to September; October to March only on the 1st and the
     15th. The file's last sale is 15 November 2023, so the current month is
@@ -97,6 +166,8 @@ def test_a_seasonal_shops_off_season_month_is_expected() -> None:
     assert (check.status, evidence["zero_days_cur"], evidence["unexplained_zero_days_cur"]) == ("ok", 29, 0.0)
     assert evidence["excess_zero_days_cur"] == 29.0 and verdicts["D1"].verdict == "supported"
     assert headline.rule != 1
+    # Q3: the off-season the hypothesis reads, said by the badge too.
+    assert check.message == USUAL.format(month="October", n=29)
 
 
 def test_a_sparse_shops_ordinary_variation_is_no_caution() -> None:

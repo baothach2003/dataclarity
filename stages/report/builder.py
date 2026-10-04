@@ -41,8 +41,8 @@ from stages.report.layers import actions, causes, numbers, revenue_notes
 # 2 since 4A-b: the forecast's season_years, its two-year note; 2.1 since 3E1b: the headline's
 # optional movement; 2.2 since 2E-u6: the lines dated after the upload; 2.3: the hypotheses note; 2.4: the
 # headline's season comparison; 2.5: each hypothesis's label and evidence text, each line outside
-# revenue's reason (CONTRACTS 10).
-SCHEMA_VERSION = "2.5"
+# revenue's reason; 2.6: each hypothesis's lens, so the label names its total (CONTRACTS 10).
+SCHEMA_VERSION = "2.6"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 

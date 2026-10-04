@@ -23,10 +23,10 @@ def moved_against(hypothesis: Hypothesis, numbers: Numbers) -> bool:
 
 def hypothesis_view(hypothesis: Hypothesis, diagnosis: DiagnosisContract, numbers: Numbers) -> HypothesisView:
     against = moved_against(hypothesis, numbers)
-    label = (against_label(hypothesis.contribution) if against and hypothesis.contribution is not None
+    label = (against_label(hypothesis.contribution, hypothesis.lens) if against and hypothesis.contribution is not None
              else hypothesis.verdict.replace("_", " "))
     return HypothesisView(
-        id=hypothesis.id, statement=hypothesis.statement, verdict=hypothesis.verdict,
+        id=hypothesis.id, lens=hypothesis.lens, statement=hypothesis.statement, verdict=hypothesis.verdict,
         contribution=hypothesis.contribution, share=hypothesis.share, rule=hypothesis.rule,
         evidence=dict(hypothesis.evidence), moved_against=against, verdict_label=label,
         evidence_text=[f"{key}: {evidence_value(value, dict(diagnosis.suggested_classes))}"

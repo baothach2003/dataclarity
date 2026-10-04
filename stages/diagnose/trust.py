@@ -9,6 +9,9 @@ problem but equally consistent with a real business decision, and the engine
 must not claim to tell those apart.
 """
 
+from collections.abc import Mapping
+from typing import Any
+
 import pandas as pd
 
 from contracts.diagnosis import Trust, TrustCheck
@@ -195,9 +198,15 @@ def d1_coverage(data: RunData) -> TrustCheck:
                 message=f"About {count} in the {which} month {verb} no sales beyond this store's "
                         "normal closing pattern (missing data, or days the shop was closed), worth "
                         f"roughly {unexplained[label] * pace[label]:,.0f} in revenue{tail}")
+    # Days the season explains but the weekday pattern does not (an annual
+    # closure, an off-season) are no missing data, yet the D1 hypothesis reads
+    # them (F1): an "ok" saying coverage is normal stood beside rule 2's "days
+    # with no sales explain the change". Both measures stay; the badge says so
+    # (Thach, 2026-10-05, Q3).
+    usual = usual_days_sentence(evidence, period.current, period.previous)
     return TrustCheck(
         id="D1", status="ok", evidence=evidence,
-        message="Coverage matches this store's normal trading pattern.")
+        message=usual or "Coverage matches this store's normal trading pattern.")
 
 
 def excess_zero_days(data: RunData, check: TrustCheck, month: str) -> float | None:
@@ -215,14 +224,48 @@ def excess_zero_days(data: RunData, check: TrustCheck, month: str) -> float | No
     return max(0.0, months[month].total - pattern_zero_days(months, month, others))
 
 
+# English whatever the process locale (calendar.month_name follows it).
+MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", "August", "September",
+               "October", "November", "December")
+
+
+def months_beyond_pattern(evidence: Mapping[str, Any]) -> list[str]:
+    """The compared months ("cur", "prev") whose days with no sales beyond the
+    weekday pattern pass D1's caution test - the D1 hypothesis's own test
+    (3E1b review 1, F1), read off the check's evidence so the badge (Q3) and
+    the hypothesis read one predicate on the same figures."""
+    return [label for label in ("cur", "prev")
+            if cautions(float(evidence[f"excess_zero_days_{label}"]),
+                        float(evidence[f"caution_bar_days_{label}"]),
+                        float(evidence["caution_min_days"]))]
+
+
 def pattern_found(check: TrustCheck) -> bool:
     """Whether days with no sales beyond the weekday pattern pass D1's caution
-    test in either compared month - the D1 hypothesis's own test (3E1b review
-    1, F1): an annual closure explains a change though it is no missing data."""
-    evidence = check.evidence
-    return any(cautions(float(evidence[f"excess_zero_days_{label}"]),
-                        float(evidence[f"caution_bar_days_{label}"]), float(evidence["caution_min_days"]))
-               for label in ("cur", "prev"))
+    test in either compared month: an annual closure explains a change though
+    it is no missing data."""
+    return bool(months_beyond_pattern(check.evidence))
+
+
+def usual_days_sentence(evidence: Mapping[str, Any], current: str, previous: str) -> str:
+    """The badge beside an "ok" its season explains (Thach, 2026-10-05, Q3):
+    one sentence per month the D1 hypothesis finds, the current month first;
+    empty when it finds none. "As in other years" only where it is what was
+    measured - this month's days beyond the weekday pattern, rounded, equal
+    to what the same month of other years held beyond theirs; otherwise both
+    figures are stated, for the data cannot tell whether the difference is
+    lost days or ordinary variation (CLAUDE.md 3.3a; the Q3 review, finding
+    1: 4 beside the other Decembers' 2 read "as in other years")."""
+    months = {"cur": current, "prev": previous}
+    sentences = []
+    for label in months_beyond_pattern(evidence):
+        beyond = f"{float(evidence[f'excess_zero_days_{label}']):.0f}"
+        season = max(0.0, float(evidence[f"seasonal_expected_zero_days_{label}"])
+                     - float(evidence[f"expected_zero_days_{label}"]))
+        usual = "as in other years" if f"{season:.0f}" == beyond else f"against about {season:.0f} in other years"
+        sentences.append(f"Days with no sales match this store's usual {MONTH_NAMES[int(months[label][5:7]) - 1]}: "
+                         f"{beyond} beyond its weekday pattern, {usual}.")
+    return " ".join(sentences)
 
 
 def _days(excess: float) -> tuple[str, str]:

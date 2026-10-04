@@ -323,8 +323,9 @@ def _masked_shift(
     Nothing here establishes that the movement was UNUSUAL, only that it was
     large and cancelled out. A seasonal shoulder month has exactly that shape,
     so headline rule 4 always hedges it - as possibly seasonal where 4A's rule
-    claims a season, else as a shift an ordinary month can show (Thach,
-    2026-10-04, (i)).
+    claims a season and its comparison agrees (a consistent or inconclusive
+    band), else as a shift an ordinary month can show (Thach, 2026-10-04,
+    (i); 2026-10-05, Q1).
     """
     if pair is None:
         # Level 1 is null, and its own reason explains this (CONTRACTS 7).

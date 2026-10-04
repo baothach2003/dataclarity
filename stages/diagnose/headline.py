@@ -24,9 +24,18 @@ NOT_A_HEADLINE = ("D2", "D3")
 CONTEXT = {"T1": "the calendar (the mix of weekdays in each month)",
            "T2": "the same months a year earlier, which moved the same way"}
 # Rule 4's hedge (ADR-0007: a masked shift is never stated as a finding) says
-# "season" only under 4A's claim (Thach, 2026-10-04, (i)).
+# "season" only under 4A's claim (Thach, 2026-10-04, (i)) AND a comparison the
+# season is consistent with (2026-10-05, Q1): a shortfall or excess measures
+# the month as off its season, and no comparison measures nothing.
 SEASON_HEDGE = "This may be seasonal."
 PLAIN_HEDGE = "Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding."
+SEASON_HEDGE_BANDS = ("consistent", "inconclusive")
+
+
+def _masked_hedge(moved: Changes) -> str:
+    season = moved.movement.season if moved.movement is not None else None
+    seasonal = moved.season_claimed and season is not None and season.band in SEASON_HEDGE_BANDS
+    return SEASON_HEDGE if seasonal else PLAIN_HEDGE
 
 
 def _residue(amount: float, moved: Changes) -> bool:
@@ -228,7 +237,7 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
             rule=4, hypothesis_id=None, lens=None,
             message=f"{change} Underneath that, {unit} contributed {pair['orders']:+,.2f} and "
                     f"{average} {pair['aov']:+,.2f}: large movements that "
-                    f"largely cancelled out. {SEASON_HEDGE if moved.season_claimed else PLAIN_HEDGE}")
+                    f"largely cancelled out. {_masked_hedge(moved)}")
 
     # The size test (3E1b; Thach, 3E2-F1): rules 5 and 6 single a cause out
     # only beyond twice the shop's median month-to-month movement - inside it
