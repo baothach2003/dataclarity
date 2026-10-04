@@ -1002,6 +1002,27 @@ dataclarity/
       question. Measured: in none of the 201 runs above (the one rule 4 has
       no claim). Should a band of shortfall/excess (or no comparison) give
       rule 4 the plain hedge?
+      **Thach decided (2026-10-05, on the sixteenth report, Q1):** rule 4
+      says "This may be seasonal." only when 4A claims a season AND the
+      season comparison's band is consistent or inconclusive; with a
+      shortfall or excess band, or no comparison, it uses the plain hedge.
+      Why: a shortfall or excess is the comparison measuring the month as
+      clearly off its season, and no comparison is no measure at all -
+      "may be seasonal" beside either says what the report's own measure
+      does not; "season" stays the claim's word, used only where the claim
+      and its measure agree. Every decision made alone in the sixteenth run
+      accepted. Failing tests first, mutation on the logic, one review
+      cycle, the re-check (demo pairs, S0/S12/S13) - wording only.
+      **Built, uncommitted (the seventeenth run):** `headline._masked_hedge`
+      - "This may be seasonal." only under the claim with a band in
+      `SEASON_HEDGE_BANDS` (consistent, inconclusive); a shortfall, an
+      excess, no comparison or no size test measured -> the plain hedge.
+      AI_PIPELINE and ADR-0007 amended. Tests first (4 failing before the
+      code); mutation with Q2: 14 mutants, 13 killed, then 14 after a test
+      of a claim with no size test measured. NOT YET: the re-check (stopped
+      on the memory guard at S13 seed 21 - the 20 runs done identical to
+      the sixteenth run in every field but timing), the review cycle, the
+      full pytest, the commit.
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -4463,6 +4484,144 @@ dataclarity/
       D1 badge says coverage matches the shop's normal trading pattern (the
       badge reads unexplained days, D1 excess days) - pre-existing, worth a
       look.
+      **Thach decided (2026-10-05, on the sixteenth report).** Every
+      decision made alone in the sixteenth run accepted - stage 3 states
+      "against" (a), rule 2's line as stage 3's table note (b), the
+      corrected phone measure and the layout fixes, the one git stash.
+      **Q2:** the product lens's label names its total - "moved against the
+      change in gross sales (-X)". Why: the product lens is measured on
+      gross sales, which the report shows nowhere; a label that names the
+      change it means cannot be read against the revenue beside it.
+      **Q3:** rule 2 firing while D1's badge says coverage matches the
+      normal pattern puts two contradictory sentences on one screen; since
+      3E1b both should come from the one judge function, so it is likely a
+      bug. Reproduce it first and find the root cause - no guess. If the fix
+      is local (rule 2 fires only when that same judge reports the gap),
+      make it with the full process; if not, stop and show Thach. Q2-Q3:
+      failing tests first, mutation on logic, one review cycle, the usual
+      re-check for wording-only changes.
+      **Q3 - reproduced; the root cause is a design split, the fix is NOT
+      local: stopped and shown (the seventeenth run).** Reproduction (the
+      3E1b test shop, `test_3e1b_d1_coverage`): closed 25-26 December every
+      year 2021-2023, daily otherwise, and 10-11 December 2023 lost too.
+      The badge: "Coverage matches this store's normal trading pattern."
+      The headline, rule 2: "...consistent with days that have no sales at
+      all - missing data, or days the shop was closed - an estimated -38.72
+      against the change of -30.00." Root cause, read off the code: ONE
+      judge (`d1_pattern.judge`), TWO measures against the same bar
+      (3.432) and floor (1 day) - the badge flags on the days beyond the
+      weekday pattern AND December's own season (`unexplained` 1.983:
+      "ok"), the D1 hypothesis reads the days beyond the weekday pattern
+      alone (`pattern_found`, `excess` 3.872: found). By design since 3E1b
+      review 1, F1 ("a closed Christmas week is no missing data, but
+      December still lost it against November"), and an existing test
+      already calls this case "a known limit, the badge's". Why the
+      proposed fix is not local: gating rule 2 alone on the badge, rule 6
+      names D1 instead - "The best-supported explanation: days with no
+      sales (missing data or a closure) explain the change (-38.72 against
+      the change of -30.00)" - the same contradiction; and on the demo
+      (Online Retail II, 2010-11 -> 2010-12) D1 is named by rule 6, not
+      rule 2 (46% of the change, under rule 2's half). Any fix decides what
+      a supported D1 means beside an "ok" badge - F1's design. Measured:
+      in none of the 201 re-check runs; the demo's one D1 pair has the
+      badge cautioning (6.219 unexplained days) beside D1 named - the two
+      agree there. Options for Thach: (A) the D1 hypothesis reads the
+      badge's measure - an annual closure no longer explains a month, F1
+      reversed for D1; (B) the headline (rules 2 and 6) names D1 only when
+      the badge reports a gap - D1 still supported in the table beside the
+      badge; (C) keep both measures and make the badge's "ok" true beside
+      them: when days beyond the weekday pattern are found but the season
+      explains them, the badge says so ("Days with no sales match this
+      store's usual <month>: N beyond its weekday pattern, as in other
+      years") - F1 kept, one wording, no verdict moved. Recommendation:
+      (C) - nothing it states is false, F1's measured reason stands, and
+      the two lost days the badge's wide December spread misses stay
+      visible through D1; under the triage rule it hits no demo file, so
+      it may also wait as an 8D known limit.
+      **Thach decided (2026-10-05, on the stop report): option (C), now,
+      not 8D.** Why: shops closing over Christmas every year is a very
+      common shape in real retail files (especially in Australia), so a
+      December-against-November comparison will hit this contradiction on
+      most real files with year-end data, though no demo file shows it.
+      Both measures stay. When the badge's season-adjusted measure says
+      coverage is normal but days beyond the weekday pattern exist, the
+      badge says so: "Days with no sales match this store's usual <month>:
+      N beyond its weekday pattern, as in other years." Nothing false, F1
+      kept, the lost days stay visible through D1. Tests first, mutation on
+      the logic, one review cycle; the reproduction (the shop closed 25-26
+      December every year) as a test and in the re-check.
+      **Built (the seventeenth run).** `trust.d1_coverage`'s "ok" reads
+      `usual_days_sentence`: one sentence per compared month whose days
+      beyond the weekday pattern pass D1's caution test - "Days with no
+      sales match this store's usual December: 4 beyond its weekday
+      pattern, as in other years." - the current month first; otherwise
+      the old "Coverage matches...". The month test is ONE predicate,
+      `trust.months_beyond_pattern`, read off the check's own evidence by
+      the badge and by `pattern_found` (the D1 hypothesis), so the two
+      agree at the boundary. "As in other years" is what was measured: the
+      sentence is reached only when the season-adjusted measure cautions in
+      neither month - with no other year, it equals the pattern's and the
+      badge would caution. Before the code, the Christmas shapes measured
+      (a daily shop 2021-2023 closed 25-26, 24-26, 24-31 or 22-31 December
+      every year, with and without 10-11 December 2023 lost, December
+      against November and January against December): the contradiction
+      (an "ok" badge beside rule 2) in 8 of 16 - including January against
+      its December for the longer closures, so the sentence names the
+      month it means. Tests first (4 failing: the reproduction, January
+      against December, the one predicate month by month, the seasonal
+      shop's off-season October), 1 passing already (a closure D1 does not
+      find leaves the badge as it was). Mutation 8 of 8 killed.
+      AI_PIPELINE 7.3 documents it.
+      **Re-check (Q1-Q3), PASS** against the sixteenth run's final outputs
+      (resumed at demo pair 10 after the guard, the code unchanged since
+      the seeds): S13, S12, S0 x 30 seeds 90/90, the flat check 30/30, the
+      demo's 81 pairs 81/81 - identical in every field but timing (peaks
+      212 / 207 / 580 MB); no demo pair gets Q3's sentence and none shows an
+      "ok" D1 badge beside a supported D1. The 16 Christmas shapes:
+      outcomes identical 16/16, the badge reworded exactly in the 8 that had
+      the contradiction.
+      **Review cycle (Q1-Q3; cross-model skipped: non-interactive).**
+      Critical, acted on - **a decision made alone (CLAUDE.md 3.3a)**:
+      Thach's sentence was false on its own reproduction - "4 beyond its
+      weekday pattern, as in other years" where the other Decembers held
+      about 2 (the 2 lost days absorbed by December's wide spread). The data
+      cannot tell whether such a difference is lost days or ordinary
+      variation, so the badge states both measured figures: "Days with no
+      sales match this store's usual December: 4 beyond its weekday pattern,
+      against about 2 in other years." Thach's exact sentence stays wherever
+      it is what was measured (the two figures equal, rounded: a pure
+      closure - 8 and 8, 10 and 10). FOR THACH: keep, or reword. Required,
+      fixed: the rule text's basis ("|change in gross sales|") still keyed
+      on `spec.lens == "product"` - now `measured_on_gross_sales`, and the
+      one-copy test is behavioural (moved to the returns lens, the total,
+      the basis text and the label all follow) instead of a source-text
+      check. Optional, fixed: report.json's `lens` is a vocabulary
+      (`contracts.diagnosis.Lens`, every catalog lens pinned to it) - a
+      misspelt "products" no longer passes with the bare label; the stale
+      "`ruled_out` when the D1 check is `ok`" (the catalog's D1 test text,
+      7.8's row, 7.x's "D1 follows its check") now says what 3E1b made it -
+      D1's own test on the days beyond the weekday pattern, whatever the
+      badge. Accepted, recorded: stage 4's checker refuses AI sentences
+      that call a month "usual"; the badge is code-written, not checked by
+      it, and the code-written badge already said "normal" - an exception
+      on record should AI recommendations ever quote it. Nits fixed: month
+      names in English whatever the locale, one version parse in the
+      report contract, `SEASON_HEDGE_BANDS` pinned to `SeasonBand`.
+      Mutation on the fixes: 7 mutants, 5 killed, then 7 after two tests
+      were strengthened (a weekday-closed shop's pattern subtracted; the
+      lens refusal reached by the vocabulary alone, not the label).
+      **Q2 built, uncommitted (the seventeenth run):** report.json 2.6,
+      additive - `hypotheses[].lens`; the product lens's label "moved
+      against the change in gross sales (-X)"
+      (`contracts.report_views.against_label(contribution, lens)`). Which
+      total a share is measured on is now ONE function,
+      `contracts.diagnosis.measured_on_gross_sales`, read by stage 3's
+      share test (`_measured_total`) and the label - it was `spec.lens ==
+      "product"` in stage 3 alone. The contract pins the exact label by
+      lens; a 2.6 report names every row's lens. The page prints the label
+      as written; `reportOf` checks `lens`; the fixture is 2.6. Tests first
+      (6 + 1 frontend failing before the code); Vitest 396, tsc and lint
+      clean. Same NOT YET as Q1.
       **Browser-checked (isolated headless Chrome, the AI unreachable).** Two
       small files made for it: one whose dates prove neither order (Review
       asks: "44 dates written like 05/01/2026 can be read two ways"), one
@@ -5338,6 +5497,24 @@ dataclarity/
         text - no prompt change; the data is the public Kaggle file); then
         the smoke test can resume (plan, Review, execute, stages 2-5, the
         second file) within the remaining 4 calls.
+      **Thach decided (2026-10-05, on the sixteenth report, Q4): approved,
+      on the public Kaggle file only** for the measurement. For this smoke
+      test only, the validation error text of every failed AI answer is
+      kept in a local log outside the repo - the Kaggle file is public
+      data, so AI_PIPELINE 3's privacy reason does not apply to it; the
+      production client stays as it is. First the schema inference call 5
+      times, each in a fresh run, to measure how often a first answer fails
+      and why - each failure classified: the AI's answer was wrong (a
+      missing field, a wrong type, an invalid mapping), or the client's
+      check refused an answer that was actually valid. Then the full flow
+      resumes: plan, Review answers, execute, stages 2-5 on Kaggle, then
+      the Online Retail II sample. At most 12 real calls for the whole
+      smoke test (about $0.50); stop on any error other than a failed answer
+      being retried, and at the budget. No prompt or check changed during
+      it; every call reported (purpose, tokens, time, cost, passed or
+      failed, the failure's cause) with a recommendation - any fix to a
+      prompt or a check is a separate decision for Thach. Then stop, before
+      any deploy step.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5521,6 +5698,41 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Seventeenth overnight run** (2026-10-05, on the sixteenth report; Thach's
+decisions recorded at 3E1b (Q1), 6E (Q2, Q3) and Phase 9's smoke-test item
+(Q4)). Order: Q1-Q3 with the full process, committed; then the smoke test;
+then stop before any deploy step. **STOPPED on the memory guard** (Thach's
+rule: stop, never retry): the re-check of Q1/Q2 refused to start S13 seed
+21 with 1,796 MB free (floor 2,500; other programs held most of the
+machine). Done: Q3 reproduced, its root cause found - not local, stopped
+and shown with options (6E); Q1 and Q2 built, tests first, mutated (14 of
+14), uncommitted. Not done: the re-check (20 of 201 runs done, all
+identical), Q1/Q2's review cycle, the full pytest, the commit and push, the
+smoke test (its tooling written: scratchpad `run17/smoke_hooks.py`,
+`smoke_measure.py`, `smoke_server.py`, `smoke17.py`; no real call made).
+**Resumed on Thach's "continue" (Q3: option (C), now)** - Q3 built, tests
+first, mutation 8 of 8. **STOPPED AGAIN on the memory guard** during the
+re-check from the start: the 10th demo pair (Kaggle 2022-09 -> 2022-10)
+refused to start with 2,248 MB free, then the 16 Christmas shapes with
+2,258 MB (Chrome was back at 34 processes, ~6.3 GB; an Expo dev server ~0.7
+GB - Thach's, untouched). Done and identical to the sixteenth run in every
+field but timing: S13, S12, S0 x 30 (90 of 90), the flat check (30 of 30),
+the demo pairs 1-9 (9 of 81; none with Q3's sentence, none an "ok" badge
+beside a supported D1). Not done: demo pairs 10-81 and the Christmas shapes,
+the review cycle of Q1-Q3, full pytest, commit and push, the smoke test (no
+real call made). The code is unchanged since the seeds ran, so a resume can
+start at pair 10.
+**Resumed again on Thach's "continue"** (Chrome and the Expo server closed;
+his memory rule changed - a guard refusal to START waits 5 minutes, up to 6
+times; a real out-of-memory still stops; never kill a process not started
+here). The re-check completed - PASS (6E); the Q1-Q3 review cycle - the
+false "as in other years" made true by stating both figures (a decision made
+alone, 3.3a), a second copy of the lens-to-total rule removed, the lens a
+vocabulary; full pytest; committed in two (stages 3 and 5, contracts, docs;
+the page and this file) and pushed after the four checks. Then the smoke
+test (Phase 9).
+Report: `C:\Users\Happy\overnight-report.txt` (the sixteenth run's as
+`overnight-report-run16.txt`).
 **Sixteenth overnight run** (2026-10-04, on the fifteenth report; Thach's
 decisions recorded at 3E1b (i)-(ii), 6E (iii)-(x) and Phase 9's smoke-test
 item). Order: stage 3 wording (i)-(ii); stage 5 and the page (iii)-(x); then

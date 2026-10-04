@@ -96,6 +96,9 @@ describe('runAnalysis', () => {
     ["a hypothesis's label", (report: ReturnType<typeof makeReport>) => {
       ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).verdict_label = 3
     }],
+    ["a hypothesis's lens", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).lens = null
+    }],
     ["a hypothesis's against flag", (report: ReturnType<typeof makeReport>) => {
       ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).moved_against = 'yes'
     }],

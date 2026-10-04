@@ -137,6 +137,8 @@ export type Verdict = 'supported' | 'partial' | 'ruled_out' | 'inconclusive' | '
 
 export interface HypothesisView {
   id: string
+  // 2.6 (Thach, 2026-10-05, Q2): the lens, as diagnosis.json has it - the label names its total from it.
+  lens: string
   statement: string
   verdict: Verdict
   contribution: number | null

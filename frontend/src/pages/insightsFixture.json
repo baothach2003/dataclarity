@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.5",
+  "schema_version": "2.6",
   "generated_at": "2026-07-01T09:00:00Z",
   "run_id": "run-1",
   "source_file": "store_sales_2026Q2.csv",
@@ -239,6 +239,7 @@
           "lapsed_current": 12600.0,
           "lapsed_previous": 3600.0
         },
+        "lens": "customers",
         "moved_against": false,
         "verdict_label": "supported",
         "evidence_text": [
@@ -257,6 +258,7 @@
           "frequency_prev": 2.1,
           "frequency_cur": 2.14
         },
+        "lens": "lever",
         "moved_against": true,
         "verdict_label": "moved against the change (+1,792.00)",
         "evidence_text": [
@@ -275,6 +277,7 @@
           "mix_effect": -300.0,
           "products_in_both_periods": 41
         },
+        "lens": "product",
         "moved_against": false,
         "verdict_label": "ruled out",
         "evidence_text": [
@@ -293,6 +296,7 @@
           "ly_prev": 90000.0,
           "ly_cur": 75470.0
         },
+        "lens": "time",
         "moved_against": false,
         "verdict_label": "ruled out",
         "evidence_text": [
@@ -311,6 +315,7 @@
           "price_effect": 1e-13,
           "products_in_both_periods": 41
         },
+        "lens": "product",
         "moved_against": false,
         "verdict_label": "ruled out",
         "evidence_text": [
@@ -329,6 +334,7 @@
           "top_member": "Gift wrap",
           "top_member_share": 0.12
         },
+        "lens": "localization",
         "moved_against": false,
         "verdict_label": "ruled out",
         "evidence_text": [
@@ -346,6 +352,7 @@
         "evidence": {
           "d1_status": "ok"
         },
+        "lens": "data",
         "moved_against": false,
         "verdict_label": "ruled out",
         "evidence_text": [
@@ -365,6 +372,7 @@
             "orders"
           ]
         },
+        "lens": "time",
         "moved_against": false,
         "verdict_label": "inconclusive",
         "evidence_text": [
@@ -381,6 +389,7 @@
         "evidence": {
           "reason": "no line is classed as a charge"
         },
+        "lens": "returns",
         "moved_against": false,
         "verdict_label": "not testable",
         "evidence_text": [

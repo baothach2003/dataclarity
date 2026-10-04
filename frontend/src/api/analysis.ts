@@ -80,6 +80,7 @@ function reportOf(body: unknown): ReportContract {
       (hypothesis) =>
         isRecord(hypothesis) &&
         isRecord(hypothesis.evidence) &&
+        typeof hypothesis.lens === 'string' &&
         typeof hypothesis.moved_against === 'boolean' &&
         typeof hypothesis.verdict_label === 'string' &&
         listOf(hypothesis.evidence_text, (line) => typeof line === 'string'),
