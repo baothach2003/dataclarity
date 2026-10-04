@@ -5,12 +5,16 @@
 
 import { useState } from 'react'
 import { downloadReportHtml } from '../api/analysis.ts'
+import type { OrdersBasis } from '../api/analysis.ts'
+import { CausesSection } from '../components/CausesSection.tsx'
+import { DecompositionCard } from '../components/DecompositionCard.tsx'
 import { KpiCard } from '../components/KpiCard.tsx'
 import { NoteBody } from '../components/NoteBody.tsx'
 import { Notice } from '../components/Notice.tsx'
 import type { NoticeTone } from '../components/Notice.tsx'
 import { Stepper } from '../components/Stepper.tsx'
 import { triggerBlobDownload } from '../domain/browserDownload.ts'
+import { readDiagnosis } from '../domain/diagnosisView.ts'
 import { describeError } from '../domain/errorCopy.ts'
 import { count, monthLabel } from '../domain/reportFormat.ts'
 import type { Numbers, ReportContract, TrustBadge, TrustVerdict } from '../types/report.ts'
@@ -27,6 +31,10 @@ interface InsightsPageProps {
   baseUrl: string
   runId: string
   report: ReportContract
+  // diagnosis.json from the diagnose answer (only CONTRACTS 11's FE fields are read) and metrics.json's
+  // order basis: the decomposition card and the table's verdict labels.
+  diagnosis: unknown
+  ordersBasis: OrdersBasis
 }
 
 function periodHead(numbers: Numbers): string {
@@ -74,9 +82,10 @@ function reportFilename(sourceFile: string): string {
   return `report_${sourceFile.replace(/\.csv$/i, '')}.html`
 }
 
-export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
+export function InsightsPage({ baseUrl, runId, report, diagnosis, ordersBasis }: InsightsPageProps) {
   const [downloadError, setDownloadError] = useState<unknown>(null)
   const numbers = report.layer_1_numbers
+  const view = readDiagnosis(diagnosis)
   const { period } = numbers
   const about = aboutLines(numbers)
   const quality = report.data_quality
@@ -131,6 +140,10 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
             ))}
           </Notice>
         )}
+
+        {/* Number -> cause (FIGMA_DESIGN_NOTES 9): the change split, then why. */}
+        <DecompositionCard view={view} numbers={numbers} ordersBasis={ordersBasis} notes={besideFigures} />
+        <CausesSection causes={report.layer_2_causes} numbers={numbers} view={view} />
 
         <section className="card insights-card">
           <h2 className="insights-card__title">The file and where these figures come from</h2>

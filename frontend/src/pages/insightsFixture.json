@@ -221,19 +221,136 @@
   "layer_2_causes": {
     "headline": {
       "rule": 6,
-      "hypothesis_id": "B1",
-      "lens": "lever",
-      "message": "Revenue went from 104,160.00 to 96,152.00 (-8,008.00). The best-supported explanation: fewer customers bought (lever lens, 134% of the change).",
+      "hypothesis_id": "C2",
+      "lens": "customers",
+      "message": "Revenue went from 104,160.00 to 96,152.00 (-8,008.00). The best-supported explanation: revenue lost to lapsed customers changed (customers lens, 112% of the change).",
       "movement": null
     },
     "hypotheses_note": null,
-    "hypotheses": [],
-    "not_testable": [],
+    "hypotheses": [
+      {
+        "id": "C2",
+        "statement": "Revenue lost to lapsed customers changed",
+        "verdict": "supported",
+        "contribution": -9000.0,
+        "share": -1.123876123876124,
+        "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+        "evidence": {
+          "lapsed_current": 12600.0,
+          "lapsed_previous": 3600.0
+        }
+      },
+      {
+        "id": "B1",
+        "statement": "Customers bought more often",
+        "verdict": "ruled_out",
+        "contribution": 1792.0,
+        "share": 0.22377622377622378,
+        "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+        "evidence": {
+          "frequency_prev": 2.1,
+          "frequency_cur": 2.14
+        }
+      },
+      {
+        "id": "P2",
+        "statement": "Sales mix shifted towards cheaper products",
+        "verdict": "ruled_out",
+        "contribution": -300.0,
+        "share": -0.0375,
+        "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+        "evidence": {
+          "mix_effect": -300.0,
+          "products_in_both_periods": 41
+        }
+      },
+      {
+        "id": "T2",
+        "statement": "Last year's change between the same two months explains the change",
+        "verdict": "ruled_out",
+        "contribution": -16816.8,
+        "share": -2.1,
+        "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+        "evidence": {
+          "ly_prev": 90000.0,
+          "ly_cur": 75470.0
+        }
+      },
+      {
+        "id": "P1",
+        "statement": "Like-for-like prices changed",
+        "verdict": "ruled_out",
+        "contribution": 1e-13,
+        "share": 1.25e-17,
+        "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+        "evidence": {
+          "price_effect": 1e-13,
+          "products_in_both_periods": 41
+        }
+      },
+      {
+        "id": "R1",
+        "statement": "The change is concentrated in one product or category",
+        "verdict": "ruled_out",
+        "contribution": null,
+        "share": null,
+        "rule": "the top member holds less than half of the change",
+        "evidence": {
+          "top_member": "Gift wrap",
+          "top_member_share": 0.12
+        }
+      },
+      {
+        "id": "D1",
+        "statement": "Days with no sales (missing data or a closure) explain the change",
+        "verdict": "ruled_out",
+        "contribution": null,
+        "share": null,
+        "rule": "no day without sales in either month",
+        "evidence": {
+          "d1_status": "ok"
+        }
+      },
+      {
+        "id": "T3",
+        "statement": "The change is routine variation",
+        "verdict": "inconclusive",
+        "contribution": null,
+        "share": null,
+        "rule": "no signal row is a verdict in v1 (ADR-0007)",
+        "evidence": {
+          "series_without_verdict": [
+            "revenue",
+            "orders"
+          ]
+        }
+      },
+      {
+        "id": "P5",
+        "statement": "Charges paid by customers changed",
+        "verdict": "not_testable",
+        "contribution": null,
+        "share": null,
+        "rule": "no line is classed as a charge",
+        "evidence": {
+          "reason": "no line is classed as a charge"
+        }
+      }
+    ],
+    "not_testable": [
+      {
+        "id": "X1",
+        "statement": "Marketing and promotions",
+        "reason": "no campaign data; discounts booked as lines are P4, a discount column is not canonical"
+      }
+    ],
     "signals": [],
     "narration": null,
     "narration_status": "unavailable",
     "notes": [],
-    "suggested_classes": {}
+    "suggested_classes": {
+      "Gift wrap": "charge"
+    }
   },
   "layer_3_actions": {
     "forecast": {

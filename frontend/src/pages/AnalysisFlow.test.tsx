@@ -14,7 +14,7 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-const RESULT: AnalysisResult = { report: makeReport(), diagnosis: { tree: null, calendar: null } }
+const RESULT: AnalysisResult = { report: makeReport(), diagnosis: { tree: null, calendar: null }, ordersBasis: 'order_id' }
 
 function flow(onBack = vi.fn()) {
   return render(
@@ -57,6 +57,7 @@ describe('AnalysisFlow', () => {
     vi.mocked(analysisApi.runAnalysis).mockImplementationOnce((_base, _run, progress) => {
       progress.onStep('analyze')
       progress.onStep('diagnose')
+      progress.onOrdersBasis?.('lines')
       progress.onDiagnosis?.({ tree: 'first run' })
       progress.onStep('predict')
       return Promise.reject(new UnreachableError('the server could not be reached'))
@@ -64,7 +65,7 @@ describe('AnalysisFlow', () => {
     flow()
     fireEvent.click(await screen.findByRole('button', { name: 'Try again' }))
 
-    expect(vi.mocked(analysisApi.runAnalysis).mock.calls[1]?.[3]).toEqual({ from: 'predict', diagnosis: { tree: 'first run' } })
+    expect(vi.mocked(analysisApi.runAnalysis).mock.calls[1]?.[3]).toEqual({ from: 'predict', diagnosis: { tree: 'first run' }, ordersBasis: 'lines' })
   })
 
   it('starts again from the beginning when the failure came before the diagnosis', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { change, count, money, ratio, share } from './reportFormat.ts'
+import { change, count, money, number, ratio, share } from './reportFormat.ts'
 
 // Every expected value is what stage 5's own functions print for the same
 // input (stages/report/html_parts.py, run 2026-10-04), so the Insights page and
@@ -69,5 +69,27 @@ describe('reportFormat at the edges', () => {
   it('never groups a share', () => {
     expect(share(10)).toBe('1000%')
     expect(share(25.3)).toBe('2530%')
+  })
+})
+
+// 6E part 2: a hypothesis's evidence figure of no fixed unit - two decimals
+// from 100 up, four significant digits below (Python's "%.4g", exact value,
+// ties to even) - as stage 5's html_parts.number prints it.
+describe('number', () => {
+  it('prints an evidence figure as stage 5 does', () => {
+    expect(number(1234.5678)).toBe('1,234.57')
+    expect(number(0.00012345)).toBe('0.0001234')
+    expect(number(1.0625)).toBe('1.062')
+    expect(number(-0.3004359885177209)).toBe('-0.3004')
+    expect(number(0.000012345)).toBe('1.234e-05')
+    expect(number(99.996)).toBe('100')
+    expect(number(-0)).toBe('0')
+    expect(number(5)).toBe('5')
+    expect(number(12.5)).toBe('12.5')
+    expect(number(0.958)).toBe('0.958')
+    expect(number(-1479.6472434497755)).toBe('-1,479.65')
+    expect(number(100)).toBe('100.00')
+    expect(number(0.1)).toBe('0.1')
+    expect(number(1e-7)).toBe('1e-07')
   })
 })

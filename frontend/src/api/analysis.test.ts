@@ -9,7 +9,7 @@ afterEach(() => {
 })
 
 const BODIES: Record<AnalysisStep, unknown> = {
-  analyze: { run_id: 'run-1', status: 'analyzed', metrics: { schema_version: '13.0' }, notices: [] },
+  analyze: { run_id: 'run-1', status: 'analyzed', metrics: { schema_version: '13.0', core: { orders_basis: 'lines' } }, notices: [] },
   diagnose: { run_id: 'run-1', status: 'analyzed', diagnosis: { tree: null, calendar: null }, notices: [] },
   predict: { run_id: 'run-1', status: 'analyzed', forecast: { points: [] }, notices: [] },
   report: { run_id: 'run-1', status: 'analyzed', report: makeReport(), html_url: '/api/runs/run-1/download/report.html', notices: [] },
@@ -53,6 +53,8 @@ describe('runAnalysis', () => {
     expect(fetchMock.mock.calls.every((call) => (call[1] as RequestInit).method === 'POST')).toBe(true)
     expect(result.report.source_file).toBe('store_sales_2026Q2.csv')
     expect(result.diagnosis).toEqual({ tree: null, calendar: null })
+    // metrics.json's core.orders_basis (a CONTRACTS 11 FE field): the page names the lever's factors by it.
+    expect(result.ordersBasis).toBe('lines')
   })
 
   it('stops at the first refusal and calls no later step', async () => {
@@ -79,6 +81,32 @@ describe('runAnalysis', () => {
     await expect(runAnalysis('http://localhost:8000', 'run-1', { onStep: () => undefined })).rejects.toThrow(UnreachableError)
   })
 
+  // The 6E2 review (#6): the causes' lists too - one the page walks that is not
+  // a list would blank the whole app (no error boundary).
+  it.each([
+    ['hypotheses', (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes as unknown as Record<string, unknown>).hypotheses = null
+    }],
+    ["a hypothesis's evidence", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).evidence = null
+    }],
+    ['the not-testable list', (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes as unknown as Record<string, unknown>).not_testable = null
+    }],
+    ['the suggested classes', (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes as unknown as Record<string, unknown>).suggested_classes = null
+    }],
+    ['the headline', (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes as unknown as Record<string, unknown>).headline = null
+    }],
+  ])('checks %s', async (_label, spoil) => {
+    const report = makeReport()
+    spoil(report)
+    stubSteps('report', { run_id: 'run-1', status: 'analyzed', report, html_url: '', notices: [] })
+
+    await expect(runAnalysis('http://localhost:8000', 'run-1', { onStep: () => undefined })).rejects.toThrow(UnreachableError)
+  })
+
   // The 6E1 review (#7): a failure at predict or report is resumed there -
   // analyze and diagnose are not run again, nor their later outputs removed.
   it('resumes from a later step with the diagnosis it already has', async () => {
@@ -89,20 +117,25 @@ describe('runAnalysis', () => {
       'http://localhost:8000',
       'run-1',
       { onStep: (step) => steps.push(step) },
-      { from: 'predict', diagnosis: { tree: 'kept' } },
+      { from: 'predict', diagnosis: { tree: 'kept' }, ordersBasis: 'order_id' },
     )
 
+    expect(result.ordersBasis).toBe('order_id')
     expect(steps).toEqual(['predict', 'report'])
     expect(fetchMock.mock.calls.map((call) => String(call[0]).split('/').pop())).toEqual(['predict', 'report'])
     expect(result.diagnosis).toEqual({ tree: 'kept' })
   })
 
-  it('hands over the diagnosis as soon as it has it, so a later failure can resume', async () => {
+  it('hands over the diagnosis and the order basis as soon as it has them, so a later failure can resume', async () => {
     stubSteps('predict')
     const onDiagnosis = vi.fn()
+    const onOrdersBasis = vi.fn()
 
-    await expect(runAnalysis('http://localhost:8000', 'run-1', { onStep: () => undefined, onDiagnosis })).rejects.toThrow(ApiError)
+    await expect(
+      runAnalysis('http://localhost:8000', 'run-1', { onStep: () => undefined, onDiagnosis, onOrdersBasis }),
+    ).rejects.toThrow(ApiError)
     expect(onDiagnosis).toHaveBeenCalledWith({ tree: null, calendar: null })
+    expect(onOrdersBasis).toHaveBeenCalledWith('lines')
   })
 })
 

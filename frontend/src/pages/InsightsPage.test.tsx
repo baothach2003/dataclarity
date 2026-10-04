@@ -4,6 +4,7 @@ import * as analysisApi from '../api/analysis.ts'
 import { ApiError } from '../api/errors.ts'
 import * as browserDownload from '../domain/browserDownload.ts'
 import type { ReportContract } from '../types/report.ts'
+import { makeDiagnosis } from './diagnosisFixture.ts'
 import { DISCOUNTS_TEXT, makeReport } from './insightsFixture.ts'
 import { InsightsPage } from './InsightsPage.tsx'
 
@@ -16,7 +17,9 @@ afterEach(() => {
 })
 
 function show(report: ReportContract = makeReport()) {
-  return render(<InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} />)
+  return render(
+    <InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} diagnosis={makeDiagnosis()} ordersBasis="order_id" />,
+  )
 }
 
 // PROJECT_PLAN 6E, layer 1 (the numbers) with the design gap decisions; every
@@ -178,6 +181,23 @@ describe('InsightsPage: the numbers', () => {
 
     expect(document.querySelector('img')).toBeNull()
     expect(screen.getByText(/<img src=x onerror=alert\(1\)>\.csv/)).toBeDefined()
+  })
+})
+
+// 6E part 2: number -> cause (FIGMA_DESIGN_NOTES 9: "the causal chain
+// visible"): the decomposition and the causes follow the KPIs.
+describe('InsightsPage: the causes', () => {
+  it('shows where the change came from, then why, after the numbers and before the file card', () => {
+    show()
+    const order = ['Where the revenue change came from', 'Why it happened', 'The file and where these figures come from'].map((name) =>
+      screen.getByRole('heading', { name }),
+    )
+    const [kpi] = screen.getAllByTestId('kpi-label')
+
+    expect(kpi.compareDocumentPosition(order[0] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect((order[0] as Node).compareDocumentPosition(order[1] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect((order[1] as Node).compareDocumentPosition(order[2] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('moved against the change (+1,792.00)')).toBeDefined()
   })
 })
 

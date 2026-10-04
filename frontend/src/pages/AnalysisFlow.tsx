@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { runAnalysis } from '../api/analysis.ts'
-import type { AnalysisResult, AnalysisResume } from '../api/analysis.ts'
+import type { AnalysisResult, AnalysisResume, OrdersBasis } from '../api/analysis.ts'
 import type { AnalysisStep } from '../domain/analysisSteps.ts'
 import { InsightsAnalyzingPage } from './InsightsAnalyzingPage.tsx'
 import { InsightsPage } from './InsightsPage.tsx'
@@ -18,15 +18,21 @@ interface AnalysisFlowProps {
   onBack: () => void
 }
 
-/** Where a retry picks up: the failed step, with the diagnosis when that step needs it. */
-function resumeAt(step: AnalysisStep, diagnosis: unknown): AnalysisResume | undefined {
-  if (step === 'diagnose') {
-    return { from: 'diagnose' }
+interface Reached {
+  step: AnalysisStep
+  diagnosis: unknown
+  ordersBasis: OrdersBasis | undefined
+}
+
+/** Where a retry picks up: the failed step, with what the earlier steps gave when it needs it. */
+function resumeAt({ step, diagnosis, ordersBasis }: Reached): AnalysisResume | undefined {
+  if (ordersBasis === undefined || step === 'analyze') {
+    return undefined
   }
   if (step === 'predict' || step === 'report') {
-    return diagnosis === undefined ? { from: 'diagnose' } : { from: step, diagnosis }
+    return diagnosis === undefined ? { from: 'diagnose', ordersBasis } : { from: step, diagnosis, ordersBasis }
   }
-  return undefined
+  return { from: 'diagnose', ordersBasis }
 }
 
 export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: AnalysisFlowProps) {
@@ -35,7 +41,7 @@ export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: Analysi
   const [result, setResult] = useState<AnalysisResult | null>(null)
   const started = useRef(false)
   // What the last attempt reached: the step it was on and the diagnosis it got.
-  const reached = useRef<{ step: AnalysisStep; diagnosis: unknown }>({ step: 'analyze', diagnosis: undefined })
+  const reached = useRef<Reached>({ step: 'analyze', diagnosis: undefined, ordersBasis: undefined })
 
   // Never aborted: the server runs a step to its end whatever the browser does, and refuses a second
   // one for the run while it does (INVALID_STATE step_in_progress).
@@ -46,6 +52,9 @@ export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: Analysi
         onStep: (next: AnalysisStep) => {
           reached.current.step = next
           setStep(next)
+        },
+        onOrdersBasis: (basis: OrdersBasis) => {
+          reached.current.ordersBasis = basis
         },
         onDiagnosis: (diagnosis: unknown) => {
           reached.current.diagnosis = diagnosis
@@ -65,7 +74,9 @@ export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: Analysi
   }, [start])
 
   if (result !== null) {
-    return <InsightsPage baseUrl={baseUrl} runId={runId} report={result.report} />
+    return (
+      <InsightsPage baseUrl={baseUrl} runId={runId} report={result.report} diagnosis={result.diagnosis} ordersBasis={result.ordersBasis} />
+    )
   }
   return (
     <InsightsAnalyzingPage
@@ -74,7 +85,7 @@ export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: Analysi
       step={step}
       error={error}
       onRetry={() => {
-        start(resumeAt(reached.current.step, reached.current.diagnosis))
+        start(resumeAt(reached.current))
       }}
       onBack={onBack}
     />

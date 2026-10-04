@@ -9,22 +9,29 @@ import { postJson, trimSlash } from './http.ts'
 
 export type { AnalysisStep } from '../domain/analysisSteps.ts'
 
+// metrics.json's core.orders_basis (a CONTRACTS 11 FE field): the lever's factors are named by it.
+export type OrdersBasis = 'order_id' | 'lines' | null
+
 export interface AnalysisResult {
   report: ReportContract
   // diagnosis.json as the diagnose answer carries it; the Insights page reads only the fields CONTRACTS
   // 11 lists for FE.
   diagnosis: unknown
+  ordersBasis: OrdersBasis
 }
 
 export interface AnalysisProgress {
   // Each step, before it starts.
   onStep: (step: AnalysisStep) => void
-  // diagnosis.json as soon as it is in hand, so a later failure can resume after it.
+  // What the earlier steps gave, as soon as it is in hand, so a later failure can resume after them.
+  onOrdersBasis?: (basis: OrdersBasis) => void
   onDiagnosis?: (diagnosis: unknown) => void
 }
 
 /** Where to pick up after a failure: predict and report need the diagnosis already in hand. */
-export type AnalysisResume = { from: 'diagnose' } | { from: 'predict' | 'report'; diagnosis: unknown }
+export type AnalysisResume =
+  | { from: 'diagnose'; ordersBasis?: OrdersBasis }
+  | { from: 'predict' | 'report'; diagnosis: unknown; ordersBasis?: OrdersBasis }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -35,6 +42,12 @@ function field(body: unknown, key: string): unknown {
     throw new UnreachableError('unexpected response body')
   }
   return body[key]
+}
+
+function ordersBasisOf(metrics: unknown): OrdersBasis {
+  const core = isRecord(metrics) ? metrics.core : undefined
+  const basis = isRecord(core) ? core.orders_basis : undefined
+  return basis === 'order_id' || basis === 'lines' ? basis : null
 }
 
 function listOf(value: unknown, item: (entry: unknown) => boolean = () => true): boolean {
@@ -59,6 +72,12 @@ function reportOf(body: unknown): ReportContract {
     listOf(trust.limitations) &&
     isRecord(causes) &&
     listOf(causes.notes, (note) => isRecord(note) && listOf(note.measures)) &&
+    isRecord(causes.headline) &&
+    typeof causes.headline.message === 'string' &&
+    listOf(causes.hypotheses, (hypothesis) => isRecord(hypothesis) && isRecord(hypothesis.evidence)) &&
+    listOf(causes.not_testable, isRecord) &&
+    isRecord(causes.suggested_classes) &&
+    (causes.narration === null || (isRecord(causes.narration) && listOf(causes.narration.hypothesis_notes, isRecord))) &&
     isRecord(report.layer_3_actions) &&
     listOf(report.charts, isRecord) &&
     isRecord(report.data_quality) &&
@@ -84,9 +103,11 @@ export async function runAnalysis(
   const path = (step: AnalysisStep) => `/api/runs/${runId}/${step}`
   const from = resume?.from ?? 'analyze'
   let diagnosis = resume && 'diagnosis' in resume ? resume.diagnosis : undefined
+  let ordersBasis: OrdersBasis = resume?.ordersBasis ?? null
   if (from === 'analyze') {
     progress.onStep('analyze')
-    field(await postJson<unknown>(baseUrl, path('analyze'), undefined), 'metrics')
+    ordersBasis = ordersBasisOf(field(await postJson<unknown>(baseUrl, path('analyze'), undefined), 'metrics'))
+    progress.onOrdersBasis?.(ordersBasis)
   }
   if (from === 'analyze' || from === 'diagnose') {
     progress.onStep('diagnose')
@@ -99,7 +120,7 @@ export async function runAnalysis(
   }
   progress.onStep('report')
   const report = reportOf(await postJson<unknown>(baseUrl, path('report'), undefined))
-  return { report, diagnosis }
+  return { report, diagnosis, ordersBasis }
 }
 
 /** GET /api/runs/{id}/download/report.html as a Blob the caller saves (errors still come back as the

@@ -4273,6 +4273,36 @@ dataclarity/
       words a note "with its own copy per code" (a question for Thach);
       no currency symbol (the file never says which); the header stepper
       compact on a phone (every page overflowed at 375px).
+      **Part 2 built 2026-10-04 (fifteenth run): the causes.** "Where the
+      revenue change came from" (stage 3's lever tree from diagnosis.json's
+      FE fields: each factor's two months and contribution as a diverging
+      bar, level 2, the masked shift's pair when its alert is on, the
+      calendar's estimate signed, the notes and walk-in mark beside the
+      figures it splits) and "Why it happened" (the engine's headline, the
+      AI narration's "unavailable", the table's note above it, every
+      hypothesis with its verdict, contribution, share, rule and evidence
+      key by key - a product nobody confirmed marked - what the data cannot
+      test, the diagnosis's notes, the classes nobody confirmed; no signals
+      table). Thach's label: a share hypothesis ruled out for moving AGAINST
+      the change reads "moved against the change (+X)", by stage 3's own
+      test (share_verdict: gross sales for the product lens, revenue
+      otherwise), never beside a month the page does not compare, never for
+      a leftover that prints as zero; on the Kaggle demo P2 reads "moved
+      against the change (-1,479.65)". Evidence prints as report.html
+      prints it, but for one limit: JSON cannot tell 1500.0 from 1500, so a
+      whole-number float prints as an integer ("34,900" for "34,900.00").
+      One review cycle: 1 blocker - the lever's customers are BUYERS (a sale
+      row), labelled "Active customers" beside the KPI of that name, which
+      counts returns-only customers too (on Online Retail II, 433 against
+      411 in 2011-08) - now "Customers who bought"; 7 should-fix (fractional
+      evidence printed unlike Python, the calendar caption unsigned and a
+      fallback 0 stated as measured, no walk-in mark or notes beside the
+      lever, the report body's causes unchecked, rule 1 not replaced, a
+      rounding leftover labelled "against") and 11 minor - all fixed tests
+      first, the fixtures rebuilt so stage 3 could have written them.
+      Decided alone: rule 2 (missing days explain the change) keeps the
+      table - a full diagnosis, though the design gap review grouped it with
+      rule 1 as "blocked" (for Thach).
 - [ ] 6F Dashboard page: charts + low-stock table + report download
       **OUT of v1 (Thach, 2026-10-03):** without stock it repeats Insights -
       into the v2 item (Backlog), with Phase 7.
@@ -5266,8 +5296,8 @@ only), pytest 4495 - committed (the 3E1b item). Stopped once on low memory
 when a season is claimed). Wave 3 installed; 6A-6D built (one review
 cycle: 5 blockers, all false sentences, fixed; every page checked in an
 isolated headless browser, no console error) - pushed as 9e898cc. 6E part 1
-(the flow and the numbers) built and reviewed. Next: 6E parts 2 (causes) and
-3 (charts, forecast, lines in no figure). Report:
+(the flow and the numbers) pushed as c532bbe; part 2 (the causes) built and
+reviewed. Next: part 3 (charts, forecast, lines in no figure). Report:
 `C:\Users\Happy\overnight-report.txt` (the fourteenth run's as
 `overnight-report-run14.txt`).
 **Thirteenth overnight run** (2026-10-03/04, continued after a restart;

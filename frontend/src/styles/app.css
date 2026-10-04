@@ -1089,3 +1089,189 @@ thead .preview-table__row-col {
   color: var(--text-secondary);
   font-size: var(--type-body-size);
 }
+
+/* Causes (6E part 2): the engine's headline, the hypothesis table, the verdicts. */
+.insights-headline {
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+}
+.insights-card__subtitle {
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+  margin-top: var(--space-2);
+}
+.table-scroll {
+  overflow-x: auto;
+}
+table.hypotheses {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--type-body-size);
+}
+table.hypotheses caption {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  padding-bottom: var(--space-2);
+}
+table.hypotheses th {
+  text-align: left;
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  border-bottom: 1px solid var(--divider);
+  padding: var(--space-2) var(--space-3);
+  white-space: nowrap;
+}
+table.hypotheses td {
+  border-bottom: 1px solid var(--divider);
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+}
+.hypotheses__id {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption-size);
+  margin-right: var(--space-2);
+}
+.hypotheses__figure {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+table.hypotheses details summary {
+  color: var(--accent);
+  cursor: pointer;
+}
+.hypotheses__evidence {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  overflow-wrap: anywhere;
+}
+.verdict {
+  display: inline-block;
+  border-radius: var(--radius-badge);
+  padding: 0 var(--space-2);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-label-weight);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+.verdict--supported {
+  background: var(--diff-added);
+  color: var(--status-healthy);
+}
+.verdict--partial {
+  background: var(--diff-changed);
+  color: var(--severity-medium);
+}
+
+/* "Where the revenue change came from": label | diverging bar | amount. */
+.decomposition__row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 2fr minmax(90px, auto);
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+.decomposition__label {
+  font-weight: var(--type-label-weight);
+}
+.decomposition__values {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+}
+.decomposition__track {
+  position: relative;
+  height: 20px;
+}
+.decomposition__track::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--divider);
+}
+.decomposition__half {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  width: 50%;
+  display: flex;
+}
+.decomposition__half--up {
+  left: 50%;
+}
+.decomposition__half--down {
+  right: 50%;
+  justify-content: flex-end;
+}
+.decomposition__bar {
+  height: 100%;
+  border-radius: 2px;
+}
+.decomposition__bar--up {
+  background: var(--status-healthy);
+}
+.decomposition__bar--down {
+  background: var(--severity-high);
+}
+.decomposition__amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.decomposition__amount--up {
+  color: var(--status-healthy);
+}
+.decomposition__amount--down {
+  color: var(--severity-high);
+}
+.decomposition__group {
+  color: var(--text-secondary);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  margin-top: var(--space-2);
+}
+.decomposition__total {
+  border-top: 1px solid var(--divider);
+  font-weight: var(--type-label-weight);
+}
+@media (max-width: 640px) {
+  .decomposition__row {
+    grid-template-columns: 1fr auto;
+  }
+  .decomposition__track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  /* The total row has no bar: its empty track cell would push the change to a second line. */
+  .decomposition__total > span {
+    display: none;
+  }
+}
+.decomposition__reason {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  text-align: right;
+}
+.decomposition__notes summary {
+  color: var(--accent);
+  cursor: pointer;
+  font-size: var(--type-label-size);
+}
+.decomposition__notes .note-body {
+  margin-top: var(--space-2);
+  font-size: var(--type-caption-size);
+}
+/* Ruled out for moving against the change: told apart from a plain "ruled out" by its words and an outline. */
+.verdict--against {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+}
