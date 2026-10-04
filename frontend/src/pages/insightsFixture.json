@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.4",
+  "schema_version": "2.5",
   "generated_at": "2026-07-01T09:00:00Z",
   "run_id": "run-1",
   "source_file": "store_sales_2026Q2.csv",
@@ -238,7 +238,13 @@
         "evidence": {
           "lapsed_current": 12600.0,
           "lapsed_previous": 3600.0
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "supported",
+        "evidence_text": [
+          "lapsed_current: 12,600.00",
+          "lapsed_previous: 3,600.00"
+        ]
       },
       {
         "id": "B1",
@@ -250,7 +256,13 @@
         "evidence": {
           "frequency_prev": 2.1,
           "frequency_cur": 2.14
-        }
+        },
+        "moved_against": true,
+        "verdict_label": "moved against the change (+1,792.00)",
+        "evidence_text": [
+          "frequency_prev: 2.1",
+          "frequency_cur: 2.14"
+        ]
       },
       {
         "id": "P2",
@@ -262,7 +274,13 @@
         "evidence": {
           "mix_effect": -300.0,
           "products_in_both_periods": 41
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "ruled out",
+        "evidence_text": [
+          "mix_effect: -300.00",
+          "products_in_both_periods: 41"
+        ]
       },
       {
         "id": "T2",
@@ -274,7 +292,13 @@
         "evidence": {
           "ly_prev": 90000.0,
           "ly_cur": 75470.0
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "ruled out",
+        "evidence_text": [
+          "ly_prev: 90,000.00",
+          "ly_cur: 75,470.00"
+        ]
       },
       {
         "id": "P1",
@@ -286,7 +310,13 @@
         "evidence": {
           "price_effect": 1e-13,
           "products_in_both_periods": 41
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "ruled out",
+        "evidence_text": [
+          "price_effect: 1e-13",
+          "products_in_both_periods: 41"
+        ]
       },
       {
         "id": "R1",
@@ -298,7 +328,13 @@
         "evidence": {
           "top_member": "Gift wrap",
           "top_member_share": 0.12
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "ruled out",
+        "evidence_text": [
+          "top_member: Gift wrap (suggested: charge, not confirmed)",
+          "top_member_share: 0.12"
+        ]
       },
       {
         "id": "D1",
@@ -309,7 +345,12 @@
         "rule": "no day without sales in either month",
         "evidence": {
           "d1_status": "ok"
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "ruled out",
+        "evidence_text": [
+          "d1_status: ok"
+        ]
       },
       {
         "id": "T3",
@@ -323,7 +364,12 @@
             "revenue",
             "orders"
           ]
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "inconclusive",
+        "evidence_text": [
+          "series_without_verdict: [\"revenue\", \"orders\"]"
+        ]
       },
       {
         "id": "P5",
@@ -334,7 +380,12 @@
         "rule": "no line is classed as a charge",
         "evidence": {
           "reason": "no line is classed as a charge"
-        }
+        },
+        "moved_against": false,
+        "verdict_label": "not testable",
+        "evidence_text": [
+          "reason: no line is classed as a charge"
+        ]
       }
     ],
     "not_testable": [

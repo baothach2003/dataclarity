@@ -15,6 +15,13 @@ describe('Stepper', () => {
     expect(screen.queryByText('CleanStock')).toBeNull()
   })
 
+  // Thach, 2026-10-04 (iii): v1's stage 4 is a forecast only.
+  it('names stage 4 Forecast', () => {
+    render(<Stepper collectStatus="active" />)
+
+    expect(screen.getAllByRole('listitem').map((step) => step.textContent)).toEqual(['Collect', '2Analyze', '3Diagnose', '4Forecast', '5Report'])
+  })
+
   // 6E: stages 2-5 run after Results - the stages done, and the one running.
   it('marks the stages done and the one in progress', () => {
     render(<Stepper progress={{ done: 2, active: 2 }} />)

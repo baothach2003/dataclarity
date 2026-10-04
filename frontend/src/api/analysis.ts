@@ -67,6 +67,7 @@ function reportOf(body: unknown): ReportContract {
     listOf(numbers.kpis, (kpi) => isRecord(kpi) && listOf(kpi.notes)) &&
     listOf(numbers.notes, (note) => isRecord(note) && listOf(note.measures)) &&
     listOf(numbers.how_to_read, (note) => isRecord(note) && listOf(note.measures)) &&
+    listOf(numbers.outside_revenue, (row) => isRecord(row) && typeof row.reason === 'string') &&
     isRecord(trust) &&
     listOf(trust.checks, isRecord) &&
     listOf(trust.limitations) &&
@@ -74,7 +75,15 @@ function reportOf(body: unknown): ReportContract {
     listOf(causes.notes, (note) => isRecord(note) && listOf(note.measures)) &&
     isRecord(causes.headline) &&
     typeof causes.headline.message === 'string' &&
-    listOf(causes.hypotheses, (hypothesis) => isRecord(hypothesis) && isRecord(hypothesis.evidence)) &&
+    listOf(
+      causes.hypotheses,
+      (hypothesis) =>
+        isRecord(hypothesis) &&
+        isRecord(hypothesis.evidence) &&
+        typeof hypothesis.moved_against === 'boolean' &&
+        typeof hypothesis.verdict_label === 'string' &&
+        listOf(hypothesis.evidence_text, (line) => typeof line === 'string'),
+    ) &&
     listOf(causes.not_testable, isRecord) &&
     isRecord(causes.suggested_classes) &&
     (causes.narration === null || (isRecord(causes.narration) && listOf(causes.narration.hypothesis_notes, isRecord))) &&

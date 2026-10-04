@@ -4,9 +4,6 @@
 // the data cannot test; the classes nobody confirmed. No signals table: it reads as an alert and stays in
 // the downloadable report (ADR-0007).
 
-import type { DiagnosisView } from '../domain/diagnosisView.ts'
-import { verdictOf } from '../domain/diagnosisView.ts'
-import { evidenceValue } from '../domain/evidence.ts'
 import { money, share } from '../domain/reportFormat.ts'
 import type { Causes, HypothesisView, Numbers } from '../types/report.ts'
 import { NoteBody } from './NoteBody.tsx'
@@ -15,10 +12,12 @@ import { Notice } from './Notice.tsx'
 interface CausesSectionProps {
   causes: Causes
   numbers: Numbers
-  view: DiagnosisView
 }
 
-function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: HypothesisView[] } & CausesSectionProps) {
+// The verdict as report.json words it - "moved against the change (+X)": stage 3's own sign test, shown by
+// stage 5 beside a comparison the report shows - and the evidence as report.html words it: one copy (Thach,
+// 2026-10-04, (vii)-(viii)).
+function HypothesisTable({ hypotheses }: { hypotheses: HypothesisView[] }) {
   return (
     <div className="table-scroll">
       <table className="hypotheses">
@@ -34,7 +33,6 @@ function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: Hy
         </thead>
         <tbody>
           {hypotheses.map((hypothesis) => {
-            const verdict = verdictOf(hypothesis, view, numbers)
             return (
               <tr key={hypothesis.id}>
                 {/* The row's header, its id and statement apart for a screen reader (the 6E2 review #12). */}
@@ -42,8 +40,8 @@ function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: Hy
                   <span className="hypotheses__id">{hypothesis.id}</span> {hypothesis.statement}
                 </th>
                 <td>
-                  <span className={verdict.against ? 'verdict verdict--against' : `verdict verdict--${hypothesis.verdict}`}>
-                    {verdict.label}
+                  <span className={hypothesis.moved_against ? 'verdict verdict--against' : `verdict verdict--${hypothesis.verdict}`}>
+                    {hypothesis.verdict_label}
                   </span>
                 </td>
                 <td className="hypotheses__figure">{hypothesis.contribution === null ? '' : money(hypothesis.contribution)}</td>
@@ -52,10 +50,11 @@ function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: Hy
                   <details>
                     <summary aria-label={`Rule and evidence for ${hypothesis.id}`}>Details</summary>
                     <p>{hypothesis.rule}</p>
-                    {Object.keys(hypothesis.evidence).length > 0 && (
+                    {hypothesis.evidence_text.length > 0 && (
                       <ul className="hypotheses__evidence">
-                        {Object.entries(hypothesis.evidence).map(([key, value]) => (
-                          <li key={key}>{`${key}: ${evidenceValue(value, causes.suggested_classes)}`}</li>
+                        {hypothesis.evidence_text.map((line, index) => (
+                          // One line per evidence key; two may read alike.
+                          <li key={index}>{line}</li>
                         ))}
                       </ul>
                     )}
@@ -70,7 +69,7 @@ function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: Hy
   )
 }
 
-export function CausesSection({ causes, numbers, view }: CausesSectionProps) {
+export function CausesSection({ causes, numbers }: CausesSectionProps) {
   const period = numbers.period
   const narration = causes.narration
   const suggested = Object.entries(causes.suggested_classes)
@@ -107,13 +106,14 @@ export function CausesSection({ causes, numbers, view }: CausesSectionProps) {
         </div>
       )}
       {causes.hypotheses_note && (
-        // Above the table it qualifies (decision 4): the verdicts describe a change too small, or a
-        // history too short, to single one out.
+        // Above the table it qualifies, as stage 3 words it (decision 4): the verdicts describe a change
+        // too small, or a history too short, to single one out - or, under rule 2, a change the missing
+        // days are in (Thach, 2026-10-04, (vi); one copy, report.html prints the same).
         <Notice tone="info" title="About these verdicts">
           {causes.hypotheses_note}
         </Notice>
       )}
-      <HypothesisTable hypotheses={causes.hypotheses} causes={causes} numbers={numbers} view={view} />
+      <HypothesisTable hypotheses={causes.hypotheses} />
       {numbers.unconfirmed_placeholders_reason && (
         // The customer causes read the same customers (2E-u3).
         <p className="insights-reason">{numbers.unconfirmed_placeholders_reason}</p>

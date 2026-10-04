@@ -34,7 +34,8 @@ function why(measure: DateOrderMeasure): string {
   if (measure.day_first > 0 && measure.month_first > 0) {
     return `Some dates prove each way: "${measure.day_first_example ?? ''}" can only be day first and "${measure.month_first_example ?? ''}" only month first, so the dates the other way will be left without a date.`
   }
-  return `${count(measure.ambiguous, 'date such as 05/01/2026 can', 'dates such as 05/01/2026 can')} be read two ways - 5 January or 1 May - and none of the file's dates says which.`
+  // "Written like": the example shows the shape, it is no date of the file (Thach, 2026-10-04, (iv)).
+  return `${count(measure.ambiguous, 'date written like 05/01/2026 can', 'dates written like 05/01/2026 can')} be read two ways - 5 January or 1 May - and none of the file's dates says which.`
 }
 
 function hint(measure: DateOrderMeasure): string {

@@ -1,7 +1,5 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { readDiagnosis } from '../domain/diagnosisView.ts'
-import { makeDiagnosis } from '../pages/diagnosisFixture.ts'
 import { makeReport, SAME_DAY_TEXT } from '../pages/insightsFixture.ts'
 import type { ReportContract } from '../types/report.ts'
 import { CausesSection } from './CausesSection.tsx'
@@ -10,8 +8,8 @@ afterEach(() => {
   cleanup()
 })
 
-function show(report: ReportContract = makeReport(), diagnosis: unknown = makeDiagnosis()) {
-  return render(<CausesSection causes={report.layer_2_causes} numbers={report.layer_1_numbers} view={readDiagnosis(diagnosis)} />)
+function show(report: ReportContract = makeReport()) {
+  return render(<CausesSection causes={report.layer_2_causes} numbers={report.layer_1_numbers} />)
 }
 
 function rows() {
@@ -69,6 +67,49 @@ describe('CausesSection', () => {
     show()
 
     expect(screen.getByText('The AI narration is unavailable for this report')).toBeDefined()
+  })
+
+  // Thach, 2026-10-04 (vi): rule 2 is a full diagnosis - the table stays, with
+  // a line above it: stage 3's table note, as report.html prints it (one copy).
+  const GAPS = 'The days with no sales at all affect the verdicts below: each measures a change that includes them.'
+  const RULE_2 = 'Revenue went from 104,160.00 to 96,152.00 (-8,008.00). The change is consistent with days that have no sales at all.'
+
+  it("keeps the table under rule 2, with report.json's line saying the missing days affect the verdicts", () => {
+    const report = makeReport()
+    report.layer_2_causes.headline = { ...report.layer_2_causes.headline, rule: 2, hypothesis_id: null, lens: null, message: RULE_2 }
+    report.layer_2_causes.hypotheses_note = GAPS
+    show(report)
+    const line = screen.getByText(GAPS)
+    const table = screen.getByRole('table', { name: 'Every hypothesis tested, the ruled-out ones included' })
+
+    expect(line.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(rows()).toHaveLength(9)
+  })
+
+  it('adds no words of its own under rule 2', () => {
+    const report = makeReport()
+    report.layer_2_causes.headline = { ...report.layer_2_causes.headline, rule: 2, hypothesis_id: null, lens: null, message: RULE_2 }
+    report.layer_2_causes.hypotheses_note = null
+    show(report)
+
+    expect(screen.queryByText(GAPS)).toBeNull()
+  })
+
+  // Thach, 2026-10-04 (vii)-(viii): the label and the evidence text are
+  // report.json's own - one copy, report.html prints the same.
+  it("prints report.json's label and evidence text as written", () => {
+    const report = makeReport()
+    const [first] = report.layer_2_causes.hypotheses
+    first.verdict_label = 'moved against the change (-1.00)'
+    first.moved_against = true
+    first.verdict = 'ruled_out'
+    first.evidence_text = ['written: by stage 5']
+    show(report)
+
+    const [row] = rows()
+    expect(row.querySelector('.verdict')?.textContent).toBe('moved against the change (-1.00)')
+    expect(row.querySelector('.verdict')?.className).toBe('verdict verdict--against')
+    expect(within(row).getByText('written: by stage 5')).toBeDefined()
   })
 
   it("shows the table's note above it", () => {

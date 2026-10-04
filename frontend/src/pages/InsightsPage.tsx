@@ -149,7 +149,7 @@ export function InsightsPage({ baseUrl, runId, report, diagnosis, ordersBasis }:
 
         {/* Number -> cause (FIGMA_DESIGN_NOTES 9): the change split, then why. */}
         <DecompositionCard view={view} numbers={numbers} ordersBasis={ordersBasis} notes={besideFigures} />
-        <CausesSection causes={report.layer_2_causes} numbers={numbers} view={view} />
+        <CausesSection causes={report.layer_2_causes} numbers={numbers} />
 
         {/* Cause -> what next: the months, the forecast, the recommendations' place (off in v1). */}
         {(revenueChart || numbers.revenue_by_month.length > 0) && (

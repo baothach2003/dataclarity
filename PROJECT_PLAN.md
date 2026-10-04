@@ -954,6 +954,54 @@ dataclarity/
       **For Thach:** rule 4's "This may be seasonal." (ADR-0007) with no
       claim; T2's "Seasonality explains the change" beside "consistent with
       the season" when a season is claimed.
+      **Thach decided (2026-10-04, on the fifteenth report):** every decision
+      made alone in that run accepted (the T2 table wording: a hypothesis
+      wording keeps "ruled out" true). **(i)** Rule 4's hedge says "This may
+      be seasonal." only when 4A claims a season; otherwise a hedge without
+      the word ("Shifts like this can happen in an ordinary month; treat it
+      as a pointer, not a finding."). ADR-0007's hedge stays - a masked
+      shift is never stated as a finding - but only 4A's claim may say
+      "season". **(ii)** T2 is always worded without "season" (the no-claim
+      wording), with or without a claim; only the headline's season
+      comparison says "season" - one report, one meaning of the word. Stage
+      3 wording: failing tests first, mutation on the logic, one review
+      cycle, the demo's headlines and S12/S13 outcomes re-checked (wording
+      only).
+      **Built (the sixteenth run).** (i) `headline.SEASON_HEDGE` /
+      `PLAIN_HEDGE`, chosen by `Changes.season_claimed` (4A's claim). (ii)
+      T2's one statement and rule 5's one phrase; the machinery that chose
+      T2's words by the claim (`HypothesisSpec.fact_statement`,
+      `headline.FACT_CONTEXT`) removed. Tests first (8 failing before the
+      code); mutation 8 mutants, 2 alive on the first pass (nothing tested
+      the claim flag itself once T2 no longer read it - a test now pins it
+      to 4A's claim on a 24-month and a 15-month shop), then 8 of 8 killed.
+      **Re-check** against 24d1b40's outputs: S0, S12, S13 x 30 seeds, the
+      flat-season check x 30 and the demo's 81 month pairs - outcomes
+      identical in all 201 (rule, named cause, verdicts, bands); wording
+      changed in one (Online Retail II classed, 2010-01, rule 4: the plain
+      hedge - that month has no season claim); "season" outside a season
+      comparison in none. Peaks: a seed 210 MB, a demo pair 580 MB.
+      **Review cycle (one, cross-model skipped: non-interactive).** Fixed:
+      four stale comments (step7_inputs, the diagnosis contract's docstring,
+      lever, headline/catalog: "only 4A's claim says season - the headline's
+      comparison and rule 4's hedge under it"), five stale test comments,
+      one assertion that could no longer fail (now checks T2's words are
+      not named beside a gap); the guard widened - the catalog's `test`
+      column, the not-testable rows, every string the time family's
+      evidence writes, the headline's T2 phrase and the plain hedge - and
+      AI_PIPELINE's quote of both hedges pinned word for word (5 of 5
+      planted drifts caught). Noise: a trust check's evidence KEY
+      (`seasonal_expected_zero_days_*`) - printed nowhere, and a consumer
+      key is never renamed (CLAUDE.md 3.7).
+      **Question for Thach (the review's finding 1, not built).** Rule 4 is
+      chosen before the season comparison is read, so under a claim its
+      hedge says "This may be seasonal." whatever the comparison's band -
+      including "shortfall"/"excess" (the month measured clearly off its
+      season) or no comparison at all; rule 4 shows no comparison. As
+      decided in (i), literally; pinned by a test that names it an open
+      question. Measured: in none of the 201 runs above (the one rule 4 has
+      no claim). Should a band of shortfall/excess (or no comparison) give
+      rule 4 the plain hedge?
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -4327,6 +4375,118 @@ dataclarity/
       when lines are dated after the upload (the page says "the dates the
       file covers end on" - for Thach); the caution colour is the design's
       recorded below-AA choice (FIGMA_DESIGN_NOTES open issues).
+      **Thach decided (2026-10-04, on the fifteenth report):** every
+      decision made alone accepted (the 6A limits endpoint included).
+      **(iii)** The stepper's "Predict" becomes "Forecast" - v1's stage 4 is
+      a forecast only. **(iv)** Review's date question says "dates written
+      like 05/01/2026" - an illustration of the shape, not a date of the
+      file. **(v)** One copy of a note's wording: report.json's, from
+      NOTE_TEXTS by code; CONTRACTS 11 reworded to match (no second copy in
+      the frontend to drift). **(vi)** Rule 2 (missing days explain the
+      change) keeps the hypothesis table - a full diagnosis - with one line
+      above it saying the missing days affect the verdicts below. **(vii)**
+      report.html uses the same "moved against the change (-X)" label as
+      the page. **(viii)** Stage 5 writes each hypothesis's evidence text
+      into report.json (additive) and the page shows that text, so page and
+      report print the same. **(ix)** "Lines outside revenue" rows worded by
+      class code, as notes are (e.g. stock received: not a sale, so not
+      counted in revenue) - additive. **(x)** report.html says "The dates
+      the file covers end on ...", as the page does. Stage 5 wording:
+      failing tests first, mutation on logic, one review cycle; display:
+      failing tests first, one review cycle, browser-checked.
+      **Built (the sixteenth run).** (iii) the stepper's "Forecast"; (iv)
+      the date question's "dates written like 05/01/2026" (singular tested
+      too); (v) CONTRACTS 11 reworded - the page prints report.json's note
+      text, Review the line summary's, both pinned to `NOTE_TEXTS`; (vi)
+      rule 2's line is stage 3's table note (`headline.GAPS_NOTE`,
+      diagnosis.json 18.3), printed above the table by report.html and the
+      page alike; (vii)-(viii) report.json 2.5: `moved_against`,
+      `verdict_label` (`contracts.report_views.against_label`, one copy the
+      contract checks) and `evidence_text`, printed as written by both -
+      the page's own copies gone (`domain/evidence.ts` deleted, the
+      "against" rule out of `diagnosisView.ts`);
+      (ix) `outside_revenue[].reason` from `contracts.lines
+      .OUTSIDE_REVENUE_TEXTS` by class code - report.html's "Why" column and
+      the page's; (x) "The dates the file covers end on ...". Tests first
+      throughout. Mutation: 21 mutants on the first build, 2 alive (no test
+      that report.html prints report.json's own evidence text; none of a
+      change that did not move) - tests added, 21 of 21 killed.
+      **Review cycle 1 (cross-model skipped: non-interactive).** 10
+      findings, all acted on: a version pin missed in a stage 4 test
+      (2.4 -> 2.5); the product lens answered "against" before the withheld-
+      month check (now every lens alike, tested); **"against" re-derived in
+      stage 5 from stage 2's revenue KPI - a second copy of stage 3's sign
+      test on another total (CLAUDE.md 3.1)**; rule 2's line written by the
+      page alone, so report.html lacked it; the contract checked only the
+      label's prefix, let a zero contribution through and never paired the
+      evidence text with the evidence; a class with no wording raised a
+      KeyError instead of a refusal; the page fixture said 2.4; `reportOf`
+      left `moved_against` and the reason unchecked; the singular date
+      sentence untested; CONTRACTS 11's note path left out Review. **Two
+      decisions made alone:** (a) stage 3 states "against" itself -
+      `hypotheses[].against_the_change` (diagnosis.json 18.3, additive; the
+      sign half of `share_verdict` on the same total, one helper), stage 5
+      only decides where it is shown; (b) rule 2's line became stage 3's
+      table note rather than a page sentence, so both renderers print one
+      copy. Both follow (v)'s one-copy rule; neither changes a verdict, a
+      headline or a figure. Mutation on that late logic: 22 mutants, 20
+      killed, 1 equivalent (`_same_sign`'s zero guard - a zero contribution
+      is ruled out by size anyway) and 1 called equivalent WRONGLY (the
+      `share is not None` gate: cycle 2 showed a null split gross reaches
+      it - now tested, killed);
+      one first survivor (another class's reason accepted) killed by a test.
+      The re-check ran again after (a)/(b): the 201 runs identical to the
+      first pass in every field but timing (peaks 210 / 579 MB).
+      **Review cycle 2 (the late logic, its own cycle).** 11 findings: fixed
+      - the four outside-revenue sentences now asserted word for word; the
+      report contract itself refuses "against" beside a comparison it does
+      not show (`contracts.report.compared_month_shown`, the one copy stage
+      5 calls too) and a 2.5 report with a row unlabelled or an outside line
+      unworded (one definition of 2.5, the page's); evidence text paired
+      with its evidence even unlabelled; a test reaching the null-share
+      branch (the gate above, now killed); the
+      diagnosis contract refuses "against" on a zero contribution; a P1
+      test fixture that could not happen; four stale comments; rule 2's
+      line no longer says "named above" (the headline names no day): "The
+      days with no sales at all affect the verdicts below: each measures a
+      change that includes them." Noise: a class with no wording in stage 5
+      (stage 2 asserts its five classes at import; a test pins the wording
+      to them); a NaN contribution (the tree refuses non-finite figures).
+      Mutation 9 of 9 killed. Cycle 3 not run: cycle 2's findings were
+      tests, refusals and wording, each failing-test-first and mutated.
+      **Questions for Thach (not built).** (1) A product-lens hypothesis is
+      "against" gross sales, which the report shows nowhere: with revenue
+      -200 and gross sales +100 (returns rose), P1 -50 reads "moved against
+      the change (-50.00)" beside a falling revenue - true by stage 3's
+      test, hard to reconcile on the page. Name the change it means for the
+      product lens ("against gross sales")? (2) Rule 2 can fire while the
+      D1 badge says coverage matches the shop's normal trading pattern (the
+      badge reads unexplained days, D1 excess days) - pre-existing, worth a
+      look.
+      **Browser-checked (isolated headless Chrome, the AI unreachable).** Two
+      small files made for it: one whose dates prove neither order (Review
+      asks: "44 dates written like 05/01/2026 can be read two ways"), one
+      with stock received typed "in" (Insights: three "Lines outside
+      revenue" rows, each with its "Why"; T1 "moved against the change
+      (-115.32)"); the stepper reads Forecast; no console error or warning.
+      Found and fixed (decisions made alone - layout only, tests where jsdom
+      can see it): (1) at 375 px the new "Why" column squeezed to a word a
+      line, each row ~230 px tall - every prose column of that card keeps a
+      readable width (`cell-prose`, 16rem) and the table scrolls sideways;
+      (2) **the phone measure itself was wrong**: under phone emulation the
+      layout viewport GROWS to fit wide content, so `scrollWidth -
+      innerWidth` read 0 on a page wider than the screen - "0 px overflow
+      at 375" in earlier runs proved nothing for such a page. Corrected to
+      the device width, it found Review's question notices pushing "Month
+      first (12/31/2026)" to 522 px (their text squeezed to 71 px, the
+      action bar's hint to 45 px) - pre-existing since 6A-6D, unseen
+      because the Kaggle flow raises no question - and the stepper 5 px
+      wide on Analyzing (also pre-existing; "Diagnose" and "Forecast" are
+      longer still). Fixed at the existing 640 px breakpoint: a notice's
+      answers wrap under its text, the action bar stacks, the stepper's
+      gaps tighten. Re-measured: Upload, Review (with the questions),
+      Results, Analyzing (each stage in progress in turn: the stepper ends
+      at 359 px), Insights - 0 px at 375, 0 at 1440.
 - [ ] 6F Dashboard page: charts + low-stock table + report download
       **OUT of v1 (Thach, 2026-10-03):** without stock it repeats Insights -
       into the v2 item (Backlog), with Phase 7.
@@ -5128,6 +5288,17 @@ dataclarity/
       **Test time** (Thach): the suite takes about 7 minutes; a pytest marker
       for the scenario and failure-mode suites makes a quick run possible
       while iterating; the full suite still runs before every commit.
+- [ ] **One real-AI smoke test before any deploy (Thach, 2026-10-04,
+      approved on the fifteenth report).** Stage 1's prompts and contracts
+      changed many times since the last real call and every test since uses
+      the fakes. The full flow (upload, schema, plan, Review answers,
+      execute, stages 2-5) on the Kaggle demo and the Online Retail II
+      sample with the real key from .env, at most 6 real AI calls in total;
+      stop immediately on any error or refusal. Report each call's purpose,
+      model, input and output tokens, estimated cost, whether the answer
+      passed every check, and any difference from what the fakes return.
+      Never change a prompt to make it pass: report what failed and stop.
+      Then stop, before any deploy step.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5311,6 +5482,20 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Sixteenth overnight run** (2026-10-04, on the fifteenth report; Thach's
+decisions recorded at 3E1b (i)-(ii), 6E (iii)-(x) and Phase 9's smoke-test
+item). Order: stage 3 wording (i)-(ii); stage 5 and the page (iii)-(x); then
+the one real-AI smoke test; then stop before any deploy step. (i)-(x) built,
+tested, mutated, reviewed (stage 3 once; stage 5 and the page twice - the
+second a cycle of its own for late logic: two decisions made alone, 6E (a)
+and (b), diagnosis.json 18.3), re-checked twice (outcomes identical, one
+rule 4 rewording), browser-checked (the phone measure corrected; Review's
+question notices and the stepper fixed); pytest 4540, Vitest 395. Pushed as
+da753a7 (stages 3 and 5, contracts, docs) and the page's commit after it.
+Three questions for Thach: 3E1b (rule 4's hedge beside a band) and 6E (the
+product lens's "against"; D1's badge beside rule 2). Then the smoke test
+(Phase 9). Report: `C:\Users\Happy\overnight-report.txt` (the fifteenth
+run's as `overnight-report-run15.txt`).
 **Fifteenth overnight run** (2026-10-04, on the fourteenth report; Thach's
 decisions recorded at 3E1b, 8D and Phase 6's Wave 3 item). 8D (a) and (b)
 built, tested, mutated, reviewed, re-checked (outcomes identical, wording

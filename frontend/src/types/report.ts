@@ -111,6 +111,8 @@ export interface OutsideRevenueLines {
   lines: number
   amount: number
   lines_without_amount: number
+  // 2.5 (Thach, 2026-10-04, (ix)): why it is outside revenue, worded by its class code.
+  reason: string
 }
 
 export interface Numbers {
@@ -140,8 +142,14 @@ export interface HypothesisView {
   contribution: number | null
   share: number | null
   rule: string
-  // Free-form per hypothesis, shown key by key as it stands; no key is relied on (CONTRACTS 11).
+  // Free-form per hypothesis; no key is relied on (CONTRACTS 11).
   evidence: Record<string, unknown>
+  // 2.5 (Thach, 2026-10-04, (vii)-(viii)): one copy of what the page and report.html print - ruled out for
+  // moving against the change (stage 5 decides, by stage 3's sign test), the verdict as shown, the
+  // evidence as report.html words it, key by key.
+  moved_against: boolean
+  verdict_label: string
+  evidence_text: string[]
 }
 
 export interface Headline {

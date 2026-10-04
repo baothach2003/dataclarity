@@ -8,7 +8,9 @@ import { count, money, monthLabel } from '../domain/reportFormat.ts'
 import { NOT_COMPARED_ABOVE, scopeLabel } from '../domain/reportText.ts'
 import type { Numbers } from '../types/report.ts'
 
-function Table({ caption, headers, rows }: { caption: string; headers: string[]; rows: string[][] }) {
+// `prose`: the columns holding a sentence - each keeps a readable measure at phone width (the table
+// scrolls sideways) instead of a column one word wide.
+function Table({ caption, headers, rows, prose }: { caption: string; headers: string[]; rows: string[][]; prose: number[] }) {
   return (
     <div className="table-scroll">
       <table className="hypotheses">
@@ -27,7 +29,9 @@ function Table({ caption, headers, rows }: { caption: string; headers: string[];
             // Rows may read alike (one class in two scopes); their place is their identity.
             <tr key={index}>
               {row.map((cell, column) => (
-                <td key={column}>{cell}</td>
+                <td key={column} className={prose.includes(column) ? 'cell-prose' : undefined}>
+                  {cell}
+                </td>
               ))}
             </tr>
           ))}
@@ -59,6 +63,7 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
         <Table
           caption="Lines that cannot be measured"
           headers={['Scope', 'Why', 'Lines']}
+          prose={[1]}
           rows={unmeasurable.map((row) => [scopeLabel(row.scope, period), row.reason, count(row.lines)])}
         />
       )}
@@ -66,6 +71,7 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
         <Table
           caption="Lines of the classes you gave"
           headers={['Class', 'Lines', 'Amount', monthLabel(numbers.period.current), monthLabel(numbers.period.previous), 'Where it went']}
+          prose={[5]}
           rows={numbers.non_product.map((row) => [
             row.line_class,
             count(row.lines),
@@ -80,7 +86,8 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
       {outside.length > 0 && (
         <Table
           caption="Lines outside revenue"
-          headers={['Class', 'Scope', 'Sign', 'Lines', 'Amount', 'Lines without an amount']}
+          headers={['Class', 'Scope', 'Sign', 'Lines', 'Amount', 'Lines without an amount', 'Why']}
+          prose={[6]}
           rows={outside.map((row) => [
             row.line_class,
             scopeLabel(row.scope, period),
@@ -88,6 +95,8 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
             count(row.lines),
             money(row.amount),
             count(row.lines_without_amount),
+            // Worded by its class code (Thach, 2026-10-04, (ix)).
+            row.reason,
           ])}
         />
       )}

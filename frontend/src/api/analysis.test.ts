@@ -90,6 +90,23 @@ describe('runAnalysis', () => {
     ["a hypothesis's evidence", (report: ReturnType<typeof makeReport>) => {
       ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).evidence = null
     }],
+    ["a hypothesis's evidence text", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).evidence_text = 'x'
+    }],
+    ["a hypothesis's label", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).verdict_label = 3
+    }],
+    ["a hypothesis's against flag", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_2_causes.hypotheses[0] as unknown as Record<string, unknown>).moved_against = 'yes'
+    }],
+    ['the lines outside revenue', (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_1_numbers as unknown as Record<string, unknown>).outside_revenue = null
+    }],
+    ["a line outside revenue's reason", (report: ReturnType<typeof makeReport>) => {
+      ;(report.layer_1_numbers as unknown as Record<string, unknown>).outside_revenue = [
+        { line_class: 'cost', scope: 'file', sign: null, lines: 1, amount: -5, lines_without_amount: 0, reason: null },
+      ]
+    }],
     ['the not-testable list', (report: ReturnType<typeof makeReport>) => {
       ;(report.layer_2_causes as unknown as Record<string, unknown>).not_testable = null
     }],

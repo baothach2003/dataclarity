@@ -122,6 +122,15 @@
   .stepper__connector {
     min-width: var(--space-2);
   }
+  /* Even one label did not fit: "Analyze" in progress put the stepper 5px past a 375px screen (the
+     sixteenth run's corrected measure), and "Diagnose" and "Forecast" are longer. */
+  .stepper,
+  .stepper__step {
+    gap: var(--space-1);
+  }
+  .stepper {
+    min-width: 0;
+  }
 }
 
 .page {
@@ -880,6 +889,31 @@ thead .preview-table__row-col {
   gap: var(--space-3);
   align-items: center;
 }
+/* A phone: a Notice's answers go under its text, and the action bar's status above its buttons. Side by
+   side, Review's date question kept 71px for its text and pushed "Month first" past the screen, which
+   widened the page to 522px (the sixteenth run's browser check at 375px). */
+@media (max-width: 640px) {
+  .notice {
+    flex-wrap: wrap;
+  }
+  .notice__body {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .notice__actions {
+    flex-basis: 100%;
+    flex-wrap: wrap;
+  }
+  .action-bar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-4);
+  }
+  .action-bar__buttons {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
 .tooltip-wrap {
   position: relative;
   display: inline-flex;
@@ -1129,6 +1163,10 @@ table.hypotheses td {
   border-bottom: 1px solid var(--divider);
   padding: var(--space-2) var(--space-3);
   vertical-align: top;
+}
+/* A sentence in a table that scrolls sideways on a phone: a readable measure, never a column one word wide. */
+table.hypotheses td.cell-prose {
+  min-width: 16rem;
 }
 .hypotheses__id {
   color: var(--text-secondary);

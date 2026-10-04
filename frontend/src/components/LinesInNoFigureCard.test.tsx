@@ -9,6 +9,8 @@ afterEach(() => {
 })
 
 const NUMBERS = makeReport().layer_1_numbers
+// contracts.lines.OUTSIDE_REVENUE_TEXTS' own words (Thach, 2026-10-04, (ix)).
+const STOCK = 'Stock received (a line typed "in") is not a sale, so it is not counted in revenue.'
 
 function rows(name: string) {
   return within(screen.getByRole('table', { name }))
@@ -30,8 +32,8 @@ const WITH_LINES: Numbers = {
     { line_class: 'charge', lines: 40, amount: 600, amount_current: 210, amount_previous: 190, reason: 'a charge the customer paid stays in revenue but is no order' },
   ],
   outside_revenue: [
-    { line_class: 'stock_in', scope: 'file', sign: 'positive', lines: 12, amount: 8400, lines_without_amount: 2 },
-    { line_class: 'stock_in', scope: 'previous', sign: 'positive', lines: 3, amount: 2100, lines_without_amount: 0 },
+    { line_class: 'stock_in', scope: 'file', sign: 'positive', lines: 12, amount: 8400, lines_without_amount: 2, reason: STOCK },
+    { line_class: 'stock_in', scope: 'previous', sign: 'positive', lines: 3, amount: 2100, lines_without_amount: 0, reason: STOCK },
   ],
 }
 
@@ -39,6 +41,18 @@ const WITH_LINES: Numbers = {
 // the classes that is not product revenue - each with its reason, never
 // dropped silently (CONTRACTS 6) - as stage 5 tells them (html_report._other_lines).
 describe('LinesInNoFigureCard', () => {
+  // The browser check (the sixteenth run): at phone width a sentence squeezed into a column one word wide
+  // made each row ~230px tall - every column of prose keeps a readable measure, the table scrolls sideways.
+  it('gives every column of prose a readable width', () => {
+    render(<LinesInNoFigureCard numbers={WITH_LINES} />)
+
+    const prose = [STOCK, 'no quantity', 'a charge the customer paid stays in revenue but is no order']
+    for (const text of prose) {
+      expect(screen.getAllByText(text)[0]?.closest('td')?.classList.contains('cell-prose')).toBe(true)
+    }
+    expect(screen.getAllByText('stock_in')[0]?.closest('td')?.classList.contains('cell-prose')).toBe(false)
+  })
+
   it('is not shown when every line is in a figure', () => {
     render(<LinesInNoFigureCard numbers={NUMBERS} />)
 
@@ -58,9 +72,10 @@ describe('LinesInNoFigureCard', () => {
     expect(rows('Lines of the classes you gave')).toEqual([
       ['charge', '40', '600.00', '210.00', '190.00', 'a charge the customer paid stays in revenue but is no order'],
     ])
+    // Each with why, worded by its class code (Thach, 2026-10-04, (ix)).
     expect(rows('Lines outside revenue')).toEqual([
-      ['stock_in', 'whole file', 'positive', '12', '8,400.00', '2'],
-      ['stock_in', 'May 2026', 'positive', '3', '2,100.00', '0'],
+      ['stock_in', 'whole file', 'positive', '12', '8,400.00', '2', STOCK],
+      ['stock_in', 'May 2026', 'positive', '3', '2,100.00', '0', STOCK],
     ])
   })
 

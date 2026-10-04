@@ -149,7 +149,14 @@ describe('ReviewPage: how the dates are written', () => {
   it('counts the dates that read two ways, not every date of that shape (mutation check)', () => {
     renderReview({ ...AMBIGUOUS, shaped: 100, ambiguous: 90 })
 
-    expect(screen.getByText(/^90 dates such as 05\/01\/2026 can be read two ways/)).toBeDefined()
+    // Thach, 2026-10-04 (iv): the example shows the shape, it is no date of the file.
+    expect(screen.getByText(/^90 dates written like 05\/01\/2026 can be read two ways/)).toBeDefined()
+  })
+
+  it('says one date in the singular', () => {
+    renderReview({ ...AMBIGUOUS, shaped: 1, ambiguous: 1 })
+
+    expect(screen.getByText(/^1 date written like 05\/01\/2026 can be read two ways/)).toBeDefined()
   })
 
   it('sends the answer with the plan', async () => {

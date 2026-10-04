@@ -4,7 +4,8 @@
 
 import { CheckIcon, LoaderIcon } from './Icon.tsx'
 
-const STAGES = ['Collect', 'Analyze', 'Diagnose', 'Predict', 'Report'] as const
+// Stage 4 is a forecast only in v1 (Thach, 2026-10-04, (iii)).
+const STAGES = ['Collect', 'Analyze', 'Diagnose', 'Forecast', 'Report'] as const
 
 export type CollectStatus = 'active' | 'done'
 
