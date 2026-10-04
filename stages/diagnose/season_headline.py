@@ -42,18 +42,41 @@ def beyond(season: SeasonChange, *, stated: bool) -> str:
     gap)."""
     places = _places(season)
     now, before, gap, typical = _printed(season, places)
-    side = "below" if season.band == "shortfall" else "above"
     earlier = (f"the same month a year earlier ({before})" if season.years == 1 else
                f"the same month in the {season.years} earlier years (median {before})")
-    times = "four times" if season.beyond_factor == 4 else f"{season.beyond_factor:g} times"
-    size = (f"at least {times} this shop's median year-on-year difference of about {typical} points"
-            if season.typical_pct else "beyond this shop's median year-on-year difference of 0 points")
+    # Thach, 2026-10-04 (8D a): the numbers and the multiple, never "far" -
+    # in review 1's simulation (5% multiplicative noise, a claimed season) 6-10%
+    # of ordinary peak months reached 4x.
     if not places:
-        size = f"compared with this shop's median year-on-year difference of about {typical} points"
+        size = f"compares with this shop's median year-on-year difference of about {typical} points"
+    elif season.typical_pct:
+        size = (f"is {_multiple(season, places)} times this shop's median year-on-year difference of about "
+                f"{typical} points")
+    else:
+        size = "is beyond this shop's median year-on-year difference of 0 points"
+    sentence = f"This month's change ({now}) compares with {earlier}: the gap ({gap} points) {size}."
     if not stated:
-        return f"Against {earlier}, this month's change ({now}) is far {side}: the gap ({gap} points) is {size}."
-    return (f"This month's change ({now}) is far {side} {earlier}: the gap ({gap} points) is {size}. None of the "
-            f"tested causes measures this gap from the season, so none is named for the {season.band}.")
+        return sentence
+    return (f"{sentence} None of the tested causes measures this gap from the season, so none is named for the "
+            f"{season.band}.")
+
+
+def _multiple(season: SeasonChange, places: int) -> str:
+    """|printed gap| / printed typical - the reader's own division - to one
+    place ("7 times", "4.3 times"), or to as many more as keep it at or
+    beyond `beyond_factor` (`_places` keeps the ratio itself there): a ratio
+    of exactly 4.25 at a factor of 4.25 reads "4.25", not "4.2" (8D review,
+    #8)."""
+    ratio = _ratio(season, places)
+    for digits in range(1, 4):
+        shown = f"{ratio:.{digits}f}"
+        if float(shown) >= season.beyond_factor:
+            break
+    return shown.rstrip("0").rstrip(".") if "." in shown else shown
+
+
+def _ratio(season: SeasonChange, places: int) -> float:
+    return abs(_printed_gap(season, places)) / round(season.typical_pct, places)
 
 
 def _printed(season: SeasonChange, places: int | None) -> tuple[str, str, str, str]:
@@ -93,6 +116,11 @@ def _places(season: SeasonChange, factor: float = 2.0) -> int | None:
         printed_gap, printed_typical = _printed_gap(season, places), round(typical, places)
         if any(value != 0 and round(value, places) == 0 for value in (now, before, typical)) or (
                 gap != 0 and printed_gap == 0):
+            continue
+        # The printed typical within 5% of the real one: rounded to "about 0.1"
+        # a typical of 0.05 made the printed multiple half the real one (8D
+        # review, #7).
+        if typical and abs(printed_typical - typical) > 0.05 * typical:
             continue
         if season.band == "consistent" and gap != 0 and not abs(printed_gap) < factor * printed_typical:
             continue

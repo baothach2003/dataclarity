@@ -106,7 +106,9 @@ SHORT = HeadlineMovement(change_pct=1.2, typical_pct=None, movements=4, factor=2
 
 
 def _moved(movement: HeadlineMovement | None, *, alert: bool = False) -> Changes:
-    return Changes(1000.0, 1012.0, 12.0, 12.0, alert, movement=movement)
+    # A season comparison exists only where 4A claims the season (8D review, #12).
+    claimed = movement is not None and movement.season is not None
+    return Changes(1000.0, 1012.0, 12.0, 12.0, alert, movement=movement, season_claimed=claimed)
 
 
 def test_inside_the_usual_range_no_cause_is_singled_out() -> None:

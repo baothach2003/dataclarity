@@ -102,7 +102,7 @@ def test_rule_4_outranks_a_supported_hypothesis() -> None:
 
 @pytest.mark.parametrize("t1,t2,expected_word", [
     (("supported", -0.70, {}), ("supported", -0.55, {}), "calendar"),
-    (("supported", -0.52, {}), ("supported", -0.80, {}), "seasonality"),
+    (("supported", -0.52, {}), ("supported", -0.80, {}), "the same months a year earlier"),
 ])
 def test_rule_5_the_larger_context_share_wins(t1, t2, expected_word) -> None:
     headline = choose_headline(trust(), catalog(T1=t1, T2=t2), tree(False), MOVED)
@@ -170,7 +170,7 @@ def test_rule_5_prefers_the_closer_expectation_even_when_it_comes_second() -> No
                                                 T2=("supported", -0.90, {})), tree(False), MOVED)
 
     assert headline.rule == 5
-    assert "seasonality" in headline.message
+    assert "the same months a year earlier" in headline.message  # T2, either wording (8D b)
 
 
 def test_rule_6_never_lets_an_overshoot_beat_an_exact_expectation() -> None:

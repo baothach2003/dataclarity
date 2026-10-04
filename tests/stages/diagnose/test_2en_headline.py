@@ -164,7 +164,8 @@ def test_rule_5_names_the_calendar_and_seasonality_when_they_tie() -> None:
     headline = _headline(moved, T1=("supported", -180.0), T2=("supported", -220.0))
 
     assert headline.rule == 5
-    assert "the calendar" in headline.message and "seasonality" in headline.message
+    # A hand-built Changes claims no season: T2 by its fact wording (8D b).
+    assert "the calendar" in headline.message and "the same months a year earlier" in headline.message
     assert "90% of the change" in headline.message
     assert "-220.00 against the change of -200.00" in headline.message
 

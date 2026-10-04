@@ -326,14 +326,16 @@ def test_a_clear_shortfall_is_stated_and_names_no_cause() -> None:
                                _moved(_gate(season, singled_out=False)))
     assert (headline.rule, headline.hypothesis_id, headline.lens) == (7, None, None)
     assert headline.message == (
-        "Revenue went from 1,000.00 to 1,012.00 (+12.00). This month's change (+27.2%) is far below the same "
-        "month in the 2 earlier years (median +48.5%): the gap (-21.3 points) is at least four times this "
-        f"shop's median year-on-year difference of about 4.9 points. {STATED}")
+        "Revenue went from 1,000.00 to 1,012.00 (+12.00). This month's change (+27.2%) compares with the same "
+        "month in the 2 earlier years (median +48.5%): the gap (-21.3 points) is 4.3 times this shop's median "
+        f"year-on-year difference of about 4.9 points. {STATED}")
     assert "do not explain" not in headline.message
+    # Thach, 2026-10-04 (8D a): the numbers and the multiple, never "far".
+    # 8D review, #9: no "far", no bound it may not show, no plural for one year.
     assert hypotheses_note(headline) == (
-        "This month's change is far from the season's, so the verdicts below describe the change from last "
-        "month, not the gap from the season: each shows what its hypothesis measured, and none is named as "
-        "the cause.")
+        "The headline compares this month's change with the same calendar month's change in the year or years "
+        "before; the verdicts below describe the change from last month, not that gap: each shows what its "
+        "hypothesis measured, and none is named as the cause.")
 
 
 def test_a_clear_shortfall_with_no_cause_found_is_stated_too() -> None:
@@ -345,7 +347,7 @@ def test_a_clear_shortfall_with_no_cause_found_is_stated_too() -> None:
     season = _season("shortfall", expected=48.5, gap=-21.3, typical=4.9, years=2, differences=12)
     headline = choose_headline(_trust(), _all(), None, _moved(_gate(season)))
     assert headline.rule == 7 and headline.message.endswith(STATED)
-    assert hypotheses_note(headline) is not None and "not the gap from the season" in hypotheses_note(headline)
+    assert hypotheses_note(headline) is not None and "not that gap" in hypotheses_note(headline)
 
 
 def test_where_the_raw_gate_names_a_cause_it_stands_and_the_gap_is_added() -> None:
@@ -366,9 +368,9 @@ def test_where_the_raw_gate_names_a_cause_it_stands_and_the_gap_is_added() -> No
                                                                                                     "customers")
     # Review 1, M4: no "also" - it read as if the named cause explained the gap.
     assert headline.message == (
-        f"{head.message} Against the same month in the 2 earlier years (median +48.5%), this month's change "
-        "(+27.2%) is far below: the gap (-21.3 points) is at least four times this shop's median year-on-year "
-        "difference of about 4.9 points.")
+        f"{head.message} This month's change (+27.2%) compares with the same month in the 2 earlier years "
+        "(median +48.5%): the gap (-21.3 points) is 4.3 times this shop's median year-on-year difference of "
+        "about 4.9 points.")
     assert "do not explain" not in headline.message and " also " not in headline.message
     assert hypotheses_note(headline) is None  # a cause is named: no table note, as before
 
@@ -382,9 +384,9 @@ def test_a_clear_excess_is_stated_the_other_way() -> None:
                                _moved(_gate(season, singled_out=False)))
     assert headline.rule == 7 and headline.hypothesis_id is None
     assert headline.message.endswith(
-        "This month's change (+27.2%) is far above the same month a year earlier (-2.8%): the gap (+30.0 "
-        "points) is at least four times this shop's median year-on-year difference of about 3.0 points. None of "
-        "the tested causes measures this gap from the season, so none is named for the excess.")
+        "This month's change (+27.2%) compares with the same month a year earlier (-2.8%): the gap (+30.0 "
+        "points) is 10 times this shop's median year-on-year difference of about 3.0 points. None of the tested "
+        "causes measures this gap from the season, so none is named for the excess.")
 
 
 # --- what is printed agrees with what is decided (review 1, L1) -----------------------------------
@@ -408,9 +410,62 @@ def test_thirds_print_a_gap_that_is_their_difference() -> None:
     # (+66.66...%) - rounded on its own the gap (+33.3...) never matched the
     # printed changes' difference, at any precision.
     season = _season("excess", expected=100 / 3, gap=200 / 3 - 100 / 3, typical=5.43)
-    assert ("This month's change (+66.7%) is far above the same month a year earlier (+33.3%): the gap (+33.4 "
-            "points) is at least four times this shop's median year-on-year difference of about 5.4 points."
+    assert ("This month's change (+66.7%) compares with the same month a year earlier (+33.3%): the gap (+33.4 "
+            "points) is 6.2 times this shop's median year-on-year difference of about 5.4 points."
             ) in beyond(season, stated=True)
+
+
+@pytest.mark.parametrize("gap,typical,multiple", [
+    (-27.4, 3.9, "7"),       # 27.4 / 3.9 = 7.03
+    (-21.3, 4.9, "4.3"),     # 4.35 to one place
+    (-33.86, 8.46, "4"),     # 4.002 - never printed under four
+    (40.0, 9.9, "4"),        # 4.04
+])
+def test_the_multiple_is_the_printed_gap_over_the_printed_typical(gap: float, typical: float, multiple: str) -> None:
+    band = "shortfall" if gap < 0 else "excess"
+    sentence = beyond(_season(band, expected=10.0, gap=gap, typical=typical), stated=False)
+    assert f" is {multiple} times this shop's median year-on-year difference" in sentence
+
+
+def test_the_documented_sentence_is_one_the_code_prints() -> None:
+    # Thach's example (-26.9% against +0.6%, a gap of -27.4) does not subtract:
+    # printed, the gap is the changes' difference (8D review, #4). CONTRACTS 7
+    # quotes this one.
+    season = _season("shortfall", expected=0.6, gap=-27.4, typical=3.9, years=2, differences=12)
+    assert beyond(season, stated=False) == (
+        "This month's change (-26.8%) compares with the same month in the 2 earlier years (median +0.6%): the gap "
+        "(-27.4 points) is 7 times this shop's median year-on-year difference of about 3.9 points.")
+
+
+def test_a_small_typical_prints_close_to_itself() -> None:
+    # 8D review, #7: a typical of 0.05 printed "about 0.1" made "300 times"
+    # of a gap 600 times it.
+    sentence = beyond(_season("excess", expected=10.0, gap=30.0, typical=0.05), stated=True)
+    assert "is 600 times this shop's median year-on-year difference of about 0.05 points" in sentence
+    # 0.149 to one place is 0.1 - a third off: printed to two (0.15, within 5%).
+    sentence = beyond(_season("excess", expected=10.0, gap=30.0, typical=0.149), stated=True)
+    assert "is 200 times this shop's median year-on-year difference of about 0.15 points" in sentence
+
+
+def test_another_factor_is_never_printed_under() -> None:
+    # 8D review, #8: at a factor of 4.25 a gap of exactly 4.25 x the typical
+    # printed "4.2 times" to one place.
+    season = SeasonChange(expected_change_pct=10.0, years=1, difference_pct=-42.5, typical_pct=10.0, differences=11,
+                          band="shortfall", beyond_factor=4.25)
+    sentence = beyond(season, stated=True)
+    assert " 4.2 times" not in sentence and " 4.25 times" in sentence
+
+
+@pytest.mark.parametrize("stated", [True, False])
+@pytest.mark.parametrize("band,gap", [("shortfall", -30.0), ("excess", 30.0)])
+def test_no_band_3_sentence_says_far(band: str, gap: float, stated: bool) -> None:
+    # Thach, 2026-10-04 (8D a): "far" is the misleading word - about 6-10% of
+    # ordinary peak months reach 4x (review 1's simulation).
+    from stages.diagnose.headline import BEYOND_NOTE
+
+    for typical in (3.0, 0.0):
+        assert "far" not in beyond(_season(band, expected=10.0, gap=gap, typical=typical), stated=stated)
+    assert "far" not in BEYOND_NOTE
 
 
 @pytest.mark.parametrize("gap,typical,shown", [
@@ -424,8 +479,7 @@ def test_a_consistent_gap_never_prints_over_its_bound(gap: float, typical: float
 def test_a_beyond_gap_never_prints_under_its_bound() -> None:
     # To one place -33.9 "at least four times" 8.5 (34.0) - false.
     sentence = beyond(_season("shortfall", expected=48.5, gap=-33.86, typical=8.46), stated=True)
-    assert "the gap (-33.86 points) is at least four times this shop's median year-on-year difference of about 8.46" \
-           in sentence
+    assert "the gap (-33.86 points) is 4 times this shop's median year-on-year difference of about 8.46" in sentence
 
 
 def test_a_change_that_moved_is_never_printed_as_zero() -> None:
@@ -471,7 +525,8 @@ def test_a_beyond_gap_with_no_agreeing_precision_claims_no_bound() -> None:
     sentence = beyond(_season("excess", expected=1e-12, gap=30.0, typical=3.0), stated=True)
     assert "four times" not in sentence and "0.0000000000" not in sentence
     assert "the same month a year earlier (+1e-12%)" in sentence
-    assert "is compared with this shop's median year-on-year difference of about 3 points" in sentence
+    assert "the gap (+30 points) compares with this shop's median year-on-year difference of about 3 points" \
+        in sentence
 
 
 def test_t2_never_takes_the_headline_beside_a_gap_from_the_season() -> None:
@@ -486,7 +541,8 @@ def test_t2_never_takes_the_headline_beside_a_gap_from_the_season() -> None:
     excess = _season("excess", expected=-2.8, gap=30.0, typical=3.0)
     headline = choose_headline(_trust(), hypotheses, None, _moved(_gate(excess)))
     assert (headline.rule, headline.hypothesis_id) == (7, None)
-    assert "seasonality" not in headline.message and "is far above the same month a year earlier" in headline.message
+    assert "season" not in headline.message.replace("from the season", "")
+    assert "compares with the same month a year earlier (-2.8%)" in headline.message
     inconclusive = _season("inconclusive", gap=-7.0, typical=3.0)
     assert choose_headline(_trust(), hypotheses, None, _moved(_gate(inconclusive))).rule == 5
 
@@ -542,6 +598,63 @@ def test_a_small_gap_is_never_printed_as_zero() -> None:
     # difference is 0.0 although the gap is not.
     sentence = consistent(_season("consistent", expected=27.10, gap=0.03, typical=3.0), 2.0)
     assert "the gap (+0.03 points)" in sentence
+
+
+def test_a_ruled_out_t2_without_a_claim_denies_nothing_true() -> None:
+    """8D review, #1: both months rose (+5.6% against last year's +40.8%) but
+    T2's share is out of band - "This month moved the same way ... | ruled
+    out" denied a true fact. The hypothesis wording's "ruled out" is true:
+    last year's change does not explain this one."""
+    diagnosis, forecast = _run(_daily_shop("2010-09", 15, SEASON, last_scale=0.75))
+    assert forecast.season_years is None
+    t2 = next(h for h in diagnosis.hypotheses if h.id == "T2")
+    assert (t2.statement, t2.verdict) == ("Last year's change between the same two months explains the change",
+                                          "ruled_out")
+
+
+def test_rule_6_and_the_partial_list_use_the_same_wording() -> None:
+    from stages.diagnose.headline import choose_headline
+    from stages.diagnose.step7_inputs import Changes
+    from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _trust
+
+    from stages.diagnose.catalog import BY_ID
+
+    named = choose_headline(_trust(), _all(_h("T2", "supported", 4.8, 0.4)), None,
+                            Changes(1000.0, 1012.0, 12.0, 12.0, False))
+    t2 = _h("T2", "supported", 4.8, 0.4).model_copy(update={"statement": BY_ID["T2"].render(4.8)})
+    named = choose_headline(_trust(), _all(t2), None, Changes(1000.0, 1012.0, 12.0, 12.0, False))
+    assert named.message.endswith("The best-supported explanation: last year's change between the same two months "
+                                  "explains the change (time lens, 40% of the change).")
+    partial = _h("T2", "partial", 3.0, 0.25).model_copy(update={"statement": BY_ID["T2"].render(3.0)})
+    listed = choose_headline(_trust(), _all(partial), None, Changes(1000.0, 1012.0, 12.0, 12.0, False))
+    assert "Partly consistent: last year's change between the same two months explains the change (T2)." \
+        in listed.message
+    assert "season" not in (named.message + listed.message).lower()
+
+
+def test_t2s_refusal_never_says_season_either() -> None:
+    # 8D review, #3: T2's rule text is printed in the table - "so it is not a
+    # season to compare" beside a forecast that claims no season. Fifteen
+    # months; last November lost ten days (its first ten).
+    frame = _daily_shop("2010-09", 15, SEASON)
+    frame = frame[~frame["Date"].between("2010-11-01", "2010-11-10")]
+    diagnosis, forecast = _run(frame)
+    assert forecast.season_years is None
+    t2 = next(h for h in diagnosis.hypotheses if h.id == "T2")
+    assert t2.verdict == "inconclusive" and "year-ago pair" in t2.rule
+    assert "season" not in (t2.statement + t2.rule).lower()
+
+
+def test_a_claimed_season_in_the_inconclusive_band_keeps_rule_5s_seasonality() -> None:
+    # 8D review, #12: the production pairing - a claim, a comparison in the
+    # inconclusive band, T2 fitting best - rule 5 may say "seasonality".
+    from stages.diagnose.headline import choose_headline
+    from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _moved, _trust
+
+    headline = choose_headline(_trust(), _all(_h("T2", "supported", 12.0, 1.0)), None,
+                               _moved(_gate(_season("inconclusive", gap=-7.0, typical=3.0))))
+    assert headline.rule == 5
+    assert "consistent with seasonality (the same months a year earlier moved the same way)" in headline.message
 
 
 def test_rules_1_to_4_are_untouched_by_the_season() -> None:
@@ -622,7 +735,8 @@ def test_the_season_shop_with_its_peak_cut_states_the_shortfall() -> None:
     assert movement is not None and movement.season is not None and movement.season.band == "shortfall"
     assert movement.season.difference_pct == pytest.approx(100 * (3840 / 3410 - 4800 / 3410))
     assert movement.season.typical_pct > 0
-    assert "far below" in diagnosis.headline.message and "+40.8%" in diagnosis.headline.message
+    assert "compares with the same month a year earlier (+40.8%)" in diagnosis.headline.message
+    assert "times this shop's median year-on-year difference" in diagnosis.headline.message
 
 
 def test_a_fixed_fee_shop_gets_no_comparison() -> None:
@@ -649,6 +763,53 @@ def test_a_fixed_fee_shop_gets_no_comparison() -> None:
     assert forecast.season_years is not None  # the season is claimed
     assert diagnosis.headline.movement is not None and diagnosis.headline.movement.season is None
     assert "far " not in diagnosis.headline.message
+
+
+def test_without_4as_claim_t2_states_the_fact_and_never_says_season() -> None:
+    """Thach, 2026-10-04 (8D b): one definition - only 4A's claim may say
+    "season". Fifteen months of the season repeat exactly: T2 (the year-ago
+    pair) explains the change, but 4A claims nothing on 15 months, so the
+    forecast says no seasonality was claimed - and T2 must not say
+    "seasonality" beside it (review 1 of decision 1, M3). Its verdict is
+    unchanged."""
+    diagnosis, forecast = _run(_daily_shop("2010-09", 15, SEASON))
+    assert forecast.season_years is None
+    t2 = next(h for h in diagnosis.hypotheses if h.id == "T2")
+    assert t2.verdict == "supported"
+    assert t2.statement == "Last year's change between the same two months explains the change"
+    assert "season" not in diagnosis.headline.message.lower()
+    assert "moved the same way" in diagnosis.headline.message
+
+
+def test_with_4as_claim_t2_may_say_seasonality() -> None:
+    diagnosis, forecast = _run(_daily_shop("2009-12", 24, SEASON))
+    assert forecast.season_years is not None
+    assert next(h for h in diagnosis.hypotheses if h.id == "T2").statement == "Seasonality explains the change"
+
+
+def test_rule_5s_t2_phrase_follows_the_claim() -> None:
+    from stages.diagnose.headline import choose_headline
+    from stages.diagnose.step7_inputs import Changes
+    from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _trust
+
+    hypotheses = _all(_h("T2", "supported", 12.0, 1.0))
+    claimed = choose_headline(_trust(), hypotheses, None, Changes(1000.0, 1012.0, 12.0, 12.0, False,
+                                                                  season_claimed=True))
+    unclaimed = choose_headline(_trust(), hypotheses, None, Changes(1000.0, 1012.0, 12.0, 12.0, False))
+    assert claimed.rule == unclaimed.rule == 5
+    assert "The change is consistent with seasonality (the same months a year earlier moved the same way)" \
+        in claimed.message
+    assert "The change is consistent with the same months a year earlier, which moved the same way" \
+        in unclaimed.message
+    assert "season" not in unclaimed.message.lower()
+
+
+def test_the_catalog_words_t2_by_the_claim() -> None:
+    from stages.diagnose.catalog import BY_ID
+
+    assert BY_ID["T2"].render(-5.0, season_claimed=True) == "Seasonality explains the change"
+    assert BY_ID["T2"].render(-5.0, season_claimed=False) == "Last year's change between the same two months explains the change"
+    assert BY_ID["T1"].render(-5.0, season_claimed=False) == "The calendar explains the change"  # T2's alone
 
 
 def test_no_season_claimed_no_comparison() -> None:

@@ -1344,7 +1344,8 @@ months between <first> and <last>") - added in place: the shape is
 unchanged and `not_testable` was already a verdict every reader handles. `statement` is the RENDERED
 statement: for a cause that can move either way, code picks the fall or rise
 wording from the sign of `contribution`, and the direction-neutral tested
-statement is kept when no number was computed (ADR-0005 clarification).
+statement is kept when no number was computed (ADR-0005 clarification); T2
+is worded without "season" when 4A claims none (section 7, `headline.movement.season`).
 D1's `evidence` carries `estimated_revenue_gap` and
 `estimated_revenue_gap_prev` (each month's gap at its own month's pace) and
 `d1_status`; T2's carries `excess_zero_days_year_ago_cur` and `_prev`; B1,
@@ -1399,11 +1400,13 @@ above decides, exactly as without a season; `shortfall` (gap below 0) or
 `excess` (above) from 4 - where the size-tested headline (ranked as
 without a season) names no cause, or names T2 (the season's own
 prediction, which cannot explain a gap from the season), rule 7 states the
-gap ("far below the same month ...: the gap ... None of the tested causes
-measures this gap from the season, so none is named for the shortfall");
+gap - the numbers and the multiple, never "far" (Thach, 2026-10-04): "This
+month's change (-26.8%) compares with the same month in the 2 earlier years
+(median +0.6%): the gap (-27.4 points) is 7 times this shop's median
+year-on-year difference of about 3.9 points. None of the tested causes
+measures this gap from the season, so none is named for the shortfall."
 where it names another cause or the movements that offset each other, that
-headline stands and the gap is stated after it ("Against the same month
-..., this month's change ... is far below: ..."). A gap or a year-on-year
+headline stands and the same first sentence follows it. A gap or a year-on-year
 difference that is only float residue (on the percent scale too) reads as
 0, and a gap that is a band's bound but for residue reads as the bound.
 Printed to as many decimals as it takes (up to 10) for the printed gap to
@@ -1418,13 +1421,16 @@ of 0. Null when no season is claimed or no comparison can be made (the
 window holds fewer than 7 such gaps; the same month a year earlier has no
 change - an older year is never passed off as last year's; or every other
 month repeated its year-ago change exactly and this one did not - a typical
-of 0 sizes nothing), and in an earlier file. The comparison is made only where stage 4 claims the season;
-T2's own rule-5 sentence ("consistent with seasonality (the same months a
-year earlier moved the same way)") predates it and needs only a year-ago
-pair, so it can still stand beside a forecast that claims no season (8D). **`hypotheses_note`** (18.1): the hypothesis table's one note when
+of 0 sizes nothing), and in an earlier file. The comparison is made only where stage 4 claims the season.
+Only 4A's claim may say "season" (Thach, 2026-10-04): when it claims none,
+T2's statement is "Last year's change between the same two months explains
+the change" (a hypothesis, so its verdict stays true) and rule 5 names it as
+"the same months a year earlier, which moved the same way" (true whenever
+rule 5 names it) - never "seasonality" beside a forecast that claims no
+season; its test and verdict are the same. **`hypotheses_note`** (18.1): the hypothesis table's one note when
 the size test kept every cause out of the headline - within the usual
-movement, a history too short to tell, consistent with the season, or far
-from it (18.2) - null otherwise; stage 5 shows
+movement, a history too short to tell, consistent with the season, or
+four times the usual year-on-year difference from it or more (18.2) - null otherwise; stage 5 shows
 it above the table (report.json 2.3, `layer_2_causes.hypotheses_note`).
 Null for rules 1-4, and in a report.json written before 18.0. A consumer decides on `rule`,
 `singled_out` and `season.band` (a consistent band is rule 7 whatever `singled_out` says), never on

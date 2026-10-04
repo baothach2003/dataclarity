@@ -9,7 +9,7 @@ Q4 a supported directional cause (a directional R1) comes before the
     movements sentence, which is the last resort.
 """
 
-from stages.diagnose.headline import CONTEXT
+from stages.diagnose.headline import FACT_CONTEXT
 from tests.stages.diagnose.test_2en_headline import _headline, _moved
 
 # Kaggle 2024-12: 41,367.50 -> 46,292.50 (+4,925.00).
@@ -29,7 +29,8 @@ def test_a_context_cause_that_fits_best_keeps_rule_5s_words() -> None:
     headline = _headline(KAGGLE, T2=("supported", 4_900.0), B1=("supported", 6_000.0))
 
     assert headline.rule == 5
-    assert headline.message.endswith(f"The change is consistent with {CONTEXT['T2']}: 99% of the change.")
+    # A hand-built Changes claims no season (as the Kaggle file does not): T2's fact wording (8D b).
+    assert headline.message.endswith(f"The change is consistent with {FACT_CONTEXT['T2']}: 99% of the change.")
 
 
 def test_a_tie_across_the_two_rules_names_both_in_rule_6s_words() -> None:

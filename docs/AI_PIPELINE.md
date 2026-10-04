@@ -1073,6 +1073,18 @@ grew 2.7x.
 | R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
 | R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
 
+**T2 without a claimed season** (Thach, 2026-10-04): one definition - only
+4A's claim (`shared/seasonality.season_claim`, the forecast's) may say
+"season". When it claims none, T2 reads "Last year's change between the same
+two months explains the change" (`fact_statement` - still a hypothesis, so a
+`ruled_out` stays true: the bare fact "this month moved the same way" read
+"ruled out" denied a true direction, review of 8D), and rule 5 names it as
+"the same months a year earlier, which moved the same way" (true whenever
+rule 5 names it: supported means the same sign); its rule texts say
+"year-ago pair", not "season". The report never says "seasonality" beside
+the forecast's "no seasonality claimed". The test and the verdict are the
+same.
+
 **Wording by the orders basis** (Thach, 2E-e). Without `order_id` the lever's
 "orders" are sale LINES (`metrics.json` `core.orders_basis` = "lines"), so B1
 measures lines per customer and B2 units per line - a correct reading under
@@ -1327,33 +1339,33 @@ while the month fell 450 short of its season. Written as a band, not
    no cause, or names T2 - the season's own prediction, which cannot explain
    a gap from the season (review 2: "consistent with seasonality" then "far
    below the same month"; ranking without T2 promoted a weaker cause to
-   "best-supported", review 3) - rule 7 states the gap: "This
-   month's change (+14.6%) is far below the same month in the 2 earlier
-   years (median +48.5%): the gap (-33.9 points) is at least four times this
-   shop's median year-on-year difference of about 6.4 points. None of the
-   tested causes measures this gap from the season, so none is named for
-   the shortfall." ("above ... excess" the other way) - true even where a
+   "best-supported", review 3) - rule 7 states the gap, the numbers and the
+   multiple, never "far" (Thach, 2026-10-04: "far" was the misleading word,
+   see below): "This month's change (+14.6%) compares with the same month in
+   the 2 earlier years (median +48.5%): the gap (-33.9 points) is 5.3 times
+   this shop's median year-on-year difference of about 6.4 points. None of
+   the tested causes measures this gap from the season, so none is named for
+   the shortfall." (an excess the same way) - true even where a
    tested cause does explain the gap (review 1: "the tested causes do not
    explain the shortfall" was false in S13 itself); where it names a cause
-   or the movements that offset each other, that headline stands and the gap
-   is stated after it, with no connective ("Against the same month ..., this month's change ... is far
-   below: ...") - a season that predicts no movement makes the change from
+   or the movements that offset each other, that headline stands and the
+   same first sentence follows it - a season that predicts no movement makes the change from
    last month the gap itself, lapsed customers there are named truly, and
    the engine cannot tell that from a season masking the cause (CLAUDE.md
-   3.3a, decided alone). How often ordinary months land beyond the bands:
-   the typical is made of the same kind of gap, so 2 x its median is only
-   about 1.35-1.56 standard deviations of the gap (17.7% / 11.9% of ordinary
-   months beyond it with one / two earlier years, normal approximation), 4 x
-   about 2.7-3.1. That approximation is too kind for a peak month (review
-   1, simulated: 5% multiplicative noise, a claimed season): a gap in
-   percentage points scales with the season's own ratio for the month
-   (November over October 1.45 in a demo-shaped season), while the median
-   is set mostly by months near 1 - an ordinary November lands at 4 x or
-   more in about 10% of trials with 24 months (7% with 26, 6% with 36), a
-   flat month pair in about 3%. Measured on the generator: S12 (an August ->
-   September pair at equal indices) 0 of 30. A known limit (8D); measuring
-   gaps relative to the revenue the season predicts would remove the ratio,
-   at the cost of S13's gaps (Thach's call).
+   3.3a, decided alone). How often ordinary months land beyond the bands -
+   MEASURED only (Thach, 2026-10-04: a rate from a normal approximation,
+   "4 x is roughly 1% false", was wrong): with nothing planted, an ordinary
+   month at 2 x or more in 4 of 30 seeds of S12 (its |gap| / typical over
+   seeds 1-30, two earlier years); at 4 x or more in 0 of 30 of S12 (an August -> September
+   pair at equal indices) and, in review 1's simulation (5% multiplicative
+   noise, a claimed season), in 6-10% of ordinary peak months - an ordinary
+   November in about 10% of trials with 24 months, 7% with 26, 6% with 36 -
+   and about 3% of flat month pairs: a gap in percentage points scales with
+   the season's own ratio for the month (November over October 1.45 in a
+   demo-shaped season), while the median is set mostly by months near 1.
+   Kept in points (Thach, 2026-10-04): a gap relative to the revenue the
+   season predicts would remove the ratio but stop S13 warning of a real
+   loss; the sentence therefore states the multiple and never says "far".
    **Known limit:** a season can mask a loss - the headline states the
    shortfall but names no cause, since no hypothesis measures the gap from
    the season (v2: hypotheses measured against the season).

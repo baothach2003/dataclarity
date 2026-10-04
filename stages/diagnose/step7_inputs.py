@@ -68,6 +68,11 @@ class Changes:
     # always measures it; a hand-built Changes (tests) carries none, and then
     # rules 5 and 6 are not gated.
     movement: HeadlineMovement | None = None
+    # Does 4A's rule claim a season on the forecast's window (shared/
+    # seasonality.season_claim)? Only then may T2 say "season" (Thach,
+    # 2026-10-04, 8D b). `changes()` always sets it; a hand-built Changes
+    # claims none - the honest default.
+    season_claimed: bool = False
 
 
 def changes(inputs: Step7Inputs) -> Changes:
@@ -97,4 +102,4 @@ def changes(inputs: Step7Inputs) -> Changes:
                    orders_basis=inputs.data.parsed.orders_basis,
                    products_hold_the_change=(localization is not None
                                              and products_hold_the_change(localization.breadth)),
-                   movement=movement)
+                   movement=movement, season_claimed=cycles is not None)

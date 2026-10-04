@@ -50,11 +50,21 @@ class HypothesisSpec:
     # units per line - a correct reading under its own name, not a refusal.
     lines_statement: str | None = None
     lines_rendered: tuple[str, str] | None = None
+    # The same hypothesis worded without "season" when 4A's rule claims no
+    # season (Thach, 2026-10-04, 8D b): one definition - only 4A's claim may
+    # say "season", so the report never says "seasonality" beside the
+    # forecast's "no seasonality claimed". Still a hypothesis, so its verdict
+    # stays true: a bare fact ("this month moved the same way") read "ruled
+    # out" denied a true direction (8D review, #1). Test and verdict the same.
+    fact_statement: str | None = None
 
-    def render(self, sign: float | None, orders_basis: str = "order_id") -> str:
+    def render(self, sign: float | None, orders_basis: str = "order_id", season_claimed: bool = False) -> str:
         """The statement for a contribution of this sign; the neutral one when
         there is no signed number. On basis "lines" the lines wording, where
-        the hypothesis has one."""
+        the hypothesis has one; with no season claimed, the fact wording,
+        where it has one (the honest default: no claim, no "season")."""
+        if not season_claimed and self.fact_statement is not None:
+            return self.fact_statement
         on_lines = orders_basis == "lines" and self.lines_statement is not None
         statement = self.lines_statement if on_lines else self.statement
         rendered = self.lines_rendered if on_lines else self.rendered
@@ -98,7 +108,8 @@ CATALOG: tuple[HypothesisSpec, ...] = (
         "`revenue_prev * (LY_cur/LY_prev - 1)`, with `LY_prev` passing the "
         "year-over-year base guard (7.5), `revenue_prev`, `LY_cur` positive, and "
         "neither year-ago month holding a zero-sale day beyond D1's learned pattern",
-        "year-ago pair"),
+        "year-ago pair",
+        fact_statement="Last year's change between the same two months explains the change"),
     HypothesisSpec(
         "T3", "time", "time", "directional",
         "The change is routine variation",

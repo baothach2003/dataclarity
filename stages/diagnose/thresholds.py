@@ -36,12 +36,12 @@ HEADLINE_MOVEMENT_FACTOR = 2.0
 # the earlier years is "clearly" beyond the season from 4 x the median
 # year-on-year difference (Thach, 2026-10-04, decision 1's bands): measured,
 # not guessed - over seeds 1-30, the seasonal store with nothing planted (S12)
-# reached at most 3.27, the season masking a loss (S13) at least 4.85; 4 x a
-# median of |differences| is about 2.7 standard deviations of the gap with one
-# earlier year, 3.1 with two under a normal approximation - too kind for a
-# peak month, whose gap in points scales with its season ratio: about 10% of
-# ordinary demo-shaped Novembers reach it (review 1's simulation; 8D).
-# Between 2 and 4 the raw size test decides.
+# reached at most 3.27, the season masking a loss (S13) at least 4.85. Rates
+# measured only (Thach, 2026-10-04): ordinary peak months reach it in 6-10% of
+# review 1's simulated trials (5% multiplicative noise; a gap in points scales
+# with the month's season ratio), flat month pairs in about 3% - which is why
+# the sentence states the multiple and never says "far" (8D). Between 2 and 4
+# the raw size test decides.
 SEASON_BEYOND_FACTOR = 4.0
 
 # --- Metric tree (7.6) --------------------------------------------------------

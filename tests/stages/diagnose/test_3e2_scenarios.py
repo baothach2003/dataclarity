@@ -178,9 +178,22 @@ def test_lapsed_customers_in_a_flat_season_are_still_named() -> None:
     assert (outcome.rule, outcome.named, outcome.season) == (6, {"C2"}, "shortfall")
     assert outcome.message == (
         "Revenue went from 57,282.05 to 40,073.50 (-17,208.55). The best-supported explanation: lapsed customers "
-        "took more revenue away (customers lens, 89% of the change). Against the same month in the 2 earlier years "
-        "(median -0.1%), this month's change (-30.0%) is far below: the gap (-29.9 points) is at least four "
-        "times this shop's median year-on-year difference of about 3.9 points.")
+        "took more revenue away (customers lens, 89% of the change). This month's change (-30.0%) compares with "
+        "the same month in the 2 earlier years (median -0.1%): the gap (-29.9 points) is 7.7 times this shop's "
+        "median year-on-year difference of about 3.9 points.")
+
+
+def test_rule_5_naming_t2_is_read_in_either_wording() -> None:
+    # Thach, 2026-10-04 (8D b): without 4A's claim rule 5 names T2 by its fact
+    # wording - matched as an engine-owned constant, as the claimed one is.
+    from types import SimpleNamespace as NS
+
+    from stages.diagnose.headline import CONTEXT, FACT_CONTEXT
+
+    for words in (CONTEXT["T2"], FACT_CONTEXT["T2"]):
+        stub = NS(headline=NS(rule=5, hypothesis_id=None, message=f"... consistent with {words}: 90% ...",
+                              movement=None), tree=None, hypotheses_note=None, hypotheses=[])
+        assert outcome_of(BY_ID["S9"], stub).named == {"T2"}  # type: ignore[arg-type]  # a stub
 
 
 def test_s13_is_met_only_by_the_shortfall() -> None:

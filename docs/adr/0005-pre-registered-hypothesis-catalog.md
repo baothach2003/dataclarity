@@ -129,6 +129,16 @@ customers while still being honest about what this particular file supports.
   since they decide verdicts that the AI can no longer soften. They are
   documented heuristics, flagged as uncalibrated until run against real data.
 
+## Clarification (2026-10-04): T2's wording follows the season claim
+
+One definition (Thach, 8D b): only stage 4's season claim (4A's rule,
+`shared/seasonality.season_claim`) may say "season". When it claims none, T2
+is worded "Last year's change between the same two months explains the change"
+instead of "Seasonality explains the change" - the same test, the same
+verdict, a second pre-written sentence chosen deterministically by the claim,
+as the fall/rise wording is chosen by the sign (below). It stays a hypothesis
+so that `ruled_out` remains a true statement.
+
 ## Clarification (session 3E1): statements rendered from the data's direction
 
 For a cause that can move either way (C1-C4, B1, B2, P2), the catalog tests a

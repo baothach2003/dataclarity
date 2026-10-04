@@ -20,6 +20,15 @@ from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 NOT_A_HEADLINE = ("D2", "D3")
 CONTEXT = {"T1": "the calendar (the mix of weekdays in each month)",
            "T2": "seasonality (the same months a year earlier moved the same way)"}
+# T2 with no season claimed: the bare fact - only 4A's claim may say "season"
+# (Thach, 2026-10-04, 8D b).
+FACT_CONTEXT = {"T2": "the same months a year earlier, which moved the same way"}
+
+
+def _context(hypothesis_id: str, moved: Changes) -> str:
+    if not moved.season_claimed and hypothesis_id in FACT_CONTEXT:
+        return FACT_CONTEXT[hypothesis_id]
+    return CONTEXT[hypothesis_id]
 
 
 def _residue(amount: float, moved: Changes) -> bool:
@@ -297,9 +306,9 @@ WITHIN_NOTE = ("This month's change is within the shop's usual month-to-month mo
                "named as the cause.")
 SEASON_NOTE = ("This month's change is consistent with the season, so none of the verdicts below is named as the "
                "cause: each shows what its hypothesis measured.")
-BEYOND_NOTE = ("This month's change is far from the season's, so the verdicts below describe the change from last "
-               "month, not the gap from the season: each shows what its hypothesis measured, and none is named as "
-               "the cause.")
+BEYOND_NOTE = ("The headline compares this month's change with the same calendar month's change in the year or "
+               "years before; the verdicts below describe the change from last month, not that gap: each shows what "
+               "its hypothesis measured, and none is named as the cause.")
 TOO_SHORT_NOTE = ("The history is too short to tell whether this change is larger than ordinary movement, so the "
                   "verdicts below describe a change that cannot be singled out: each shows what its hypothesis "
                   "measured, and none is named as the cause.")
@@ -360,9 +369,9 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
     # of the change is rule 6's, as before).
     if named and all(h.id in {c.id for c in context} for h in named):
         if len(named) == 1:
-            what = f"{CONTEXT[named[0].id]}: {_size(named[0], moved)}"
+            what = f"{_context(named[0].id, moved)}: {_size(named[0], moved)}"
         else:
-            what = "; and equally with ".join(f"{CONTEXT[h.id]}: {_size(h, moved)}" for h in named)
+            what = "; and equally with ".join(f"{_context(h.id, moved)}: {_size(h, moved)}" for h in named)
         return Headline(rule=5, hypothesis_id=None, lens=None,
                         message=f"{change} The change is consistent with {what}."), _ids(named)
 

@@ -917,6 +917,43 @@ dataclarity/
       bands in percentage points reach "far" more often in a peak month
       (review 1's simulation: about 10% of ordinary demo-shaped Novembers);
       T2's rule-5 sentence beside "no seasonality claimed".
+      **DECIDED (Thach, 2026-10-04, on the fourteenth report): accepted as
+      built, with every decision made alone** - B8 (band 3 never replaces a
+      headline that names a cause; the gap is appended), the reworded band-3
+      sentence (his was false in S13 itself), the median wording, S13 out of
+      the decoy count, a typical of 0 gets no comparison, the printing. **A
+      third statistical error of his, recorded at his request:** "4 x is
+      roughly 1% false" came from a normal approximation; the review
+      measured 6-10% in peak months. From now on a false-alarm rate is quoted
+      only from a measurement. **8D (a):** the percentage-point measure stays
+      - a relative gap would stop S13 warning of a real loss - but the word
+      "far" leaves the band-3 sentences: they state the numbers and the
+      multiple only ("This month's change (-26.9%) compares with the same
+      month in the 2 earlier years (median +0.6%): the gap (-27.4 points) is
+      7 times this shop's median year-on-year difference of about 3.9
+      points."); the measured 6-10% rate goes in the docs. **8D (b):** one
+      definition - only 4A's claim may say "season": when 4A claims none,
+      T2's sentence states only the fact ("moved the same way as the same
+      month a year earlier") and never "seasonality"; T2's verdict is
+      unchanged. This removes the contradiction with the forecast's "no
+      seasonality claimed". Both are stage 3 wording: failing tests first,
+      mutation on the logic, one review cycle, and the demo's 2011-11 and
+      the S12/S13 outcomes re-checked unchanged apart from the wording.
+      **Built 2026-10-04 (fifteenth run).** (a) as decided; the docs quote a
+      sentence the code prints (-26.8%: Thach's -26.9% did not subtract to
+      -27.4); measured false rates only. (b) with no claim, rule 5 names T2
+      by the fact; **decided alone** (review): the table's T2 reads "Last
+      year's change between the same two months explains the change" - a
+      hypothesis, since the bare fact with an unchanged verdict read "ruled
+      out" when both months rose; T2's refusal texts say "year-ago pair".
+      Tests first, mutation 18/18, one review cycle (13 findings, fixed).
+      Re-checked against b67e97b's rows: 0 outcomes changed on S0/S12/S13
+      (90 runs), the flat-season check and the demo's 81 pairs (2011-11
+      word for word; two rule-5 T2 headlines without a claim reworded -
+      Kaggle 2024-02, the unanswered plan's 2011-03). pytest 4495.
+      **For Thach:** rule 4's "This may be seasonal." (ADR-0007) with no
+      claim; T2's "Seasonality explains the change" beside "consistent with
+      the season" when a season is claimed.
 - [ ] 3E2 Hypotheses and scenarios (AI_PIPELINE 7.8 and 7.11). **Needs the
       Online Retail II demo first** (Thach, after 2E; built between 2E-c
       and 2E-d since 2E-c's start; section 12 action 4):
@@ -4129,7 +4166,15 @@ dataclarity/
 > without the Wave 3 skills. Insights (6E) and Dashboard (6F) still wait for
 > Phase 2-5, whose data they need. Full account in section 12 Notes, dated
 > 2026-09-22.
-- [ ] Install skills Wave 3 (see docs/SKILLS.md)
+- [ ] Install skills Wave 3 (see docs/SKILLS.md) - **approved by Thach
+      (2026-10-04, on the fourteenth report):** frontend-ui-engineering from
+      the same source as Waves 1 and 2, source and hash in skills-lock.json;
+      browser-testing-with-devtools with the chrome-devtools MCP server added
+      to the project configuration from its official package (package and
+      version recorded). The automated browser is a heavy process under the
+      memory rules: never with a measurement, the test suite or a mutation
+      run. Display work in Phase 6: failing tests first, one review cycle,
+      every page checked in the browser for console errors before it is done.
 - [ ] 6A Upload page + analyzing states (SPECS 4.1); decide how the
       client-side size check learns `MAX_UPLOAD_MB` without a second source of
       truth for the limit
@@ -4789,8 +4834,9 @@ dataclarity/
         headline states the shortfall against the season but names no cause
         (3E1b, decision 1); naming it needs hypotheses measured against the
         season (the v2 item).
-      - The season's bands in a peak month (review 1 of decision 1; not yet
-        decided): the gap is in percentage points, which scale with the
+      - The season's bands in a peak month (review 1 of decision 1; DECIDED,
+        Thach 2026-10-04: the points measure stays, "far" is dropped - the
+        sentences state the numbers and the multiple; see 3E1b): the gap is in percentage points, which scale with the
         season's own ratio for the month (November over October 1.45 in a
         demo-shaped season), while the typical is a median set mostly by
         months near 1 - simulated with 5% multiplicative noise and a claimed
@@ -4806,7 +4852,9 @@ dataclarity/
         4A's claim, so a file of 13-23 months can show it beside a forecast
         that says "no seasonality claimed" (review 1, M3; it predates decision
         1 - 6e9b224 does the same). The season COMPARISON is made only where
-        the forecast claims the season.
+        the forecast claims the season. DECIDED (Thach, 2026-10-04): only
+        4A's claim may say "season" - without it T2 states the fact only
+        (see 3E1b).
       From 2E-u (Thach, 2026-10-02: F2 and F7 are known limits):
       - F2: two-digit year-first dates ("24/02/10") are read day-first with
         no question - the calendar lands in 2001-2031 and the headline names
@@ -5146,6 +5194,15 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Fifteenth overnight run** (2026-10-04, on the fourteenth report; Thach's
+decisions recorded at 3E1b, 8D and Phase 6's Wave 3 item). 8D (a) and (b)
+built, tested, mutated, reviewed, re-checked (outcomes identical, wording
+only), pytest 4495 - committed (the 3E1b item). Stopped once on low memory
+(1.3 GB free; another program held about 4 GB) and resumed on Thach's
+"continue". Two questions for Thach at 3E1b (rule 4's hedge; T2's wording
+when a season is claimed). Next: Wave 3, then Phase 6. Report:
+`C:\Users\Happy\overnight-report.txt` (the fourteenth run's as
+`overnight-report-run14.txt`).
 **Thirteenth overnight run** (2026-10-03/04, continued after a restart;
 the session that restarted it was closed mid-measurement and its outputs
 were not used). Decisions 2-6 committed and pushed as 6e9b224. Decision 1

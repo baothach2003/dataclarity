@@ -89,7 +89,7 @@ def t2(inputs: Step7Inputs, moved: Changes) -> Outcome:
                             "(AI_PIPELINE 7.5): not a denominator")
     if moved.revenue_prev <= 0 or ly_cur <= 0:
         return Outcome(verdict="inconclusive", evidence=evidence,
-                       rule="a month netted zero or below; a seasonal ratio "
+                       rule="a month netted zero or below; a year-ago ratio "
                             "cannot be applied to it")
     # D1 checks only the compared months; a year-ago month with missing days
     # is a "season" that never happened: last February's 10-day gap
@@ -108,7 +108,7 @@ def t2(inputs: Step7Inputs, moved: Changes) -> Outcome:
     if any(evidence[f"excess_zero_days_year_ago_{label}"] != 0 for label in ("cur", "prev")):
         return Outcome(verdict="inconclusive", evidence=evidence,
                        rule="a year-ago month has days with no sales beyond this store's "
-                            "pattern (or D1 learned none), so it is not a season to compare")
+                            "pattern (or D1 learned none), so it is not a year-ago pair to compare")
     return Outcome(contribution=moved.revenue_prev * (ly_cur / ly_prev - 1), evidence=evidence)
 
 

@@ -46,6 +46,15 @@ def test_the_document_table_matches_the_catalog_row_by_row() -> None:
             f"  doc : {doc_row}\n  code: {code_row}")
 
 
+def test_every_no_season_wording_is_in_the_document() -> None:
+    # Thach, 2026-10-04 (8D b): the wording without "season" lives in
+    # catalog.py and is quoted, verbatim, in AI_PIPELINE 7.8 (8D review, #13).
+    section = _section_78()
+    for spec in CATALOG:
+        if spec.fact_statement is not None:
+            assert f'"{spec.fact_statement}"' in " ".join(section.split()), spec.id
+
+
 def test_the_not_testable_table_matches_the_catalog_row_by_row() -> None:
     doc = [tuple(row) for row in _rows("X")]
     code = [(spec.id, spec.statement, spec.reason) for spec in NOT_TESTABLE]
