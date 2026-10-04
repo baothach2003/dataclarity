@@ -5515,6 +5515,76 @@ dataclarity/
       failed, the failure's cause) with a recommendation - any fix to a
       prompt or a check is a separate decision for Thach. Then stop, before
       any deploy step.
+      **Run (the seventeenth run, 2026-10-05) - DONE, 11 of 12 calls,
+      ~$0.287** (Sonnet 5 at $2 / $10 per million input / output tokens,
+      Anthropic's pricing page). Tooling outside the repo (scratchpad
+      `run17/`): `smoke_hooks.py` installed at runtime in the smoke
+      processes only - each failed answer's validation error text (and, for
+      the Kaggle file, the raw answer) to `smoke_failures.jsonl`, the
+      client's own metadata log to `smoke_calls.log`; `shared/ai_client.py`
+      unchanged, no prompt or check changed. The 5 measurement calls went
+      through stage 1's own step (`infer_schema_run`, the backend's prompt,
+      sample and checks) with the run's retry spent, so each measured one
+      first answer; the two full flows went through the backend.
+         1 measure 1 schema        6987 in  1256 out   8.8 s  $0.0265  FAILED: dataset_issues[0].count null
+         2 measure 2 schema        6987 in  1256 out   8.6 s  $0.0265  FAILED: dataset_issues[0].count null
+         3 measure 3 schema        6987 in  1304 out   8.9 s  $0.0270  FAILED: dataset_issues[0,1].count null
+         4 measure 4 schema        6987 in  1244 out   9.1 s  $0.0264  FAILED: dataset_issues[0].count null
+         5 measure 5 schema        6987 in  1308 out   9.0 s  $0.0271  FAILED: dataset_issues[0,1].count null
+         6 Kaggle schema (1st)     6987 in  1244 out   8.8 s  $0.0264  FAILED: dataset_issues[0].count null
+         7 Kaggle schema (retry)   7127 in  1047 out   7.4 s  $0.0247  passed
+         8 Kaggle plan             6335 in  1305 out   9.7 s  $0.0257  passed
+         9 ORII schema (1st)       6541 in  1383 out  10.1 s  $0.0269  FAILED: 10 counts null (2 dataset, 8 column issues)
+        10 ORII schema (retry)     7347 in  1311 out   9.5 s  $0.0278  passed
+        11 ORII plan               5851 in  1025 out   8.3 s  $0.0220  passed
+        total: 11 calls, $0.287
+      **First schema answers: 7 of 7 failed, one cause** - a `count` of null
+      where the answer schema requires an integer (strict). Retries, the
+      rejection appended: 2 of 2 passed. Plans: 2 of 2 passed first time.
+      Every run therefore spends its only retry on the schema step, and the
+      plan has none left (had a plan answer failed, Review would have opened
+      on the manual plan - the designed degraded mode).
+      **Classification.** Kaggle (6 failures): null counts on DATASET-level
+      issues - `missing_values` across several columns, `mixed_types`
+      ("Discount Applied stored as text") - for which the profile holds no
+      count (only `missing_cells_pct`; nothing for a type). By the contract
+      the AI's answer was wrong (a wrong type); in substance it followed the
+      prompt's own rule, "Use only figures present in the profile. Never
+      invent counts", beside a shape that requires `"count": <int>` - the
+      two rules leave no honest integer. Online Retail II (1 failure, 10
+      null counts): 8 on column issues of codes stage 1 COMPUTES itself
+      (`mixed_types`, `inconsistent_case`, `negative_values`,
+      `outliers_iqr`, `zero_values` - `issue_counts.COMPUTED_COLUMN_CODES`),
+      whose AI counts pandas overwrites anyway (`issue_recount.py`; Thach,
+      1E: "the AI has no figure to copy for these codes, so a mismatch is
+      expected, not an error, and the run's single retry stays free for a
+      broken answer") - in substance the check refused an answer that was
+      valid: it demanded a figure the recount discards, and spent the retry
+      1E meant to keep free; 2 on dataset issues whose codes were not kept
+      (no raw answer for that file, as scoped). The accepted retries' counts
+      checked against the profiles: every count of a profiled code equals
+      the profile; the others are pandas' recounts, not the AI's.
+      **Compared with the fakes:** every fake answer gives integer counts -
+      the tests never met a null count, which the real model gives on every
+      run; the served model id is `claude-sonnet-5` (fakes `claude-served`);
+      answers arrive in a ```json fence (the client's fence parsing handles
+      it); ~9 s a call; ~6,000-7,300 tokens in, ~1,000-1,400 of 3,000 out.
+      **The full flows:** Kaggle - schema (retry), plan, Review (no
+      question), execute, stages 2-5: rule 6, "customers bought more often
+      (lever lens, 96% of the change)". Online Retail II - schema (retry),
+      plan, Review (19 class questions: 12 answered as every demo
+      measurement since the tenth run, 7 left unanswered - their lines stay
+      products), execute, stages 2-5: rule 7, the season consistent (+27.2%
+      against +27.1% a year earlier) - the demo's recorded shipped headline
+      to the cent. Stage 4 asked no AI (switched off in v1).
+      **Recommendation (a separate decision for Thach):** let a count be
+      null where the AI has no figure to copy - `count: int | null` in the
+      answer schema for the computed codes (pandas fills them, as 1E
+      decided) and for a dataset issue the profile gives no count for, with
+      the prompt saying so beside its `pct` rule ("the profile's figure, or
+      null when it holds none"); a profiled code keeps requiring the
+      profile's figure (check_answer already checks it). Measured cost of
+      leaving it: every run's retry spent on the schema step.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5729,8 +5799,13 @@ here). The re-check completed - PASS (6E); the Q1-Q3 review cycle - the
 false "as in other years" made true by stating both figures (a decision made
 alone, 3.3a), a second copy of the lens-to-total rule removed, the lens a
 vocabulary; full pytest; committed in two (stages 3 and 5, contracts, docs;
-the page and this file) and pushed after the four checks. Then the smoke
-test (Phase 9).
+the page and this file) and pushed after the four checks (05a5e1d, eed9ba9).
+Then the smoke test (Phase 9) - DONE, 11 of 12 calls, ~$0.287: first schema
+answers 7 of 7 failed on one cause (a null `count` the strict schema
+refuses; the prompt forbids inventing it, and for computed codes pandas
+overwrites it anyway), retries 2 of 2 and plans 2 of 2 passed, both full
+flows completed (Online Retail II's headline the demo's to the cent). A
+recommendation for Thach (Phase 9). Stopped before any deploy step.
 Report: `C:\Users\Happy\overnight-report.txt` (the sixteenth run's as
 `overnight-report-run16.txt`).
 **Sixteenth overnight run** (2026-10-04, on the fifteenth report; Thach's
