@@ -183,17 +183,17 @@ def test_lapsed_customers_in_a_flat_season_are_still_named() -> None:
         "median year-on-year difference of about 3.9 points.")
 
 
-def test_rule_5_naming_t2_is_read_in_either_wording() -> None:
-    # Thach, 2026-10-04 (8D b): without 4A's claim rule 5 names T2 by its fact
-    # wording - matched as an engine-owned constant, as the claimed one is.
+def test_rule_5_naming_t2_is_read_by_its_one_wording() -> None:
+    # Thach, 2026-10-04 (ii): rule 5 names T2 in one wording, claim or none -
+    # matched as an engine-owned constant.
     from types import SimpleNamespace as NS
 
-    from stages.diagnose.headline import CONTEXT, FACT_CONTEXT
+    from stages.diagnose.headline import CONTEXT
 
-    for words in (CONTEXT["T2"], FACT_CONTEXT["T2"]):
-        stub = NS(headline=NS(rule=5, hypothesis_id=None, message=f"... consistent with {words}: 90% ...",
-                              movement=None), tree=None, hypotheses_note=None, hypotheses=[])
-        assert outcome_of(BY_ID["S9"], stub).named == {"T2"}  # type: ignore[arg-type]  # a stub
+    assert CONTEXT["T2"] == "the same months a year earlier, which moved the same way"
+    stub = NS(headline=NS(rule=5, hypothesis_id=None, message=f"... consistent with {CONTEXT['T2']}: 90% ...",
+                          movement=None), tree=None, hypotheses_note=None, hypotheses=[])
+    assert outcome_of(BY_ID["S9"], stub).named == {"T2"}  # type: ignore[arg-type]  # a stub
 
 
 def test_s13_is_met_only_by_the_shortfall() -> None:

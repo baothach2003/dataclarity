@@ -18,17 +18,15 @@ from stages.diagnose.thresholds import HEADLINE_CONTEXT_MIN_SHARE
 # Their finding IS the trust caution, shown beside every headline; 7.8 says
 # caution never changes the headline, so rule 6 does not name them (3E1).
 NOT_A_HEADLINE = ("D2", "D3")
+# T2 by the fact, claim or none (Thach, 2026-10-04, (ii)): only 4A's claim
+# says "season" - the headline's season comparison, and rule 4's hedge under
+# it - one report, one meaning.
 CONTEXT = {"T1": "the calendar (the mix of weekdays in each month)",
-           "T2": "seasonality (the same months a year earlier moved the same way)"}
-# T2 with no season claimed: the bare fact - only 4A's claim may say "season"
-# (Thach, 2026-10-04, 8D b).
-FACT_CONTEXT = {"T2": "the same months a year earlier, which moved the same way"}
-
-
-def _context(hypothesis_id: str, moved: Changes) -> str:
-    if not moved.season_claimed and hypothesis_id in FACT_CONTEXT:
-        return FACT_CONTEXT[hypothesis_id]
-    return CONTEXT[hypothesis_id]
+           "T2": "the same months a year earlier, which moved the same way"}
+# Rule 4's hedge (ADR-0007: a masked shift is never stated as a finding) says
+# "season" only under 4A's claim (Thach, 2026-10-04, (i)).
+SEASON_HEDGE = "This may be seasonal."
+PLAIN_HEDGE = "Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding."
 
 
 def _residue(amount: float, moved: Changes) -> bool:
@@ -230,7 +228,7 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
             rule=4, hypothesis_id=None, lens=None,
             message=f"{change} Underneath that, {unit} contributed {pair['orders']:+,.2f} and "
                     f"{average} {pair['aov']:+,.2f}: large movements that "
-                    "largely cancelled out. This may be seasonal.")
+                    f"largely cancelled out. {SEASON_HEDGE if moved.season_claimed else PLAIN_HEDGE}")
 
     # The size test (3E1b; Thach, 3E2-F1): rules 5 and 6 single a cause out
     # only beyond twice the shop's median month-to-month movement - inside it
@@ -309,6 +307,10 @@ SEASON_NOTE = ("This month's change is consistent with the season, so none of th
 BEYOND_NOTE = ("The headline compares this month's change with the same calendar month's change in the year or "
                "years before; the verdicts below describe the change from last month, not that gap: each shows what "
                "its hypothesis measured, and none is named as the cause.")
+# Rule 2 keeps the table - a full diagnosis - read with this line (Thach,
+# 2026-10-04, (vi)): every verdict measures a change the missing days are in.
+GAPS_NOTE = ("The days with no sales at all affect the verdicts below: each measures a change that "
+             "includes them.")
 TOO_SHORT_NOTE = ("The history is too short to tell whether this change is larger than ordinary movement, so the "
                   "verdicts below describe a change that cannot be singled out: each shows what its hypothesis "
                   "measured, and none is named as the cause.")
@@ -318,8 +320,11 @@ def hypotheses_note(headline: Headline) -> str | None:
     """The hypothesis table's one note when the size test kept every cause
     out of the headline (Thach, 2026-10-03, decision 4): the verdicts are not
     false - the components did move that much - but they describe a change
-    too small, or a history too short, to single one out. Rules 1-4 judge
-    something else and carry none."""
+    too small, or a history too short, to single one out. Rule 2's table
+    carries the missing days' line ((vi)); rules 1, 3 and 4 judge something
+    else and carry none."""
+    if headline.rule == 2:
+        return GAPS_NOTE
     gate = headline.movement
     if headline.rule != 7 or gate is None:
         return None
@@ -369,9 +374,9 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
     # of the change is rule 6's, as before).
     if named and all(h.id in {c.id for c in context} for h in named):
         if len(named) == 1:
-            what = f"{_context(named[0].id, moved)}: {_size(named[0], moved)}"
+            what = f"{CONTEXT[named[0].id]}: {_size(named[0], moved)}"
         else:
-            what = "; and equally with ".join(f"{_context(h.id, moved)}: {_size(h, moved)}" for h in named)
+            what = "; and equally with ".join(f"{CONTEXT[h.id]}: {_size(h, moved)}" for h in named)
         return Headline(rule=5, hypothesis_id=None, lens=None,
                         message=f"{change} The change is consistent with {what}."), _ids(named)
 

@@ -36,7 +36,7 @@ def test_diagnose_writes_the_diagnosis_and_the_run_stays_analyzed(make_api: Make
     diagnosis = DiagnosisContract.model_validate(body["diagnosis"])
     assert diagnosis == DiagnosisContract.model_validate(api.read_json(run_id, "diagnosis.json"))
     assert (diagnosis.model_used, diagnosis.ai_findings) == (None, None)
-    assert diagnosis.schema_version == "18.2"  # 18.1 since 2026-10-03: hypotheses_note; 18.2 the season comparison
+    assert diagnosis.schema_version == "18.3"  # 18.1 since 2026-10-03: hypotheses_note; 18.2 the season comparison; 18.3 against_the_change
     assert api.status(run_id) is RunStatus.ANALYZED
 
 

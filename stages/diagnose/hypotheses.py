@@ -72,13 +72,34 @@ def decomposition_gross(tree: Tree, name: str) -> float | None:
             + abs(r.deductions_cur - r.deductions_prev) + abs(r.charges_cur - r.charges_prev))
 
 
+def _measured_total(spec: HypothesisSpec, moved: Changes) -> float | None:
+    """The change a share hypothesis claims to explain - gross sales for the
+    product lens, revenue otherwise - or None where it did not move."""
+    total = moved.gross if spec.lens == "product" else moved.net
+    if total is None or is_negligible(total, moved.revenue_prev, moved.revenue_cur, moved.scale):
+        return None
+    return total
+
+
+def _same_sign(contribution: float, total: float) -> bool:
+    return contribution != 0 and (contribution > 0) == (total > 0)
+
+
+def against_the_change(spec: HypothesisSpec, contribution: float, moved: Changes) -> bool:
+    """Ruled out for moving AGAINST the change it claims to explain: the sign
+    half of share_verdict's own test, on the same total (Thach, 2026-10-04,
+    (vii) - stated here once, so no consumer re-derives it from another
+    total). Read for a share share_verdict measured."""
+    total = _measured_total(spec, moved)
+    return total is not None and contribution != 0 and not _same_sign(contribution, total)
+
+
 def share_verdict(spec: HypothesisSpec, contribution: float, inputs: Step7Inputs,
                   moved: Changes) -> tuple[str, float | None, str]:
     """The 7.8 verdict table for a share hypothesis: same sign as the change it
     claims to explain, and |share| against the two thresholds."""
-    total = moved.gross if spec.lens == "product" else moved.net
-    if total is None or is_negligible(total, moved.revenue_prev, moved.revenue_cur,
-                                      moved.scale):
+    total = _measured_total(spec, moved)
+    if total is None:
         return "ruled_out", None, "the total did not move, so there is no change to explain"
     if moved.alert and inputs.tree is not None and spec.kind == "term":
         denominator = decomposition_gross(inputs.tree, DECOMPOSITION[spec.id])
@@ -89,7 +110,7 @@ def share_verdict(spec: HypothesisSpec, contribution: float, inputs: Step7Inputs
     if not denominator:
         return "ruled_out", None, f"D = {basis} is zero"
     share = contribution / denominator
-    same_sign = contribution != 0 and (contribution > 0) == (total > 0)
+    same_sign = _same_sign(contribution, total)
     size = abs(share)
     if spec.kind == "expectation":
         # An estimate explains the change only if it leaves at most
@@ -127,24 +148,25 @@ def evaluate_hypotheses(inputs: Step7Inputs) -> list[Hypothesis]:
             results.append(_make(spec, "inconclusive", None, None,
                                  {"reason": "the trust gate blocked this run"},
                                  "not evaluated: blocked run (CONTRACTS section 7)",
-                                 None, moved))
+                                 None, moved, False))
             continue
         outcome = EVIDENCE[spec.id](inputs, moved)
         evidence = outcome.evidence or {}
         if outcome.verdict is not None:
             results.append(_make(spec, outcome.verdict, None, None, evidence,
-                                 outcome.rule or spec.test, outcome.sign, moved))
+                                 outcome.rule or spec.test, outcome.sign, moved, False))
             continue
         verdict, share, rule = share_verdict(spec, outcome.contribution, inputs, moved)
+        against = share is not None and against_the_change(spec, outcome.contribution, moved)
         results.append(_make(spec, verdict, outcome.contribution, share, evidence, rule,
-                             outcome.contribution, moved))
+                             outcome.contribution, moved, against))
     return results
 
 
 def _make(spec: HypothesisSpec, verdict: str, contribution: float | None,
           share: float | None, evidence: dict, rule: str,
-          sign: float | None, moved: Changes) -> Hypothesis:
+          sign: float | None, moved: Changes, against: bool) -> Hypothesis:
     return Hypothesis(id=spec.id, family=spec.family, lens=spec.lens,
-                      statement=spec.render(sign, moved.orders_basis, moved.season_claimed), verdict=verdict,
+                      statement=spec.render(sign, moved.orders_basis), verdict=verdict,
                       contribution=contribution, share=share,
-                      evidence=evidence, rule=rule)
+                      evidence=evidence, rule=rule, against_the_change=against)

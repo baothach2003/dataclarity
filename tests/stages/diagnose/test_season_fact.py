@@ -575,7 +575,8 @@ def test_t2_beside_a_weaker_cause_never_promotes_it(band: str, prev: float, cur:
     assert headline(None).rule == 5
     stated = headline(_season(band, expected=expected, gap=gap, typical=typical))
     assert (stated.rule, stated.hypothesis_id) == (7, None)
-    assert "best-supported" not in stated.message and "seasonality" not in stated.message
+    # T2 is not named beside a gap from the season (its words since (ii): headline.CONTEXT).
+    assert "best-supported" not in stated.message and "same months a year earlier" not in stated.message
     assert stated.message.endswith(STATED.replace("shortfall", band))
 
 
@@ -645,22 +646,27 @@ def test_t2s_refusal_never_says_season_either() -> None:
     assert "season" not in (t2.statement + t2.rule).lower()
 
 
-def test_a_claimed_season_in_the_inconclusive_band_keeps_rule_5s_seasonality() -> None:
-    # 8D review, #12: the production pairing - a claim, a comparison in the
-    # inconclusive band, T2 fitting best - rule 5 may say "seasonality".
+def test_a_claimed_season_in_the_inconclusive_band_names_t2_without_the_word() -> None:
+    # Thach, 2026-10-04 (ii): T2 is always worded without "season", with or
+    # without a claim - only the headline's season comparison says "season".
+    # The production pairing (8D review, #12): a claim, a comparison in the
+    # inconclusive band, T2 fitting best.
     from stages.diagnose.headline import choose_headline
     from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _moved, _trust
 
     headline = choose_headline(_trust(), _all(_h("T2", "supported", 12.0, 1.0)), None,
                                _moved(_gate(_season("inconclusive", gap=-7.0, typical=3.0))))
     assert headline.rule == 5
-    assert "consistent with seasonality (the same months a year earlier moved the same way)" in headline.message
+    assert "consistent with the same months a year earlier, which moved the same way" in headline.message
+    assert "season" not in headline.message.lower()
 
 
 def test_rules_1_to_4_are_untouched_by_the_season() -> None:
     from contracts.diagnosis import Trust, TrustCheck
-    from stages.diagnose.headline import choose_headline
+    from stages.diagnose.headline import SEASON_HEDGE, choose_headline
+    from stages.diagnose.step7_inputs import Changes
     from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _moved
+    from tests.stages.diagnose.test_headline import catalog, tree, trust
 
     blocked = Trust(verdict="blocked", checks=[TrustCheck(id="D1", status="blocked", message="cut short",
                                                           evidence={})], limitations=[])
@@ -668,6 +674,15 @@ def test_rules_1_to_4_are_untouched_by_the_season() -> None:
         season = _season(band, gap=2.2 if band == "consistent" else -30.0)
         headline = choose_headline(blocked, _all(_h("T2", "supported", 12.0, 1.0)), None, _moved(_gate(season)))
         assert headline.rule == 1
+    # Rule 4 is chosen before the comparison is read, and its hedge reads the claim alone (Thach,
+    # 2026-10-04, (i)) - whatever band stands beside it, and with none. Whether a band should change
+    # the hedge is an open question for Thach (3E1b, the sixteenth run), not a rule.
+    for season in (None, *(_season(band, gap=gap) for band, gap in
+                           (("consistent", 2.2), ("inconclusive", 8.0), ("shortfall", -30.0), ("excess", 30.0)))):
+        moved = Changes(1000.0, 840.0, -160.0, -160.0, True, movement=_gate(season), season_claimed=True)
+        masked = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0), moved)
+        assert (masked.rule, masked.movement) == (4, None)
+        assert masked.message.endswith(SEASON_HEDGE)
 
 
 # --- one claim for stages 3 and 4 (review F4), the pipeline ------------------------------------------
@@ -781,13 +796,14 @@ def test_without_4as_claim_t2_states_the_fact_and_never_says_season() -> None:
     assert "moved the same way" in diagnosis.headline.message
 
 
-def test_with_4as_claim_t2_may_say_seasonality() -> None:
+def test_with_4as_claim_t2_still_never_says_season() -> None:
+    # Thach (ii): one report, one meaning of "season" - the claim's comparison.
     diagnosis, forecast = _run(_daily_shop("2009-12", 24, SEASON))
     assert forecast.season_years is not None
-    assert next(h for h in diagnosis.hypotheses if h.id == "T2").statement == "Seasonality explains the change"
+    assert next(h for h in diagnosis.hypotheses if h.id == "T2").statement == "Last year's change between the same two months explains the change"
 
 
-def test_rule_5s_t2_phrase_follows_the_claim() -> None:
+def test_rule_5s_t2_phrase_is_the_same_with_or_without_a_claim() -> None:
     from stages.diagnose.headline import choose_headline
     from stages.diagnose.step7_inputs import Changes
     from tests.stages.diagnose.test_3e1b_headline_gate import _all, _h, _trust
@@ -797,19 +813,43 @@ def test_rule_5s_t2_phrase_follows_the_claim() -> None:
                                                                   season_claimed=True))
     unclaimed = choose_headline(_trust(), hypotheses, None, Changes(1000.0, 1012.0, 12.0, 12.0, False))
     assert claimed.rule == unclaimed.rule == 5
-    assert "The change is consistent with seasonality (the same months a year earlier moved the same way)" \
-        in claimed.message
-    assert "The change is consistent with the same months a year earlier, which moved the same way" \
-        in unclaimed.message
-    assert "season" not in unclaimed.message.lower()
+    assert claimed.message == unclaimed.message
+    assert "The change is consistent with the same months a year earlier, which moved the same way" in claimed.message
+    assert "season" not in claimed.message.lower()
 
 
-def test_the_catalog_words_t2_by_the_claim() -> None:
+def test_the_catalog_words_t2_without_season_whatever_its_sign() -> None:
     from stages.diagnose.catalog import BY_ID
 
-    assert BY_ID["T2"].render(-5.0, season_claimed=True) == "Seasonality explains the change"
-    assert BY_ID["T2"].render(-5.0, season_claimed=False) == "Last year's change between the same two months explains the change"
-    assert BY_ID["T1"].render(-5.0, season_claimed=False) == "The calendar explains the change"  # T2's alone
+    assert {BY_ID["T2"].render(sign) for sign in (-5.0, 5.0, None)} == {"Last year's change between the same two months explains the change"}
+    assert BY_ID["T1"].render(-5.0) == "The calendar explains the change"
+
+
+# Thach, 2026-10-04 (i): rule 4's hedge stays (ADR-0007: a masked shift is
+# never stated as a finding), but says "season" only under 4A's claim.
+def test_rule_4s_hedge_says_season_only_under_4as_claim() -> None:
+    from stages.diagnose.headline import choose_headline
+    from stages.diagnose.step7_inputs import Changes
+    from tests.stages.diagnose.test_headline import catalog, tree, trust
+
+    claimed = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0),
+                              Changes(1000.0, 840.0, -160.0, -160.0, True, season_claimed=True))
+    unclaimed = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0),
+                                Changes(1000.0, 840.0, -160.0, -160.0, True))
+    assert claimed.rule == unclaimed.rule == 4
+    assert claimed.message.endswith("This may be seasonal.")
+    assert unclaimed.message.endswith("Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding.")
+    assert "season" not in unclaimed.message.lower()
+    assert claimed.message.removesuffix("This may be seasonal.") == unclaimed.message.removesuffix("Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding.")
+
+
+def test_the_document_quotes_rule_4s_two_hedges_word_for_word() -> None:
+    from pathlib import Path
+
+    from stages.diagnose.headline import PLAIN_HEDGE, SEASON_HEDGE
+
+    doc = " ".join((Path(__file__).parents[3] / "docs" / "AI_PIPELINE.md").read_text(encoding="utf-8").split())
+    assert f'"{SEASON_HEDGE}" when 4A claims a season, otherwise "{PLAIN_HEDGE}' in doc
 
 
 def test_no_season_claimed_no_comparison() -> None:
@@ -832,3 +872,22 @@ def test_the_shared_window_is_the_forecasts() -> None:
     assert (months[0], months[-1], len(values), note) == ("2009-12", "2011-11", 24, None)
     cycles, _ = season_claim(metrics)
     assert cycles is not None and len(cycles) == 2
+
+
+def test_the_claim_rule_4_hedges_by_is_4as_own() -> None:
+    # Rule 4's "season" (Thach, 2026-10-04, (i)) rests on Changes.season_claimed:
+    # true exactly when 4A's rule claims a season on the forecast's window.
+    from datetime import UTC, datetime
+
+    from stages.analyze.assemble import assemble_metrics
+    from stages.diagnose.inputs import build_run_data
+    from stages.diagnose.step7_inputs import changes
+    from stages.predict.forecast import forecast
+    from tests.stages.diagnose.test_hypotheses import step7
+
+    mapping = {"Date": "transaction_date", "Qty": "quantity", "Price": "unit_price", "Product": "product_name",
+               "Cust": "customer"}
+    for frame, claimed in ((_daily_shop("2009-12", 24, SEASON), True), (_daily_shop("2010-09", 15, SEASON), False)):
+        metrics = assemble_metrics(frame, mapping, now=datetime(2026, 10, 3, tzinfo=UTC))
+        assert (forecast(metrics).season_years is not None) is claimed
+        assert changes(step7(build_run_data(frame, mapping, metrics))).season_claimed is claimed

@@ -1056,7 +1056,7 @@ grew 2.7x.
 | D2 | data_quality | data | directional | Prices shifted uniformly (possible unit or currency issue) | - | directional: supported when D2 cautions | comparable products |
 | D3 | data_quality | data | directional | Flagged rows concentrated in the current period | - | directional: supported when D3 cautions | none |
 | T1 | time | time | expectation | The calendar explains the change | - | `calendar_effect` | none (day-count fallback) |
-| T2 | time | time | expectation | Seasonality explains the change | - | `revenue_prev * (LY_cur/LY_prev - 1)`, with `LY_prev` passing the year-over-year base guard (7.5), `revenue_prev`, `LY_cur` positive, and neither year-ago month holding a zero-sale day beyond D1's learned pattern | year-ago pair |
+| T2 | time | time | expectation | Last year's change between the same two months explains the change | - | `revenue_prev * (LY_cur/LY_prev - 1)`, with `LY_prev` passing the year-over-year base guard (7.5), `revenue_prev`, `LY_cur` positive, and neither year-ago month holding a zero-sale day beyond D1's learned pattern | year-ago pair |
 | T3 | time | time | directional | The change is routine variation | - | **always `inconclusive` in v1** (ADR-0007): no step-4 row is a verdict, so nothing can establish that the change was routine - `contracts.diagnosis.is_verdict` decides. If the Backlog's "unusualness verdicts" switches verdicts back on: no rule-1 AND no rule-2 verdict on any series, no masked alert, and `inconclusive` whenever `revenue` has no verdict. Evidence lists every series without a verdict | baseline points for revenue |
 | C1 | customers | customers | expectation | New-customer revenue changed | fall: New customers brought in less revenue; rise: New customers brought in more revenue | `new_rev(t) - new_rev(t-1)` | customer, previous transition, no left-censoring |
 | C2 | customers | customers | expectation | Revenue lost to lapsed customers changed | fall: Lapsed customers took more revenue away; rise: Lapsed customers took less revenue away | `lapsed(t) - lapsed(t-1)` | customer, previous transition |
@@ -1073,17 +1073,17 @@ grew 2.7x.
 | R2 | localization_lifecycle | product | term | Products were launched or discontinued | - | `gross_N(cur) - gross_X(prev)` | none |
 | R3 | localization_lifecycle | product | expectation | A top product may have run out of stock | - | a product with at least `MEMBER_MIN_REVENUE_SHARE` of `prev` sales and an active-day rate at least `R3_MIN_ACTIVE_DAY_RATE` in `prev`, which still sold in `cur` but then went `R3_MIN_ZERO_RUN_DAYS` consecutive trading days without a sale; contribution = minus (the product's mean `prev` revenue per trading day x the zero days) | none |
 
-**T2 without a claimed season** (Thach, 2026-10-04): one definition - only
-4A's claim (`shared/seasonality.season_claim`, the forecast's) may say
-"season". When it claims none, T2 reads "Last year's change between the same
-two months explains the change" (`fact_statement` - still a hypothesis, so a
-`ruled_out` stays true: the bare fact "this month moved the same way" read
-"ruled out" denied a true direction, review of 8D), and rule 5 names it as
-"the same months a year earlier, which moved the same way" (true whenever
-rule 5 names it: supported means the same sign); its rule texts say
-"year-ago pair", not "season". The report never says "seasonality" beside
-the forecast's "no seasonality claimed". The test and the verdict are the
-same.
+**T2 never says "season"** (Thach, 2026-10-04, decision (ii), after 8D b):
+one report, one meaning of the word - only 4A's claim
+(`shared/seasonality.season_claim`, the forecast's) says "season": the
+headline's season comparison, and rule 4's hedge under it (decision (i)). With or without a claim T2 reads "Last year's change between the
+same two months explains the change" - still a hypothesis, so a `ruled_out`
+stays true (the bare fact "this month moved the same way" read "ruled out"
+denied a true direction, review of 8D) - and rule 5 names it as "the same
+months a year earlier, which moved the same way" (true whenever rule 5 names
+it: supported means the same sign); its rule texts say "year-ago pair". A
+claimed season's comparison and a T2 verdict never use the word twice in two
+senses. The test and the verdict are the same.
 
 **Wording by the orders basis** (Thach, 2E-e). Without `order_id` the lever's
 "orders" are sale LINES (`metrics.json` `core.orders_basis` = "lines"), so B1
@@ -1120,7 +1120,11 @@ of the hypothesis's own lens - the change in revenue, or for the product lens
 (P1, P2, R2, R3) the change in GROSS sales. A hypothesis can only be
 `supported` if its contribution has the same sign as that change, and
 thresholds apply to `|share|`. When the change is negligible there is nothing
-to explain: every share hypothesis is `ruled_out` with `share` null.
+to explain: every share hypothesis is `ruled_out` with `share` null. One
+ruled out because its contribution has the OPPOSITE sign is marked
+`against_the_change` (18.3; Thach, 2026-10-04, (vii)) - the sign half of
+this test on the same `D`'s total, stated once, so report.html and the page
+label it "moved against the change (+X)" without re-deriving it.
 
 **When the masked-shift alert is on, `D` for a `term` is the gross of the
 decomposition the term belongs to** (3E1, the question 3D6b left open): level
@@ -1263,16 +1267,21 @@ while the month fell 450 short of its season. Written as a band, not
 2. D1 supported with `share >= HEADLINE_CONTEXT_MIN_SHARE` - the change is
    consistent with days that have no sales at all, "missing data, or days
    the shop was closed", with D1's netted contribution - as part of the
-   change up to 100%, otherwise printed against the change.
+   change up to 100%, otherwise printed against the change. A full
+   diagnosis: the hypothesis table stays, its note saying "The days with no
+   sales at all affect the verdicts below: each measures a change that
+   includes them." (`headline.GAPS_NOTE`; Thach, 2026-10-04, (vi)).
 3. T3 supported and no masked-shift alert - within normal variation.
    **DORMANT in v1** (ADR-0007): T3 cannot be `supported`, so this rule never
    matches. Kept in place for the Backlog's "unusualness verdicts".
 4. Masked-shift alert - the total looks stable but components shifted strongly,
    naming the two opposing contributions of `tree.lever.masked_shift_pair`
-   (orders and AOV), **always worded as a
-   movement that may be seasonal** (ADR-0007). Nothing establishes that the
-   movement was unusual, only that it was large and cancelled out, and a
-   seasonal shoulder month has exactly that shape. This belongs here and not
+   (orders and AOV), **always hedged** (ADR-0007): "This may be seasonal."
+   when 4A claims a season, otherwise "Shifts like this can happen in an
+   ordinary month; treat it as a pointer, not a finding." - only 4A's claim
+   may say "season" (Thach, 2026-10-04, decision (i)). Nothing establishes
+   that the movement was unusual, only that it was large and cancelled out,
+   and a seasonal shoulder month has exactly that shape. This belongs here and not
    only in 7.9: the headline is written by code and is still produced in
    degraded mode, where no narration validator runs.
 

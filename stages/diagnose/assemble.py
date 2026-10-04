@@ -34,8 +34,9 @@ from stages.diagnose.trust import evaluate_trust
 
 # The major the engine writes (contracts/diagnosis.py's supported_major; its
 # comment says what each major changed).
-# 18.1 (Thach, 2026-10-03): hypotheses_note; 18.2 (2026-10-04): headline.movement.season - both additive.
-SCHEMA_VERSION = "18.2"
+# 18.1 (Thach, 2026-10-03): hypotheses_note; 18.2 (2026-10-04): headline.movement.season; 18.3
+# (2026-10-04, (vi)-(vii)): hypotheses[].against_the_change and rule 2's note - all additive.
+SCHEMA_VERSION = "18.3"
 DIAGNOSIS_FILENAME = "diagnosis.json"
 
 

@@ -79,6 +79,9 @@ def test_every_free_text_field_the_contract_accepts_markup_in_is_escaped() -> No
     for block in (payload["layer_2_causes"]["suggested_classes"], payload["layer_2_causes"]["hypotheses"][0]["evidence"]):
         for key in list(block):
             block[key + MARK] = block.pop(key)
+    # 2.5: the evidence text words the evidence key by key, so its printed keys carry the mark too.
+    first = payload["layer_2_causes"]["hypotheses"][0]
+    first["evidence_text"] = [f"{key}: {line.split(': ', 1)[1]}" for key, line in zip(first["evidence"], first["evidence_text"])]
     html = render_html(ReportContract.model_validate(payload))
     page = Page(html)
     assert marked > 40

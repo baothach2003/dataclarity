@@ -67,9 +67,13 @@ step 4, and each closed with a deeper open item on the same block.
    this rule in a targeted search. With no trading month in the history the alert is null with a
    reason. The max and the change bound were Thach's choice after the doubt-
    review; the floor as first decided used the typical month alone (below).
-   `masked_shift_basis` is removed. **Headline rule 4 is always worded as a
-   movement that may be seasonal**, because nothing now establishes that the
-   movement was unusual - only that it was large and cancelled out.
+   `masked_shift_basis` is removed. **Headline rule 4 is always hedged**,
+   because nothing now establishes that the movement was unusual - only that
+   it was large and cancelled out. (Amended 2026-10-04, Thach's decision (i)
+   on the fifteenth report: the hedge says "This may be seasonal." only when
+   4A claims a season - only that claim may say "season" - and otherwise
+   "Shifts like this can happen in an ordinary month; treat it as a pointer,
+   not a finding." The hedge itself stays.)
 4. **3D4's and 3D6's base guards stay, for display.** A descriptive row is
    still shown to a reader, and +399,900% must not be printed as a growth
    rate.

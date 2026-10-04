@@ -5,10 +5,18 @@ shows it, with the rules a single row can hold by itself."""
 from datetime import date
 from typing import Any, Literal, Self
 
-from pydantic import NonNegativeInt, PositiveInt, model_validator
+from pydantic import Field, NonNegativeInt, PositiveInt, model_validator
 
 from contracts._base import ContractModel, YearMonth
-from contracts.lines import NOTE_TEXTS, FigureNote, NoteCode, NoteFigure, NoteMeasure
+from contracts.lines import (
+    NOTE_TEXTS,
+    OUTSIDE_REVENUE_TEXTS,
+    FigureNote,
+    NoteCode,
+    NoteFigure,
+    NoteMeasure,
+    OutsideRevenueLines,
+)
 
 
 KPI_IDS = ("revenue", "orders", "active_customers", "aov", "return_rate")
@@ -173,6 +181,20 @@ class MonthRevenue(ContractModel):
         return self
 
 
+AGAINST = "moved against the change"
+
+
+def against_label(contribution: float) -> str:
+    """The verdict label of a hypothesis ruled out for moving against the
+    change: its contribution, signed, to the cent - the one copy stage 5
+    writes and this contract checks (Thach, 2026-10-04, (vii))."""
+    return f"{AGAINST} ({'+' if contribution > 0 else '-'}{abs(contribution):,.2f})"
+
+
+def prints_as_zero(value: float) -> bool:
+    return f"{abs(value):,.2f}" == "0.00"
+
+
 class HypothesisView(ContractModel):
     id: str
     statement: str
@@ -183,6 +205,48 @@ class HypothesisView(ContractModel):
     # directional hypothesis - shown as written, key by key (CONTRACTS 11).
     rule: str
     evidence: dict[str, Any]
+    # 2.5 (Thach, 2026-10-04, decisions (vii) and (viii)): one copy of what
+    # report.html and the page print. Ruled out for moving AGAINST the change
+    # it claims to explain (stage 3's statement, diagnosis.json
+    # `against_the_change`, shown only beside a compared month the report
+    # shows); the verdict as shown - `against_label` or the code's words; the
+    # evidence as report.html words it, key by key. Absent from a 2.4 report.
+    moved_against: bool = False
+    verdict_label: str | None = None
+    evidence_text: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_label(self) -> Self:
+        if self.moved_against:
+            if (self.verdict != "ruled_out" or self.contribution is None or self.share is None
+                    or prints_as_zero(self.contribution)):
+                raise ValueError("only a ruled_out share hypothesis whose contribution prints moved against the change")
+            if self.verdict_label != against_label(self.contribution):
+                raise ValueError(f"moved against the change is labelled {against_label(self.contribution)!r}, "
+                                 f"not {self.verdict_label!r}")
+        elif self.verdict_label is not None and self.verdict_label != self.verdict.replace("_", " "):
+            raise ValueError(f"the label {self.verdict_label!r} is not its code's ({self.verdict.replace('_', ' ')!r})")
+        if (self.verdict_label is not None or self.evidence_text) and (
+                len(self.evidence_text) != len(self.evidence)
+                or any(not line.startswith(f"{key}: ") for line, key in zip(self.evidence_text, self.evidence))):
+            # A 2.5 row (a label, or any text) words its evidence key by key, in order. The value's
+            # wording is stage 5's (html_parts.evidence_value) and not re-checked here.
+            raise ValueError("the evidence text is the evidence, key by key, in order")
+        return self
+
+
+class OutsideRevenueView(OutsideRevenueLines):
+    """A line outside revenue as the report shows it: with why, worded by its
+    class code (Thach, 2026-10-04, decision (ix); 2.5, absent from a 2.4
+    report)."""
+
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def _worded_by_its_class_code(self) -> Self:
+        if self.reason is not None and self.reason != OUTSIDE_REVENUE_TEXTS.get(self.line_class):
+            raise ValueError(f"lines of {self.line_class!r} are worded by their class code, from OUTSIDE_REVENUE_TEXTS")
+        return self
 
 
 class SignalView(ContractModel):

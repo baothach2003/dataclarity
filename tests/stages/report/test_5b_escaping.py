@@ -30,6 +30,8 @@ def _hostile() -> ReportContract:
     causes["narration"]["hypothesis_notes"][0]["text"] = f"</script>{SCRIPT}"
     causes["hypotheses"][0]["statement"] = IMG
     causes["hypotheses"][0]["evidence"] = {"top_member": f"</script>{IMG}"}
+    # 2.5: report.html prints the evidence text report.json carries - the markup goes where it is printed.
+    causes["hypotheses"][0]["evidence_text"] = [f"top_member: </script>{IMG}"]
     causes["headline"]["message"] = f"<iframe src=//x>{SCRIPT}"
     payload["layer_1_numbers"]["trust"]["checks"][0]["message"] = IMG
     payload["layer_3_actions"]["recommendations"][0]["action"] = SCRIPT

@@ -139,11 +139,12 @@ def _other_lines(numbers: Numbers, withheld: bool) -> str:
     if rows:
         parts.append(table(["Class", "Lines", "Amount", period.current, period.previous, "Where it went"], rows,
                            "Lines of the classes you gave"))
+    # Each with why, worded by its class code (Thach, 2026-10-04, decision (ix)).
     rows = [[esc(o.line_class), esc(o.scope), esc(o.sign or ""), count(o.lines), money(o.amount),
-             count(o.lines_without_amount)] for o in numbers.outside_revenue
+             count(o.lines_without_amount), esc(o.reason or "")] for o in numbers.outside_revenue
             if scope_shown(o.scope, previous_complete=whole)]
     if rows:
-        parts.append(table(["Class", "Scope", "Sign", "Lines", "Amount", "Lines without an amount"], rows,
+        parts.append(table(["Class", "Scope", "Sign", "Lines", "Amount", "Lines without an amount", "Why"], rows,
                            "Lines outside revenue"))
     return "<h3>Other lines and where their money went</h3>" + "".join(parts) if parts else ""
 
@@ -161,8 +162,11 @@ def _actions(actions: Actions, charts: dict[str, Chart]) -> str:
     if forecast.points:
         first = forecast.points[0]
         if forecast.partial_first_month_until is not None:
-            parts.append(para(f"The file ends on {forecast.partial_first_month_until}, part-way through "
-                              f"{first.period}: that month's revenue so far is not compared with the forecast."))
+            # "The dates the file covers": a line dated after the upload is in no figure, so "the file ends"
+            # could be false (Thach, 2026-10-04, decision (x)).
+            parts.append(para(f"The dates the file covers end on {forecast.partial_first_month_until}, part-way "
+                              f"through {first.period}: that month's revenue so far is not compared with the "
+                              "forecast."))
         elif forecast.first_month_in_file:
             parts.append(para(f"The file already holds a line for {first.period}: its revenue so far is not "
                               "compared with the forecast."))

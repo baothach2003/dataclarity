@@ -15,17 +15,17 @@ from datetime import date
 
 from contracts.diagnosis import DiagnosisContract
 from contracts.forecast import ForecastContract
-from contracts.lines import NOTE_TEXTS, FigureNote
+from contracts.lines import NOTE_TEXTS, OUTSIDE_REVENUE_TEXTS, FigureNote
 from contracts.metrics import MetricsContract
 from contracts.report import (
     Actions,
     Causes,
     ForecastView,
-    HypothesisView,
     Kpi,
     MonthRevenue,
     NoteView,
     Numbers,
+    OutsideRevenueView,
     RecommendationView,
     ReportPeriod,
     SignalView,
@@ -33,6 +33,7 @@ from contracts.report import (
     TrustCheckView,
 )
 from shared.periods import complete_months, shift_month
+from stages.report.hypothesis_rows import hypothesis_view
 
 # Each KPI: its metrics.json field stem, unit, and the note figure that names it.
 _KPIS = (("revenue", "money", "revenue"), ("orders", "count", "orders"),
@@ -198,19 +199,20 @@ def numbers(metrics: MetricsContract, diagnosis: DiagnosisContract, has_customer
         future_lines=core.future_lines, future_lines_reason=core.future_lines_reason,
         unconfirmed_placeholders_reason=metrics.customers.unconfirmed_placeholders_reason,
         unmeasurable=list(core.unmeasurable), non_product=list(core.non_product),
-        outside_revenue=list(core.outside_revenue),
+        # Each worded by its class code, as notes are (Thach, 2026-10-04, decision (ix)).
+        outside_revenue=[OutsideRevenueView(**row.model_dump(), reason=OUTSIDE_REVENUE_TEXTS[row.line_class])
+                         for row in core.outside_revenue],
         how_to_read=[view(n) for n in _unique([*core.notes, *diagnosis.notes]) if n.always_on],
         notes=[view(n) for n in beside])
 
 
-def causes(diagnosis: DiagnosisContract, orders_basis: str) -> Causes:
+def causes(diagnosis: DiagnosisContract, orders_basis: str, numbers: Numbers) -> Causes:
     labels = _SERIES_LABELS | (_SERIES_LINES_LABELS if orders_basis == "lines" else {})
     return Causes(
         headline=diagnosis.headline,
         hypotheses_note=diagnosis.hypotheses_note,
-        hypotheses=[HypothesisView(id=h.id, statement=h.statement, verdict=h.verdict, contribution=h.contribution,
-                                   share=h.share, rule=h.rule, evidence=dict(h.evidence))
-                    for h in diagnosis.hypotheses],
+        # Beside the numbers this report shows: a label of "against" reads their compared months.
+        hypotheses=[hypothesis_view(h, diagnosis, numbers) for h in diagnosis.hypotheses],
         not_testable=list(diagnosis.not_testable),
         signals=None if diagnosis.signals is None else [
             SignalView(series=s.series, label=labels[s.series], mode=s.mode, signal=s.signal, value_cur=s.value_cur,

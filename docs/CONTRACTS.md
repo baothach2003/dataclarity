@@ -1336,7 +1336,14 @@ entered, which is context for every C-family verdict built on it. `hypotheses[].
 and `share` are `null` for directional hypotheses (D2, D3, T3, C4, R1), which
 carry their test in `evidence` and `rule` instead, and for any hypothesis
 whose verdict is `inconclusive` or `not_testable`; `share` is also `null` when
-the change is negligible or `D` is zero. A customer cause (C1-C4, B1) is
+the change is negligible or `D` is zero. **`against_the_change`** (18.3;
+Thach, 2026-10-04, (vii)): `true` when a share hypothesis was ruled out for
+moving AGAINST the change it claims to explain - the sign half of the share
+test, on the total stage 3 measured it against (gross sales for the product
+lens, revenue otherwise; `stages/diagnose/hypotheses.against_the_change`).
+Stated here once, so no consumer re-derives it from another total; the
+model refuses it on anything but a `ruled_out` share with its contribution;
+`false` in 18.2 and before. A customer cause (C1-C4, B1) is
 `not_testable` with `evidence.reason` "no column is mapped to customer", or
 since 3E2 "the customer column is mapped but blank for <month>: no sale line
 names a customer" with `evidence.blank_months` (AI_PIPELINE 7.8; three or more months read "N
@@ -1432,7 +1439,11 @@ the size test kept every cause out of the headline - within the usual
 movement, a history too short to tell, consistent with the season, or
 four times the usual year-on-year difference from it or more (18.2) - null otherwise; stage 5 shows
 it above the table (report.json 2.3, `layer_2_causes.hypotheses_note`).
-Null for rules 1-4, and in a report.json written before 18.0. A consumer decides on `rule`,
+Since 18.3 rule 2's table carries one too - "The days with no sales at all
+affect the verdicts below: each measures a change that includes them."
+(Thach, 2026-10-04, (vi): rule 2 is a full diagnosis, the table stays;
+report.html and the page print the same note). Null for rules 1, 3 and 4,
+and in a diagnosis.json written before 18.1. A consumer decides on `rule`,
 `singled_out` and `season.band` (a consistent band is rule 7 whatever `singled_out` says), never on
 the message. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
@@ -1754,7 +1765,10 @@ writes the file):
   (stage 2's) - and never past `period.current`: nothing is drawn whole
   that either calls partial (5A reviews 1 #1, 2 #3). `undated_lines` (with
   its reason) and `unmeasurable` are the lines in no figure (section 6:
-  never dropped silently); `non_product` and `outside_revenue` the money of
+  never dropped silently); `non_product` and `outside_revenue` (the latter's
+  rows, since 2.5, each with its `reason`, worded by class code from
+  `contracts.lines.OUTSIDE_REVENUE_TEXTS` - Thach, 2026-10-04, decision
+  (ix)) the money of
   the classes that is not product revenue, each reason saying where it went
   (an adjustment is a reconciling amount). These rows, and the notes'
   measures, are carried whole, a scope per figure; a renderer shows a
@@ -1770,7 +1784,18 @@ writes the file):
   notes whose `figures` name it.
 - **`layer_2_causes`** (diagnosis.json as it stands): the code-written
   headline; the hypotheses with their `rule` (why a figure is null, or a
-  directional test) and `evidence`, shown key by key (section 11); the
+  directional test) and `evidence`, shown key by key (section 11) - and,
+  since 2.5 (Thach, 2026-10-04, decisions (vii) and (viii)), one copy of
+  what report.html and the page print: `moved_against` (stage 3's
+  `against_the_change`, section 7 - stage 5 re-derives nothing - shown only
+  beside a compared month the report shows, `contracts.report
+  .compared_month_shown`, which the contract also enforces, and never for a
+  contribution that prints as zero; `stages/report/hypothesis_rows.py`),
+  `verdict_label`
+  (`contracts.report_views.against_label`, "moved against the change
+  (+X)", else the verdict code's words) and
+  `evidence_text` (`html_parts.evidence_value`, key by key, a product
+  nobody confirmed marked); absent from a 2.4 report; the
   not-testable list; the signals (a description, never a verdict -
   ADR-0006/0007) with `rule`, `mode_fallback`, `insufficient_reason`,
   `limits_method` (a floor, `minimum_spread`, told apart from a measured
@@ -1918,6 +1943,21 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-04: **decisions (vii)-(ix) on the fifteenth report (Thach).**
+  `report.json` `2.5`, additive: `hypotheses[].moved_against`,
+  `.verdict_label`, `.evidence_text`, and `outside_revenue[].reason`
+  (worded by class code, `contracts.lines.OUTSIDE_REVENUE_TEXTS`) - one copy
+  of the words report.html and the page print. The contract refuses a
+  label other than `against_label(contribution)` or the verdict's words, an
+  against flag on anything but a ruled-out share whose contribution prints,
+  evidence text that is not its evidence key by key in order (the value's
+  wording is stage 5's, not re-checked), a reason other than its class's, a
+  2.5 report with a row unlabelled or an outside line unworded, and "against"
+  beside a comparison the report does not show. No field changed meaning; the
+  verdict code stays. With it `diagnosis.json` `18.3`, additive:
+  `hypotheses[].against_the_change` (stage 3's own sign test, stated once -
+  the sixteenth run's review: a second copy in stage 5 read another total)
+  and rule 2's `hypotheses_note` (decision (vi)); section 11 row added.
 - 2026-10-04: **decision 1, the season as a stated fact (Thach, on the
   twelfth and thirteenth reports).** Optional fields, minor:
   `diagnosis.json` `18.2` (`headline.movement.season`, section 7) and
@@ -2331,9 +2371,12 @@ How the fields are read:
   `same_day_cancellations` whose every measure counts 0 lines) says where
   it is shown: once, in "How to read these figures", when true; beside
   each figure its `figures` name otherwise. The file's `text` is NOT a
-  consumer field: a consumer words a note by its code - stage 5 and 4B's
-  input from `contracts.lines.NOTE_TEXTS`, the frontend with its own copy
-  per code.
+  consumer field: a consumer words a note by its code, from one copy -
+  stage 5 and 4B's input from `contracts.lines.NOTE_TEXTS`, the frontend
+  from the note text a contract pins to `NOTE_TEXTS` by code - report.json's
+  on Insights, which stage 5 writes, and the line summary's on Review,
+  which `shared/line_report` writes (Thach, 2026-10-04, decision (v): no
+  second copy of the wording to drift).
 - **Sentences written by code** - every `*_reason`, `non_product[].reason`,
   `trust.checks[].message`, `trust.limitations`, `hypotheses[].statement`
   and `.rule`, `not_testable[].statement` and `.reason`, `headline.message`
@@ -2341,7 +2384,8 @@ How the fields are read:
   and vocabularies beside them (`headline.rule`, `hypotheses[].id` and
   `.verdict`, `trust.verdict`, `signals[].signal`, a segment's name).
   `hypotheses[].evidence` is shown key by key as it stands (its keys are
-  free-form per hypothesis; none is relied on).
+  free-form per hypothesis; none is relied on) - in report.json as stage 5
+  words it (`evidence_text`), which report.html and the page both print.
 - **An incomplete previous month is never compared** (CONTRACTS 6): when
   `period.previous_complete` is false, a consumer shows the current
   month's figures and `previous_incomplete_reason`, never a previous
@@ -2692,6 +2736,7 @@ How the fields are read:
 | `hypotheses[].share` | `float \| None` | 4B, 5, FE |
 | `hypotheses[].evidence` | `dict[str, Any]` | 5, FE |
 | `hypotheses[].rule` | `str` | 4B, 5, FE |
+| `hypotheses[].against_the_change` | `bool` | 5 |
 | `not_testable` | `list[object]` | 4B, 5, FE |
 | `not_testable[].id` | `str` | 4B, 5, FE |
 | `not_testable[].statement` | `str` | 4B, 5, FE |

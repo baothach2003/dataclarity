@@ -46,13 +46,38 @@ def test_the_document_table_matches_the_catalog_row_by_row() -> None:
             f"  doc : {doc_row}\n  code: {code_row}")
 
 
-def test_every_no_season_wording_is_in_the_document() -> None:
-    # Thach, 2026-10-04 (8D b): the wording without "season" lives in
-    # catalog.py and is quoted, verbatim, in AI_PIPELINE 7.8 (8D review, #13).
-    section = _section_78()
+def test_no_hypothesis_is_worded_with_season() -> None:
+    # Thach, 2026-10-04 (ii): one report, one meaning of "season" - only 4A's
+    # claim says it (the headline's comparison, rule 4's hedge under it); no
+    # hypothesis does, claim or none
+    # (T2 kept 8D b's wording without the word, which 7.8 quotes row by row).
     for spec in CATALOG:
-        if spec.fact_statement is not None:
-            assert f'"{spec.fact_statement}"' in " ".join(section.split()), spec.id
+        # `test` too: it ships as the Rule column where an outcome has no rule of its own.
+        wordings = [spec.statement, spec.lines_statement or "", spec.test, *(spec.rendered or ()),
+                    *(spec.lines_rendered or ())]
+        assert all("season" not in wording.lower() for wording in wordings), spec.id
+    for spec in NOT_TESTABLE:
+        assert "season" not in f"{spec.statement} {spec.reason}".lower(), spec.id
+
+
+def test_t2s_rules_and_the_headlines_words_for_it_never_say_season() -> None:
+    # The time family's refusals ship as T2's Rule column; every string the module writes is checked,
+    # its docstrings (never shipped) aside. The headline names T2 by CONTEXT; rule 4's plain hedge too.
+    import ast
+    import inspect
+
+    from stages.diagnose import hypothesis_evidence_time
+    from stages.diagnose.headline import CONTEXT, PLAIN_HEDGE
+
+    tree = ast.parse(inspect.getsource(hypothesis_evidence_time))
+    docstrings = {id(node.body[0].value) for node in ast.walk(tree)
+                  if isinstance(node, ast.Module | ast.FunctionDef | ast.ClassDef) and node.body
+                  and isinstance(node.body[0], ast.Expr) and isinstance(node.body[0].value, ast.Constant)}
+    written = [node.value for node in ast.walk(tree)
+               if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings]
+    assert written, "no string found: the scan is broken"
+    assert [text for text in written if "season" in text.lower()] == []
+    assert all("season" not in text.lower() for text in (*CONTEXT.values(), PLAIN_HEDGE))
 
 
 def test_the_not_testable_table_matches_the_catalog_row_by_row() -> None:

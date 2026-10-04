@@ -17,7 +17,7 @@ from pydantic import NonNegativeInt, model_validator
 from contracts._base import ContractFile, ContractModel
 from contracts.diagnosis import AiFindings, Headline, NotTestable
 from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint, check_season
-from contracts.lines import NoteCode, OutsideRevenueLines, UnmeasurableLines
+from contracts.lines import NoteCode, UnmeasurableLines
 from contracts.metrics import NonProductLines
 from contracts.profile import LineClass
 from contracts.report_views import (
@@ -29,6 +29,7 @@ from contracts.report_views import (
     Kpi,
     MonthRevenue,
     NoteView,
+    OutsideRevenueView,
     Provenance,
     RecommendationView,
     ReportPeriod,
@@ -39,7 +40,8 @@ from contracts.report_views import (
 )
 
 __all__ = ["Actions", "Causes", "Chart", "ChartSeries", "DataQuality", "ForecastView", "HypothesisView", "Kpi",
-           "MonthRevenue", "NoteView", "Numbers", "Provenance", "RecommendationView", "ReportContract",
+           "MonthRevenue", "NoteView", "Numbers", "OutsideRevenueView", "Provenance", "RecommendationView",
+           "ReportContract",
            "ReportPeriod", "SignalView", "TrustBadge", "TrustCheckView"]
 
 _ALWAYS_ON_ONCE = "an always-on note is shown once, in how_to_read, and only there"
@@ -73,7 +75,7 @@ class Numbers(ContractModel):
     unconfirmed_placeholders_reason: str | None = None
     unmeasurable: list[UnmeasurableLines]
     non_product: list[NonProductLines]
-    outside_revenue: list[OutsideRevenueLines]
+    outside_revenue: list[OutsideRevenueView]
     # Always-on notes, ONCE, in "How to read these figures" (Thach,
     # adjustment 1); the file's own notes beside the figures they name.
     how_to_read: list[NoteView]
@@ -191,6 +193,16 @@ class Actions(ContractModel):
         return self
 
 
+def compared_month_shown(numbers: Numbers) -> bool:
+    """Does the report show the month-on-month comparison - the previous month
+    complete and revenue's two values both shown (CONTRACTS 11)? Only there may
+    a hypothesis read "moved against the change" (Thach, 2026-10-04, (vii)):
+    the one copy of that rule, stage 5's and this contract's."""
+    revenue = next((kpi for kpi in numbers.kpis if kpi.id == "revenue"), None)
+    return (numbers.period.previous_complete and revenue is not None
+            and revenue.current is not None and revenue.previous is not None)
+
+
 class ReportContract(ContractFile):
     # 2 since 4A-b (2026-10-01): the forecast it shows carries `season_years`
     # and a season read from two years its note - a report built before shows
@@ -208,6 +220,22 @@ class ReportContract(ContractFile):
     layer_3_actions: Actions
     charts: list[Chart]
     provenance: Provenance
+
+    @model_validator(mode="after")
+    def _causes_as_2_5_shows_them(self) -> Self:
+        """2.5 (Thach, 2026-10-04, (vii)-(ix)): every hypothesis carries its
+        label and every line outside revenue its reason - the shape the page
+        reads, so one definition of a 2.5 report - and "moved against the
+        change" stands only beside a comparison the report shows, whoever
+        wrote the file."""
+        numbers, hypotheses = self.layer_1_numbers, self.layer_2_causes.hypotheses
+        if tuple(int(part) for part in self.schema_version.split(".")[:2]) >= (2, 5) and (
+                any(h.verdict_label is None for h in hypotheses)
+                or any(o.reason is None for o in numbers.outside_revenue)):
+            raise ValueError("a 2.5 report labels every hypothesis and words every line outside revenue")
+        if any(h.moved_against for h in hypotheses) and not compared_month_shown(numbers):
+            raise ValueError("moved against the change is shown only beside a comparison the report shows")
+        return self
 
     @model_validator(mode="after")
     def _figures_and_notes_agree(self) -> Self:

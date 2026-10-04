@@ -66,14 +66,18 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
         parts.append("<h3>The AI's reading</h3>" + para(story.summary) + para(story.headline_explanation)
                      + items(f"{esc(n.id)}: {esc(n.text)}" for n in story.hypothesis_notes)
                      + para(story.not_tested_note))
-    rows = [[esc(h.id), esc(h.statement), esc(h.verdict.replace("_", " ")),
+    # report.json's own label and evidence text - one copy, the page prints the same (Thach, 2026-10-04,
+    # decisions (vii) and (viii)); a 2.4 report carries neither, so its words are made here as before.
+    rows = [[esc(h.id), esc(h.statement), esc(h.verdict_label or h.verdict.replace("_", " ")),
              "" if h.contribution is None else money(h.contribution), "" if h.share is None else share(h.share),
-             esc(h.rule), items(f"{esc(k)}: {esc(evidence_value(v, causes.suggested_classes))}"
-                                for k, v in h.evidence.items())]
+             esc(h.rule), items(esc(line) for line in h.evidence_text) if h.evidence_text else
+             items(f"{esc(k)}: {esc(evidence_value(v, causes.suggested_classes))}" for k, v in h.evidence.items())]
             for h in causes.hypotheses]
     if causes.hypotheses_note:
-        # Above the table it qualifies (decision 4): the verdicts describe a
-        # change too small, or a history too short, to single one out.
+        # Above the table it qualifies, as stage 3 words it (decision 4): the
+        # verdicts describe a change too small, or a history too short, to
+        # single one out - or, under rule 2, a change the missing days are in
+        # (Thach, 2026-10-04, (vi)).
         parts.append(para(causes.hypotheses_note, "reason"))
     parts.append(table(["ID", "Hypothesis", "Verdict", "Contribution", "Share", "Rule", "Evidence"], rows,
                        "Every hypothesis tested, the ruled-out ones included"))

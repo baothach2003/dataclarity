@@ -109,7 +109,8 @@ def test_the_forecast_its_band_and_the_month_the_file_ends_in() -> None:
     actions = _page().section("actions")
     assert "2011-12 1,210,000.00 1,040,000.00 1,380,000.00" in actions
     assert "80%" in actions and "36 complete months" in actions
-    assert "The file ends on 2011-12-09, part-way through 2011-12" in actions
+    # "The dates the file covers": a line dated after the upload is in no figure (Thach, 2026-10-04, (x)).
+    assert "The dates the file covers end on 2011-12-09, part-way through 2011-12" in actions
 
 
 def test_too_short_a_history_says_so_and_draws_no_forecast() -> None:

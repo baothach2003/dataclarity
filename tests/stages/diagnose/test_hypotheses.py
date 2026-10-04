@@ -53,11 +53,10 @@ def test_every_catalog_id_is_reported_in_catalog_order() -> None:
     results = evaluate_hypotheses(step7(data))
 
     # On basis "lines" (no order_id here) B1 and B2 carry their lines
-    # statements (2E-e); a flat file claims no season, so T2 its wording
-    # without "season" (Thach, 2026-10-04, 8D b); every other hypothesis its
-    # one statement.
+    # statements (2E-e); every other hypothesis its one statement - T2's
+    # without "season", claim or none (Thach, 2026-10-04, (ii)).
     assert [(h.id, h.family, h.lens, h.statement) for h in results] == \
-        [(s.id, s.family, s.lens, s.fact_statement or s.lines_statement or s.statement) for s in CATALOG]
+        [(s.id, s.family, s.lens, s.lines_statement or s.statement) for s in CATALOG]
 
 
 def test_directional_hypotheses_carry_no_share() -> None:

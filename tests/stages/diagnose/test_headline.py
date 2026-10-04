@@ -77,7 +77,8 @@ def test_rule_3_is_dormant_because_t3_is_never_supported() -> None:
 
 def test_rule_4_states_the_real_change_beside_the_pair_and_is_hedged() -> None:
     """ADR-0007 and 3D6b: the alert never says "stable" without the real net
-    change, names the orders x AOV pair, and always says "may be seasonal"."""
+    change, names the orders x AOV pair, and is always hedged - in words without
+    "season" when 4A claims none (Thach, 2026-10-04, (i))."""
     moved = Changes(1000.0, 840.0, -160.0, -160.0, True)
 
     headline = choose_headline(trust(), catalog(), tree(True, -480.0, 320.0), moved)
@@ -88,7 +89,7 @@ def test_rule_4_states_the_real_change_beside_the_pair_and_is_hedged() -> None:
     # is pinned in test_2ee_stage3.py.
     assert "lines contributed -480.00" in headline.message
     assert "average line value +320.00" in headline.message
-    assert headline.message.endswith("This may be seasonal.")
+    assert headline.message.endswith("Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding.")
     assert headline.hypothesis_id is None
 
 
@@ -170,7 +171,7 @@ def test_rule_5_prefers_the_closer_expectation_even_when_it_comes_second() -> No
                                                 T2=("supported", -0.90, {})), tree(False), MOVED)
 
     assert headline.rule == 5
-    assert "the same months a year earlier" in headline.message  # T2, either wording (8D b)
+    assert "the same months a year earlier" in headline.message  # T2, worded by the fact (Thach, 2026-10-04, (ii))
 
 
 def test_rule_6_never_lets_an_overshoot_beat_an_exact_expectation() -> None:

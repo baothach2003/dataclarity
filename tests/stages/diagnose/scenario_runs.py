@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from contracts.diagnosis import DiagnosisContract
 from stages.analyze.assemble import assemble_metrics
 from stages.diagnose.assemble import diagnose
-from stages.diagnose.headline import CONTEXT, FACT_CONTEXT
+from stages.diagnose.headline import CONTEXT
 from stages.diagnose.inputs import build_run_data
 from tests.scenarios.scenarios import Scenario
 from tests.scenarios.store import MAPPING
@@ -74,8 +74,8 @@ def outcome_of(scenario: Scenario, diagnosis: DiagnosisContract) -> Outcome:
         # Rule 5 names T1 and T2 by two fixed phrases the engine owns
         # (headline.CONTEXT), not by a hypothesis id: matched as constants,
         # the way a test pins rendered words - never a statement parsed.
-        # T2 in either wording: the fact when 4A claims no season (8D b).
-        named = frozenset(i for i, words in [*CONTEXT.items(), *FACT_CONTEXT.items()] if words in headline.message)
+        # T2 in its one wording: the fact when 4A claims no season (8D b).
+        named = frozenset(i for i, words in CONTEXT.items() if words in headline.message)
     elif headline.rule == 6 and headline.hypothesis_id is not None:
         named = frozenset({headline.hypothesis_id})
     elif headline.rule == 6:

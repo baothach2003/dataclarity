@@ -338,7 +338,8 @@ class Lever(ContractModel):
     no complete trading month - because the check could not run.
     `masked_shift_basis` is gone with the signals it described: nothing now
     establishes that the movement was UNUSUAL, so headline rule 4 is always
-    worded as a movement that may be seasonal.
+    hedged: "This may be seasonal." where 4A's rule claims a season, else as
+    a shift an ordinary month can show (Thach, 2026-10-04, (i)).
 
     `reasons` carries one entry per null field, keyed by field name.
     """
@@ -607,6 +608,19 @@ class Hypothesis(ContractModel):
     share: float | None
     evidence: dict[str, Any]
     rule: str
+    # 18.3 (Thach, 2026-10-04, (vii)): ruled out for moving AGAINST the change
+    # it claims to explain - the sign half of the share test, on the total
+    # stage 3 measured it against (stages/diagnose/hypotheses
+    # .against_the_change). Stated here once: no consumer re-derives it. False
+    # in 18.2 and before.
+    against_the_change: bool = False
+
+    @model_validator(mode="after")
+    def _against_only_where_the_sign_test_said_it(self) -> Self:
+        if self.against_the_change and (self.verdict != "ruled_out" or self.contribution is None
+                                        or self.contribution == 0 or self.share is None):
+            raise ValueError("against_the_change needs a ruled_out share with its contribution")
+        return self
 
 
 class NotTestable(ContractModel):
@@ -817,7 +831,9 @@ class DiagnosisContract(ContractFile):
     # 18.1 (Thach, 2026-10-03, decision 4): the hypothesis table's one note
     # when the size test kept every cause out of the headline - the change
     # within the shop's usual movement, or a history too short to tell
-    # (stages/diagnose/headline.hypotheses_note). Null otherwise and in 18.0.
+    # (stages/diagnose/headline.hypotheses_note) - and, since 18.3, rule 2's
+    # table: the missing days affect the verdicts below (Thach, 2026-10-04,
+    # (vi)). Null otherwise and in 18.0.
     hypotheses_note: str | None = None
     ai_findings: AiFindings | None
     # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5; an always-on note is

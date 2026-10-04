@@ -98,6 +98,21 @@ NOTE_TEXTS: dict[str, str] = {
         'Lines carry transaction types other than in or out; v1 reads only "in", so these are read by their '
         "signs as sales or returns. The measures count them by value, the rarest values together."),
 }
+
+# Why each class outside revenue is outside it, worded by its code as a note is (Thach, 2026-10-04, decision
+# (ix) on the fifteenth report): one copy, which report.json carries and report.html and the page print.
+# Every class shared/line_effects.OUTSIDE_REVENUE reports (tests/stages/report/test_report_labels.py),
+# true by docs/LINE_TAXONOMY.md section 3.
+OUTSIDE_REVENUE_TEXTS: dict[str, str] = {
+    "gift_card_sale": "A gift card sold is owed to the customer until it is redeemed, so it is not counted in "
+                      "revenue.",
+    "gift_card_redemption": "A gift card line below 0 settles or reverses what a gift card sold owed, so it is not "
+                            "counted in revenue.",
+    "cost": "A fee or cost is not a sale, so it is not counted in revenue.",
+    "adjustment": "An accounting adjustment is not a sale: it is left out of revenue and reported as a reconciling "
+                  "amount.",
+    "stock_in": 'Stock received (a line typed "in") is not a sale, so it is not counted in revenue.',
+}
 # Every figure the note's lines move (the standing rule: the note is shown
 # wherever the affected figure is - 2E-t2 reviews 1 #12 and 2 #4; an
 # always-on note once, in "How to read these figures" - docs/LINE_TAXONOMY.md
