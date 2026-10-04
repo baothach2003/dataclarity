@@ -34,8 +34,36 @@ describe('describeError for a run another version wrote', () => {
     expect(copy.detail).not.toMatch(/two tabs/)
   })
 
-  it('keeps the fixed line for every other INVALID_STATE', () => {
-    expect(describeError(new ApiError('INVALID_STATE', 'busy', { reason: 'claimed' })).detail).toMatch(/two tabs/)
+  it('keeps the fixed line for an INVALID_STATE with no reason it knows', () => {
+    expect(describeError(new ApiError('INVALID_STATE', 'Cannot analyze: the run is profiled.')).detail).toMatch(/two tabs/)
+  })
+})
+
+// The 6E1 review (#5): there is no saved state, so a reload goes back to
+// Upload and the run is lost - never advised. The reasons the analysis flow
+// can meet say what helps (run_memory.py, reporting.py, prediction.py).
+describe('describeError for INVALID_STATE in the analysis', () => {
+  it('says to wait while another step runs', () => {
+    const message = 'Another step is already running for this run. Wait for it to finish.'
+    const copy = describeError(new ApiError('INVALID_STATE', message, { reason: 'step_in_progress' }))
+
+    expect(copy.title).toBe('Another step is still running for this run')
+    expect(copy.detail).toBe(message)
+  })
+
+  it.each([
+    ['files_mismatch', "The run's files do not describe the same months: forecast.json starts at 2026-08."],
+    ['diagnosis_mismatch', 'The diagnosis describes other months than the metrics.'],
+    ['unreadable', "This run's report.json cannot be read. Build the report again."],
+  ])("asks for the step again on %s, as the server words it", (reason, message) => {
+    const copy = describeError(new ApiError('INVALID_STATE', message, { reason }))
+
+    expect(copy.title).toBe('This step needs to run again')
+    expect(copy.detail).toBe(message)
+  })
+
+  it('never advises a reload, which would lose the run', () => {
+    expect(describeError(new ApiError('INVALID_STATE', 'Cannot analyze: the run is profiled.')).detail).not.toMatch(/[Rr]eload/)
   })
 })
 
@@ -138,5 +166,54 @@ describe('describeError for FILE_TOO_LARGE', () => {
     })
 
     expect(copy.detail).toBe('Files over 50.0MB are never accepted, and this file is 61.0MB. Split it into smaller files or remove unused columns, then upload again.')
+  })
+})
+
+// The design gap review's Errors ADD (6E1): ANALYSIS_FAILED with its reasons.
+// A missing field is told by its code; the other reasons' messages say what
+// happened and what to do (backend/app/services/metrics.py, stage_errors.py).
+describe('describeError for ANALYSIS_FAILED', () => {
+  it('names the field no column was mapped to', () => {
+    const copy = describeError(
+      new ApiError('ANALYSIS_FAILED', "cleaned.csv has no column mapped to 'unit_price'; metrics cannot be computed without it", {
+        canonical_field: 'unit_price',
+      }),
+    )
+
+    expect(copy.title).toBe("The analysis can't run on this file")
+    expect(copy.detail).toBe(
+      'No column was mapped as the unit price, which the figures need. If the file has one, upload it again and map it in Review.',
+    )
+  })
+
+  // The 6E1 review (#18): decided by code, never the server's technical words.
+  it('says a file that is not sales data is not analysed', () => {
+    const copy = describeError(
+      new ApiError('ANALYSIS_FAILED', 'This file was not identified as inventory or sales data; stages 2-5 are unavailable.', {
+        domain_confidence: 0.2,
+        domain_reasoning: 'a staff roster',
+      }),
+    )
+
+    expect(copy.detail).toBe('This file did not look like sales data, so the analysis does not run on it.')
+  })
+
+  it("says a cleaned file whose line classes changed must be uploaded again", () => {
+    const copy = describeError(
+      new ApiError('ANALYSIS_FAILED', "cleaned.csv's line classes cannot be read: line_class holds values outside its closed list: ['x']; re-upload the file", {
+        line_classes: "line_class holds values outside its closed list: ['x']",
+      }),
+    )
+
+    expect(copy.detail).toBe('The cleaned file no longer matches what cleaning wrote. Upload the file again.')
+  })
+
+  it("shows the server's own reason otherwise", () => {
+    const message =
+      "The file's amounts or quantities are too large to work with, so its metrics cannot be computed. Correct them in the file and upload it again."
+    const copy = describeError(new ApiError('ANALYSIS_FAILED', message, { reason: 'amounts_too_large' }))
+
+    expect(copy.title).toBe("The analysis can't run on this file")
+    expect(copy.detail).toBe(message)
   })
 })

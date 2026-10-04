@@ -1,0 +1,277 @@
+{
+  "schema_version": "2.4",
+  "generated_at": "2026-07-01T09:00:00Z",
+  "run_id": "run-1",
+  "source_file": "store_sales_2026Q2.csv",
+  "data_quality": {
+    "rows_in": 12480,
+    "rows_out": 12301,
+    "issues_fixed": 3,
+    "warnings": 1
+  },
+  "layer_1_numbers": {
+    "period": {
+      "current": "2026-06",
+      "previous": "2026-05",
+      "data_start": "2026-04-01",
+      "data_end": "2026-06-30",
+      "previous_complete": true,
+      "previous_incomplete_reason": null
+    },
+    "trust": {
+      "verdict": "caution",
+      "checks": [
+        {
+          "id": "D1",
+          "status": "caution",
+          "message": "About 5 days in the current month have no sales."
+        },
+        {
+          "id": "D2",
+          "status": "ok",
+          "message": "No order-of-magnitude price shift across the 40 comparable products."
+        },
+        {
+          "id": "D3",
+          "status": "ok",
+          "message": "Stage 1 flagged no rows in this file."
+        }
+      ],
+      "limitations": [
+        "rows dropped in stage 1 cannot be assigned to a period, so a gap caused by dropped rows is invisible here"
+      ]
+    },
+    "kpis": [
+      {
+        "id": "revenue",
+        "label": "Revenue",
+        "unit": "money",
+        "current": 96152.0,
+        "previous": 104160.0,
+        "change_pct": -7.688172043010753,
+        "change_reason": null,
+        "current_reason": null,
+        "previous_reason": null,
+        "notes": []
+      },
+      {
+        "id": "orders",
+        "label": "Orders",
+        "unit": "count",
+        "current": 2380,
+        "previous": 2604,
+        "change_pct": null,
+        "change_reason": null,
+        "current_reason": null,
+        "previous_reason": null,
+        "notes": [
+          "same_day_cancellations"
+        ]
+      },
+      {
+        "id": "active_customers",
+        "label": "Active customers",
+        "unit": "count",
+        "current": 1112,
+        "previous": 1240,
+        "change_pct": null,
+        "change_reason": null,
+        "current_reason": null,
+        "previous_reason": null,
+        "notes": [
+          "same_day_cancellations"
+        ]
+      },
+      {
+        "id": "aov",
+        "label": "Average order value",
+        "unit": "money",
+        "current": 40.4,
+        "previous": 40.0,
+        "change_pct": null,
+        "change_reason": null,
+        "current_reason": null,
+        "previous_reason": null,
+        "notes": [
+          "same_day_cancellations"
+        ]
+      },
+      {
+        "id": "return_rate",
+        "label": "Return rate",
+        "unit": "ratio",
+        "current": 0.031,
+        "previous": 0.026,
+        "change_pct": null,
+        "change_reason": null,
+        "current_reason": null,
+        "previous_reason": null,
+        "notes": [
+          "same_day_cancellations"
+        ]
+      }
+    ],
+    "current_note": null,
+    "revenue_by_month": [
+      {
+        "period": "2026-04",
+        "revenue": 101200.0,
+        "revenue_reason": null,
+        "complete": true
+      },
+      {
+        "period": "2026-05",
+        "revenue": 104160.0,
+        "revenue_reason": null,
+        "complete": true
+      },
+      {
+        "period": "2026-06",
+        "revenue": 96152.0,
+        "revenue_reason": null,
+        "complete": true
+      }
+    ],
+    "undated_lines": 0,
+    "undated_lines_reason": null,
+    "future_lines": 0,
+    "future_lines_reason": null,
+    "unconfirmed_placeholders_reason": null,
+    "unmeasurable": [],
+    "non_product": [],
+    "outside_revenue": [],
+    "how_to_read": [
+      {
+        "code": "discounts_in_prices",
+        "text": "Discounts count only lines classed as discounts; a discount already taken off a line's price is not visible, and that line's gross sales are at the reduced price.",
+        "figures": [
+          "gross_sales",
+          "discounts"
+        ],
+        "measures": []
+      }
+    ],
+    "notes": [
+      {
+        "code": "same_day_cancellations",
+        "text": "Returns and the return rate include same-day cancellations, which the data cannot separate: the measures count the return lines rung the day their customer bought the same product, those sale lines, and the return lines no match can check: with no named customer, or on a pooled code.",
+        "figures": [
+          "gross_sales",
+          "returns",
+          "return_rate",
+          "orders",
+          "aov",
+          "customers",
+          "products",
+          "diagnosis"
+        ],
+        "measures": [
+          {
+            "name": "returns",
+            "scope": "current",
+            "lines": 12,
+            "amount": -480.0,
+            "orders": 7,
+            "keys": null
+          },
+          {
+            "name": "sales",
+            "scope": "current",
+            "lines": 12,
+            "amount": 480.0,
+            "orders": null,
+            "keys": null
+          },
+          {
+            "name": "returns_unchecked",
+            "scope": "current",
+            "lines": 3,
+            "amount": null,
+            "orders": null,
+            "keys": null
+          },
+          {
+            "name": "returns",
+            "scope": "previous",
+            "lines": 9,
+            "amount": -300.0,
+            "orders": 7,
+            "keys": null
+          },
+          {
+            "name": "sales",
+            "scope": "previous",
+            "lines": 9,
+            "amount": 300.0,
+            "orders": null,
+            "keys": null
+          },
+          {
+            "name": "returns_unchecked",
+            "scope": "previous",
+            "lines": 1,
+            "amount": null,
+            "orders": null,
+            "keys": null
+          }
+        ]
+      }
+    ]
+  },
+  "layer_2_causes": {
+    "headline": {
+      "rule": 6,
+      "hypothesis_id": "B1",
+      "lens": "lever",
+      "message": "Revenue went from 104,160.00 to 96,152.00 (-8,008.00). The best-supported explanation: fewer customers bought (lever lens, 134% of the change).",
+      "movement": null
+    },
+    "hypotheses_note": null,
+    "hypotheses": [],
+    "not_testable": [],
+    "signals": [],
+    "narration": null,
+    "narration_status": "unavailable",
+    "notes": [],
+    "suggested_classes": {}
+  },
+  "layer_3_actions": {
+    "forecast": {
+      "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3), no seasonality claimed",
+      "months_used": 3,
+      "insufficient_history": false,
+      "points": [
+        {
+          "period": "2026-07",
+          "point": 99662.0,
+          "low": 90100.0,
+          "high": 109200.0,
+          "confidence": 0.8
+        }
+      ],
+      "history_note": null,
+      "season_years": null,
+      "season_note": null,
+      "notes": [],
+      "first_month_in_file": false,
+      "partial_first_month_until": null
+    },
+    "recommendations": null,
+    "do_not_do": null,
+    "recommendations_status": "switched_off",
+    "notes": []
+  },
+  "charts": [],
+  "provenance": {
+    "stages_run": [
+      "ingest",
+      "analyze",
+      "diagnose",
+      "predict"
+    ],
+    "ai_calls": 1,
+    "models_used": [
+      "claude-sonnet-5"
+    ]
+  }
+}

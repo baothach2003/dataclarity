@@ -4,6 +4,8 @@
 // this table has no fixed line for; the fixed copy is what the user sees.
 
 import { ApiError, UnreachableError } from '../api/errors.ts'
+import type { CanonicalField } from '../types/contracts.ts'
+import { CANONICAL_FIELD_LABELS } from './labels.ts'
 
 export interface ErrorCopy {
   title: string
@@ -107,11 +109,22 @@ function describeApiError(error: ApiError, context?: { fileSizeBytes?: number })
       if (detailOf(error.details, 'reason') === 'another_version') {
         return { title: 'This step needs to run again', detail: error.message }
       }
+      // The reasons stages 2-5 give say what helps (run_memory.py, reporting.py, prediction.py).
+      switch (detailOf(error.details, 'reason')) {
+        case 'step_in_progress':
+          return { title: 'Another step is still running for this run', detail: error.message }
+        case 'files_mismatch':
+        case 'diagnosis_mismatch':
+        case 'unreadable':
+          return { title: 'This step needs to run again', detail: error.message }
+      }
+      // No saved state: a reload goes back to Upload and loses the run, so it is never advised (the
+      // 6E1 review #5).
       return {
         title: "This step isn't available yet",
         detail:
           'The run is at a different stage than expected, often because it was opened in two ' +
-          'tabs. Reload to continue from the current step.',
+          'tabs. Upload the file again to start over.',
       }
     case 'INVALID_PLAN':
       // The server's problems are the true reason and say what to do (an
@@ -123,6 +136,27 @@ function describeApiError(error: ApiError, context?: { fileSizeBytes?: number })
         title: "The cleaning plan couldn't be applied to this data",
         detail: error.message,
       }
+    case 'ANALYSIS_FAILED': {
+      // Stages 2-5 refuse this run (SPECS 10), each reason told by its code
+      // (backend/app/services/metrics.py, diagnosis.py, stage_errors.py); the
+      // amounts-too-large message already says what to do.
+      const title = "The analysis can't run on this file"
+      const details = error.details ?? {}
+      const field = detailOf(details, 'canonical_field')
+      if (typeof field === 'string' && Object.hasOwn(CANONICAL_FIELD_LABELS, field)) {
+        return {
+          title,
+          detail: `No column was mapped as the ${CANONICAL_FIELD_LABELS[field as CanonicalField]}, which the figures need. If the file has one, upload it again and map it in Review.`,
+        }
+      }
+      if (Object.hasOwn(details, 'domain_confidence')) {
+        return { title, detail: 'This file did not look like sales data, so the analysis does not run on it.' }
+      }
+      if (Object.hasOwn(details, 'line_classes')) {
+        return { title, detail: 'The cleaned file no longer matches what cleaning wrote. Upload the file again.' }
+      }
+      return { title, detail: error.message }
+    }
     case 'RATE_LIMITED':
       // The per-run cap on asking the AI (run_memory.ai_step) - the only
       // RATE_LIMITED the backend sends today; waiting never helps it, and the

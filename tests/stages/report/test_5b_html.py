@@ -156,6 +156,16 @@ def test_the_provenance_and_the_files_quality() -> None:
     assert "Rows in: 152,430. Rows out: 151,988." in page.section("quality")
 
 
+def test_the_provenance_claims_for_the_ai_only_what_is_true() -> None:
+    # An AI answer the report counts can be a column mapping or a cleaning plan
+    # (builder.py), not only words - "the AI writes words only" was false; what
+    # holds for every answer is that it computes no figure (CLAUDE.md 3.2; the
+    # 6E1 review #9).
+    provenance = _page().section("provenance")
+    assert "Every figure is computed by code from the earlier stages' files; the AI computes none." in provenance
+    assert "writes words only" not in provenance
+
+
 def test_previous_scope_rows_and_measures_are_hidden_when_the_previous_month_is_incomplete() -> None:
     outside = [{"line_class": "cost", "scope": "file", "sign": None, "lines": 11, "amount": -26337.21,
                 "lines_without_amount": 0},

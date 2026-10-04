@@ -1,14 +1,13 @@
-// Orchestrates the 3 Stage-1 screens (docs/SPECS.md section 3, steps 1-4):
-// Upload -> Analyzing -> Review -> Results. Stages 2-5 (Insights, Dashboard)
-// are Phase 6 work that has not started (PROJECT_PLAN.md); this is a scoped,
-// Stage-1-only slice pulled forward, so there is no router here, only a
-// screen state machine.
+// Orchestrates the screens (docs/SPECS.md section 3): Upload -> Analyzing ->
+// Review -> Results, then the analysis (stages 2-5) -> Insights (PROJECT_PLAN
+// 6E; the Dashboard, 6F, is out of v1). A screen state machine, no router.
 
 import { useState } from 'react'
 import { analyzeSchema, getProfile, proposePlan } from './api/runs.ts'
 import { Notice } from './components/Notice.tsx'
 import { Stepper } from './components/Stepper.tsx'
 import { describeError } from './domain/errorCopy.ts'
+import { AnalysisFlow } from './pages/AnalysisFlow.tsx'
 import { AnalyzingPage } from './pages/AnalyzingPage.tsx'
 import type { AnalyzingStep } from './pages/AnalyzingPage.tsx'
 import { ResultsPage } from './pages/ResultsPage.tsx'
@@ -44,7 +43,10 @@ type Screen =
       notices: NoticeContract[]
     }
   | { kind: 'results'; runId: string; filename: string; report: CleaningReport; notices: NoticeContract[] }
+  | { kind: 'insights'; results: ResultsScreen }
   | { kind: 'error'; error: unknown }
+
+type ResultsScreen = Extract<Screen, { kind: 'results' }>
 
 function dedupeNotices(notices: NoticeContract[]): NoticeContract[] {
   const byCode = new Map(notices.map((n) => [n.code, n]))
@@ -153,9 +155,28 @@ function App() {
             filename={screen.filename}
             report={screen.report}
             notices={screen.notices}
+            onRunAnalysis={() => {
+              setScreen({ kind: 'insights', results: screen })
+            }}
           />
         )
       )
+    case 'insights': {
+      const results = screen.results
+      return (
+        baseUrl && (
+          <AnalysisFlow
+            baseUrl={baseUrl}
+            runId={results.runId}
+            filename={results.filename}
+            rows={results.report.rows_out}
+            onBack={() => {
+              setScreen(results)
+            }}
+          />
+        )
+      )
+    }
     case 'error': {
       const copy = describeError(screen.error)
       return (

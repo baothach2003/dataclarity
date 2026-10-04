@@ -69,6 +69,7 @@ describe('ResultsPage', () => {
         filename="sales.csv"
         report={makeReport()}
         notices={[]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
@@ -85,6 +86,7 @@ describe('ResultsPage', () => {
         filename="sales.csv"
         report={makeReport()}
         notices={[]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
@@ -102,6 +104,7 @@ describe('ResultsPage', () => {
         filename="sales.csv"
         report={makeReport()}
         notices={[]}
+        onRunAnalysis={vi.fn()}
       />,
     )
     fireEvent.click(screen.getByText('Download cleaning_report.json'))
@@ -120,6 +123,7 @@ describe('ResultsPage', () => {
         filename="sales.csv"
         report={makeReport()}
         notices={[]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
@@ -129,7 +133,9 @@ describe('ResultsPage', () => {
     expect(runsApi.downloadCleanedCsv).toHaveBeenCalledWith('http://localhost:8000', 'run-1')
   })
 
-  it('keeps Run full analysis and Import to dashboard disabled (Phases 2-5 and 7 are not built)', () => {
+  // 6E: the analysis runs from here; the import (Phase 7) is out of v1.
+  it('runs the full analysis on request, and keeps the import unavailable', () => {
+    const onRunAnalysis = vi.fn()
     render(
       <ResultsPage
         baseUrl="http://localhost:8000"
@@ -137,11 +143,28 @@ describe('ResultsPage', () => {
         filename="sales.csv"
         report={makeReport()}
         notices={[]}
+        onRunAnalysis={onRunAnalysis}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run full analysis' }))
+    expect(onRunAnalysis).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Import to dashboard' }).hasAttribute('disabled')).toBe(true)
+  })
+
+  it('offers no analysis for a file that is not sales data (SPECS 10, NOT_INVENTORY)', () => {
+    render(
+      <ResultsPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="roster.csv"
+        report={makeReport()}
+        notices={[{ code: 'NOT_INVENTORY', message: 'not inventory' }]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
     expect(screen.getByRole('button', { name: 'Run full analysis' }).hasAttribute('disabled')).toBe(true)
-    expect(screen.getByRole('button', { name: 'Import to dashboard' }).hasAttribute('disabled')).toBe(true)
   })
 
   it('shows a not-inventory notice when the execute response carried one', () => {
@@ -152,6 +175,7 @@ describe('ResultsPage', () => {
         filename="roster.csv"
         report={makeReport()}
         notices={[{ code: 'NOT_INVENTORY', message: 'not inventory' }]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
@@ -171,6 +195,7 @@ describe('ResultsPage: how the file was read', () => {
         filename="sales.csv"
         report={makeReport({ column_mapping: { qty_sold: 'quantity', cust: 'customer', day: 'transaction_date' }, date_order: 'month_first' })}
         notices={[]}
+        onRunAnalysis={vi.fn()}
       />,
     )
 
@@ -183,7 +208,7 @@ describe('ResultsPage: how the file was read', () => {
 
   it('shows no such notice when nothing needed deciding', () => {
     render(
-      <ResultsPage baseUrl="http://localhost:8000" runId="run-1" filename="sales.csv" report={makeReport()} notices={[]} />,
+      <ResultsPage baseUrl="http://localhost:8000" runId="run-1" filename="sales.csv" report={makeReport()} notices={[]} onRunAnalysis={vi.fn()} />,
     )
 
     expect(screen.queryByText('How the file was read')).toBeNull()

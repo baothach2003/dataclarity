@@ -4249,6 +4249,30 @@ dataclarity/
       existing components and design tokens, following FIGMA_DESIGN_NOTES;
       Thach reviews them in the browser, not in new frames. The CHANGE column
       applies as listed in the review.
+      **Part 1 built 2026-10-04 (fifteenth run): the flow and the numbers.**
+      Results' "Run full analysis" (not for NOT_INVENTORY) -> Analyzing
+      (frame 7:1032 plus the report step; its footnote says only what is
+      true of v1) -> Insights from report.json: the header, the trust badge,
+      the five KPI cards (the change on revenue only, a note marker that
+      reveals the note and its measures, a withheld figure as its reason),
+      the notes under the KPI row, "How to read these figures" as the last
+      card, the file and provenance, the HTML report download. Figures
+      print exactly as report.html prints them (stage 5's rules, the
+      double's exact digits rounded half-even). The analysis never overlaps
+      a step (StrictMode, retries) and a retry resumes at the failed step;
+      "Try again" only where retrying can help. One review cycle: no
+      blocker, 9 should-fix (huge figures printed as 0.00, a grouped share,
+      an arrow on a 0.0% change, a note's orders and keys dropped, reload
+      advice that loses the run, a spinner after the end or a failure,
+      retries that cannot help, a fixture the contract refuses, "the AI
+      writes words only") - all fixed, tests first; the fixture is now JSON
+      validated by `tests/contracts/test_frontend_fixtures.py`. Stage 5's
+      own provenance line corrected with it ("the AI computes none").
+      Decided alone: the page shows report.json's note text - the contract
+      pins it to NOTE_TEXTS by code - where CONTRACTS 11 says the frontend
+      words a note "with its own copy per code" (a question for Thach);
+      no currency symbol (the file never says which); the header stepper
+      compact on a phone (every page overflowed at 375px).
 - [ ] 6F Dashboard page: charts + low-stock table + report download
       **OUT of v1 (Thach, 2026-10-03):** without stock it repeats Insights -
       into the v2 item (Backlog), with Phase 7.
@@ -5241,7 +5265,9 @@ only), pytest 4495 - committed (the 3E1b item). Stopped once on low memory
 "continue". Two questions for Thach at 3E1b (rule 4's hedge; T2's wording
 when a season is claimed). Wave 3 installed; 6A-6D built (one review
 cycle: 5 blockers, all false sentences, fixed; every page checked in an
-isolated headless browser, no console error). Next: 6E. Report:
+isolated headless browser, no console error) - pushed as 9e898cc. 6E part 1
+(the flow and the numbers) built and reviewed. Next: 6E parts 2 (causes) and
+3 (charts, forecast, lines in no figure). Report:
 `C:\Users\Happy\overnight-report.txt` (the fourteenth run's as
 `overnight-report-run14.txt`).
 **Thirteenth overnight run** (2026-10-03/04, continued after a restart;

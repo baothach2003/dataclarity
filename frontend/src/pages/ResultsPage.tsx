@@ -18,9 +18,10 @@ interface ResultsPageProps {
   filename: string
   report: CleaningReport
   notices: NoticeContract[]
+  onRunAnalysis: () => void
 }
 
-export function ResultsPage({ baseUrl, runId, filename, report, notices }: ResultsPageProps) {
+export function ResultsPage({ baseUrl, runId, filename, report, notices, onRunAnalysis }: ResultsPageProps) {
   const [downloadError, setDownloadError] = useState<unknown>(null)
   const tiles = buildSummaryTiles(report)
   const effectiveChanges = changesWithEffect(report)
@@ -126,17 +127,24 @@ export function ResultsPage({ baseUrl, runId, filename, report, notices }: Resul
                 Import to dashboard
               </button>
               <span className="tooltip" role="tooltip">
-                Not available yet: Phase 7 (import) is not built
+                Not available in this version
               </span>
             </span>
-            <span className="tooltip-wrap">
-              <button type="button" className="button button--primary" disabled>
+            {isNotInventory ? (
+              // SPECS 10: stages 2-5 are disabled for a file that is not sales data.
+              <span className="tooltip-wrap">
+                <button type="button" className="button button--primary" disabled>
+                  Run full analysis
+                </button>
+                <span className="tooltip" role="tooltip">
+                  Not available: this file did not look like sales data
+                </span>
+              </span>
+            ) : (
+              <button type="button" className="button button--primary" onClick={onRunAnalysis}>
                 Run full analysis
               </button>
-              <span className="tooltip" role="tooltip">
-                Not available yet: Phases 2-5 are not built
-              </span>
-            </span>
+            )}
           </div>
         </div>
       </div>

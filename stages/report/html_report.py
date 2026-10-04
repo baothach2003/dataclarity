@@ -209,7 +209,10 @@ def render_html(report: ReportContract) -> str:
         f'<section id="actions">{_actions(report.layer_3_actions, charts)}</section>',
         '<section id="provenance"><h2>Where these figures come from</h2>',
         f"<p>Stages run: {esc(', '.join(provenance.stages_run))}. AI answers used: {count(provenance.ai_calls)}"
-        f"{models}. Every figure comes from the earlier stages' files; the AI writes words only.</p>",
+        # An AI answer counted here can be a column mapping or a cleaning plan
+        # (builder.py), not only words; what holds for every one is that it
+        # computes no figure (CLAUDE.md 3.2; the 6E1 review #9).
+        f"{models}. Every figure is computed by code from the earlier stages' files; the AI computes none.</p>",
         "</section>"])
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">'

@@ -10,6 +10,7 @@ export type ApiErrorCode =
   | 'INVALID_STATE'
   | 'INVALID_PLAN'
   | 'CLEANING_FAILED'
+  | 'ANALYSIS_FAILED'
   | 'EXPIRED'
   | 'RATE_LIMITED'
   | 'NOT_FOUND'
@@ -45,6 +46,7 @@ const KNOWN_CODES: ReadonlySet<string> = new Set<ApiErrorCode>([
   'INVALID_STATE',
   'INVALID_PLAN',
   'CLEANING_FAILED',
+  'ANALYSIS_FAILED',
   'EXPIRED',
   'RATE_LIMITED',
   'NOT_FOUND',

@@ -14,4 +14,13 @@ describe('Stepper', () => {
     expect(screen.getByText('DataClarity')).toBeDefined()
     expect(screen.queryByText('CleanStock')).toBeNull()
   })
+
+  // 6E: stages 2-5 run after Results - the stages done, and the one running.
+  it('marks the stages done and the one in progress', () => {
+    render(<Stepper progress={{ done: 2, active: 2 }} />)
+    const steps = screen.getAllByRole('listitem')
+
+    expect(steps.map((step) => step.querySelector('.stepper__badge--done') !== null)).toEqual([true, true, false, false, false])
+    expect(steps.map((step) => step.getAttribute('aria-current'))).toEqual([null, null, 'step', null, null])
+  })
 })

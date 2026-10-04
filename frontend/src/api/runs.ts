@@ -13,44 +13,7 @@ import type {
 } from '../types/contracts.ts'
 import type { LineSummaryResponse } from '../types/lineSummary.ts'
 import { errorFromBody, throwApiError, UnreachableError } from './errors.ts'
-
-function trimSlash(baseUrl: string): string {
-  return baseUrl.replace(/\/+$/, '')
-}
-
-async function parseJson<T>(response: Response): Promise<T> {
-  try {
-    return (await response.json()) as T
-  } catch {
-    throw new UnreachableError('unexpected response body')
-  }
-}
-
-async function getJson<T>(baseUrl: string, path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${trimSlash(baseUrl)}${path}`, { signal })
-  if (!response.ok) {
-    await throwApiError(response)
-  }
-  return parseJson<T>(response)
-}
-
-async function postJson<T>(
-  baseUrl: string,
-  path: string,
-  body: unknown,
-  signal?: AbortSignal,
-): Promise<T> {
-  const response = await fetch(`${trimSlash(baseUrl)}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body ?? {}),
-    signal,
-  })
-  if (!response.ok) {
-    await throwApiError(response)
-  }
-  return parseJson<T>(response)
-}
+import { getJson, postJson, trimSlash } from './http.ts'
 
 export interface UploadProgress {
   loaded: number
