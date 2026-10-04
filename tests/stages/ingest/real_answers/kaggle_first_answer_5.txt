@@ -4,7 +4,7 @@
   "domain_reasoning": "The dataset contains transactional sales records with items, categories, prices, quantities, and totals, consistent with retail sales/inventory data.",
   "dataset_issues": [
     {"code": "missing_values", "count": null, "severity": "medium", "detail": "Several columns (Item, Price Per Unit, Quantity, Total Spent, Discount Applied) have missing values, with Discount Applied missing in over a third of rows."},
-    {"code": "mixed_types", "count": null, "severity": "low", "detail": "Discount Applied is stored as string 'True'/'False' rather than boolean type."}
+    {"code": "mixed_types", "count": null, "severity": "low", "detail": ""}
   ],
   "columns": [
     {

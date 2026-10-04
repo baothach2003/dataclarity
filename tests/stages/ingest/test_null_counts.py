@@ -31,12 +31,14 @@ from tests.stages.ingest.schema_answers import (
 REAL = Path(__file__).parent / "real_answers"
 KAGGLE_PROFILE = ProfileContract.model_validate_json((REAL / "kaggle_profile.json").read_text(encoding="utf-8"))
 FIRST_ANSWERS = sorted(REAL.glob("kaggle_first_answer_*.txt"))
+PASSED_ANSWERS = sorted(REAL.glob("kaggle_passed_answer_*.txt"))
 
 
 def test_the_fixtures_are_the_six_real_first_answers() -> None:
     # 5 measurement calls and the Kaggle flow's first call (the seventeenth run); each carries the shape
-    # that was refused: a dataset-level issue with "count": null. The passed retries' raw text was not
-    # kept (the smoke hook logged failures only).
+    # that was refused: a dataset-level issue with "count": null. (That run's passed retries were not
+    # kept; the passed answers below come from the eighteenth run's confirmation.) No fixture quotes a
+    # cell of the file: two details quoting "Discount Applied"'s 'True'/'False' were emptied.
     assert len(FIRST_ANSWERS) == 6
     for path in FIRST_ANSWERS:
         body = json.loads(path.read_text(encoding="utf-8").strip().removeprefix("```json").removesuffix("```"))
@@ -50,6 +52,23 @@ def test_each_real_first_answer_is_accepted(path: Path) -> None:
                                lambda value: check_answer(value, KAGGLE_PROFILE))
 
     assert [c.source_name for c in accepted.columns] == [c.name for c in KAGGLE_PROFILE.columns]
+
+
+def test_the_fixtures_hold_the_three_real_passed_answers() -> None:
+    # The confirmation smoke test (the eighteenth run, on 7fe6e7d): three Kaggle schema calls, each
+    # accepted first time with no retry.
+    assert len(PASSED_ANSWERS) == 3
+
+
+@pytest.mark.parametrize("path", PASSED_ANSWERS, ids=lambda p: p.stem)
+def test_each_real_passed_answer_is_accepted_by_todays_check(path: Path) -> None:
+    # A real, valid answer the model gave: a future check that refused it would refuse the real model's
+    # valid output - every run's retry spent again, as the seventeenth run found - and fails the build here.
+    accepted = AIClient._parse(path.read_text(encoding="utf-8"), SchemaInferenceAnswer,
+                               lambda value: check_answer(value, KAGGLE_PROFILE))
+
+    assert [c.source_name for c in accepted.columns] == [c.name for c in KAGGLE_PROFILE.columns]
+    assert [(i.code, i.count) for i in accepted.dataset_issues] == [("duplicate_rows", 0)]
 
 
 # --- what stays required ---------------------------------------------------------------------------

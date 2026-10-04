@@ -5684,6 +5684,17 @@ dataclarity/
       (`run18/smoke_passed_answers.jsonl`) - not yet fixtures: adding them is
       Thach's call (the decision asked for passed answers too; the
       seventeenth run had kept none).
+      **Thach (2026-10-05): added** - `real_answers/kaggle_passed_answer_1..3.txt`
+      beside the six failed ones, the same treatment (no cell value of the
+      file). Every string of all nine answers was checked against the Kaggle
+      file's 13,929 distinct non-numeric cells: the passed three quote none;
+      two failed ones (3 and 5) quoted "Discount Applied"'s 'True'/'False'
+      in one `detail` - emptied (the earlier "no cell values" said of the
+      six was wrong for those two; the count they fail on is untouched, and
+      the old code still fails all six). A test now requires today's check
+      to accept each passed answer (and its `duplicate_rows` 0): a future
+      check that refused a real valid answer fails the build - checked with
+      such a check, which the test caught.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5875,7 +5886,10 @@ then stop before any deploy step. Done: the fix built tests-first (the six
 real failed answers fail on the old code, pass on the new), mutated (11 of
 12, 1 equivalent), reviewed (no critical or required finding), pytest 4575,
 pushed as 7fe6e7d; the confirmation PASSED - 4 of 4 first answers accepted,
-no retry, ~$0.104. Stopped before any deploy step. Report: `C:\Users\Happy\overnight-report.txt`
+no retry, ~$0.104. Stopped before any deploy step. Then, on Thach's word, the
+three passed Kaggle answers added as fixtures with a test that today's check
+accepts them (two failed answers' quoted 'True'/'False' emptied). Next:
+Thach's manual testing of the app, then deploy planning. Report: `C:\Users\Happy\overnight-report.txt`
 (the seventeenth run's as `overnight-report-run17.txt`).
 **Seventeenth overnight run** (2026-10-05, on the sixteenth report; Thach's
 decisions recorded at 3E1b (Q1), 6E (Q2, Q3) and Phase 9's smoke-test item
