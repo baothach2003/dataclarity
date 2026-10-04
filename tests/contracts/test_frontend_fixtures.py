@@ -6,12 +6,15 @@ tests pass on states that never occur, so contracts/report.py validates it here.
 """
 
 import json
+import re
 from pathlib import Path
 
+from contracts.forecast import MIN_HISTORY_MONTHS
 from contracts.lines import NOTE_FIGURES
 from contracts.report import ReportContract
 
-FIXTURE = Path(__file__).resolve().parents[2] / "frontend" / "src" / "pages" / "insightsFixture.json"
+FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
+FIXTURE = FRONTEND / "pages" / "insightsFixture.json"
 
 # The note figures each KPI stands for (stages/report/layers.py lists a note beside a KPI it names).
 KPI_FIGURE = {"revenue": "revenue", "orders": "orders", "active_customers": "customers", "aov": "aov",
@@ -31,3 +34,13 @@ def test_each_kpi_lists_exactly_the_notes_that_name_its_figure() -> None:
     for kpi in report["layer_1_numbers"]["kpis"]:
         named = [note["code"] for note in notes if KPI_FIGURE[kpi["id"]] in NOTE_FIGURES[note["code"]]]
         assert kpi["notes"] == named, kpi["id"]
+
+
+def test_the_frontends_history_minimum_is_the_contracts() -> None:
+    # The Insights page says "and 3 are needed" as report.html does; report.json carries only how many
+    # months were used, so the frontend keeps the minimum - one value, pinned here to the contract's.
+    source = (FRONTEND / "domain" / "forecastRules.ts").read_text(encoding="utf-8")
+    found = re.search(r"export const MIN_HISTORY_MONTHS = (\d+)", source)
+
+    assert found is not None
+    assert int(found.group(1)) == MIN_HISTORY_MONTHS

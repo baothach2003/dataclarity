@@ -27,8 +27,8 @@ function HypothesisTable({ hypotheses, causes, numbers, view }: { hypotheses: Hy
           <tr>
             <th scope="col">Hypothesis</th>
             <th scope="col">Verdict</th>
-            <th scope="col">Contribution</th>
-            <th scope="col">Share</th>
+            <th scope="col" className="hypotheses__figure">Contribution</th>
+            <th scope="col" className="hypotheses__figure">Share</th>
             <th scope="col">Rule and evidence</th>
           </tr>
         </thead>

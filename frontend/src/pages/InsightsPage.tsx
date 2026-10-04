@@ -8,10 +8,14 @@ import { downloadReportHtml } from '../api/analysis.ts'
 import type { OrdersBasis } from '../api/analysis.ts'
 import { CausesSection } from '../components/CausesSection.tsx'
 import { DecompositionCard } from '../components/DecompositionCard.tsx'
+import { ForecastCard } from '../components/ForecastCard.tsx'
 import { KpiCard } from '../components/KpiCard.tsx'
+import { LinesInNoFigureCard } from '../components/LinesInNoFigureCard.tsx'
 import { NoteBody } from '../components/NoteBody.tsx'
 import { Notice } from '../components/Notice.tsx'
 import type { NoticeTone } from '../components/Notice.tsx'
+import { RecommendationsSection } from '../components/RecommendationsSection.tsx'
+import { RevenueChartCard } from '../components/RevenueChartCard.tsx'
 import { Stepper } from '../components/Stepper.tsx'
 import { triggerBlobDownload } from '../domain/browserDownload.ts'
 import { readDiagnosis } from '../domain/diagnosisView.ts'
@@ -86,6 +90,8 @@ export function InsightsPage({ baseUrl, runId, report, diagnosis, ordersBasis }:
   const [downloadError, setDownloadError] = useState<unknown>(null)
   const numbers = report.layer_1_numbers
   const view = readDiagnosis(diagnosis)
+  const revenueChart = report.charts.find((chart) => chart.id === 'revenue_trend')
+  const forecastChart = report.charts.find((chart) => chart.id === 'forecast')
   const { period } = numbers
   const about = aboutLines(numbers)
   const quality = report.data_quality
@@ -144,6 +150,16 @@ export function InsightsPage({ baseUrl, runId, report, diagnosis, ordersBasis }:
         {/* Number -> cause (FIGMA_DESIGN_NOTES 9): the change split, then why. */}
         <DecompositionCard view={view} numbers={numbers} ordersBasis={ordersBasis} notes={besideFigures} />
         <CausesSection causes={report.layer_2_causes} numbers={numbers} view={view} />
+
+        {/* Cause -> what next: the months, the forecast, the recommendations' place (off in v1). */}
+        {(revenueChart || numbers.revenue_by_month.length > 0) && (
+          <RevenueChartCard chart={revenueChart} numbers={numbers} notes={besideFigures} />
+        )}
+        <ForecastCard forecast={report.layer_3_actions.forecast} chart={forecastChart} notes={besideFigures} period={period} />
+        <RecommendationsSection actions={report.layer_3_actions} notes={besideFigures} period={period} />
+
+        {/* The data-quality section: what no figure counts, the file, how to read the figures. */}
+        <LinesInNoFigureCard numbers={numbers} />
 
         <section className="card insights-card">
           <h2 className="insights-card__title">The file and where these figures come from</h2>

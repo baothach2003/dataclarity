@@ -200,11 +200,28 @@ export interface ForecastView {
   partial_first_month_until: string | null
 }
 
+// forecast.json's recommendation as report.json shows it: AI text, rendered escaped (SEC-3), its
+// confidence a label, never a figure (contracts/report_views.py RecommendationView).
+export interface RecommendationView {
+  priority: number
+  insight: string
+  cause: string
+  action: string
+  expected_impact: string
+  how_to_measure: string
+  confidence_label: 'low' | 'medium' | 'high'
+}
+
+export interface DoNotDo {
+  tempting_action: string
+  why_wrong_here: string
+}
+
 export interface Actions {
   forecast: ForecastView
-  // Off in v1 (recommendations_status "switched_off"): never rendered as cards (design gap review).
-  recommendations: unknown[] | null
-  do_not_do: unknown[] | null
+  // Off in v1 (recommendations_status "switched_off"): an info notice in the cards' place (design gap review).
+  recommendations: RecommendationView[] | null
+  do_not_do: DoNotDo[] | null
   recommendations_status: 'shown' | 'switched_off' | 'unavailable'
   notes: NoteCode[]
 }

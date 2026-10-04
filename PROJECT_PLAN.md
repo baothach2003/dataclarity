@@ -4226,7 +4226,7 @@ dataclarity/
       PARSE_FAILED claim no header row or separator search. **Open for
       Thach:** the review's GLOBAL CHANGE on the stepper ("Predict" is a
       forecast only in v1) names no new label - left as "Predict".
-- [ ] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
+- [x] 6E Insights page: KPI cards, diagnosis panel, recommendations list (AI
       text rendered escaped, SPECS SEC-3). Always-on notes once, in "How to
       read these figures", as stage 5 does (Thach, 2026-09-29, adjustment 1);
       notes rendered by code (adjustment 2)
@@ -4303,6 +4303,30 @@ dataclarity/
       Decided alone: rule 2 (missing days explain the change) keeps the
       table - a full diagnosis, though the design gap review grouped it with
       rule 1 as "blocked" (for Thach).
+      **Part 3 built 2026-10-04 (fifteenth run): what next - 6E done.**
+      Recharts 3.10.1 and react-is 19.3.0 added, pinned (MIT; CLAUDE.md 2's
+      own chart library). "Revenue by month" (charts.revenue_trend: a gap
+      never joined or zero, its note, each caution once, the notes naming
+      revenue, every month in a table - also when the report draws no
+      chart); "Revenue forecast" (monthly, 3 months, the 80% band drawn and
+      named, the method, the months learned from, season_years, its own
+      notes once, a month the file already holds never compared, too short a
+      history in complete MONTHS - the 3 pinned to contracts/forecast by a
+      pytest); the recommendations' place (off in v1: "The AI
+      recommendations are switched off for this report.", no cards); "Lines
+      in no figure, and where their money went" (undated, dated after the
+      upload, unmeasurable, the classes given, outside revenue; a previous
+      month's rows only when compared, a withheld month's 0 said withheld).
+      One review cycle: no blocker; 5 should-fix (the charts a focusable
+      "application" inside an image, season_years not shown, the chart
+      rules untested - jsdom draws no SVG, now plain tested functions - a
+      one-point fixture band that drew nothing, the later-dated lines not in
+      the card) and 11 minor - fixed tests first, but: the "lines outside
+      revenue" rows carry no reason (the contract has none; report.html
+      neither - for Thach); "the file ends on" in report.html can be false
+      when lines are dated after the upload (the page says "the dates the
+      file covers end on" - for Thach); the caution colour is the design's
+      recorded below-AA choice (FIGMA_DESIGN_NOTES open issues).
 - [ ] 6F Dashboard page: charts + low-stock table + report download
       **OUT of v1 (Thach, 2026-10-03):** without stock it repeats Insights -
       into the v2 item (Backlog), with Phase 7.
@@ -5296,8 +5320,10 @@ only), pytest 4495 - committed (the 3E1b item). Stopped once on low memory
 when a season is claimed). Wave 3 installed; 6A-6D built (one review
 cycle: 5 blockers, all false sentences, fixed; every page checked in an
 isolated headless browser, no console error) - pushed as 9e898cc. 6E part 1
-(the flow and the numbers) pushed as c532bbe; part 2 (the causes) built and
-reviewed. Next: part 3 (charts, forecast, lines in no figure). Report:
+(the flow and the numbers) pushed as c532bbe; part 2 (the causes) as 8d23ab7;
+part 3 (charts, forecast, lines in no figure) built and reviewed - 6E done,
+so Phase 6 is done for v1 (6F out). Stopped before any deploy step and any
+real AI call. Report:
 `C:\Users\Happy\overnight-report.txt` (the fourteenth run's as
 `overnight-report-run14.txt`).
 **Thirteenth overnight run** (2026-10-03/04, continued after a restart;

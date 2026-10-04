@@ -2,12 +2,9 @@
 // a previous month's measure only when that month is compared, a current or whole-file one always - its
 // lines are real (CONTRACTS 9; stage 5's html_parts.scope_shown).
 
-import { count, money, monthLabel } from '../domain/reportFormat.ts'
-import type { NoteMeasure, NoteView, ReportPeriod, Scope } from '../types/report.ts'
-
-function scopeLabel(scope: Scope, period: ReportPeriod): string {
-  return scope === 'file' ? 'whole file' : monthLabel(scope === 'current' ? period.current : period.previous)
-}
+import { count, money } from '../domain/reportFormat.ts'
+import { scopeLabel } from '../domain/reportText.ts'
+import type { NoteMeasure, NoteView, ReportPeriod } from '../types/report.ts'
 
 function plural(n: number, one: string, many: string): string {
   return `${count(n)} ${n === 1 ? one : many}`

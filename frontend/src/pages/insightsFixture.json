@@ -364,6 +364,20 @@
           "low": 90100.0,
           "high": 109200.0,
           "confidence": 0.8
+        },
+        {
+          "period": "2026-08",
+          "point": 99662.0,
+          "low": 88900.0,
+          "high": 110400.0,
+          "confidence": 0.8
+        },
+        {
+          "period": "2026-09",
+          "point": 99662.0,
+          "low": 87500.0,
+          "high": 111800.0,
+          "confidence": 0.8
         }
       ],
       "history_note": null,
@@ -378,7 +392,84 @@
     "recommendations_status": "switched_off",
     "notes": []
   },
-  "charts": [],
+  "charts": [
+    {
+      "id": "revenue_trend",
+      "type": "line",
+      "title": "Revenue by month",
+      "notes": [],
+      "note": null,
+      "cautions": [
+        "About 5 days in the current month have no sales."
+      ],
+      "series": [
+        {
+          "name": "revenue",
+          "x": [
+            "2026-04",
+            "2026-05",
+            "2026-06"
+          ],
+          "y": [
+            101200.0,
+            104160.0,
+            96152.0
+          ]
+        }
+      ]
+    },
+    {
+      "id": "forecast",
+      "type": "line",
+      "title": "Revenue forecast",
+      "notes": [],
+      "note": null,
+      "cautions": [
+        "About 5 days in the current month have no sales."
+      ],
+      "series": [
+        {
+          "name": "point",
+          "x": [
+            "2026-07",
+            "2026-08",
+            "2026-09"
+          ],
+          "y": [
+            99662.0,
+            99662.0,
+            99662.0
+          ]
+        },
+        {
+          "name": "low",
+          "x": [
+            "2026-07",
+            "2026-08",
+            "2026-09"
+          ],
+          "y": [
+            90100.0,
+            88900.0,
+            87500.0
+          ]
+        },
+        {
+          "name": "high",
+          "x": [
+            "2026-07",
+            "2026-08",
+            "2026-09"
+          ],
+          "y": [
+            109200.0,
+            110400.0,
+            111800.0
+          ]
+        }
+      ]
+    }
+  ],
   "provenance": {
     "stages_run": [
       "ingest",

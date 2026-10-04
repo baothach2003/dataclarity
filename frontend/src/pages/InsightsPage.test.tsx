@@ -201,6 +201,34 @@ describe('InsightsPage: the causes', () => {
   })
 })
 
+// 6E part 3: cause -> what next. The revenue chart and the forecast follow the
+// causes; the recommendations' place says they are off in v1; the data-quality
+// cards close the page.
+describe('InsightsPage: what next', () => {
+  it('shows revenue by month and the forecast after the causes, then the recommendations, then the data-quality cards', () => {
+    const report = makeReport()
+    report.layer_1_numbers.undated_lines = 14
+    report.layer_1_numbers.undated_lines_reason = '14 lines carry no date the file can read.'
+    show(report)
+    const names = [
+      'Why it happened',
+      'Revenue by month',
+      'Revenue forecast',
+      'Recommendations',
+      'Lines in no figure, and where their money went',
+      'The file and where these figures come from',
+      'How to read these figures',
+    ]
+    const headings = names.map((name) => screen.getByRole('heading', { name }))
+
+    for (let i = 1; i < headings.length; i += 1) {
+      const earlier = headings[i - 1] as Node
+      expect(earlier.compareDocumentPosition(headings[i] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    }
+    expect(screen.getByText('The AI recommendations are switched off for this report.')).toBeDefined()
+  })
+})
+
 describe('InsightsPage: the report download', () => {
   it('downloads the HTML report under the file name', async () => {
     const blob = new Blob(['<!doctype html>'])

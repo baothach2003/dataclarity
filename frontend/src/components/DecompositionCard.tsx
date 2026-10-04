@@ -9,7 +9,7 @@ import type { Decomposition, DiagnosisView, FactorName } from '../domain/diagnos
 import { signedMoney } from '../domain/diagnosisView.ts'
 import { change, count, money } from '../domain/reportFormat.ts'
 import type { NoteFigure, NoteView, Numbers } from '../types/report.ts'
-import { NoteBody } from './NoteBody.tsx'
+import { NotesBeside } from './NotesBeside.tsx'
 
 // Stage 3's customers are BUYERS - customers with a sale row (lever.period_totals) - not the KPI's active
 // customers, which count a customer who only returned goods (the 6E2 review #1); a file without trusted
@@ -163,14 +163,7 @@ export function DecompositionCard({ view, numbers, ordersBasis, notes }: Decompo
           {`By the calendar alone (${CALENDAR_WORDS[calendar.method]}), revenue would be expected to change by ${signedMoney(calendar.calendarEffect)}; net of that, the change is ${signedMoney(calendar.calendarAdjustedChange)}.`}
         </p>
       )}
-      {besideLever.length > 0 && (
-        <details className="decomposition__notes">
-          <summary>{`Notes on these figures (${String(besideLever.length)})`}</summary>
-          {besideLever.map((note) => (
-            <NoteBody key={note.code} note={note} period={numbers.period} />
-          ))}
-        </details>
-      )}
+      <NotesBeside notes={besideLever} period={numbers.period} />
     </section>
   )
 }

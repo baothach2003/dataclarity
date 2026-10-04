@@ -1260,12 +1260,13 @@ table.hypotheses details summary {
   font-size: var(--type-caption-size);
   text-align: right;
 }
-.decomposition__notes summary {
+.notes-beside summary,
+.chart-table summary {
   color: var(--accent);
   cursor: pointer;
   font-size: var(--type-label-size);
 }
-.decomposition__notes .note-body {
+.notes-beside .note-body {
   margin-top: var(--space-2);
   font-size: var(--type-caption-size);
 }
@@ -1274,4 +1275,33 @@ table.hypotheses details summary {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   color: var(--text-primary);
+}
+
+/* Charts and what next (6E part 3). */
+.chart-frame {
+  width: 100%;
+  min-width: 0;
+}
+.insights-caution {
+  color: var(--severity-medium);
+  font-size: var(--type-caption-size);
+}
+.recommendations {
+  padding-left: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.recommendations__action {
+  font-weight: var(--type-label-weight);
+}
+.insights-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.insights-section__title {
+  font-size: var(--type-h2-size);
+  line-height: var(--type-h2-line);
+  font-weight: var(--type-h2-weight);
 }
