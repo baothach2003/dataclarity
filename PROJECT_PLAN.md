@@ -5299,6 +5299,45 @@ dataclarity/
       passed every check, and any difference from what the fakes return.
       Never change a prompt to make it pass: report what failed and stop.
       Then stop, before any deploy step.
+      **Run (the sixteenth run, 2026-10-04 22:25) - STOPPED at the first
+      call's answer.** Through the backend on the real key (`.env`), the
+      Kaggle demo first, a driver that stops on any failed outcome
+      (scratchpad `run16/smoke.py`; the client's own metadata log). Model
+      `claude-sonnet-5` (served under that id); estimates at Anthropic's
+      price page of 2026-10-04 for Sonnet 5, $2 / $10 per million input /
+      output tokens.
+      - Call 1, schema inference: 6,987 in / 1,329 out, 9.4 s, ~$0.027 -
+        **failed the client's checks** (`invalid_response`). Why is not
+        recorded: the client logs metadata only, never the answer or the
+        error text, which can hold the file's rows (AI_PIPELINE 3); learning
+        it would take another call.
+      - Call 2, the run's one retry (the rejection appended): 7,201 in /
+        1,297 out, 8.8 s, ~$0.027 - passed every check; analyze-schema
+        returned 200 with the schema.
+      - Stopped there, as instructed: no plan call, Review, execute or
+        stages 2-5 on this file; the Online Retail II sample not run. 2 of
+        the 6 calls used, ~$0.055 in all. No prompt changed.
+      - Against the fakes: the served model id is `claude-sonnet-5` (the
+        fakes', `claude-served`); ~9 s a call; ~7,000 tokens in (the bounded
+        sample and profile), ~1,300 of the 3,000 out. The accepted answer:
+        11 columns, every required field mapped (Transaction ID -> order_id,
+        Customer ID -> customer, Category, Item -> product_name, Price Per
+        Unit, Quantity, Transaction Date), Total Spent, Payment Method,
+        Location and Discount Applied -> ignore (Payment Method not mapped
+        to transaction_type - the 2026-09-22 mistake not repeated), domain
+        confidence 0.97 (fakes 0.93), no dataset issue (the fakes carry one
+        duplicate_rows), per-column issues only `missing_values`. The fakes'
+        only invalid answer is "this is not json"; the real one's failure is
+        unknown.
+      - Measured: 1 first answer of 1 failed its checks, its retry passed -
+        one call, no rate. With one retry per run, a schema retry leaves the
+        plan none: had the plan's first answer failed too, Review would have
+        opened on the manual plan (the designed degraded mode).
+      **For Thach:** to learn why call 1 failed, one more real call with the
+        validation error kept for that run only (a local log of the error
+        text - no prompt change; the data is the public Kaggle file); then
+        the smoke test can resume (plan, Review, execute, stages 2-5, the
+        second file) within the remaining 4 calls.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5493,9 +5532,13 @@ rule 4 rewording), browser-checked (the phone measure corrected; Review's
 question notices and the stepper fixed); pytest 4540, Vitest 395. Pushed as
 da753a7 (stages 3 and 5, contracts, docs) and the page's commit after it.
 Three questions for Thach: 3E1b (rule 4's hedge beside a band) and 6E (the
-product lens's "against"; D1's badge beside rule 2). Then the smoke test
-(Phase 9). Report: `C:\Users\Happy\overnight-report.txt` (the fifteenth
-run's as `overnight-report-run15.txt`).
+product lens's "against"; D1's badge beside rule 2). The smoke test
+(Phase 9) STOPPED at its first call: the Kaggle schema answer failed the
+client's checks (why is not logged, by design), the one retry passed; 2 of
+6 calls, ~$0.055, no prompt changed, the plan and the second file not run -
+Thach to decide how to learn the failure. Stopped before any deploy step.
+Report: `C:\Users\Happy\overnight-report.txt` (the fifteenth run's as
+`overnight-report-run15.txt`).
 **Fifteenth overnight run** (2026-10-04, on the fourteenth report; Thach's
 decisions recorded at 3E1b, 8D and Phase 6's Wave 3 item). 8D (a) and (b)
 built, tested, mutated, reviewed, re-checked (outcomes identical, wording
