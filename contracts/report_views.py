@@ -150,6 +150,12 @@ class Kpi(ContractModel):
     previous: int | float | None
     change_pct: float | None  # revenue's alone: no other change is computed (CONTRACTS 11)
     change_reason: str | None  # why revenue's change is null
+    # 2.8 (Thach, Q22): revenue's exact change, metrics.json's
+    # core.revenue_change - the appendix's figure; the front section prints the
+    # bridge's shown change instead. Null where it is (an incomplete previous
+    # month, a withheld current month), in a metrics.json before 16.2, and for
+    # every other KPI.
+    change: float | None = None
     current_reason: str | None
     previous_reason: str | None
     notes: list[NoteCode]  # the notes beside this figure, by code
@@ -161,6 +167,8 @@ class Kpi(ContractModel):
             raise ValueError(f"{self.id}: a null figure carries its reason")
         if self.id == "revenue" and self.change_pct is None and not self.change_reason:
             raise ValueError("revenue's change is null only with its reason")
+        if self.id != "revenue" and self.change is not None:
+            raise ValueError("a change is revenue's alone: no other is computed (CONTRACTS 11)")
         return self
 
 

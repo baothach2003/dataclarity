@@ -1285,7 +1285,8 @@ difference can sit a cent UNDER the terms' own sum, and then the bars with
 the smallest remainders give a cent back (a tie to the later bar): a bar is
 its term rounded down, or a cent either side of that. A term of exactly 0
 - a factor that did not move, or float residue next to the largest term
-(within a billionth of it) - never takes or gives a cent and shows 0.00,
+(within a billionth of it, and under half a cent) - never takes or gives a
+cent and shows 0.00,
 nor does a positive term give back a cent that would show it below zero
 (cycles 2 #3, 3 #5).
 The rule is `contracts.lever_bridge.allocate_cents`, one copy: stage 3
@@ -1305,9 +1306,15 @@ prints back - about 15 significant digits; a level-2 term can be far
 larger than the months). Beside a withheld bridge the file holds only
 level 1's factors, whose product can print a cent apart from the revenue
 near half a cent, so the contract refuses `month_not_positive` only beside
-months that product shows at a cent or more. One of the two in an 18.4
-file; neither before - an earlier file carrying any of the redesign's
-fields is refused. Not the customer
+months that product shows at a cent or more, and the other codes beside
+a month that product shows at zero or below (stage 3 reads the months
+first). **`failed_checks`** (18.5;
+Thach, 2026-10-05, item 1): the bridge failed while being built or checked
+- by its own model, the lever's or the whole file's - and was left out;
+every other field is written as computed (stage 3 logs the failure). A
+display never takes the diagnosis down: suppress, never fabricate. One of
+the two in an 18.4 file; neither before - an earlier file carrying any of
+the redesign's fields is refused, and an 18.4 file `failed_checks`. Not the customer
 lens's bridge terms (`tree.customers`): the lever's.
 `masked_shift_basis` was removed by ADR-0007; a file still carrying it is read
 and the field ignored.
@@ -1507,7 +1514,8 @@ T2's verdict (its evidence keys are no consumer field); null with
 is not in the data", T2's words) or the run is blocked ("the diagnosis is
 blocked"), as the frame and `trust.verdict` say; its months are the
 frame's `year_ago_previous` / `year_ago_current`, and its revenue T2's own
-`ly_prev` / `ly_cur` where T2 read them. The frame names a pair only among
+`ly_prev` / `ly_cur` - stage 3 writes it from T2's evidence, so the two
+are equal by construction. The frame names a pair only among
 the months the file covers whole (`months_with_rows`). One of the two in an 18.4
 file; neither before. A consumer decides on `rule`,
 `singled_out` and `season.band` (a consistent band is rule 7 whatever `singled_out` says), never on
@@ -1875,7 +1883,12 @@ writes the file):
   diagnosis.json's `notes` that are not always-on (the copies of
   metrics.json's notes stage 3 carries); the suggested classes.
   `narration` is `ai_findings`; null shows as `narration_status`
-  "unavailable" (AI_PIPELINE 9).
+  "unavailable" (AI_PIPELINE 9) - or, since 2.8, "not_in_v1" (Thach, Q21:
+  3F is closed, v1 has no narration step), which report.html and the page
+  show nothing for. Since 2.8 the revenue KPI carries `change`, metrics.json's
+  exact `core.revenue_change` (Thach, Q22: the appendix's figure - the front
+  section prints the bridge's `shown_change`); null where the change is
+  withheld, before metrics 16.2, and for every other KPI.
 - **`layer_3_actions`** (forecast.json): the forecast with its notes -
   metrics.json's notes naming revenue (not always-on) and its own
   `history_note` / `season_note` - and its `season_years` (2.0), which a
@@ -2013,6 +2026,14 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-05: **the report redesign, item 1 and Q21 (Thach).**
+  `diagnosis.json` `18.5`: `tree.lever.bridge_withheld` gains
+  `failed_checks`; `report.json` `2.8`: `layer_2_causes.narration_status`
+  gains `not_in_v1` (3F closed). Each is a closed vocabulary growing,
+  which this section's rule makes a MAJOR bump; Thach ruled both
+  "additive" (minor) - no reader outside this code reads either value, and
+  every consumer is updated in the same session. A file of the earlier
+  minor carrying the new value is refused.
 - 2026-10-05: **the report redesign, step 1 (Thach; docs/REPORT_REDESIGN.md
   section 2).** Optional fields, minor, each version-gated (a file of the
   new minor is refused without them, an earlier one still loads):
@@ -2779,7 +2800,7 @@ How the fields are read:
 | `tree.lever.bridge.bars[].shown` | `float` | 5, FE |
 | `tree.lever.bridge.aov_split` | `bool` | 5, FE |
 | `tree.lever.bridge.aov_split_withheld` | `Literal['refund_lines', 'aov_unchanged', 'net_units_not_positive'] \| None` | 5, FE |
-| `tree.lever.bridge_withheld` | `Literal['zero_orders', 'month_not_positive', 'not_to_the_cent'] \| None` | 5, FE |
+| `tree.lever.bridge_withheld` | `Literal['zero_orders', 'month_not_positive', 'not_to_the_cent', 'failed_checks'] \| None` | 5, FE |
 | `tree.customers` | `object \| None` | 4B, 5, FE |
 | `tree.customers.new` | `float` | 4B, 5, FE |
 | `tree.customers.resurrected` | `float` | 4B, 5, FE |

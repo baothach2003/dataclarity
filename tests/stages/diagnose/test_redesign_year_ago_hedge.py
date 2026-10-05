@@ -222,13 +222,13 @@ def test_an_18_3_file_without_the_new_fields_still_loads() -> None:
     assert (loaded.year_ago, loaded.tree.lever.bridge, loaded.headline.hedge) == (None, None, None)
 
 
-def test_the_version_is_18_4() -> None:
-    assert SCHEMA_VERSION == "18.4"  # 18.4: bridge, year_ago, hedge (the report redesign, step 1)
+def test_the_version_is_18_5() -> None:
+    assert SCHEMA_VERSION == "18.5"  # 18.5: "failed_checks" (item 1); 18.4: bridge, year_ago, hedge (step 1)
 
 
-def test_report_json_carries_the_headline_so_it_is_2_7() -> None:
+def test_report_json_carries_the_headlines_hedge() -> None:
     from contracts.report import ReportContract
     from stages.report.builder import SCHEMA_VERSION as REPORT_VERSION
 
-    assert REPORT_VERSION == "2.7"  # 2.7: the headline's hedge (report.json carries the Headline model)
+    assert REPORT_VERSION == "2.8"  # 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7: the headline's hedge (report.json carries the Headline model)
     assert "hedge" in ReportContract.model_fields["layer_2_causes"].annotation.model_fields["headline"].annotation.model_fields

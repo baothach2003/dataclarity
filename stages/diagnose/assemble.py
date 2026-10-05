@@ -9,6 +9,7 @@ Step 8 (3F) adds only the narration. If the trust gate blocks, steps 3-6 are
 skipped, their blocks are null, and the headline states the data problem.
 """
 
+import logging
 from collections.abc import Callable
 from contextlib import AbstractContextManager
 from dataclasses import asdict
@@ -19,10 +20,14 @@ from contracts.diagnosis import (
     NO_YEAR_AGO_PAIR,
     DiagnosisContract,
     Frame,
+    Hypothesis,
+    Lever,
     NotTestable,
     Trust,
     YearAgo,
 )
+from pydantic import ValidationError
+
 from shared.contract_files import write_atomically
 from shared.run_registry import run_file
 from stages.diagnose.calendar_effect import compute_calendar
@@ -43,8 +48,10 @@ from stages.diagnose.trust import evaluate_trust
 # comment says what each major changed).
 # 18.1 (Thach, 2026-10-03): hypotheses_note; 18.2 (2026-10-04): headline.movement.season; 18.3
 # (2026-10-04, (vi)-(vii)): hypotheses[].against_the_change and rule 2's note; 18.4 (the report
-# redesign, step 1, 2026-10-05): tree.lever.bridge, year_ago, headline.hedge - all additive.
-SCHEMA_VERSION = "18.4"
+# redesign, step 1, 2026-10-05): tree.lever.bridge, year_ago, headline.hedge - all additive; 18.5
+# (Thach, item 1): bridge_withheld "failed_checks" - a vocabulary grown, additive by his ruling.
+SCHEMA_VERSION = "18.5"
+logger = logging.getLogger(__name__)
 DIAGNOSIS_FILENAME = "diagnosis.json"
 
 
@@ -67,7 +74,7 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
     inputs = Step7Inputs(data, history, frame, trust, calendar, signals, tree, localization)
     hypotheses = evaluate_hypotheses(inputs)
     headline = choose_headline(trust, hypotheses, tree, changes(inputs))
-    return DiagnosisContract(
+    fields = dict(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),
         model_used=None,
@@ -81,16 +88,38 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
         not_testable=[NotTestable(**asdict(spec)) for spec in NOT_TESTABLE],
         headline=headline,
         hypotheses_note=hypotheses_note(headline),
-        **_year_ago(data, frame, trust),
+        **_year_ago(frame, trust, hypotheses),
         ai_findings=None,
         notes=stage_3_notes(data),
         suggested_classes=named_suggestions(data, localization, hypotheses),
     )
+    try:
+        return DiagnosisContract(**fields)
+    except ValidationError as refused:
+        if tree is None or tree.lever.bridge is None:
+            raise
+        # The bridge is a display (Thach, item 1): a file the contract refuses
+        # only for its bridge is written without it - the bridge withheld, every
+        # other field as computed. Refused without the bridge too, it was not
+        # the bridge's fault, and the first refusal stands.
+        # Validated, not copied: a copy runs no validator, and a lever its own
+        # rules refuse would be written for every reader to refuse (review of
+        # item 1c, #4).
+        lever = Lever.model_validate(tree.lever.model_dump() | {"bridge": None, "bridge_withheld": "failed_checks"})
+        fields["tree"] = tree.model_copy(update={"lever": lever})
+        try:
+            withheld = DiagnosisContract(**fields)
+        except ValidationError as remaining:
+            # What still fails without the bridge is the real cause (review
+            # of item 1c, #2): raised, the bridge's refusal chained to it.
+            raise remaining from refused
+        logger.error("the diagnosis refused its bridge; it is withheld and the file written without it: %s", refused)
+        return withheld
 
 
-def _year_ago(data: RunData, frame: Frame, trust: Trust) -> dict[str, YearAgo | str | None]:
+def _year_ago(frame: Frame, trust: Trust, hypotheses: list[Hypothesis]) -> dict[str, YearAgo | str | None]:
     """T2's pair as a fact (the report redesign, step 1): the same two months
-    a year earlier, by the revenue T2 reads (`month_revenue`), or why there
+    a year earlier, T2's own revenue for them (its evidence), or why there
     is none. A blocked run carries no analysis. The frame names a pair only
     among the months the file covers whole (`months_with_rows`); days with no
     sales INSIDE such a month are T2's to judge, and its verdict stands beside
@@ -99,9 +128,12 @@ def _year_ago(data: RunData, frame: Frame, trust: Trust) -> dict[str, YearAgo | 
         return {"year_ago": None, "year_ago_reason": "the diagnosis is blocked"}
     if frame.year_ago_previous is None or frame.year_ago_current is None:
         return {"year_ago": None, "year_ago_reason": NO_YEAR_AGO_PAIR}
+    # T2's own pair, read from its evidence - equal by construction, however
+    # T2 reads the months (review of item 1c, #3): T2 writes ly_prev / ly_cur
+    # whenever the frame has the pair.
+    evidence = next(h.evidence for h in hypotheses if h.id == "T2")
     return {"year_ago": YearAgo(previous=frame.year_ago_previous, current=frame.year_ago_current,
-                                revenue_previous=month_revenue(data, frame.year_ago_previous),
-                                revenue_current=month_revenue(data, frame.year_ago_current)),
+                                revenue_previous=evidence["ly_prev"], revenue_current=evidence["ly_cur"]),
             "year_ago_reason": None}
 
 

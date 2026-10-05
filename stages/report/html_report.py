@@ -34,6 +34,7 @@ from stages.report.html_parts import (
     reason,
     scope_shown,
     share,
+    signed_money,
     table,
 )
 
@@ -49,6 +50,17 @@ padding:0 1rem;color:#1d2330;line-height:1.5}h1{margin-bottom:.2rem}.meta,.reaso
 .9rem;margin:1rem 0;background:#f5f6f8}.badge-trusted{border-color:#2e7d4f}.badge-caution{border-color:#c98a00}
 .badge-blocked{border-color:#b3261e}.note{border-left:3px solid #dde1e8;padding-left:.8rem;margin:.6rem 0}
 .caution{color:#7a5200}section{margin-top:2.2rem}@media print{.plotly-graph-div{break-inside:avoid}}"""
+
+
+def _change_cell(kpi: Kpi, incomplete: str | None) -> str:
+    """Revenue's change: since 2.8 its exact amount (Thach, Q22: the
+    appendix's figure) beside the percentage, or beside why the percentage is
+    null; before 2.8, the percentage alone."""
+    pct = (change(kpi.change_pct) if kpi.change_pct is not None else
+           _previous(kpi, None, kpi.change_reason, incomplete) if kpi.change_reason else "")
+    if kpi.change is None:
+        return pct
+    return f"{signed_money(kpi.change)} ({pct})" if kpi.change_pct is not None else f"{signed_money(kpi.change)} {pct}"
 
 
 def _chart(chart: Chart, band: float | None = None, *, with_note: bool = True) -> str:
@@ -96,8 +108,7 @@ def _numbers(numbers: Numbers, charts: dict[str, Chart]) -> str:
     rows = [[esc(kpi.label),
              reason(kpi.current_reason or "") if kpi.current is None else FORMATS[kpi.unit](kpi.current),
              _previous(kpi, kpi.previous, kpi.previous_reason, incomplete),
-             change(kpi.change_pct) if kpi.change_pct is not None else
-             _previous(kpi, None, kpi.change_reason, incomplete) if kpi.change_reason else "", links(kpi.notes)]
+             _change_cell(kpi, incomplete), links(kpi.notes)]
             for kpi in numbers.kpis]
     parts.append(table(["Figure", period.current, period.previous, "Change", "Notes"], rows))
     if numbers.unconfirmed_placeholders_reason:

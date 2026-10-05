@@ -42,8 +42,9 @@ from stages.report.layers import actions, causes, numbers, revenue_notes
 # optional movement; 2.2 since 2E-u6: the lines dated after the upload; 2.3: the hypotheses note; 2.4: the
 # headline's season comparison; 2.5: each hypothesis's label and evidence text, each line outside
 # revenue's reason; 2.6: each hypothesis's lens, so the label names its total; 2.7: the headline's hedge
-# (the report redesign, step 1 - report.json carries the Headline model) (CONTRACTS 10).
-SCHEMA_VERSION = "2.7"
+# (the report redesign, step 1 - report.json carries the Headline model); 2.8: narration_status
+# "not_in_v1" (Q21) and the revenue KPI's exact change (Q22) (CONTRACTS 10).
+SCHEMA_VERSION = "2.8"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 

@@ -104,12 +104,13 @@ def test_the_causes_are_the_diagnosis_as_it_stands() -> None:
     assert causes.narration is not None and causes.narration_status == "shown"
 
 
-def test_a_diagnosis_with_no_narration_shows_it_unavailable() -> None:
-    # AI_PIPELINE 9: a null AI block shows as "unavailable".
+def test_a_diagnosis_with_no_narration_says_v1_has_none() -> None:
+    # Thach, Q21 (report.json 2.8): 3F is closed, so a null narration is "not_in_v1" - nothing failed.
+    # "unavailable" (AI_PIPELINE 9) stays for a report from before (test_q21_q22).
     diagnosis = diagnosis_payload()
     diagnosis.update({"ai_findings": None, "model_used": None})
     causes = build(diagnosis=diagnosis).layer_2_causes
-    assert (causes.narration, causes.narration_status) == (None, "unavailable")
+    assert (causes.narration, causes.narration_status) == (None, "not_in_v1")
 
 
 # --- the actions ------------------------------------------------------------------------------

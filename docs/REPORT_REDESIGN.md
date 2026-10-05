@@ -128,9 +128,9 @@ file's currency."
 > they placed 343 orders, up from 308.
 
 Fields: `core.revenue_current`, `core.revenue_previous`,
-`core.revenue_change_pct`, **NEW `core.revenue_change`** (stage 2; today the
-+4,925.00 exists only inside `headline.message` text, which is never
-parsed), `headline.movement.singled_out`, `.factor`, `.typical_pct`,
+`core.revenue_change_pct`, **`tree.lever.bridge.shown_change`** (Thach,
+Q22: every front number agrees with the chart to the cent; the exact
+`core.revenue_change` is the appendix's; with no bridge drawn, Q24), `headline.movement.singled_out`, `.factor`, `.typical_pct`,
 `headline.rule`, `headline.hypothesis_id`; for B1 the customers who placed
 an order from `bridge` (Q4: the front never shows the active-customer
 count) and `core.orders_*`. For each other id the template names its own
@@ -259,7 +259,7 @@ year's, none of these is called the reason; each line says what moved."
 **The amounts overlap, and the list says so** (Thach, Q20). Directly under
 the first group's lines, one fixed sentence (no figure but the change
 field): **"These amounts are measured in different ways and overlap, so
-they do not add up to the change ({core.revenue_change}). The chart in
+they do not add up to the change ({bridge.shown_change}). The chart in
 section 2 is the one that adds up."**
 
 **Prices are worded as part of the chart's price bar** (Q20). P1 and P2
@@ -472,9 +472,10 @@ own name included) and adds one line at its top: "In this appendix,
 closes). The code-written front section is the narration, so nothing is
 missing. Today the line reads an AI step that failed. diagnosis.json keeps
 `ai_findings` and `model_used` null, as every v1 run writes them now.
-report.json keeps `narration` null and its status: whether that status
-gains a value saying the step does not exist (an additive vocabulary
-change) is **Q21**.
+report.json keeps `narration` null, its status `not_in_v1` (2.8; Thach,
+Q21), and report.html and the page show nothing for it. The appendix's KPI
+table prints revenue's exact change (`core.revenue_change`, 2.8's KPI
+`change`) beside the percentage (Q22).
 
 ## 2. New fields (all additive; CLAUDE.md 3.7)
 
@@ -950,22 +951,35 @@ veto):
 - The P1 line's "moved with what customers bought" clause is written only
   when P1's contribution prints as 0.00 (1.3).
 
+**Answered by Thach, 2026-10-05 (second round):**
+
+21. **Q21** - `narration_status` gains `not_in_v1` (the vocabulary grows,
+    additive - report.json 2.8); report.html and the page show no line for
+    it. Reason: "unavailable" reads as a failure, but the step was removed
+    by design.
+22. **Q22** - the front section prints `bridge.shown_change` everywhere,
+    sentence A included, so every front number agrees with the chart to the
+    cent; the exact `core.revenue_change` goes to the appendix (report.json
+    2.8: the revenue KPI's `change`, printed in the KPI table).
+23. **Q23** - no cross-model review. Instead: the bridge must never take
+    the diagnosis down (item 1, section 12), then a scoped fresh-context
+    review of the cycle-3 fix that had not been reviewed.
+- Step 1's five decisions made alone: accepted. The file sizes
+  (contracts/diagnosis.py ~1,050 lines, stages/diagnose/lever.py ~490): debt
+  in 8D, split after deploy, not now.
+
 **Open:**
 
-22. **Q22** (from step 1's review) - the two change amounts can differ by a
-    cent: `core.revenue_change` is the exact difference (sentence A,
-    "up 4,925.00"), `bridge.shown_change` the printed months' difference
-    (the chart's). They differ only where a month ends on half a cent (e.g.
-    10.006 to 20.004: "up 10.00" in the summary, 9.99 between the chart's
-    ends). Which does sentence A print when the bridge is drawn - the
-    bridge's (one number on the page), or the exact one (stage 2's own)?
-23. **Q23** - cross-model review of step 1 (Gemini or Codex CLI, read-only
-    sandbox) was not run: the session ran while Thach was away. Run it
-    before step 2, or skip?
-21. **Q21** - with 3F closed, report.json's `narration_status` keeps
-    today's value (the page simply stops printing the line), or gains a
-    value saying the step does not exist in v1 (an additive vocabulary
-    change, a major bump where a reader validates it closed)?
+24. **Q24** - with no bridge drawn (`bridge_withheld`: zero orders, a month
+    at 0.00 or below, not to the cent, failed checks) there is no
+    `shown_change`: which change does sentence A print then - the exact
+    `core.revenue_change`, or no amount (the percentage alone, or the two
+    months only)?
+25. **Q25** - CONTRACTS 10 makes a closed vocabulary's new value a MAJOR
+    bump; Thach ruled both of this round's ("failed_checks", "not_in_v1")
+    additive, and they shipped as minors (diagnosis 18.5, report 2.8), the
+    exception written in CONTRACTS 10. Does that ruling stand for future
+    vocabularies too (amend the rule), or only for these two?
 
 ## 11. The build, step by step
 
@@ -981,6 +995,70 @@ veto):
 Each is its own session, grouped for commits as CLAUDE.md says.
 
 ## 12. As built
+
+### Item 1 - the bridge never takes the diagnosis down (2026-10-05)
+
+Thach's item 1: every review cycle of step 1 had found a rounding edge that
+crashed stage 3 and lost the whole diagnosis.json. Checked first, on step
+1's code: a bridge failing to build (an exception), refused by its own
+model, a helper raising, or valid on its own but refused by the whole
+file's checks (the refund-split tie) - all four lost the diagnosis (the
+tests in `tests/stages/diagnose/test_bridge_never_fails_the_diagnosis.py`,
+run red on 4fe249f). Fixed - suppress, never fabricate:
+
+- `lever.lever_from_totals` builds the Lever with its bridge inside one
+  handler: any exception there (logged) gives the Lever without it,
+  `bridge_withheld: "failed_checks"` (diagnosis.json 18.5; the vocabulary
+  grown, minor by Thach's ruling, Q25). The Lever without the bridge is
+  built outside the handler, so a failure that is not the bridge's still
+  raises.
+- `assemble.diagnose`: a DiagnosisContract refused while it carries a
+  bridge is built again without it (`failed_checks`, logged); refused again,
+  the FIRST refusal is raised - the bridge was not its cause. So the
+  contract's own validators never turn a bridge problem into a whole-file
+  rejection of stage 3's output.
+- Every other field of diagnosis.json is written exactly as without the
+  failure (each test compares the whole file, the bridge aside). A failure
+  elsewhere (a hypothesis step) and a file refused for something else (a
+  mark on a product the file never names) still raise. An 18.4 file
+  carrying `failed_checks` is refused.
+- Tests first (4 red); 5 mutants, all killed.
+
+**1c - the scoped review of step 1's cycle-3 fix** (fresh context, only the
+unreviewed fix). It found no stage-3 output the fix refuses, and eight
+weaknesses around it, each handled with tests first and mutation:
+1. rule A's tolerance was pinned by no test - now pinned on the case that
+   splits the two readings (revenue 0.004999999999999999 prints 0.00, level
+   1's product 0.005 prints 0.01): `month_not_positive`, never a refusal;
+2. with the bridge and another rule both broken, the fallback raised the
+   bridge's refusal - now the one that remains without the bridge, the
+   real cause, the bridge's chained to it;
+3. `year_ago` matched T2 by two separate computations - now written from
+   T2's own evidence, equal by construction;
+4. the fallback lever was copied, never validated - now validated (an
+   equivalent mutant today: no reachable state differs; kept as a guard);
+5. beside a huge term, residue could swallow a real 9 cents - residue is
+   now also under half a cent;
+6. a numpy float crashed `allocate_cents` - converted first;
+7. tests pinning their rule only in part - tightened (each new field alone
+   in an 18.3 file; year_ago's current month; a blocked run WITH a pair;
+   the residue boundary; a residue term's bar);
+8. the other withholding codes beside a month at zero or below were
+   accepted - refused. Left as a trade-off (hand-built files only, never
+   stage 3's): a file missing B2 or T2, or with duplicate ids, escapes the
+   ties that read them.
+
+### Item 2 - Q21 and Q22 in code (2026-10-05)
+
+report.json 2.8 (CONTRACTS 9, 10): `narration_status` "not_in_v1" for v1's
+absent narration - report.html and the Insights page print no line for it;
+"unavailable" keeps its line in a report from before. The revenue KPI
+carries `change`, the exact `core.revenue_change` (the appendix's figure),
+printed beside the percentage in the KPI table ("-140,000.00 (-10.9%)");
+null where the change is withheld and before metrics 16.2. The front
+section's use of `bridge.shown_change` is step 3's (with Q24 open). Tests
+first (9 red, and the page's 1); two tests that pinned "unavailable" for a
+v1 report updated to the decided rule.
 
 ### Step 1 - stages 2 and 3's new fields (2026-10-05)
 

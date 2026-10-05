@@ -5374,6 +5374,10 @@ dataclarity/
       - a file with amounts in more than one currency is BLOCKED in v1
         (option A); analysing one currency with the other lines left out
         in stage 1 (option B) is a known limit, in the Backlog.
+      - file sizes (CLAUDE.md section 5, ~300 lines): contracts/diagnosis.py
+        ~1,050 lines and stages/diagnose/lever.py ~490 after step 1 (902 and
+        407 before it) - debt, split after deploy, not now (Thach,
+        2026-10-05).
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -5855,6 +5859,27 @@ dataclarity/
       decisions made alone and the verification: `docs/REPORT_REDESIGN.md`
       section 12. Open: Q21-Q23 (its section 10). Next: step 2 (stage 1
       currency) after Thach's approval.
+      **Thach's second answers (2026-10-05):** Q21 `narration_status` gains
+      `not_in_v1` (additive), and report and page show no line for it -
+      "unavailable" reads as a failure, the step was removed by design. Q22
+      the front section prints `bridge.shown_change` everywhere, sentence A
+      included, so every front number agrees with the chart to the cent; the
+      exact `core.revenue_change` goes to the appendix. Q23 no cross-model
+      review; instead item 1 below. Step 1's five decisions made alone
+      accepted; the file sizes recorded in 8D as debt.
+      **Item 1 - the bridge never takes the diagnosis down - DONE:** a bridge
+      failing to build, refused by its own model, a helper raising, or
+      refused by the whole file's checks lost the diagnosis on 4fe249f (4
+      tests red); now withheld as `failed_checks` (diagnosis.json 18.5), every
+      other field written unchanged, a failure elsewhere still raising
+      (suppress, never fabricate). Then a scoped fresh-context review of the
+      cycle-3 fix (the design's section 12).
+      **Item 2 - Q21, Q22 in code - DONE:** report.json 2.8: `not_in_v1`
+      written for v1's absent narration (report.html and the Insights page
+      print nothing for it; "unavailable" keeps its line); the revenue KPI's
+      `change` (the exact amount) printed beside the percentage in the KPI
+      table. The front section's use of `shown_change` is step 3's. Open:
+      Q24 (sentence A with no bridge drawn), Q25 (the vocabulary-bump ruling).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6043,6 +6068,11 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - item 1, Q21-Q22, then step 2** (2026-10-05, on
+Thach's second answers, recorded at 9R). Item 1: the bridge never takes the
+diagnosis down (`failed_checks`, diagnosis.json 18.5), then a scoped review
+of step 1's cycle-3 fix. Item 2: report.json 2.8 (`not_in_v1`; the revenue
+KPI's exact change). Then step 2, stage 1 currency (its own group).
 **Report redesign - Thach's answers, then step 1** (2026-10-05). His answers
 to the design's 20 questions recorded (9R; `docs/REPORT_REDESIGN.md`
 section 10) and applied to every wording; 3F closed (Q14); mixed currencies

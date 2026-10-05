@@ -14,7 +14,10 @@ from pydantic import model_validator
 from contracts._base import ContractModel
 from contracts.lines import refuse_non_finite
 
-BridgeWithheld = Literal["zero_orders", "month_not_positive", "not_to_the_cent"]
+# "failed_checks" (18.5, Thach 2026-10-05): the bridge failed while being
+# built or checked and was left out - a display never takes the diagnosis
+# down (stages/diagnose/lever.lever_from_totals, assemble.diagnose).
+BridgeWithheld = Literal["zero_orders", "month_not_positive", "not_to_the_cent", "failed_checks"]
 SplitWithheld = Literal["refund_lines", "aov_unchanged", "net_units_not_positive"]
 # Level 2's reasons for being null, by the code the bridge withholds its split
 # with - one copy: stage 3 writes them in `tree.lever.reasons["level2"]`, and
@@ -40,7 +43,8 @@ def printed_cents(value: float) -> int:
 
 def floor_cents(value: float) -> int:
     """`value` in cents, rounded down, from its exact decimal repr."""
-    return int((Decimal(repr(value)).scaleb(2)).to_integral_value(rounding=ROUND_FLOOR))
+    # float() first: a numpy float's repr is "np.float64(...)" (review of item 1c, #6).
+    return int((Decimal(repr(float(value))).scaleb(2)).to_integral_value(rounding=ROUND_FLOOR))
 
 
 def allocate_cents(terms: list[float], total_cents: int) -> list[int] | None:
@@ -60,9 +64,12 @@ def allocate_cents(terms: list[float], total_cents: int) -> list[int] | None:
     terms that may move, cannot reach the target (float residue past a cent,
     at very large amounts) - never a crash, never a bar moved further."""
     # Float residue next to the largest term is no movement: it shows 0.00,
-    # never -0.01 for a factor that did not move (cycle 3 #5; the F9 rule).
+    # never -0.01 for a factor that did not move (cycle 3 #5; the F9 rule) -
+    # and residue is under half a cent too: beside a huge term a real 9 cents
+    # is not residue (review of item 1c, #5).
+    terms = [float(term) for term in terms]
     scale = max((abs(term) for term in terms), default=0.0)
-    terms = [0.0 if abs(term) <= RESIDUE * scale else term for term in terms]
+    terms = [0.0 if abs(term) <= RESIDUE * scale and abs(term) < 0.005 else term for term in terms]
     floors = [floor_cents(term) for term in terms]
     left = total_cents - sum(floors)
     if left == 0:

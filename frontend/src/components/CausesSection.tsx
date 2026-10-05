@@ -91,7 +91,10 @@ export function CausesSection({ causes, numbers }: CausesSectionProps) {
       <h2 className="insights-card__title">Why it happened</h2>
       <p className="insights-headline">{causes.headline.message}</p>
       {narration === null ? (
-        <Notice tone="info" title="The AI narration is unavailable for this report" />
+        // Only a step that failed says so: 'not_in_v1' is a step removed by design (Thach, Q21).
+        causes.narration_status === 'unavailable' && (
+          <Notice tone="info" title="The AI narration is unavailable for this report" />
+        )
       ) : (
         <div className="insights-narration">
           <h3 className="insights-card__subtitle">The AI&apos;s reading</h3>

@@ -124,7 +124,10 @@ class Causes(ContractModel):
     not_testable: list[NotTestable]
     signals: list[SignalView] | None
     narration: AiFindings | None  # stage 3's AI narration (3F); null in v1 so far
-    narration_status: Literal["shown", "unavailable"]  # AI_PIPELINE 9: a null AI block shows as unavailable
+    # "unavailable": the AI step failed (AI_PIPELINE 9). "not_in_v1" (2.8,
+    # Thach Q21): 3F is closed - v1 has no narration step, so nothing failed and
+    # nothing is shown for it.
+    narration_status: Literal["shown", "unavailable", "not_in_v1"]
     notes: list[NoteView]
     suggested_classes: dict[str, LineClass]
 
@@ -236,6 +239,10 @@ class ReportContract(ContractFile):
             raise ValueError("a 2.5 report labels every hypothesis and words every line outside revenue")
         if version >= (2, 6) and any(h.lens is None for h in hypotheses):
             raise ValueError("a 2.6 report names every hypothesis's lens")
+        if version < (2, 8) and self.layer_2_causes.narration_status == "not_in_v1":
+            raise ValueError("narration_status 'not_in_v1' exists from 2.8")
+        if version < (2, 8) and any(kpi.change is not None for kpi in numbers.kpis):
+            raise ValueError("a KPI's change exists from 2.8")
         if any(h.moved_against for h in hypotheses) and not compared_month_shown(numbers):
             raise ValueError("moved against the change is shown only beside a comparison the report shows")
         return self

@@ -69,6 +69,16 @@ describe('CausesSection', () => {
     expect(screen.getByText('The AI narration is unavailable for this report')).toBeDefined()
   })
 
+  // Thach, Q21: 3F is closed - v1 has no narration step, so a 2.8 report says
+  // "not_in_v1" and the page shows nothing for it ("unavailable" reads as a failure).
+  it('shows no narration line for a step v1 does not have', () => {
+    const report = makeReport()
+    show({ ...report, layer_2_causes: { ...report.layer_2_causes, narration: null, narration_status: 'not_in_v1' } })
+
+    expect(screen.queryByText('The AI narration is unavailable for this report')).toBeNull()
+    expect(screen.queryByText("The AI's reading")).toBeNull()
+  })
+
   // Thach, 2026-10-04 (vi): rule 2 is a full diagnosis - the table stays, with
   // a line above it: stage 3's table note, as report.html prints it (one copy).
   const GAPS = 'The days with no sales at all affect the verdicts below: each measures a change that includes them.'

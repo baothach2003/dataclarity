@@ -10,6 +10,7 @@ move? Both are Shapley decompositions, so neither answer depends on an order
 someone picked (docs/adr/0004).
 """
 
+import logging
 from dataclasses import dataclass
 
 import pandas as pd
@@ -30,6 +31,9 @@ from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
 from stages.diagnose.numbers import is_negligible, typical_magnitude
 from stages.diagnose.thresholds import MASKED_GROSS_TO_NET, MASKED_MIN_CONTRIBUTION_SHARE
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -89,17 +93,16 @@ def lever_from_totals(previous: PeriodTotals, current: PeriodTotals, *, has_cust
     alert = _masked_shift(pair, gross_to_net, typical,
                           previous.revenue, current.revenue, reasons)
     split_withheld: SplitWithheld | None = "refund_lines" if refunds else level2_cause
-    bridge, withheld = _bridge(previous, current, level1, level2, split_withheld)
-    return Lever(
-        level1=level1,
-        level2=level2,
-        gross_to_net=gross_to_net,
-        masked_shift_alert=alert,
-        masked_shift_pair=pair,
-        reasons=reasons,
-        bridge=bridge,
-        bridge_withheld=withheld,
-    )
+    lens = {"level1": level1, "level2": level2, "gross_to_net": gross_to_net, "masked_shift_alert": alert,
+            "masked_shift_pair": pair, "reasons": reasons}
+    try:
+        bridge, withheld = _bridge(previous, current, level1, level2, split_withheld)
+        return Lever(**lens, bridge=bridge, bridge_withheld=withheld)
+    except Exception:  # noqa: BLE001 - the bridge is a display: whatever it raises, the lens stands (Thach, item 1)
+        logger.exception("the lever's bridge failed; it is withheld and the lens written without it")
+    # Built outside the handler: a lens that fails WITHOUT its bridge is not
+    # the bridge's failure, and raises as it always did.
+    return Lever(**lens, bridge=None, bridge_withheld="failed_checks")
 
 
 def refund_lines(data: RunData) -> dict[str, int]:

@@ -130,6 +130,7 @@ def _kpis(metrics: MetricsContract, beside: Sequence[FigureNote], has_customers:
     core, period = metrics.core, metrics.period
     comparable, empty = period.previous_complete, _empty_current(metrics)
     labels = _LABELS | (_LINES_LABELS if core.orders_basis == "lines" else {})
+    amount = None if not comparable or empty else core.revenue_change  # Q22: the appendix's exact change
     if not comparable:
         change, change_reason = None, period.previous_incomplete_reason
     elif empty:
@@ -152,6 +153,7 @@ def _kpis(metrics: MetricsContract, beside: Sequence[FigureNote], has_customers:
             current_reason=withheld or getattr(core, f"{kpi_id}_current_reason", None),
             previous=previous, previous_reason=previous_reason,
             change_pct=change if kpi_id == "revenue" else None,
+            change=amount if kpi_id == "revenue" else None,
             change_reason=change_reason if kpi_id == "revenue" else None,
             notes=[n.code for n in beside if figure in n.figures]))
     return found
@@ -219,7 +221,8 @@ def causes(diagnosis: DiagnosisContract, orders_basis: str, numbers: Numbers) ->
                        center=s.center, lower=s.lower, upper=s.upper, rule=s.rule, mode_fallback=s.mode_fallback,
                        insufficient_reason=s.insufficient_reason, limits_method=s.limits_method)
             for s in diagnosis.signals],
-        narration=diagnosis.ai_findings, narration_status="unavailable" if diagnosis.ai_findings is None else "shown",
+        # 3F is closed (Thach, Q14, Q21): no narration step in v1, so none failed.
+        narration=diagnosis.ai_findings, narration_status="not_in_v1" if diagnosis.ai_findings is None else "shown",
         notes=[view(n) for n in diagnosis.notes if not n.always_on],
         suggested_classes=dict(diagnosis.suggested_classes))
 

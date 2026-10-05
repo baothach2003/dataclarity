@@ -465,9 +465,15 @@ class Lever(ContractModel):
             # #1). So this refuses only a month the product shows clearly
             # positive - a cent or more - and a drawn bridge's own months are
             # held to the rule by LeverBridge.
-            clearly_positive = min(_level1_revenue(self.level1, period) for period in ("prev", "cur")) >= 0.01
-            if self.bridge_withheld == "month_not_positive" and clearly_positive:
+            lowest = min(_level1_revenue(self.level1, period) for period in ("prev", "cur"))
+            if self.bridge_withheld == "month_not_positive" and lowest >= 0.01:
                 raise ValueError("the bridge is withheld as month_not_positive beside months that print above zero")
+            # Stage 3 reads the months before any other withholding, so another
+            # code beside a month level 1 shows at zero or below cannot be its
+            # (review of item 1c, #8).
+            if self.bridge_withheld in ("not_to_the_cent", "failed_checks") and lowest <= 0:
+                raise ValueError(f"a month at zero or below withholds the bridge as month_not_positive, "
+                                 f"not {self.bridge_withheld}")
         if self.bridge is not None:
             if self.level1 is None or not _bridge_matches_the_lever(self.bridge, self.level1, self.level2):
                 raise ValueError("the bridge's bars are not the lever's terms")
@@ -1005,6 +1011,9 @@ class DiagnosisContract(ContractFile):
                 frame.year_ago_previous, frame.year_ago_current):
             raise ValueError("year_ago's months are the frame's year-ago pair")
         lever = self.tree.lever if self.tree is not None else None
+        if lever is not None and lever.bridge_withheld == "failed_checks" and minor_version(
+                self.schema_version) < (18, 5):
+            raise ValueError("bridge_withheld 'failed_checks' exists from 18.5")
         if minor_version(self.schema_version) < (18, 4):
             if (self.year_ago, self.year_ago_reason, self.headline.hedge) != (None, None, None) or (
                     lever is not None and (lever.bridge, lever.bridge_withheld) != (None, None)):

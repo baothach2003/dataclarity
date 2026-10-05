@@ -32,6 +32,10 @@ def money(value: float) -> str:
     return _signless(f"{value:,.2f}")
 
 
+def signed_money(value: float) -> str:
+    return _signless(f"{value:+,.2f}")
+
+
 def count(value: float) -> str:
     return _signless(f"{value:,.0f}")
 

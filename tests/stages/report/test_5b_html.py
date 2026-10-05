@@ -143,12 +143,14 @@ def test_the_causes_as_the_diagnosis_has_them() -> None:
     assert "Revenue fell 10.9% this month..." in causes
 
 
-def test_a_missing_narration_says_unavailable() -> None:
+def test_no_narration_in_v1_prints_no_line() -> None:
+    # Thach, Q21: the step was removed by design; "unavailable" would read as a failure. A report from
+    # before 2.8 that says "unavailable" keeps its line (test_q21_q22).
     from tests.contracts.test_diagnosis import diagnosis_payload
 
     diagnosis: dict[str, Any] = diagnosis_payload() | {"ai_findings": None, "model_used": None}
     causes = _page(build(diagnosis=diagnosis)).section("causes")
-    assert "The AI narration is unavailable for this report." in causes
+    assert "narration" not in causes
 
 
 def test_the_provenance_and_the_files_quality() -> None:

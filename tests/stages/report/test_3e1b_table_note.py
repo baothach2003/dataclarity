@@ -20,7 +20,7 @@ def _noted() -> dict:
 
 
 def test_the_versions_are_additive() -> None:
-    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.4", "2.7")  # 18.4 the report redesign's bridge, year_ago, hedge; 2.7 the headline's hedge; 18.1 / 2.3 the note; 18.2 / 2.4 the season; 18.3 / 2.5 the labels; 2.6 the lens
+    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.5", "2.8")  # 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 18.5 "failed_checks"; 18.4 the report redesign's bridge, year_ago, hedge; 2.7 the headline's hedge; 18.1 / 2.3 the note; 18.2 / 2.4 the season; 18.3 / 2.5 the labels; 2.6 the lens
 
 
 def test_report_json_carries_the_note() -> None:

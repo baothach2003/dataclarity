@@ -184,7 +184,8 @@ export interface Causes {
   // Not shown in the v1 UI (Thach, 2026-10-03): it stays in the downloadable report.
   signals: unknown[] | null
   narration: AiFindings | null
-  narration_status: 'shown' | 'unavailable'
+  // 'not_in_v1' (report.json 2.8, Thach Q21): 3F is closed - nothing failed, nothing is shown.
+  narration_status: 'shown' | 'unavailable' | 'not_in_v1'
   notes: NoteView[]
   suggested_classes: Record<string, string>
 }

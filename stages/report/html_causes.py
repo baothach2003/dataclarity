@@ -61,7 +61,9 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
     parts = ["<h2>Why it happened</h2>", para(causes.headline.message, "headline")]
     story = causes.narration
     if story is None:
-        parts.append(para("The AI narration is unavailable for this report."))
+        # "not_in_v1" (Thach, Q21): the step was removed by design, nothing to say.
+        if causes.narration_status == "unavailable":
+            parts.append(para("The AI narration is unavailable for this report."))
     else:
         parts.append("<h3>The AI's reading</h3>" + para(story.summary) + para(story.headline_explanation)
                      + items(f"{esc(n.id)}: {esc(n.text)}" for n in story.hypothesis_notes)
