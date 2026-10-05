@@ -703,6 +703,15 @@ closure. The appendix's "AI narration is unavailable" line goes (1.7, Q21).
 
 ## 6. Currency (D6)
 
+**The principle (Thach, 2026-10-05).** The two errors are not equal.
+Reading a currency that is not there (a SKU "TOP-001" as the Tongan pa'anga)
+fabricates a label or blocks a correct file. Finding nothing only means
+Review asks the user, which is harmless. So: detect only on strong
+evidence; anything doubtful is "not found" and the user is asked. Blocking
+mixed currencies uses one simple rule, not lists. Nothing is ever summed
+across two currencies silently. Thach's Q26-Q31 (section 10) apply it; where
+6.1-6.5 below differ, they and section 12 (as built) win.
+
 ### 6.1 Rules (stage 1 code only, on the RAW file, in profiling)
 
 **Code only, no AI step in v1** (Thach, Q7b). The rules below cover every
@@ -968,24 +977,53 @@ veto):
   (contracts/diagnosis.py ~1,050 lines, stages/diagnose/lever.py ~490): debt
   in 8D, split after deploy, not now.
 
-**Open:**
+**Answered by Thach, 2026-10-05 (third round):**
 
-24. **Q24** - with no bridge drawn (`bridge_withheld`: zero orders, a month
-    at 0.00 or below, not to the cent, failed checks) there is no
-    `shown_change`: which change does sentence A print then - the exact
-    `core.revenue_change`, or no amount (the percentage alone, or the two
-    months only)?
-25. **Q25** - CONTRACTS 10 makes a closed vocabulary's new value a MAJOR
-    bump; Thach ruled both of this round's ("failed_checks", "not_in_v1")
-    additive, and they shipped as minors (diagnosis 18.5, report 2.8), the
-    exception written in CONTRACTS 10. Does that ruling stand for future
-    vocabularies too (amend the rule), or only for these two?
+24. **Q24** - with the bridge withheld, sentence A prints the exact
+    `core.revenue_change`. Reason: with no chart drawn there is nothing for
+    the sentence to agree with to the cent.
+25. **Q25** - yes, permanently: a value added to a closed vocabulary bumps
+    the MINOR version only (CONTRACTS 10, amended). Reason: every consumer
+    is updated in the same session, and a file of the earlier minor
+    carrying the new value is refused, so no reader meets an unknown value
+    silently.
+26. **Q26** - yes: currency evidence is read only from the plan's money
+    columns and a column whose header names a currency (6.1's first
+    wording), at execute. Reason: three review cycles each found a new kind
+    of column misread when every column was read.
+27. **Q27** - do not refuse an untied "$" beside one dollar code found
+    elsewhere: pre-select that code with where it was found; Review always
+    asks the user to confirm. Reason: refusing a common layout (the
+    currency written on an order's first line only) blocks a correct file;
+    a pre-selection the user confirms fabricates nothing.
+28. **Q28** - no alias list. In a currency-named column, blanks and "-",
+    "none", "n/a" (trimmed, any case) are empty; two or more distinct text
+    values (trimmed, upper-cased) block, the message listing each value
+    with its lines ("Euro: 300 lines, US Dollar: 20 lines"); exactly one
+    value that is an ISO code is pre-selected; one that is not ("Euro") is
+    no evidence - Review asks and shows it as a hint. Reason: one simple
+    rule, not lists; a name the user wrote is shown back, never translated.
+29. **Q29** - a cell of that column that reads as a number or a date is
+    "unreadable", not a value: GBP plus one "0" pre-selects GBP and Review
+    says "1 cell could not be read"; GBP plus EUR (with or without the "0")
+    blocks. Reason: nothing is ever summed across two currencies silently.
+30. **Q30** - no text-symbol list (kr, zł, Rs, ...) in v1: not detected
+    means the user is asked. Mixed text symbols inside amount cells: a known
+    limit in 8D (not a common export shape).
+31. **Q31** - yes, one fourth review, scoped to what changes for Q26-Q30
+    and the seven fixes. Safety valve, decided now: if it still finds a
+    fabrication on a common export shape, cut the scope instead of a fifth
+    cycle - no automatic detection at all, Review always asks the currency,
+    only the Q28/Q29 block rule on a currency-named column kept.
+
+**Open:** none from this round.
 
 ## 11. The build, step by step
 
 1. **Stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`**
    (full process) - **approved and DONE 2026-10-05; as built in section 12.**
-2. Stage 1 currency (6; Q5-Q9 answered).
+2. Stage 1 currency (6; Q5-Q9, Q26-Q31 answered) - **approved and DONE
+   2026-10-05; as built in section 12.**
 3. Stage 5: the front section, the appendix, the partial month, the rows
    left out, the currency (failing tests first, one review cycle).
 4. Stage 4 structured actions (full process; a real call only with
@@ -1138,3 +1176,131 @@ Decisions made alone (Thach's veto open):
   data is never committed).
 - The name `bridge` (Thach's) sits beside stage 3's customer "bridge" terms
   (`tree.customers`); the docstrings say which is which.
+
+### Step 2 - stage 1 reads the file's currency (2026-10-05)
+
+Built on Thach's principle (section 6) and his Q26-Q31; the method fixed
+first: `C:\Users\Happy\redesign-step2b-method.txt` (the first method,
+`redesign-step2-method.txt`, read every column and was replaced).
+
+**Where.** At execute, on the RAW file, from two places only (Q26): the
+plan's money column (the columns mapped to `unit_price`, the only money
+field of the canonical vocabulary) and a currency column (a column whose
+header, letters only, is a currency's name alone or with one word around
+it: "Currency", "currency_code", "TransactionCurrency", "币种"; a header
+that only mentions one - "Amount in Local Currency", "Currency Rate" - is
+none). No other column is read: a SKU "TOP-001", a weight "2.5 kgs", a
+country. `profile.json` is unchanged (1.2): it is written before any
+mapping exists. The function, `stages.ingest.currency.currency_finding(frame,
+money_columns)`, is the one step 5's Review calls with the plan as edited.
+It runs after the plan's own checks (a refused plan says why first) and
+before anything is written. Generic cleaning reads nothing.
+
+**The money column.** A currency sign on its cells or in its header is
+evidence: a named sign is its code (£ GBP, € EUR, ...); "$" and "¥" narrow
+(Q5, Q9); a sign this version does not name (₨) is a currency of its own;
+the full-width forms read as their usual sign; a cent is part of a dollar.
+A code in its header counts only written in capitals, in brackets or as the
+header's last word in a header not all in capitals ("Price (AUD)", "Price
+AUD", "TotalAUD"), the only such code in it, and never a code that is also
+a word or a unit (ALL, TOP, CUP, PEN, BOB, SOS, MAD, MOP, GEL, KGS, WST).
+Anything else is doubtful: "amount_gbp", "PRICE_AUD", "Price per Cup".
+
+**The currency column (Q28, Q29), each judged on its own.** Empty: blanks,
+"-", "none", "n/a", a long dash, what stage 1 reads as missing anywhere
+(profiling's NA tokens), zero-width characters, and a repeated header line.
+Unreadable (counted, never a value): a cell that reads as a number or a
+date ("0", "36", "05-Jan-2024"; shared.dates with a digit). Two or more
+distinct values (trimmed, upper-cased) block, each listed as first written
+with its lines ("Euro: 2 lines, US Dollar: 1 line"). One value that is an
+ISO code is evidence; one that is not ("Euro") is a hint for Review. Two
+columns of one value each that disagree (Currency EUR, Settlement Currency
+USD) are doubtful: a hint ("EUR, USD"), never evidence, never a block.
+
+**The one block rule.** Two or more distinct currencies among the evidence
+(the currency column's code, the money column's signs and header code)
+block, whatever the answer (Q7 = A): INVALID_PLAN, `details.reason`
+"currency", "Your file has amounts in more than one currency (GBP: 3 lines,
+EUR: 1 line). DataClarity cannot add different currencies together. Split
+the file by currency and upload each part." - the file's lines, a line
+once, largest first (a tie in the file's column order), at most 10 and
+"and N more", no thousands separator. A "$" beside exactly one dollar or
+peso code (the pesos, BRL for "R$") is that code (Q27: pre-selected with
+where it was found; never refused).
+
+**The finding:** found (code, source column | symbol | header, evidence),
+narrowed, mixed, or none; `hint` and `unreadable` beside any but mixed.
+Unanswered, a found code applies, anything else is "not stated"; an answer
+stands (equal to the found code, it keeps where it was found).
+
+**Stored** (6.4 as amended by Q26): `plan_final.json` 4.3
+`confirmations.currency` (the answer), `cleaning_report.json` 4.3 `currency`
+(`{code, source, evidence}`); CONTRACTS 4, 5 and 10 (Q25's rule written
+there too).
+
+**Decisions made alone (Thach's veto open):**
+- The profile carries no currency (Q26 reads at execute); Review gets the
+  finding from the same function (step 5).
+- The check runs after the plan's own checks, not before them.
+- Empty also covers a long dash, stage 1's NA tokens, zero-width
+  characters and a repeated header line (each means "no value" already).
+- A date with words ("05-Jan-2024") is unreadable through stage 1's own
+  date reading (shared.dates), a digit required (so "May" is no date).
+- Unreadable cells are counted even when the column holds no value (Q29
+  to the letter: a "Currency Code" of 840/978 is "3 cells could not be
+  read", not silence).
+- The hint stands beside a found code too ("Pound" beside "€" prices:
+  EUR pre-selected, and Review shows "Pound").
+- Two currency columns of one value each that disagree: a hint, not a
+  block (the rule is per column, Q28's "a currency-named column").
+- Codes that are also words or units are never read in a header (the list
+  above); "R$" joins the "$" family as BRL.
+- A tie between parts is listed in the file's column order.
+
+**What step 5 (the frontend's Review) needs** - not built here:
+- the question always shown (D6), from `currency_finding(raw frame, the
+  plan's unit_price columns)` through an endpoint (the plan or preview
+  call): found - the code pre-selected with `evidence`; narrowed -
+  `candidates` first, then the full list, nothing pre-selected; none - the
+  closed ISO list, the common ones first, "Not stated" the default; `hint`
+  shown ("Your Currency column says: Euro"); `unreadable` shown ("1 cell
+  could not be read"); `evidence` and `hint` escaped (they hold the file's
+  text);
+- mixed: the block - `parts` and `more_parts`, no answer offered; execute
+  answers 422 INVALID_PLAN, `details.reason` "currency", the sentence in
+  `details.problems` - a dead end (split the file), never "edit the plan";
+- the answer goes to `confirmations.currency` (an ISO code or
+  "not_stated"); `frontend/src/types/contracts.ts` has the answer and
+  `AppliedCurrency`; the finding's type is added with its endpoint.
+
+**Known limits (8D):** text symbols (kr, zł, Rs, RM ...) and codes written
+inside amount cells are not read (Q30); a sign this version does not name
+beside its own code blocks (₨ with PKR); "EUR" beside "€", or "USD" beside
+"US$", in a currency column block (two text values, Q28's letter); currency
+columns whose header is a currency's name with another word than the listed
+ones ("Presentment Currency") are not read; two values whose first 40
+characters agree are listed alike.
+
+**Process.** Tests first: Thach's eight cases failed on the work in
+progress (TOP-001, "2.5 kgs", one SVC-100 line, Euro/US Dollar, GBP plus
+"0", GBP plus EUR plus "0", "-" and "none", a single "Euro"), then the
+fourth review's. Hand mutation: 50 of 50 killed on the final rules.
+Doubt-review: four cycles (single model, Q23). Cycles 1-3 reviewed the
+earlier versions, which read every column; their findings led to Q26-Q31.
+The fourth (Q31), scoped: 12 findings, nine
+"fabricate", none on a common export shape (Shopify, WooCommerce, Square,
+Stripe's Amount column, Online Retail II and Kaggle all correct) - so the
+safety valve did NOT trigger. Its findings were fixed (each more
+conservative, or a signal for Review) or recorded as the known limits
+above; those fixes were tested and mutated, not reviewed again (no fifth
+cycle, Q31).
+
+**Cost:** Kaggle 0.00 s, Online Retail II 0.02 s (460,859 rows, the money
+column only); worst cases at 460,859 rows: a currency column of 667 extra
+names 2.4 s, a currency-named column of 460,859 distinct date-times 3.1 s.
+
+**Regression** (on HEAD a335789 and on step 2, one process at a time, no AI
+call): both Online Retail II demo runs, stages 1-5 (peaks 705-737 MB), and
+Thach's Kaggle run, stages 1-5 from its raw file - every file IDENTICAL
+except the new fields (`confirmations.currency` null, `currency` not
+stated) and the 4.2 -> 4.3 stamps; neither file blocked.

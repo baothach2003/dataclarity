@@ -150,6 +150,13 @@ export interface ProfileContract {
   columns: ColumnProfile[]
 }
 
+// What ran (contracts/currency.py AppliedCurrency): a code, or none - "not stated".
+export interface AppliedCurrency {
+  code: string | null
+  source: 'column' | 'symbol' | 'header' | 'user' | 'not_stated'
+  evidence: string | null
+}
+
 // --- schema_inference.json ----------------------------------------------------
 
 export interface DatasetIssue {
@@ -257,6 +264,9 @@ export interface OrderConfirmations {
   dates_day_first?: boolean | null
   // 4.1 (2E-u1): the answers to the number question, by source column.
   number_formats?: Record<string, NumberFormat>
+  // 4.3 (the report redesign, step 2): the file's currency - an ISO 4217 code,
+  // or "not_stated"; unanswered, what stage 1 found, else not stated.
+  currency?: string | null
 }
 
 // What a line that is not an ordinary product is (2E-d2, 2E-l): a charge the
@@ -324,6 +334,8 @@ export interface CleaningReport {
   // 4.2 (2E-u3): walk-in candidates the user neither confirmed nor answered
   // "a real customer", commonest first; they stay customers in every figure.
   unconfirmed_placeholders?: string[]
+  // 4.3 (the report redesign, step 2): the currency the amounts are in.
+  currency?: AppliedCurrency | null
 }
 
 // What stage 1 did to one quantity or price column before the plan ran

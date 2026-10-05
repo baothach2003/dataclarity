@@ -5378,6 +5378,16 @@ dataclarity/
         ~1,050 lines and stages/diagnose/lever.py ~490 after step 1 (902 and
         407 before it) - debt, split after deploy, not now (Thach,
         2026-10-05).
+      - currency (step 2; Thach Q30 and the fourth review): text symbols
+        (kr, zł, Rs, RM ...) and codes written inside amount cells are not
+        read - the user is asked; mixed text symbols inside amount cells
+        are summed unseen (not a common export shape). Also: a sign this
+        version does not name beside its own code blocks (₨ with PKR);
+        "EUR" beside "€" in a currency column blocks (two text values);
+        a currency column headed with another word than the listed ones
+        ("Presentment Currency") is not read; two values alike in their
+        first 40 characters are listed alike. `docs/REPORT_REDESIGN.md`
+        section 12, step 2.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -5880,6 +5890,34 @@ dataclarity/
       `change` (the exact amount) printed beside the percentage in the KPI
       table. The front section's use of `shown_change` is step 3's. Open:
       Q24 (sentence A with no bridge drawn), Q25 (the vocabulary-bump ruling).
+      **The principle for currency (Thach, 2026-10-05):** the two errors
+      are not equal - reading a currency that is not there (TOP-001 as the
+      Tongan pa'anga) fabricates a label or blocks a correct file; finding
+      nothing only means Review asks, which is harmless. So detect only on
+      strong evidence, anything doubtful is "not found" and the user is
+      asked; blocking uses one simple rule, not lists; nothing is summed
+      across two currencies silently. **Thach's answers (third round):**
+      Q24 with the bridge withheld, sentence A prints the exact change; Q25
+      a value added to a vocabulary bumps the minor only, permanently
+      (CONTRACTS 10); Q26 evidence only from the plan's money columns and a
+      currency-named column, at execute; Q27 an untied "$" beside one
+      dollar code is pre-selected as that code, never refused; Q28 no alias
+      list - in a currency column, two or more distinct values block
+      ("Euro: 300 lines, US Dollar: 20 lines"), one ISO code is evidence,
+      one other value a hint; Q29 a cell that reads as a number or a date is
+      unreadable, counted, never a value; Q30 no text-symbol list in v1
+      (8D); Q31 one fourth review, with a safety valve (cut to "Review
+      always asks" if it found a fabrication on a common export shape).
+      **Step 2 - DONE:** built on those rules (the design's section 12):
+      plan and cleaning report 4.3 (`confirmations.currency`, `currency`),
+      profile.json unchanged; a mixed file refused at execute (INVALID_PLAN,
+      reason "currency"). Thach's eight cases failed first on the work in
+      progress; mutation 50 of 50; the fourth review found nine
+      fabrications, none on a common export shape, so the safety valve did
+      NOT trigger - fixed (each more conservative, or a signal for Review)
+      or recorded in 8D. Regression on HEAD and step 2: both Online Retail
+      II demo runs and Thach's Kaggle run, stages 1-5 - every file identical
+      but the new fields and the version stamps; neither file blocked.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6068,11 +6106,23 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - step 2, stage 1 currency** (2026-10-05, on Thach's
+principle and his Q24-Q31, recorded at 9R). Built on strong evidence only:
+the plan's money column and a currency-named column, at execute; one block
+rule; a doubtful reading is "not found" and Review asks. Tests first
+(Thach's eight cases red on the work in progress), mutation 50 of 50, a
+fourth scoped review - nine fabrications found, none on a common export
+shape: the safety valve did NOT trigger; fixed or recorded in 8D. The
+Online Retail II demo runs and the Kaggle run identical to HEAD outside the
+new fields; neither blocked. Committed as its own group. Stopped before
+step 3 (stage 5's front section). Open: none.
 **Report redesign - item 1, Q21-Q22, then step 2** (2026-10-05, on
 Thach's second answers, recorded at 9R). Item 1: the bridge never takes the
 diagnosis down (`failed_checks`, diagnosis.json 18.5), then a scoped review
 of step 1's cycle-3 fix. Item 2: report.json 2.8 (`not_in_v1`; the revenue
-KPI's exact change). Then step 2, stage 1 currency (its own group).
+KPI's exact change). Both committed and pushed (a335789). Then step 2:
+three review cycles; the third found codes read in every column's cells, so
+step 2 waited for Thach's Q26-Q31 (the entry above).
 **Report redesign - Thach's answers, then step 1** (2026-10-05). His answers
 to the design's 20 questions recorded (9R; `docs/REPORT_REDESIGN.md`
 section 10) and applied to every wording; 3F closed (Q14); mixed currencies

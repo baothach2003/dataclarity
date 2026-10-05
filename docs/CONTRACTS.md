@@ -356,6 +356,26 @@ refuses to execute (INVALID_PLAN) while such a column is unanswered, naming
 the column and a cell, and refuses an answer against a column's proof (the
 cells decide). Empty: nothing asked or answered.
 
+`confirmations.currency` (`4.3`, the report redesign's step 2, Thach Q7-Q9,
+Q26-Q30) answers Review's currency question: an ISO 4217 code or
+`"not_stated"`; `null`: not answered - the run takes what the file shows
+(found), else "not stated" (never assumed: a narrowed `$` with no answer is
+not stated). Stage 1 reads the currency at execute, on the RAW cells of the
+plan's money column (mapped to `unit_price`) and of a column whose header
+names a currency - no other column (Q26) - on strong evidence only (Thach's
+principle: a doubtful reading is "not found", and Review asks):
+`stages.ingest.currency.currency_finding(frame, money_columns)`, the
+function step 5's Review calls with the plan as edited. More than one
+currency is refused whatever the answer (Q7 = A): INVALID_PLAN,
+`details.reason` `"currency"`, the one problem "Your file has amounts in
+more than one currency (Euro: 300 lines, US Dollar: 20 lines). DataClarity
+cannot add different currencies together. Split the file by currency and
+upload each part." - each currency as first written (a currency column's
+value) or its code (a sign, a header), with the file's lines carrying it,
+largest first, at most 10 and "and N more". No plan edit lifts it. Generic
+cleaning (a file that is not inventory data: stages 2-5 do not run) sums
+nothing, and neither blocks nor records a currency.
+
 `confirmations.dates_day_first` (`3.1`, session 2E-j, Thach) answers Review's
 date question - `true`: the date column's day-month-year cells are written
 day first; `false`: month first; `null`: not asked or not answered. The
@@ -414,6 +434,15 @@ Rules for the values (no field changed):
   lists them as unmeasurable), and whether the mark was the user's answer.
   Empty in an earlier report. Stages 2 and 3 read plain numbers in
   `cleaned.csv`; nothing downstream reads this field.
+- `currency` (`4.3`, the report redesign's step 2) is the currency the
+  amounts are in: `{code, source, evidence}` - `code` an ISO 4217 code, or
+  `null` exactly when `source` is `"not_stated"`; `source` `"column"` |
+  `"symbol"` | `"header"` (found in the file; an answer equal to it keeps
+  where it was found), `"user"` (another answer) or `"not_stated"`;
+  `evidence` where the file shows it (a header as written: escape it), or
+  `null`. `null` for generic cleaning, and absent from an earlier report.
+  Stage 5 reads it (step 3: the code on every amount, Q8); stages 2, 3 and 4
+  do not (amounts are amounts).
 - `date_order` (`3.1`, 2E-j) is the order the transaction_date column's
   day-month-year cells were read in: the user's answer, else what the RAW
   file proved (decided before any action runs, so a plan dropping the rows
@@ -1976,12 +2005,12 @@ carries only months and numbers.
 ## 10. Versioning and change policy
 
 - Adding an optional field: minor bump (`1.0` -> `1.1`), readers unaffected.
-- **Adding a value to an enum** (Thach, 2E-e): if a reader validates the enum
-  as CLOSED - rejects a value it does not know - the addition is breaking and
-  is a MAJOR bump. Every contract here is validated with closed Pydantic
-  `Literal` enums, so in practice adding an enum value is always major. (Only
-  an enum a reader explicitly treats as open, passing unknown values through,
-  could take a minor bump; none exists today.)
+- **Adding a value to an enum** (Thach, 2026-10-05, Q25, permanent): a MINOR
+  bump. Every consumer is updated in the same session, and the new value is
+  version-gated - a file of the earlier minor carrying it is refused - so no
+  reader meets an unknown value silently. (From 2E-e until Q25 it was a
+  MAJOR bump, because every reader validates its enums as closed `Literal`s;
+  the bumps made under that rule stand.)
 - Renaming/removing a field or changing its meaning: major bump, update the
   Pydantic model, update every consumer stage in the SAME session, and record
   the change in `PROJECT_PLAN.md` section 12 Notes.
@@ -2026,14 +2055,27 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-05: **the report redesign, step 2 - the file's currency (Thach
+  D6, Q5-Q9, Q26-Q30; docs/REPORT_REDESIGN.md sections 6 and 12).**
+  Optional fields, minor: the stage 1 contracts `4.3`
+  (`confirmations.currency`, `cleaning_report.json` `currency`;
+  `schema_inference.json` kept in step). `profile.json` is unchanged (1.2):
+  the currency is read at execute, on the plan's money column (Q26). A file
+  with more than one currency there or in a currency column is now refused
+  at execute (INVALID_PLAN, `details.reason` `"currency"`): such a file ran
+  before and summed the currencies. A file with no currency evidence runs
+  exactly as before (the Kaggle run and both demo runs: every existing field
+  identical). No section 11 row: stage 1's files are not in the consumer
+  contract.
 - 2026-10-05: **the report redesign, item 1 and Q21 (Thach).**
   `diagnosis.json` `18.5`: `tree.lever.bridge_withheld` gains
   `failed_checks`; `report.json` `2.8`: `layer_2_causes.narration_status`
   gains `not_in_v1` (3F closed). Each is a closed vocabulary growing,
-  which this section's rule makes a MAJOR bump; Thach ruled both
+  which this section's rule then made a MAJOR bump; Thach ruled both
   "additive" (minor) - no reader outside this code reads either value, and
   every consumer is updated in the same session. A file of the earlier
-  minor carrying the new value is refused.
+  minor carrying the new value is refused. Made the rule for every
+  vocabulary by Q25 (above).
 - 2026-10-05: **the report redesign, step 1 (Thach; docs/REPORT_REDESIGN.md
   section 2).** Optional fields, minor, each version-gated (a file of the
   new minor is refused without them, an earlier one still loads):

@@ -40,7 +40,7 @@ def test_writes_a_valid_contract_with_our_header_fields(tmp_path: Path) -> None:
     on_disk = SchemaInferenceContract.model_validate_json(
         written(tmp_path, run_id).read_text(encoding="utf-8"))
     assert on_disk == returned
-    assert returned.schema_version == "4.2"  # 4.2 since 2E-u3 (kept in step, minor); 4.1 since 2E-u1 (kept in step, minor); 4.0 since 2E-t1 ("gift_card": major); 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
+    assert returned.schema_version == "4.3"  # 4.3 the currency (the report redesign, step 2); 4.2 since 2E-u3 (kept in step, minor); 4.1 since 2E-u1 (kept in step, minor); 4.0 since 2E-t1 ("gift_card": major); 2E-e: order_id (major); 2E-e2, 2E-k, 2E-d2 (minor); 2E-l: "pooled" (major); 2E-j (minor)
     assert returned.generated_at == NOW
     assert returned.model_used == "claude-served"  # the model that answered
     assert returned.columns[1].canonical_field == "product_name"

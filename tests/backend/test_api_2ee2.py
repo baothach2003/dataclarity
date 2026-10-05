@@ -10,7 +10,7 @@ def test_the_answers_in_the_plan_reach_the_cleaning_report(make_api: MakeApi) ->
     answers = {"order_id_is_receipt": True, "customer_on_first_line_only": False,
                "customer_placeholders": [], "line_classes": [],
                "dates_day_first": None, "number_formats": {},
-               "customer_not_placeholders": []}  # 2E-k, 2E-d2, 2E-j, 2E-u1, 2E-u3
+               "customer_not_placeholders": [], "currency": "GBP"}  # 2E-k, 2E-d2, 2E-j, 2E-u1, 2E-u3, step 2
 
     response = api.post(run_id, "execute", {**plan, "confirmations": answers})
 
@@ -29,7 +29,7 @@ def test_a_plan_without_answers_records_none(make_api: MakeApi) -> None:
     assert api.read_json(run_id, "cleaning_report.json")["confirmations"] == {
         "order_id_is_receipt": None, "customer_on_first_line_only": None,
         "customer_placeholders": [], "line_classes": [], "dates_day_first": None, "number_formats": {},
-        "customer_not_placeholders": []}  # 2E-k, 2E-d2, 2E-j, 2E-u1, 2E-u3
+        "customer_not_placeholders": [], "currency": None}  # 2E-k, 2E-d2, 2E-j, 2E-u1, 2E-u3, the redesign's step 2
 
 
 def test_a_plan_changed_only_by_the_users_answers_is_the_users(make_api: MakeApi) -> None:

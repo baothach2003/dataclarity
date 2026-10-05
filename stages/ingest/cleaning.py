@@ -33,6 +33,8 @@ from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.cleaned_text import as_read, cleaned_csv_text
 from stages.ingest.contract_files import write_files_atomically
+from stages.ingest.currency import currency_finding
+from stages.ingest.currency_apply import apply_currency
 from stages.ingest.customer_placeholders import unanswered_placeholders
 from stages.ingest.date_order import execution_order
 from stages.ingest.number_apply import apply_number_formats
@@ -50,7 +52,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "4.2"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number formats (optional); 2E-u3: the unconfirmed placeholders (optional)
+SCHEMA_VERSION = "4.3"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number formats (optional); 2E-u3: the unconfirmed placeholders (optional); 4.3 (the report redesign, step 2): the currency (optional)
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 
@@ -268,6 +270,14 @@ def execute_run(
     frame = parsed.frame
     cleaned, changes, renames, mapping, applied, date_order, number_formats, read = clean_frame(
         frame, plan, for_execution=require_required_fields)
+    # The plan checked, before anything is written: the currency, read on the
+    # RAW cells of the plan's money column and of a currency column (Thach,
+    # Q26). More than one refuses the plan, whatever the answer (Q7 = A);
+    # else the answer, the file's, or not stated. Generic cleaning sums
+    # nothing, so it neither blocks nor records one.
+    money = [action.source_name for action in plan.column_actions if action.canonical_field == "unit_price"]
+    currency = (apply_currency(currency_finding(frame, money), plan.confirmations.currency)
+                if require_required_fields else None)
     # Each line's class, decided once, here (2E-t1; docs/LINE_TAXONOMY.md
     # section 4).
     if is_classed(plan):
@@ -296,6 +306,7 @@ def execute_run(
         # Measured on the raw file as its numbers were read: "$5.00" was no
         # amount before, so no line was measured (2E-u3 review 1, #1).
         unconfirmed_placeholders=unanswered_placeholders(read, plan),
+        currency=currency,
     )
     write_files_atomically([
         (run_file(runs_root, run_id, CLEANED_FILENAME), cleaned_csv_text(cleaned).encode("utf-8")),

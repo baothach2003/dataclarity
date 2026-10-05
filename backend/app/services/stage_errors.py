@@ -18,6 +18,7 @@ from contracts._base import UNSUPPORTED_MAJOR, ContractFile
 from contracts.lines import refused_as_too_large
 from contracts.metrics import BEFORE_THE_LINE_TAXONOMY
 from stages.ingest.cleaning import CleaningError
+from stages.ingest.currency_apply import MixedCurrencies
 from stages.ingest.date_order import DateFormatMisreads, DateQuestionUnanswered
 from stages.ingest.number_apply import NumberAnswerContradicted, NumberQuestionUnanswered
 from stages.ingest.plan_validation import InvalidPlanError
@@ -101,6 +102,10 @@ def invalid_plan(error: InvalidPlanError) -> ApiError:
     details: dict[str, Any] = {"problems": error.problems[:MAX_PROBLEMS], "problem_count": len(error.problems)}
     if isinstance(error, _READING):
         details["reason"] = "reading"
+    elif isinstance(error, MixedCurrencies):
+        # The report redesign's step 2 (Thach, Q7 = A): a sentence the client
+        # shows as written; Review (step 5) reads the reason.
+        details["reason"] = "currency"
     return ApiError("INVALID_PLAN", "The plan cannot run.", details)
 
 

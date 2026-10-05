@@ -51,6 +51,19 @@ def test_a_refusal_about_how_dates_or_numbers_read_says_so_by_code(refusal: type
                              "reason": "reading"}
 
 
+def test_a_file_in_more_than_one_currency_says_so_by_code() -> None:
+    # The report redesign's step 2 (Thach, Q7 = A): the plan is blocked with a sentence the client shows
+    # as written; step 5's Review reads the reason.
+    from stages.ingest.currency_apply import MixedCurrencies
+
+    sentence = ("Your file has amounts in more than one currency (GBP: 2 lines, EUR: 1 line). DataClarity "
+                "cannot add different currencies together. Split the file by currency and upload each part.")
+    error = stage_errors.invalid_plan(MixedCurrencies([sentence]))
+
+    assert (error.code, STATUS_BY_CODE[error.code]) == ("INVALID_PLAN", 422)
+    assert error.details == {"problems": [sentence], "problem_count": 1, "reason": "currency"}
+
+
 def test_a_flood_of_problems_is_cut_but_counted() -> None:
     # A plan of 50,000 bad column actions must not come back as a 3 MB answer.
     error = stage_errors.invalid_plan(InvalidPlanError([f"problem {i}" for i in range(50_000)]))

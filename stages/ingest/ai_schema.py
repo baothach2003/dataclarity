@@ -35,7 +35,7 @@ PCT_TOLERANCE = 0.1
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "schema_inference"  # prompts/schema_inference.md
 OUTPUT_FILENAME = "schema_inference.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "4.2"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates; 2E-l: "pooled" (enum, major); 2E-j: no change, kept in step with the plan and the report; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: no change, kept in step; 2E-u3: no change, kept in step
+SCHEMA_VERSION = "4.3"  # 2E-e: order_id in the canonical enum; 2E-e2: receipt_fill_lines; 2E-k: placeholders; 2E-d2: non-product candidates; 2E-l: "pooled" (enum, major); 2E-j: no change, kept in step with the plan and the report; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: no change, kept in step; 2E-u3: no change, kept in step; 4.3 (the report redesign, step 2): the currency, kept in step
 
 
 # A count may be null where the AI has no figure to copy (Thach, 2026-10-05,

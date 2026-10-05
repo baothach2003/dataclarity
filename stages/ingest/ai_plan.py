@@ -34,7 +34,7 @@ from stages.ingest.transform_catalog import NOT_PROPOSED_BY_AI
 MAX_TOKENS = 3000  # AI_PIPELINE section 2
 PROMPT_NAME = "cleaning_plan"  # prompts/cleaning_plan.md
 OUTPUT_FILENAME = "plan_proposed.json"  # CONTRACTS.md section 1
-SCHEMA_VERSION = "4.2"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number answers (optional); 2E-u3: the "real customer" answers (optional)
+SCHEMA_VERSION = "4.3"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number answers (optional); 2E-u3: the "real customer" answers (optional); 4.3 (the report redesign, step 2): the currency (optional)
 
 
 

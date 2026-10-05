@@ -6,6 +6,7 @@ from typing import Any, ClassVar, Literal, get_args
 from pydantic import Field, NonNegativeInt, StrictBool, field_validator
 
 from contracts._base import ContractFile, ContractModel
+from contracts.currency import AppliedCurrency, CurrencyAnswer
 from contracts.profile import CanonicalField, DateOrder, LineClass, NumberFormat, SemanticType
 
 # The transform catalog, docs/AI_PIPELINE.md section 6. Typing every action
@@ -113,6 +114,10 @@ class OrderConfirmations(ContractModel):
     # own mark are read by it. In cleaning_report.json what ran is
     # `number_formats`.
     number_formats: dict[str, NumberFormat] = Field(default_factory=dict)
+    # 4.3 (the report redesign, step 2; Thach D6, Q8): the file's currency - an
+    # ISO 4217 code, or "not_stated". Unanswered, a currency stage 1 found is
+    # the one found and anything else is not stated: never assumed.
+    currency: CurrencyAnswer | None = None
 
 
 # --- plan_proposed.json / plan_final.json -----------------------------------
@@ -234,6 +239,10 @@ class CleaningReportContract(ContractFile):
     # no-guess rule); stages 2 and 5 mark them "suggested, not confirmed".
     # Empty in an earlier report.
     unconfirmed_placeholders: list[str] = Field(default_factory=list)
+    # 4.3 (the report redesign, step 2): the currency the amounts are in - the
+    # file's, or the user's answer, or not stated - and what the file said
+    # (contracts/currency.py). Null in an earlier report.
+    currency: AppliedCurrency | None = None
 
     @field_validator("confirmations", mode="before")
     @classmethod
