@@ -5695,6 +5695,89 @@ dataclarity/
       to accept each passed answer (and its `duplicate_rows` 0): a future
       check that refused a real valid answer fails the build - checked with
       such a check, which the test caught.
+- [ ] **9R Report redesign for a shop owner (Thach, 2026-10-05) - Phase 9's
+      deploy waits for it.** Thach's manual test: report.html is accurate
+      but unreadable for its real audience, a shop owner with no analytics
+      background. His decisions, with their reasons:
+      **D1 Audience** - a reader with no analytics knowledge must understand
+      what is happening to the business, why, and what to check or do next;
+      simple first, complete underneath. Why: the report is the product's
+      output; a correct page its reader cannot use has no value.
+      **D2 Language** - English (CLAUDE.md section 5).
+      **D3 Layers** - a plain-language front section; a technical appendix,
+      collapsed by default, keeping today's full hypothesis table, the limits
+      table and the method text. Nothing true is deleted, only moved. Why:
+      the analyst's evidence must stay checkable without standing between
+      the shop owner and the answer.
+      **D4 Recommendations** - 4B option (b), the structured design shared
+      with 3F: code selects the claims (figures, verdicts) and writes every
+      sentence holding a number; the AI writes only the action and the
+      reason, no digits of its own, checked as today, one retry; on any
+      failure the recommendations are suppressed with a visible notice;
+      never fabricate. 3F's narration uses the same design. The build is in
+      scope; any real API call still needs Thach's approval. Why: 4B's
+      review 3 showed that letting the AI choose figures lets it cite the
+      wrong real figure (the 2026-10-01 decision).
+      **D5 Wording of revenue** - the reader-facing name becomes "Sales
+      (before any costs)", the chart "Sales by month (before any costs)",
+      with one sentence that it is the money customers paid, not profit, and
+      that the file has no cost data. JSON field names do not change
+      (CLAUDE.md 3.7). Why: "revenue" reads as profit to a shop owner.
+      **D6 Currency is never assumed** (CLAUDE.md 3.3a): stage 1 code looks
+      for it in the file first; the AI may propose, pandas verifies on the
+      cells. Counts: a currency column of ISO codes; an unambiguous symbol in
+      the amount cells; a currency in an amount column's header. Does not
+      count: a Country column (Online Retail II sells to France and Germany
+      in GBP); a bare "$" (narrows to the dollar currencies; Review asks).
+      Review always shows the result: found -> pre-selected with where it
+      was found, changeable; not found -> a closed list including "Not
+      stated" (amounts without a symbol, "amounts in your file's
+      currency"). More than one currency: never summed silently - the
+      options go to Thach, who decides. Why: a wrong currency sign is a
+      fabricated fact on every figure.
+      **D7 Partial month** - the chart keeps whole months only; a sentence
+      directly under it names the partial month and the dates it covers and
+      says it is left out because comparing part of a month with full
+      months would mislead. Why: the dropped month looked like a missing
+      point or a collapse.
+      Front section outline (approved): the 30-second summary (three
+      sentences; the "inside the usual range" sentence first when it is;
+      "matches the figures", never "caused by"); where the change came from
+      (a waterfall whose bars sum exactly to the change, price per unit
+      included); what was checked; what to do next (D4); next month (the
+      forecast and its range); what the report cannot know; the technical
+      appendix. Jargon removed from the front: hypothesis, verdict,
+      supported, ruled out, lever lens, share = contribution / D, AOV, yoy,
+      limits, inconclusive. Wording fixes: R2's "launched or discontinued"
+      for a product with no sale in one month; T2 rests on one previous year
+      only - "last year only", no new statistics (8D). Constraints: 3.6 and
+      3.7 (contract changes additive only); no consumer computes a figure
+      (a figure the front needs is a new stage field); the AI writes no
+      number; no real AI call.
+      **Phase 1 (design only) - done (2026-10-05):** `docs/REPORT_REDESIGN.md`
+      - (a) each front section's exact wording filled with the Kaggle run's
+      (Thach's manual run cd4d3c8f, read as written) and both Online Retail II
+      demo runs' figures (classed and unanswered, re-run with the stored
+      plans, no AI call, one at a time: peaks 718 / 731 MB), the fields read
+      and the NEW ones; (b) the glossary; (c) the structured recommendations
+      (claims, checks, retry, suppression notice, ~$0.01-0.03 a call,
+      estimated); (d) the currency step with its test files and the
+      mixed-currency options A-D for Thach; (e) the partial-month sentence;
+      (f) the frontend screens (proposal only); (g) the symptom tests. A
+      static mock of the Kaggle front section: `C:\Users\Happy\report-redesign-mock-kaggle.html`
+      (outside the repo; 390 px measured, no overflow). Verified: Thach's
+      residual - stage 3 already writes price per unit -2,646.13 (level 2),
+      and the four levers sum to +4,925.00. Findings: (1) on both demo runs
+      stage 3 refuses B2 (refund lines), so drawing the items/price split
+      would state what stage 3 refuses - the design draws one order-value
+      bar there (Q1), and the Insights page draws that split today (Q17);
+      (2) cent rounding: the unanswered run's level-1+2 terms add to
+      139,466.57 against 139,466.56 (Q2); (3) two customer counts, buyers
+      609 -> 756 against active 634 -> 779 (Q4); (4) the forecast band is
+      an 80% interval from the past errors' spread, not a count of misses
+      (Q12); (5) "¥" is both yen and yuan (Q5). Nineteen open questions for
+      Thach in its section 10. **Stopped for Thach's approval before any
+      code.**
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5878,6 +5961,15 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign, Phase 1 - design only** (2026-10-05, on Thach's manual
+test of the app; his decisions D1-D7 recorded with their reasons at Phase
+9's item 9R). Done: `docs/REPORT_REDESIGN.md` (a)-(g) with the real figures
+of the Kaggle run and both Online Retail II demo runs, and a static mock of
+the Kaggle front section outside the repo
+(`C:\Users\Happy\report-redesign-mock-kaggle.html`). No production code, no
+real AI call. Nineteen open questions for Thach (the design's section 10).
+Next: Thach's approval of the design and his answers; then the build in the
+order of the design's section 11, one session at a time.
 **Eighteenth overnight run** (2026-10-05, on the seventeenth report; Thach's
 decisions recorded at Phase 9's smoke-test item and 6E's Q3). Order: the
 null-count fix with the full process (fixtures from the real answers first),
