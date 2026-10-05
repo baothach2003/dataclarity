@@ -3642,7 +3642,13 @@ dataclarity/
         silence year-over-year exactly where it is the only informative chart
         - the C1 case in reverse.
       Doubt-review: yes. Mutation check: yes.
-- [ ] 3F AI narration (AI_PIPELINE 7.9): the narration call, the number/id/
+- [x] 3F AI narration - **CLOSED, not built (Thach, 2026-10-05, the report
+      redesign's Q14 (a)):** the code-written front section of the report
+      is the narration; the AI writes only the recommendations (4B's
+      structured design, `docs/REPORT_REDESIGN.md` section 4). Stage 3
+      makes no AI call; `ai_findings` and `model_used` stay null. The text
+      below is the record of what was planned.
+      Was: (AI_PIPELINE 7.9): the narration call, the number/id/
       not-tested validator, degraded mode, one real API check (a few cents - the
       only session in Phase 3 that spends credit). Doubt-review: yes
       **Design direction (Thach, 2026-10-01, deciding 4B):** designed ONCE
@@ -5364,6 +5370,10 @@ dataclarity/
         reports (#7).
       - a year typo between the data and the upload (2025 in a 2024 file)
         cannot be told from a late sale: DF-B15b, the run blocks (#10).
+      From the report redesign (Thach, 2026-10-05, Q7):
+      - a file with amounts in more than one currency is BLOCKED in v1
+        (option A); analysing one currency with the other lines left out
+        in stage 1 (option B) is a known limit, in the Backlog.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -5778,6 +5788,58 @@ dataclarity/
       (Q12); (5) "¥" is both yen and yuan (Q5). Nineteen open questions for
       Thach in its section 10. **Stopped for Thach's approval before any
       code.**
+      **Thach's answers to the design's questions (2026-10-05, after reading
+      53bed76; each recorded in `docs/REPORT_REDESIGN.md` section 10 and
+      applied to every wording there):** Q1 where B2 is refused, one
+      order-value bar with its sentence. Q2 largest-remainder cents in
+      stage 3. Q3 when the change is inside the history's range, the range
+      sentence opens the summary - but NO adjective verdict in the front
+      section ("usual", "unusual", "normal", "abnormal", "bigger than
+      usual"): the comparison is stated as a fact with its figure ("more
+      than twice this shop's typical month-to-month change (about 4.9%)";
+      "in line with last year's: X% last year, Y% this year"). Why: ADR-0007
+      forbids unusualness verdicts in v1, and a lay reader reads "bigger
+      than usual" as one; the words join the jargon test. Q3b one wording
+      for every consistent band, no new field. Q4 the front names only
+      "customers who placed an order"; active customers stay in the
+      appendix's KPI table with their definition. Q5 "¥" is asked like a
+      bare "$" (JPY/CNY, nothing pre-selected). Q6 an ISO-code column whose
+      header names no currency is not evidence. Q7 mixed currencies: option
+      A, block with the clear message, for v1; option B to 8D and the
+      Backlog. Q7b code only, no AI step for currency in v1 - the code
+      rules cover every evidence type of D6 and an AI guess could not be
+      verified beyond them; this NARROWS D6's "the AI may propose". Q8 the
+      ISO code everywhere ("AUD 46,292.50"): one rule, never ambiguous. Q9
+      dollar currencies first, then the full list (the pesos are in it).
+      Q10 no action under rules 1-4 and 7, blocked, or an incomplete
+      previous month, with the code line. Q11 at most 3 claims, no data or
+      time family, "pulled the other way" included. Q12 the front says
+      "likely between X and Y (the real figure should land in this range
+      about 8 months in 10)"; how the range is built moves to the appendix.
+      Q13 dates only for the part-month in the front section (the chart
+      sentence and the forecast); its figure stays in the appendix's
+      monthly table - printing it beside full months invites the comparison
+      the sentence warns against. Q14 (a): 3F closes - the code-written
+      front section is the narration, the AI writes only the
+      recommendations (3F item; AI_PIPELINE 7.9). Q15 the chart directly
+      under the summary. Q16 "Moved this month, but not singled out" stays
+      in the front. Q17 the Insights page's refused split (it draws level 2
+      where stage 3 refuses B2) is fixed with the redesign by the bridge -
+      **a blocker for deploy, kept on this item until fixed.** Q18 the new
+      field homes agreed. Q19 Sonnet 5 (`MODEL_REASONING`, ADR-0003). Q20
+      (his own finding) the checklist's amounts overlap and a reader will
+      add them (Kaggle 4,712.29 + 2,858.84 + 1,274.15 = 8,845.28 against
+      4,925.00 - verified), and the price effect appears twice (-2,646.13,
+      -1,479.65): one sentence under the first group says the amounts
+      overlap and the chart is the one that adds up; P1/P2 are worded as
+      part of the chart's price bar. Also: "Rows left out" says why, from
+      the cleaning report's own fields. Decisions made alone in applying
+      them (open to his veto): "ordinary" joins Q3's words; "typical
+      month-to-month change" stays (his wording, a figure's name); P1's
+      "moved with what customers bought" only when P1 prints 0.00. Open:
+      Q21 (report.json's narration status once 3F is closed). **Step 1
+      (stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`)
+      approved the same day.**
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5792,6 +5854,11 @@ dataclarity/
 ### Backlog (never start without explicit approval)
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
+
+**Mixed currencies, option B** (Thach, 2026-10-05, the report redesign's
+Q7): analyse one currency, the other lines left out in stage 1 with a
+change-log line and the report's section 6 saying so. v1 blocks such a
+file (option A).
 
 **v2: the Dashboard and the PostgreSQL import** (Thach, 2026-10-03): 6F and
 Phase 7 (7A-7C), out of v1 - without stock the Dashboard repeats Insights.
@@ -5961,6 +6028,13 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - Thach's answers, then step 1** (2026-10-05). His answers
+to the design's 20 questions recorded (9R; `docs/REPORT_REDESIGN.md`
+section 10) and applied to every wording; 3F closed (Q14); mixed currencies
+blocked in v1, option B to 8D and the Backlog (Q7). The Kaggle mock
+regenerated (`C:\Users\Happy\report-redesign-mock-kaggle.html`). Then
+step 1 (stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`),
+full process - its result in 9R and the design's section 12.
 **Report redesign, Phase 1 - design only** (2026-10-05, on Thach's manual
 test of the app; his decisions D1-D7 recorded with their reasons at Phase
 9's item 9R). Done: `docs/REPORT_REDESIGN.md` (a)-(g) with the real figures

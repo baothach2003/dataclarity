@@ -1510,6 +1510,14 @@ what could not be tested is part of the answer, not an omission.
 
 ### 7.9 Step 8: AI narration (the only AI call in stage 3)
 
+**CLOSED for v1 (Thach, 2026-10-05, the report redesign's Q14 (a)).** The
+report's front section, written by code from the deterministic blocks
+(`docs/REPORT_REDESIGN.md` section 1), is the narration; the AI writes
+only the recommendations (section 8, redesigned as structured claims:
+`docs/REPORT_REDESIGN.md` section 4). Stage 3 makes no AI call, so
+`ai_findings` and `model_used` are always null. What follows is the
+record of the step as designed.
+
 - Input: the complete deterministic output of steps 1-7 as JSON, with the
   `notes` and `suggested_classes` diagnosis.json carries (2E-t2: the line
   taxonomy's notes, computed by stage 2, and the marks of products whose
