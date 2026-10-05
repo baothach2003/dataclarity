@@ -23,7 +23,7 @@ def test_report_json_carries_the_count_and_the_reason() -> None:
     report = build(_after_upload(metrics_data(future_lines=1, future_revenue=10.0, future_lines_reason=REASON)))
     numbers = report.layer_1_numbers
     assert (numbers.future_lines, numbers.future_lines_reason) == (1, REASON)
-    assert SCHEMA_VERSION == "2.6"  # 2.2 in 2E-u6, 2.3 the hypotheses note, 2.4 the season comparison, 2.5 the labels, 2.6 the lens
+    assert SCHEMA_VERSION == "2.7"  # 2.7 the headline's hedge; 2.2 in 2E-u6, 2.3 the hypotheses note, 2.4 the season comparison, 2.5 the labels, 2.6 the lens
 
 
 def test_the_page_says_it_beside_the_dates_the_file_covers() -> None:

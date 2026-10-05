@@ -16,7 +16,15 @@ from typing import Any, ClassVar, Literal, Self
 
 from pydantic import Field, NonNegativeInt, model_validator
 
-from contracts._base import ContractFile, ContractModel, UnitInterval, YearMonth, numbers_json_cannot_carry
+from contracts._base import (
+    ContractFile,
+    ContractModel,
+    UnitInterval,
+    YearMonth,
+    minor_version,
+    numbers_json_cannot_carry,
+)
+from contracts.lever_bridge import LEVEL2_NULL_REASONS, BridgeWithheld, LeverBridge, printed_cents
 from contracts.lines import TOO_LARGE_TO_ADD, Notes, refuse_non_finite
 from contracts.profile import LineClass
 
@@ -311,6 +319,48 @@ def _pair_matches_level1(pair: LeverLevel, level1: LeverLevel) -> bool:
                    rel_tol=1e-9, abs_tol=1e-9 * scale)
 
 
+# The year-ago block's reasons (18.4): T2 says the first in its own evidence
+# (stages/diagnose/hypothesis_evidence_time.t2), one copy here.
+# The frame names a pair only among the months the file covers whole
+# (`months_with_rows` is within the complete months), so a year-ago month is
+# never part of one.
+NO_YEAR_AGO_PAIR = "the year-ago pair is not in the data"
+YearAgoReason = Literal["the year-ago pair is not in the data", "the diagnosis is blocked"]
+# Rule 4's two hedges, by the code the headline carries (`Headline.hedge`):
+# here, so the contract can check the message ends with the one named.
+HEDGE_SENTENCES = {
+    "seasonal": "This may be seasonal.",
+    "plain": "Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding.",
+}
+
+
+def _level1_revenue(level1: LeverLevel, period: str) -> float:
+    """The revenue level 1's factors multiply back to in one period."""
+    product = 1.0
+    for factor in level1.factors:
+        product *= getattr(factor, f"value_{period}")
+    return product
+
+
+def _bridge_totals_are_level1s(bridge: LeverBridge, level1: LeverLevel) -> bool:
+    """The bridge's two months are the revenue level 1's factors multiply back
+    to (customers x frequency x AOV, or orders x AOV) - up to float residue."""
+    return all(isclose(_level1_revenue(level1, period), total, rel_tol=1e-9)
+               for period, total in (("prev", bridge.revenue_previous), ("cur", bridge.revenue_current)))
+
+
+def _bridge_matches_the_lever(bridge: LeverBridge, level1: LeverLevel, level2: LeverLevel | None) -> bool:
+    """The bars are level 1's factors, AOV replaced by level 2's pair when
+    split - their values and terms exactly as the levels carry them."""
+    factors = [f for f in level1.factors if not (bridge.aov_split and f.name == "aov")]
+    if bridge.aov_split:
+        if level2 is None:
+            return False
+        factors += level2.factors
+    return [(b.factor, b.value_prev, b.value_cur, b.contribution) for b in bridge.bars] == [
+        (f.name, f.value_prev, f.value_cur, f.contribution) for f in factors]
+
+
 class Lever(ContractModel):
     """The lever lens: revenue split into its multiplicative drivers.
 
@@ -358,6 +408,12 @@ class Lever(ContractModel):
     # absent from files written before 3D6b, which still load.
     masked_shift_pair: LeverLevel | None = None
     reasons: dict[str, str]
+    # 18.4 (the report redesign, step 1): the waterfall, or why there is none
+    # - a period with zero orders (level 1 null), or a compared month netting
+    # zero or below (the split's terms change sign there, as the masked-shift
+    # alert reads it). One of the two in an 18.4 file; neither before.
+    bridge: LeverBridge | None = None
+    bridge_withheld: BridgeWithheld | None = None
 
     @model_validator(mode="after")
     def _nulls_are_explained_and_consistent(self) -> Self:
@@ -394,6 +450,34 @@ class Lever(ContractModel):
         if (self.masked_shift_alert is None and self.level1 is not None
                 and "masked_shift_alert" not in self.reasons):
             raise ValueError("masked_shift_alert is null and carries no reason")
+        if self.bridge is not None and self.bridge_withheld is not None:
+            raise ValueError("a lever carries a bridge or the reason it has none, not both")
+        if self.bridge is None and self.bridge_withheld is None:
+            return self  # a file before 18.4
+        if (self.bridge_withheld == "zero_orders") != (self.level1 is None):
+            raise ValueError("the bridge is withheld for zero orders exactly where level 1 is null")
+        if self.level1 is not None:
+            if self.level1.formula not in ("customers*frequency*aov", "orders*aov"):
+                raise ValueError(f"level 1 is customers*frequency*aov or orders*aov, not {self.level1.formula!r}")
+            # Stage 3 decides on the revenue as printed (`_bridge`); the file
+            # holds no revenue beside a withheld bridge, only level 1's factors,
+            # whose product can print a cent apart near half a cent (cycle 3
+            # #1). So this refuses only a month the product shows clearly
+            # positive - a cent or more - and a drawn bridge's own months are
+            # held to the rule by LeverBridge.
+            clearly_positive = min(_level1_revenue(self.level1, period) for period in ("prev", "cur")) >= 0.01
+            if self.bridge_withheld == "month_not_positive" and clearly_positive:
+                raise ValueError("the bridge is withheld as month_not_positive beside months that print above zero")
+        if self.bridge is not None:
+            if self.level1 is None or not _bridge_matches_the_lever(self.bridge, self.level1, self.level2):
+                raise ValueError("the bridge's bars are not the lever's terms")
+            if not _bridge_totals_are_level1s(self.bridge, self.level1):
+                raise ValueError("the bridge's months are not the revenue level 1 multiplies back to")
+            withheld = self.bridge.aov_split_withheld
+            # Level 2 present carries no level-2 reason, so this also refuses
+            # a level-2 cause beside a level 2.
+            if withheld in LEVEL2_NULL_REASONS and self.reasons.get("level2") != LEVEL2_NULL_REASONS[withheld]:
+                raise ValueError(f"the split is withheld as {withheld} only where level 2 is null for that reason")
         return self
 
 
@@ -738,6 +822,34 @@ class Headline(ContractModel):
     # 3E1b: written whenever rules 1-4 did not decide; null for rules 1-4 (the
     # size test does not apply) and in a report.json from before 18.0.
     movement: HeadlineMovement | None = None
+    # 18.4 (the report redesign, step 1): which of rule 4's two hedges the
+    # message ends with - "seasonal" (This may be seasonal.) or "plain" - so a
+    # reader words it without parsing the message. Rule 4 only; null before.
+    hedge: Literal["seasonal", "plain"] | None = None
+
+    @model_validator(mode="after")
+    def _hedge_only_under_rule_4(self) -> Self:
+        if self.hedge is not None and self.rule != 4:
+            raise ValueError("a hedge belongs to headline rule 4 only")
+        if self.hedge is not None and not self.message.endswith(HEDGE_SENTENCES[self.hedge]):
+            raise ValueError(f"a {self.hedge} hedge: the message ends with its sentence")
+        return self
+
+
+class YearAgo(ContractModel):
+    """The same two months a year earlier and their revenue - T2's pair as a
+    fact (the report redesign, step 1): T2's evidence keys are no consumer
+    field (CONTRACTS 11). Stated whatever T2's verdict; one earlier year."""
+
+    previous: YearMonth
+    current: YearMonth
+    revenue_previous: float
+    revenue_current: float
+
+    @model_validator(mode="after")
+    def _figures_are_finite(self) -> Self:
+        refuse_non_finite("year_ago's revenue", (self.revenue_previous, self.revenue_current))
+        return self
 
 
 # --- Step 8 (session 3F): AI narration ----------------------------------------
@@ -850,6 +962,10 @@ class DiagnosisContract(ContractFile):
     # table: the missing days affect the verdicts below (Thach, 2026-10-04,
     # (vi)). Null otherwise and in 18.0.
     hypotheses_note: str | None = None
+    # 18.4 (the report redesign, step 1): T2's pair as a fact, or why there is
+    # none - one of the two in an 18.4 file; neither before.
+    year_ago: YearAgo | None = None
+    year_ago_reason: YearAgoReason | None = None
     ai_findings: AiFindings | None
     # 2E-t2 (docs/LINE_TAXONOMY.md sections 3 and 4.5; an always-on note is
     # said once, section 3): metrics.json's notes,
@@ -875,6 +991,48 @@ class DiagnosisContract(ContractFile):
         # A NaN is an overflow's trace too (DEMO review #1): one rule.
         for path, value in numbers_json_cannot_carry(self.model_dump()):
             raise ValueError(f"{path}: {TOO_LARGE_TO_ADD} ({value}): JSON cannot carry it")
+        return self
+
+    @model_validator(mode="after")
+    def _the_redesign_fields_from_18_4(self) -> Self:
+        """An 18.4 file carries the report redesign's fields (step 1): the
+        bridge or the reason it has none, year_ago or its reason, rule 4's
+        hedge. An earlier file carries none of them and still loads."""
+        if (self.year_ago is not None) and (self.year_ago_reason is not None):
+            raise ValueError("year_ago and year_ago_reason are not both filled")
+        frame = self.frame
+        if self.year_ago is not None and (self.year_ago.previous, self.year_ago.current) != (
+                frame.year_ago_previous, frame.year_ago_current):
+            raise ValueError("year_ago's months are the frame's year-ago pair")
+        lever = self.tree.lever if self.tree is not None else None
+        if minor_version(self.schema_version) < (18, 4):
+            if (self.year_ago, self.year_ago_reason, self.headline.hedge) != (None, None, None) or (
+                    lever is not None and (lever.bridge, lever.bridge_withheld) != (None, None)):
+                raise ValueError("a file before 18.4 carries none of the report redesign's fields")
+            return self
+        blocked = self.trust.verdict == "blocked"
+        pair = frame.year_ago_previous is not None and frame.year_ago_current is not None
+        allowed = ({"the diagnosis is blocked"} if blocked else {None} if pair else {NO_YEAR_AGO_PAIR})
+        if self.year_ago_reason not in allowed or (self.year_ago is None) != (self.year_ago_reason is not None):
+            raise ValueError(f"an 18.4 file carries year_ago, or a year_ago_reason among {sorted(allowed, key=str)}, "
+                             "as the frame and the trust verdict say")
+        if lever is not None and (lever.bridge is None) == (lever.bridge_withheld is None):
+            raise ValueError("an 18.4 file's lever carries a bridge or bridge_withheld")
+        by_id = {h.id: h for h in self.hypotheses}
+        # The split is withheld for refund lines exactly where B2 refused on
+        # them - the same count (stages/diagnose/lever.refund_lines; cycle 3 #3).
+        b2_refused = "B2" in by_id and "refund_lines_prev" in by_id["B2"].evidence
+        if lever is not None and lever.bridge is not None and (
+                (lever.bridge.aov_split_withheld == "refund_lines") != b2_refused):
+            raise ValueError("the split is withheld for refund lines exactly where B2 refuses on them")
+        # The year-ago revenue is T2's own pair.
+        t2 = by_id.get("T2")
+        if self.year_ago is not None and t2 is not None and "ly_prev" in t2.evidence and (
+                (self.year_ago.revenue_previous, self.year_ago.revenue_current)
+                != (t2.evidence["ly_prev"], t2.evidence.get("ly_cur"))):
+            raise ValueError("year_ago's revenue is the pair T2 reads")
+        if self.headline.rule == 4 and self.headline.hedge is None:
+            raise ValueError("an 18.4 rule 4 headline names its hedge")
         return self
 
     @model_validator(mode="after")

@@ -12,6 +12,7 @@ from contracts._base import (
     Percent,
     YearMonth,
     major_of,
+    minor_version,
     numbers_json_cannot_carry,
 )
 from contracts.lines import (
@@ -120,6 +121,13 @@ class CoreMetrics(ContractModel):
     revenue_previous: float
     revenue_change_pct: float | None
     revenue_change_pct_reason: str | None
+    # 16.2 (the report redesign, step 1; Thach, 2026-10-05): this month's
+    # revenue less last month's, the amount the report's summary states.
+    # Null with the period's reason exactly when the previous month is
+    # incomplete (never compared, CONTRACTS 11); an amount needs no base, so
+    # a non-positive previous month still has one. Null in 16.1 and before.
+    revenue_change: float | None = None
+    revenue_change_reason: str | None = None
     # Distinct order ids with a sale row when `order_id` is mapped and passes
     # stage 1's check; else sale LINES (2E-e). The basis names which, so
     # stage 5 labels honestly ("average line value", "lines per customer").
@@ -468,6 +476,26 @@ class MetricsContract(ContractFile):
         return self
 
     @model_validator(mode="after")
+    def _the_change_is_the_two_months_difference(self) -> Self:
+        """16.2: `core.revenue_change` is written whenever the previous month
+        is complete - exactly revenue_current - revenue_previous, as stage 2
+        computes it - and null with the period's reason otherwise. A file
+        before 16.2 carries neither (the report redesign, step 1)."""
+        core, period = self.core, self.period
+        if core.revenue_change is not None and core.revenue_change != core.revenue_current - core.revenue_previous:
+            raise ValueError(f"core.revenue_change {core.revenue_change!r} is not revenue_current - revenue_previous")
+        if minor_version(self.schema_version) < (16, 2):
+            return self
+        if period.previous_complete:
+            if core.revenue_change is None or core.revenue_change_reason is not None:
+                raise ValueError("a 16.2 file states core.revenue_change, with no reason, when the previous "
+                                 "month is complete")
+        elif core.revenue_change is not None or core.revenue_change_reason != period.previous_incomplete_reason:
+            raise ValueError("core.revenue_change is null with the period's reason when the previous month "
+                             "is incomplete")
+        return self
+
+    @model_validator(mode="after")
     def _no_comparison_against_an_incomplete_month(self) -> Self:
         """Every field whose only purpose is to compare the two months is
         null when the previous month is incomplete (2E doubt-review F8: the
@@ -481,7 +509,7 @@ class MetricsContract(ContractFile):
                     self.customers.customers_previous_reason):
             raise ValueError("the previous month is incomplete, so every comparison must carry "
                              "a reason")
-        compared = [self.core.revenue_change_pct, self.products.biggest_decliners]
+        compared = [self.core.revenue_change_pct, self.core.revenue_change, self.products.biggest_decliners]
         compared += [m.contribution_pct for m in self.by_dimension.country + self.by_dimension.category]
         compared += [s.customers_previous for s in self.customers.segments]
         if any(value is not None for value in compared):

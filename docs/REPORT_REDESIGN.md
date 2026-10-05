@@ -488,7 +488,8 @@ change) is **Q21**.
 | `report.json`: `currency`, `layer_1_numbers.partial_months`, `rows_left_out`, `front` (the front section's code-written sentences and bars, so report.html and the page print one copy) | stage 5 | D6, D7, section 1.6, one wording for both readers |
 | `forecast.json`: `actions` (+ `actions_status`) | stage 4 | D4 (section 4) |
 
-Step 1's shapes (proposed here, final as built - section 12):
+Step 1's shapes as first proposed (the final ones, with `shown_previous`,
+`shown_current` and `not_to_the_cent`, are in section 12):
 
 ```
 metrics.core.revenue_change: float          # revenue_current - revenue_previous, written as revenue is
@@ -951,6 +952,16 @@ veto):
 
 **Open:**
 
+22. **Q22** (from step 1's review) - the two change amounts can differ by a
+    cent: `core.revenue_change` is the exact difference (sentence A,
+    "up 4,925.00"), `bridge.shown_change` the printed months' difference
+    (the chart's). They differ only where a month ends on half a cent (e.g.
+    10.006 to 20.004: "up 10.00" in the summary, 9.99 between the chart's
+    ends). Which does sentence A print when the bridge is drawn - the
+    bridge's (one number on the page), or the exact one (stage 2's own)?
+23. **Q23** - cross-model review of step 1 (Gemini or Codex CLI, read-only
+    sandbox) was not run: the session ran while Thach was away. Run it
+    before step 2, or skip?
 21. **Q21** - with 3F closed, report.json's `narration_status` keeps
     today's value (the page simply stops printing the line), or gains a
     value saying the step does not exist in v1 (an additive vocabulary
@@ -959,7 +970,7 @@ veto):
 ## 11. The build, step by step
 
 1. **Stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`**
-   (full process) - **approved 2026-10-05; as built in section 12.**
+   (full process) - **approved and DONE 2026-10-05; as built in section 12.**
 2. Stage 1 currency (6; Q5-Q9 answered).
 3. Stage 5: the front section, the appendix, the partial month, the rows
    left out, the currency (failing tests first, one review cycle).
@@ -971,4 +982,81 @@ Each is its own session, grouped for commits as CLAUDE.md says.
 
 ## 12. As built
 
-(Filled in by each step's session.)
+### Step 1 - stages 2 and 3's new fields (2026-10-05)
+
+Method fixed before the code: `C:\Users\Happy\redesign-step1-method.txt`.
+Shapes as built (CONTRACTS 6, 7, 10, 11 hold the rules):
+
+```
+metrics.json 16.2   core.revenue_change, core.revenue_change_reason
+diagnosis.json 18.4 tree.lever.bridge {revenue_previous, revenue_current, change,
+                      shown_previous, shown_current, shown_change,
+                      bars[{factor, value_prev, value_cur, contribution, shown}],
+                      aov_split, aov_split_withheld}
+                    tree.lever.bridge_withheld: zero_orders | month_not_positive | not_to_the_cent
+                    year_ago {previous, current, revenue_previous, revenue_current}, year_ago_reason
+                    headline.hedge: seasonal | plain
+report.json 2.7     carries headline.hedge
+```
+
+- **Stage 2** (`metrics_core.py`): the change, null with the period's
+  reason exactly beside an incomplete previous month; version-gated
+  (`contracts._base.minor_version`).
+- **The rounding rule, one copy** (`contracts/lever_bridge.py`, new, out of
+  contracts/diagnosis.py for size): `allocate_cents` (largest remainder; a
+  cent given back where the printed difference sits a cent under the terms;
+  a term of 0 or float residue never moves; a positive term never shown
+  below zero; null when it cannot reach), `printed_cents`, `as_shown`.
+  Stage 3 allocates with it; the contract recomputes it.
+- **The ends a reader draws** are `shown_previous` / `shown_current`, the
+  months as stage 5 prints them: the frontend's `Intl.NumberFormat` rounds a
+  half cent up where Python prints to even, so no reader formats revenue
+  for the chart itself.
+- **Stage 3** (`lever.py`): `lever_from_totals`, `_bridge`, `refund_lines`
+  (B2's count, moved here: one copy, B2 unchanged); `_level2` returns its
+  null cause, the reason texts in `LEVEL2_NULL_REASONS`. `assemble._year_ago`;
+  `headline._masked_hedge` returns the code, the sentences in
+  `contracts.diagnosis.HEDGE_SENTENCES`; T2's no-pair words in
+  `NO_YEAR_AGO_PAIR`. 4B's input leaves every new field out.
+- **The contract** refuses: bars that are not the lever's terms or not the
+  allocation; ends other than the printed months; a split withheld for
+  refunds where B2 did not refuse on them, or drawn where it did; a level-2
+  cause other than its reason; `month_not_positive` beside months level 1
+  shows at a cent or more; year_ago other than the frame's months and T2's
+  pair, or a reason the frame and trust do not give; a hedge off rule 4 or
+  off its message's sentence; any new field in a file before its minor.
+
+**Verification.** Tests first (22 failing on the old code, then 96 in the
+three new files). Hand mutation: 72 mutants over five rounds, every one
+killed after the tests they exposed were tightened, two equivalent
+(redundant checks, removed). Three doubt-review cycles (fresh-context
+adversarial subagents; cross-model not run - offered to Thach): cycle 1 a
+crash on half-cent months and at large amounts, and contract gaps; cycle 2
+a crash past 15 significant digits, the frontend's half-up rounding, a cent
+on a factor that did not move, gaps; cycle 3 a crash near half a cent
+between stage 3's and the contract's readings, version gating, the B2 and
+T2 ties. All fixed; the cycle-3 fixes are tested and mutated but, the
+skill's bound of three cycles reached, not re-reviewed by a fourth.
+Regression on real files: Thach's Kaggle run (stages 2-5 again on its
+stage 1 output) and both Online Retail II demo runs - every existing field
+of metrics, diagnosis, report and forecast.json IDENTICAL; only the new
+fields and the version stamps differ. Kaggle's bridge: 0.00 / +4,712.29 /
++2,858.84 / -2,646.13 = 4,925.00; both demo runs one order-value bar
+(`refund_lines`), the unanswered 125,915.39 / 51,213.50 / -37,662.33 =
+139,466.56.
+
+Decisions made alone (Thach's veto open):
+- `revenue_change` is null only beside an incomplete previous month, not
+  for a non-positive base (an amount needs no base).
+- `month_not_positive`: no waterfall beside a month that prints 0.00 or
+  below (the masked-shift alert refuses the same months; printed cents, so
+  residue cannot decide); `not_to_the_cent` where the cents cannot be
+  allocated or printed back (very large amounts).
+- A term of exactly 0, or residue, never takes or gives a cent; a positive
+  term is never shown below zero.
+- `year_ago` is written whatever T2's verdict (the front reads T2's
+  verdict for the line's group).
+- The Kaggle cases in the tests are its month totals, not its rows (uploaded
+  data is never committed).
+- The name `bridge` (Thach's) sits beside stage 3's customer "bridge" terms
+  (`tree.customers`); the docstrings say which is which.

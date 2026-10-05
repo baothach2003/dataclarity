@@ -44,7 +44,9 @@ def _metrics(metrics: MetricsContract) -> dict[str, Any]:
         "period": metrics.period.model_dump(mode="json"),
         # The basis's reason stays (4B review 1 #12): with no order numbers
         # the AI must say lines, not orders.
-        "core": core.model_dump(mode="json", exclude={"notes", "buyers_current", "buyers_previous"})
+        # The report redesign's fields (step 1) are read by 5 and FE only (CONTRACTS 11).
+        "core": core.model_dump(mode="json", exclude={"notes", "buyers_current", "buyers_previous",
+                                                      "revenue_change", "revenue_change_reason"})
         | {"notes": [_note(n) for n in core.notes]},
         # Never the walk-in candidates: customer values from the file, beyond
         # the AI's bounded sample (CLAUDE.md 3.2; 2E-u3 review 1, #3).
@@ -88,13 +90,14 @@ def _diagnosis(diagnosis: DiagnosisContract) -> dict[str, Any]:
         "signals": None if diagnosis.signals is None else [
             s.model_dump(mode="json", exclude={"limits_method"}) for s in diagnosis.signals],
         "tree": None if diagnosis.tree is None else diagnosis.tree.model_dump(
-            mode="json", exclude={"lever": {"reasons"}, "customers": {"evidence", "previous_transition"}}),
+            mode="json", exclude={"lever": {"reasons", "bridge", "bridge_withheld"},
+                                  "customers": {"evidence", "previous_transition"}}),
         "localization": _localization(diagnosis.localization),
         "hypotheses": [h.model_dump(mode="json", include={"id", "family", "lens", "statement", "verdict",
                                                           "contribution", "share", "rule"})
                        for h in diagnosis.hypotheses],
         "not_testable": _dumped(diagnosis.not_testable),
-        "headline": diagnosis.headline.model_dump(mode="json"),
+        "headline": diagnosis.headline.model_dump(mode="json", exclude={"hedge"}),
         "notes": [_note(n) for n in diagnosis.notes],
         "suggested_classes": dict(diagnosis.suggested_classes),
     }

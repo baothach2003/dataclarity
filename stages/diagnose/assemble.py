@@ -15,7 +15,14 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
-from contracts.diagnosis import DiagnosisContract, NotTestable
+from contracts.diagnosis import (
+    NO_YEAR_AGO_PAIR,
+    DiagnosisContract,
+    Frame,
+    NotTestable,
+    Trust,
+    YearAgo,
+)
 from shared.contract_files import write_atomically
 from shared.run_registry import run_file
 from stages.diagnose.calendar_effect import compute_calendar
@@ -35,8 +42,9 @@ from stages.diagnose.trust import evaluate_trust
 # The major the engine writes (contracts/diagnosis.py's supported_major; its
 # comment says what each major changed).
 # 18.1 (Thach, 2026-10-03): hypotheses_note; 18.2 (2026-10-04): headline.movement.season; 18.3
-# (2026-10-04, (vi)-(vii)): hypotheses[].against_the_change and rule 2's note - all additive.
-SCHEMA_VERSION = "18.3"
+# (2026-10-04, (vi)-(vii)): hypotheses[].against_the_change and rule 2's note; 18.4 (the report
+# redesign, step 1, 2026-10-05): tree.lever.bridge, year_ago, headline.hedge - all additive.
+SCHEMA_VERSION = "18.4"
 DIAGNOSIS_FILENAME = "diagnosis.json"
 
 
@@ -73,10 +81,28 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
         not_testable=[NotTestable(**asdict(spec)) for spec in NOT_TESTABLE],
         headline=headline,
         hypotheses_note=hypotheses_note(headline),
+        **_year_ago(data, frame, trust),
         ai_findings=None,
         notes=stage_3_notes(data),
         suggested_classes=named_suggestions(data, localization, hypotheses),
     )
+
+
+def _year_ago(data: RunData, frame: Frame, trust: Trust) -> dict[str, YearAgo | str | None]:
+    """T2's pair as a fact (the report redesign, step 1): the same two months
+    a year earlier, by the revenue T2 reads (`month_revenue`), or why there
+    is none. A blocked run carries no analysis. The frame names a pair only
+    among the months the file covers whole (`months_with_rows`); days with no
+    sales INSIDE such a month are T2's to judge, and its verdict stands beside
+    these figures (doubt-review cycle 2 #6)."""
+    if trust.verdict == "blocked":
+        return {"year_ago": None, "year_ago_reason": "the diagnosis is blocked"}
+    if frame.year_ago_previous is None or frame.year_ago_current is None:
+        return {"year_ago": None, "year_ago_reason": NO_YEAR_AGO_PAIR}
+    return {"year_ago": YearAgo(previous=frame.year_ago_previous, current=frame.year_ago_current,
+                                revenue_previous=month_revenue(data, frame.year_ago_previous),
+                                revenue_current=month_revenue(data, frame.year_ago_current)),
+            "year_ago_reason": None}
 
 
 def diagnose_run(runs_root: Path, run_id: str, now: datetime | None = None,

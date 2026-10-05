@@ -118,7 +118,7 @@ def test_a_daily_file_ending_on_the_first_still_drops_its_last_month() -> None:
 
 
 def test_metrics_json_is_14_or_the_current_one() -> None:
-    assert SCHEMA_VERSION == "16.1"
+    assert SCHEMA_VERSION == "16.2"
     assert MetricsContract.supported_major == 16
 
 

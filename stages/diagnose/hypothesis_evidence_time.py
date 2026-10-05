@@ -4,7 +4,7 @@ routine variation (docs/AI_PIPELINE.md 7.8) - split out of
 day-level steps do not apply and say so (Thach, Q1 of 2E-h).
 """
 
-from contracts.diagnosis import is_verdict
+from contracts.diagnosis import NO_YEAR_AGO_PAIR, is_verdict
 from stages.diagnose.inputs import MONTH_GRAIN_NOTE
 from stages.diagnose.lever import month_revenue
 from stages.diagnose.numbers import typical_magnitude, usable_base
@@ -74,7 +74,7 @@ def t2(inputs: Step7Inputs, moved: Changes) -> Outcome:
     frame = inputs.frame
     if frame.year_ago_current is None or frame.year_ago_previous is None:
         return Outcome(verdict="inconclusive",
-                       evidence={"reason": "the year-ago pair is not in the data"},
+                       evidence={"reason": NO_YEAR_AGO_PAIR},
                        rule="requires the year-ago pair")
     ly_prev = month_revenue(inputs.data, frame.year_ago_previous)
     ly_cur = month_revenue(inputs.data, frame.year_ago_current)

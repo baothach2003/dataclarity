@@ -42,8 +42,9 @@ from stages.analyze.metrics_products import compute_product_metrics
 # and the suggested classes, and velocity became null on every file).
 # 16.1 in 2E-u6 (additive: lines dated after the upload are left out of
 # choosing the period and counted - `period.upload_cutoff`,
-# `core.future_lines`).
-SCHEMA_VERSION = "16.1"
+# `core.future_lines`). 16.2 in the report redesign's step 1 (additive:
+# `core.revenue_change`, Thach 2026-10-05).
+SCHEMA_VERSION = "16.2"
 METRICS_FILENAME = "metrics.json"
 
 

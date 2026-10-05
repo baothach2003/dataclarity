@@ -3,6 +3,7 @@
 file size. B1 stays there: it shares D1's check with the time family.
 """
 
+from stages.diagnose.lever import refund_lines
 from stages.diagnose.step7_inputs import Changes, Outcome, Step7Inputs
 
 
@@ -14,30 +15,11 @@ def _refunds_in_level_2(inputs: Step7Inputs) -> Outcome | None:
     a refunded unit leaves the basket: with this refusal lifted, a month where
     ONLY refunds changed headlined "baskets got smaller (100% of the change)"
     (measured in 2E). Either period with any refund leaves B2 inconclusive."""
-    # Any return LINE, not only refunded money (2E doubt-review cycle 3).
-    # Since 2E-c2 a return line needs a negative amount, so a zero-price
-    # write-off is a deduction and carries no unit into the basket.
-    period = inputs.data.metrics.period
-    lines = {label: int((inputs.data.parsed.returned
-                         & (inputs.data.months == month)).sum())
-             for label, month in (("prev", period.previous), ("cur", period.current))}
-    # ...and any counted row with a negative amount (2E-b). Thach decided in
-    # 2E-c2 to drop this clause IF a test proved a deduction line cannot move
-    # B2; the proof failed. A refund booked +1 at a negative price is a
-    # deduction, so its units leave level 2 - while the same refund booked as
-    # a return line counts against the basket: fifteen such refunds a day made
-    # B2 headline "baskets got bigger" (+8,525 against +3,100) while each
-    # order kept 2.5 units, down from 3 (2E-c2 doubt-review cycle 2). A coupon
-    # and a refund at a negative price cannot be told apart, so both refuse B2
-    # until 3E3 gives refunds a factor of their own - the SUPPRESS side. It
-    # also covers a month netting zero or below, where price per unit and the
-    # basket term's sign flip: only return lines or negative amounts can
-    # take a month there, and both refuse B2 first (2E-c2 doubt-review F1).
-    for label, month in (("prev", period.previous), ("cur", period.current)):
-        lines[label] += int((inputs.data.parsed.counted
-                             & (inputs.data.parsed.revenue_amounts < 0)
-                             & ~inputs.data.parsed.returned
-                             & (inputs.data.months == month)).sum())
+    # Any return line, and any counted non-return line with a negative amount
+    # (2E-b, 2E-c2 doubt-review cycles 2-3: the reasons beside
+    # `lever.refund_lines`, where the count lives - the bridge withholds the
+    # split on the same count, the report redesign's step 1).
+    lines = refund_lines(inputs.data)
     if lines["prev"] or lines["cur"]:
         return Outcome(verdict="inconclusive",
                        # Line counts only: money beside them read as a

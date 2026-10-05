@@ -15,6 +15,16 @@ from dataclasses import dataclass
 import pandas as pd
 
 from contracts.diagnosis import Lever, LeverFactor, LeverLevel
+from contracts.lever_bridge import (
+    LEVEL2_NULL_REASONS,
+    BridgeBar,
+    BridgeWithheld,
+    LeverBridge,
+    SplitWithheld,
+    allocate_cents,
+    as_shown,
+    printed_cents,
+)
 from shared.orders import count_orders
 from stages.diagnose.inputs import RunData, period_mask
 from stages.diagnose.shapley import shapley_product
@@ -59,18 +69,27 @@ def period_totals(data: RunData, month: str) -> PeriodTotals:
 
 
 def compute_lever(data: RunData, history: list[str]) -> Lever:
-    previous = period_totals(data, data.metrics.period.previous)
-    current = period_totals(data, data.metrics.period.current)
-    has_customers = data.parsed.reverse.get("customer") is not None
+    return lever_from_totals(
+        period_totals(data, data.metrics.period.previous),
+        period_totals(data, data.metrics.period.current),
+        has_customers=data.parsed.reverse.get("customer") is not None,
+        typical=typical_magnitude(month_revenue(data, month) for month in history),
+        refunds=any(refund_lines(data).values()))
 
+
+def lever_from_totals(previous: PeriodTotals, current: PeriodTotals, *, has_customers: bool,
+                      typical: float, refunds: bool) -> Lever:
+    """The lens from the two months' totals. `refunds`: B2's own refusal holds
+    (`refund_lines` below), so the bridge does not draw the basket split."""
     reasons: dict[str, str] = {}
     level1 = _level1(previous, current, has_customers, reasons)
-    level2 = _level2(previous, current, level1, reasons)
+    level2, level2_cause = _level2(previous, current, level1, reasons)
     gross_to_net = _gross_to_net(previous, current, level1, reasons)
-    typical = typical_magnitude(month_revenue(data, month) for month in history)
     pair = _orders_aov_pair(level1, previous, current)
     alert = _masked_shift(pair, gross_to_net, typical,
                           previous.revenue, current.revenue, reasons)
+    split_withheld: SplitWithheld | None = "refund_lines" if refunds else level2_cause
+    bridge, withheld = _bridge(previous, current, level1, level2, split_withheld)
     return Lever(
         level1=level1,
         level2=level2,
@@ -78,7 +97,71 @@ def compute_lever(data: RunData, history: list[str]) -> Lever:
         masked_shift_alert=alert,
         masked_shift_pair=pair,
         reasons=reasons,
+        bridge=bridge,
+        bridge_withheld=withheld,
     )
+
+
+def refund_lines(data: RunData) -> dict[str, int]:
+    """Per compared month ("prev", "cur"), the lines that leave level 2's
+    basket unreadable: every return LINE, not only refunded money (2E
+    doubt-review cycle 3) - since 2E-c2 a return line needs a negative amount,
+    so a zero-price write-off is a deduction and carries no unit into the
+    basket - and every counted non-return line with a negative amount (2E-b):
+    a refund booked +1 at a negative price is a deduction whose units leave
+    level 2, while the same refund booked as a return line counts against the
+    basket, and a coupon cannot be told from it. B2 refuses on any of them
+    (hypothesis_evidence_lever, Thach 2E) and the bridge withholds the split
+    on the same count - one copy (the report redesign, step 1)."""
+    period = data.metrics.period
+    parsed = data.parsed
+    return {label: int((parsed.returned & (data.months == month)).sum())
+            + int((parsed.counted & (parsed.revenue_amounts < 0) & ~parsed.returned
+                   & (data.months == month)).sum())
+            for label, month in (("prev", period.previous), ("cur", period.current))}
+
+
+def _bridge(previous: PeriodTotals, current: PeriodTotals, level1: LeverLevel | None,
+            level2: LeverLevel | None, split_withheld: SplitWithheld | None,
+            ) -> tuple[LeverBridge | None, BridgeWithheld | None]:
+    """The waterfall from last month's revenue to this month's (the report
+    redesign, step 1): level 1's terms, AOV's replaced by level 2's pair
+    unless the split is withheld. No waterfall without level 1 (zero orders),
+    nor beside a month netting zero or below - the multiplicative terms change
+    sign there ("more customers pulled sales down"), the reading
+    `_masked_shift` refuses for the same months - nor where the terms cannot
+    be shown to the cent summing to the change (`allocate_cents`)."""
+    if level1 is None:
+        return None, "zero_orders"
+    # Judged on the cents a report prints, so float residue around zero
+    # (+5.6e-17 or -2.8e-17, by row order) cannot decide it (doubt-review
+    # cycle 2 #5; the F9 convention: a residue is no sign).
+    ends = printed_cents(previous.revenue), printed_cents(current.revenue)
+    if min(ends) <= 0:
+        return None, "month_not_positive"
+    split = split_withheld is None and level2 is not None
+    factors = [f for f in level1.factors if not (split and f.name == "aov")]
+    if split:
+        factors += level2.factors
+    cents = allocate_cents([f.contribution for f in factors], ends[1] - ends[0])
+    shown = None if cents is None else [as_shown(value) for value in (*ends, ends[1] - ends[0], *cents)]
+    if shown is None or None in shown:
+        # Past a cent of float residue, or past what a float prints back
+        # (about 15 significant digits): no bar moved further, no crash.
+        return None, "not_to_the_cent"
+    return LeverBridge(
+        revenue_previous=previous.revenue,
+        revenue_current=current.revenue,
+        change=current.revenue - previous.revenue,
+        shown_previous=shown[0],
+        shown_current=shown[1],
+        shown_change=shown[2],
+        bars=[BridgeBar(factor=f.name, value_prev=f.value_prev, value_cur=f.value_cur,
+                        contribution=f.contribution, shown=value)
+              for f, value in zip(factors, shown[3:], strict=True)],
+        aov_split=split,
+        aov_split_withheld=None if split else split_withheld,
+    ), None
 
 
 def _orders_aov_pair(level1: LeverLevel | None, previous: PeriodTotals,
@@ -174,7 +257,7 @@ def _level1(
 def _level2(
     previous: PeriodTotals, current: PeriodTotals, level1: LeverLevel | None,
     reasons: dict[str, str],
-) -> LeverLevel | None:
+) -> tuple[LeverLevel | None, SplitWithheld | None]:
     """`aov = units_per_order * price_per_unit`, converted into revenue units.
 
     The conversion is `phi_aov * phi_k / delta_aov`, which is exact because the
@@ -183,13 +266,13 @@ def _level2(
     """
     if level1 is None:
         reasons["level2"] = "level 1 could not be computed"
-        return None
+        return None, None
     if previous.units <= 0 or current.units <= 0:
         # Net of returns, a month can legitimately ship fewer units than came
         # back. Units per order is then negative or zero and the split says
         # nothing about prices.
-        reasons["level2"] = "net units are not positive in both periods"
-        return None
+        reasons["level2"] = LEVEL2_NULL_REASONS["net_units_not_positive"]
+        return None, "net_units_not_positive"
 
     values = {
         period: {
@@ -212,8 +295,8 @@ def _level2(
         # -2.8e-17 and the lens dutifully reported that basket size added 4.5p
         # and price removed 4.5p - figures 10^15 times larger than the quantity
         # they decompose (3C doubt-review R1a).
-        reasons["level2"] = "AOV did not move, so level-2 effects cannot be scaled"
-        return None
+        reasons["level2"] = LEVEL2_NULL_REASONS["aov_unchanged"]
+        return None, "aov_unchanged"
 
     phi_aov = next(f.contribution for f in level1.factors if f.name == "aov")
     contributions = shapley_product(values["prev"], values["cur"])
@@ -228,7 +311,7 @@ def _level2(
             )
             for name in ("units_per_order", "price_per_unit")
         ],
-    )
+    ), None
 
 
 def _gross_to_net(

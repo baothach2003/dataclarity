@@ -72,6 +72,16 @@ def major_of(data: Any) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def minor_version(version: str) -> tuple[int, int]:
+    """(major, minor) of a validated `schema_version` - for a rule a minor
+    version added: a file of that minor or later is held to it, an earlier
+    one still loads (CONTRACTS 10: an optional field is a minor bump)."""
+    match = _VERSION_PATTERN.match(version)
+    if match is None:
+        raise ValueError(f"not a schema version: {version!r}")
+    return int(match.group(1)), int(match.group(2))
+
+
 def numbers_json_cannot_carry(data: Any, path: str = "") -> Iterator[tuple[str, float]]:
     """Every float of a dumped contract (`model_dump()`) that is infinite or
     not a number, with its path: JSON writes it as null, so a required field

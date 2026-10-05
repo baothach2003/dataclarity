@@ -5840,6 +5840,21 @@ dataclarity/
       Q21 (report.json's narration status once 3F is closed). **Step 1
       (stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`)
       approved the same day.**
+      **Step 1 - DONE (2026-10-05):** metrics.json 16.2
+      `core.revenue_change`; diagnosis.json 18.4 `tree.lever.bridge` /
+      `bridge_withheld` (the rounding rule once, in the new
+      `contracts/lever_bridge.py`), `year_ago`, `headline.hedge`; report.json
+      2.7. Method first (`C:\Users\Happy\redesign-step1-method.txt`), tests
+      first, 72 hand mutants over five rounds all killed (two equivalent
+      checks removed), three doubt-review cycles - each found a crash
+      (half-cent months, past 15 significant digits, near half a cent
+      between stage 3 and the contract), all fixed; the cycle-3 fixes tested
+      and mutated, not re-reviewed (the bound). Regression: Thach's Kaggle
+      run and both Online Retail II demo runs, every existing field of
+      metrics, diagnosis, report and forecast.json identical. As built,
+      decisions made alone and the verification: `docs/REPORT_REDESIGN.md`
+      section 12. Open: Q21-Q23 (its section 10). Next: step 2 (stage 1
+      currency) after Thach's approval.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6034,7 +6049,9 @@ section 10) and applied to every wording; 3F closed (Q14); mixed currencies
 blocked in v1, option B to 8D and the Backlog (Q7). The Kaggle mock
 regenerated (`C:\Users\Happy\report-redesign-mock-kaggle.html`). Then
 step 1 (stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`),
-full process - its result in 9R and the design's section 12.
+full process - DONE: three review cycles each caught a crash, all fixed;
+the real runs' existing fields identical (9R; the design's section 12).
+Stopped before step 2. Open for Thach: Q21-Q23.
 **Report redesign, Phase 1 - design only** (2026-10-05, on Thach's manual
 test of the app; his decisions D1-D7 recorded with their reasons at Phase
 9's item 9R). Done: `docs/REPORT_REDESIGN.md` (a)-(g) with the real figures

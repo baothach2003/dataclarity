@@ -54,7 +54,7 @@ P1_UP = {"id": "P1", "lens": "product", "statement": "Like-for-like prices chang
 
 def test_the_version_is_2_6() -> None:
     # 2.5: the hypotheses' labels and evidence text, the outside lines' reasons; 2.6: each row's lens (Q2).
-    assert SCHEMA_VERSION == "2.6"
+    assert SCHEMA_VERSION == "2.7"
 
 
 # (vii) One label, from stage 3's own sign test as diagnosis.json states it.

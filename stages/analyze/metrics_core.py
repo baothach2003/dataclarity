@@ -130,11 +130,17 @@ def compute_core_metrics(
         change = pct_change(revenue_current, revenue_previous, moved)
     else:
         change = (None, period.previous_incomplete_reason)
+    # The amount needs no base, so only an incomplete previous month nulls it
+    # (the report redesign, step 1): never compared (CONTRACTS 11).
+    amount = ((revenue_current - revenue_previous, None) if period.previous_complete
+              else (None, period.previous_incomplete_reason))
     core = CoreMetrics(
         revenue_current=revenue_current,
         revenue_previous=revenue_previous,
         revenue_change_pct=change[0],
         revenue_change_pct_reason=change[1],
+        revenue_change=amount[0],
+        revenue_change_reason=amount[1],
         orders_basis=parsed.orders_basis,
         orders_basis_reason=parsed.orders_basis_reason,
         orders_current=orders_current,

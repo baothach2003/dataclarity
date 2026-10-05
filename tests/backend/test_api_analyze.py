@@ -45,7 +45,7 @@ def test_analyze_computes_metrics_and_moves_the_run_to_analyzed(make_api: MakeAp
     metrics = body["metrics"]
     assert metrics["by_dimension"]["country"] == []  # no canonical field carries country data
     assert api.status(run_id) is RunStatus.ANALYZED
-    assert api.read_json(run_id, "metrics.json")["schema_version"] == "16.1"  # 16.1 in 2E-u6 (additive); 2E-t1 (the line taxonomy); 2E-k major bump (walk-in placeholders); 2E-d2 (non-product lines); 2E-l (charges no order); 2E-i (one text reading); 2E-j (the date order, month grain)
+    assert api.read_json(run_id, "metrics.json")["schema_version"] == "16.2"  # 16.2 in the report redesign's step 1 (additive); 16.1 in 2E-u6 (additive); 2E-t1 (the line taxonomy); 2E-k major bump (walk-in placeholders); 2E-d2 (non-product lines); 2E-l (charges no order); 2E-i (one text reading); 2E-j (the date order, month grain)
 
 
 def test_analyze_is_allowed_from_an_already_analyzed_run(make_api: MakeApi) -> None:

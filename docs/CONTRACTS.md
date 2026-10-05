@@ -934,6 +934,13 @@ sign-inverted or half-month number.** The model enforces the pairing: a null
 without a reason, a reason beside a value, or a list comparison null for only
 some of its members is invalid.
 
+- **The change amount (16.2, the report redesign's step 1).**
+  `core.revenue_change` is `revenue_current - revenue_previous` as stage 2
+  computes them, the amount the report's summary states; null with the
+  period's `previous_incomplete_reason` in `revenue_change_reason` exactly
+  when the previous month is incomplete. An amount needs no base, so a
+  non-positive previous month still has one. Absent before 16.2; a 16.2
+  file is refused without it.
 - **Non-positive base.** `revenue_change_pct` (and each decliner's
   `revenue_change_pct`) is null when the previous value is zero, negative, or
   floating-point residue next to the money that moved in the two months
@@ -1260,6 +1267,48 @@ below: the multiplicative split then changes sign and cannot be read.
 in `lever` carries an entry in `tree.lever.reasons`, keyed by field name; a
 null `masked_shift_alert` needs its own entry only when level 1 is present,
 since beside a null level 1 it is explained by level 1's reason.
+**`tree.lever.bridge`** (18.4, the report redesign's step 1; Thach,
+2026-10-05, Q1 and Q2) is the waterfall the report draws, from last month's
+revenue to this month's: `bars`, level 1's terms in order with AOV's
+replaced by level 2's pair when `aov_split` - each bar's `value_prev`,
+`value_cur` and `contribution` exactly as the levels carry them, and `shown`
+its term in cents by the largest-remainder rule (rounded down, the
+largest remainders taking the cents left, a tie to the earlier bar) so the
+shown bars sum EXACTLY to `shown_change` = `shown_current` -
+`shown_previous`, the two months as `f"{x:.2f}"` prints them
+(`revenue_previous`, `revenue_current`: the lever's own month totals, which
+level 1 multiplies back to; `change` their exact difference). A reader
+draws the chart's ends from `shown_previous` / `shown_current`, never
+formatting the revenue its own way: an exact half cent prints to even here
+and up in `Intl.NumberFormat` (doubt-review cycle 2 #2). The printed
+difference can sit a cent UNDER the terms' own sum, and then the bars with
+the smallest remainders give a cent back (a tie to the later bar): a bar is
+its term rounded down, or a cent either side of that. A term of exactly 0
+- a factor that did not move, or float residue next to the largest term
+(within a billionth of it) - never takes or gives a cent and shows 0.00,
+nor does a positive term give back a cent that would show it below zero
+(cycles 2 #3, 3 #5).
+The rule is `contracts.lever_bridge.allocate_cents`, one copy: stage 3
+allocates with it and the contract recomputes it. The split is
+withheld (`aov_split` false, `aov_split_withheld`) where B2's refusal holds
+- `refund_lines`, the same count B2 refuses on (`lever.refund_lines`), and
+in an 18.4 file exactly where B2's evidence carries that count -
+or level 2 is null (`aov_unchanged`, `net_units_not_positive`): drawn
+there it would state what stage 3 refuses. There is no bridge, and
+`tree.lever.bridge_withheld` says why, when level 1 is null (`zero_orders`)
+or a compared month prints 0.00 or below (`month_not_positive`: the
+multiplicative terms change sign, the reading the masked-shift alert
+refuses; judged on the printed cents so float residue around zero cannot
+decide it), or the terms cannot be shown to the cent summing to the change
+(`not_to_the_cent`: float residue past a cent, or cents past what a float
+prints back - about 15 significant digits; a level-2 term can be far
+larger than the months). Beside a withheld bridge the file holds only
+level 1's factors, whose product can print a cent apart from the revenue
+near half a cent, so the contract refuses `month_not_positive` only beside
+months that product shows at a cent or more. One of the two in an 18.4
+file; neither before - an earlier file carrying any of the redesign's
+fields is refused. Not the customer
+lens's bridge terms (`tree.customers`): the lever's.
 `masked_shift_basis` was removed by ADR-0007; a file still carrying it is read
 and the field ignored.
 
@@ -1446,7 +1495,21 @@ Since 18.3 rule 2's table carries one too - "The days with no sales at all
 affect the verdicts below: each measures a change that includes them."
 (Thach, 2026-10-04, (vi): rule 2 is a full diagnosis, the table stays;
 report.html and the page print the same note). Null for rules 1, 3 and 4,
-and in a diagnosis.json written before 18.1. A consumer decides on `rule`,
+and in a diagnosis.json written before 18.1. **`headline.hedge`** (18.4): which
+of rule 4's two hedges its message ends with - `seasonal` ("This may be
+seasonal.") or `plain` - so a reader words it without parsing the message;
+rule 4 only, required there in an 18.4 file, and the message ends with
+that hedge's sentence (`contracts.diagnosis.HEDGE_SENTENCES`). **`year_ago`** (18.4):
+`{previous, current, revenue_previous, revenue_current}`, the same two
+months a year earlier and their revenue - T2's pair as a fact, whatever
+T2's verdict (its evidence keys are no consumer field); null with
+`year_ago_reason` when the frame has no year-ago pair ("the year-ago pair
+is not in the data", T2's words) or the run is blocked ("the diagnosis is
+blocked"), as the frame and `trust.verdict` say; its months are the
+frame's `year_ago_previous` / `year_ago_current`, and its revenue T2's own
+`ly_prev` / `ly_cur` where T2 read them. The frame names a pair only among
+the months the file covers whole (`months_with_rows`). One of the two in an 18.4
+file; neither before. A consumer decides on `rule`,
 `singled_out` and `season.band` (a consistent band is rule 7 whatever `singled_out` says), never on
 the message. Every `evidence` value is a
 free-form JSON object of serialisable scalars and lists, like `params` in
@@ -1950,6 +2013,16 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-05: **the report redesign, step 1 (Thach; docs/REPORT_REDESIGN.md
+  section 2).** Optional fields, minor, each version-gated (a file of the
+  new minor is refused without them, an earlier one still loads):
+  `metrics.json` `16.2` (`core.revenue_change`, `revenue_change_reason`),
+  `diagnosis.json` `18.4` (`tree.lever.bridge`, `tree.lever.bridge_withheld`,
+  `year_ago`, `year_ago_reason`, `headline.hedge`) and `report.json` `2.7`
+  (it carries the Headline model). No existing field changed; B2's refund
+  count moved to `lever.refund_lines`, one copy for B2 and the bridge, its
+  verdicts unchanged. Section 11 rows added (readers 5 and FE; the 4B input
+  leaves them out), and `hypotheses[].against_the_change` gains reader FE.
 - 2026-10-05: **Q2 on the sixteenth report (Thach).** `report.json` `2.6`,
   additive: `hypotheses[].lens` (as diagnosis.json has it), so the product
   lens's label names its total - "moved against the change in gross sales
@@ -2408,8 +2481,9 @@ How the fields are read:
   the previous values (the identity needs them), but they describe part
   of a month.
 - **No consumer computes a figure** (CLAUDE.md 3.2; section 9: "stage 5
-  performs no analysis"): the one change metrics.json carries is
-  `revenue_change_pct` (null with its reason). Every other KPI is shown as
+  performs no analysis"): the changes metrics.json carries are
+  `revenue_change_pct` and, since 16.2, the amount `revenue_change` (each
+  null with its reason). Every other KPI is shown as
   its two months' values side by side; a consumer that needs another
   change (orders, AOV, the return rate in points) adds it to stage 2 as a
   new field first. Stage 5 shows stage 3's trust badge beside stage 2's
@@ -2493,6 +2567,8 @@ How the fields are read:
 | `core.revenue_previous` | `float` | 4B, 5, FE |
 | `core.revenue_change_pct` | `float \| None` | 4B, 5, FE |
 | `core.revenue_change_pct_reason` | `str \| None` | 4B, 5, FE |
+| `core.revenue_change` | `float \| None` | 5, FE |
+| `core.revenue_change_reason` | `str \| None` | 5, FE |
 | `core.orders_basis` | `Literal['order_id', 'lines']` | 4B, 5, FE |
 | `core.orders_basis_reason` | `str \| None` | 4B, 5, FE |
 | `core.orders_current` | `int (ge=0)` | 4B, 5, FE |
@@ -2688,6 +2764,22 @@ How the fields are read:
 | `tree.lever.masked_shift_pair.factors[].value_prev` | `float` | 4B, 5, FE |
 | `tree.lever.masked_shift_pair.factors[].value_cur` | `float` | 4B, 5, FE |
 | `tree.lever.masked_shift_pair.factors[].contribution` | `float` | 4B, 5, FE |
+| `tree.lever.bridge` | `object \| None` | 5, FE |
+| `tree.lever.bridge.revenue_previous` | `float` | 5, FE |
+| `tree.lever.bridge.revenue_current` | `float` | 5, FE |
+| `tree.lever.bridge.change` | `float` | 5, FE |
+| `tree.lever.bridge.shown_previous` | `float` | 5, FE |
+| `tree.lever.bridge.shown_current` | `float` | 5, FE |
+| `tree.lever.bridge.shown_change` | `float` | 5, FE |
+| `tree.lever.bridge.bars` | `list[object]` | 5, FE |
+| `tree.lever.bridge.bars[].factor` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 5, FE |
+| `tree.lever.bridge.bars[].value_prev` | `float` | 5, FE |
+| `tree.lever.bridge.bars[].value_cur` | `float` | 5, FE |
+| `tree.lever.bridge.bars[].contribution` | `float` | 5, FE |
+| `tree.lever.bridge.bars[].shown` | `float` | 5, FE |
+| `tree.lever.bridge.aov_split` | `bool` | 5, FE |
+| `tree.lever.bridge.aov_split_withheld` | `Literal['refund_lines', 'aov_unchanged', 'net_units_not_positive'] \| None` | 5, FE |
+| `tree.lever.bridge_withheld` | `Literal['zero_orders', 'month_not_positive', 'not_to_the_cent'] \| None` | 5, FE |
 | `tree.customers` | `object \| None` | 4B, 5, FE |
 | `tree.customers.new` | `float` | 4B, 5, FE |
 | `tree.customers.resurrected` | `float` | 4B, 5, FE |
@@ -2751,7 +2843,7 @@ How the fields are read:
 | `hypotheses[].share` | `float \| None` | 4B, 5, FE |
 | `hypotheses[].evidence` | `dict[str, Any]` | 5, FE |
 | `hypotheses[].rule` | `str` | 4B, 5, FE |
-| `hypotheses[].against_the_change` | `bool` | 5 |
+| `hypotheses[].against_the_change` | `bool` | 5, FE |
 | `not_testable` | `list[object]` | 4B, 5, FE |
 | `not_testable[].id` | `str` | 4B, 5, FE |
 | `not_testable[].statement` | `str` | 4B, 5, FE |
@@ -2776,7 +2868,14 @@ How the fields are read:
 | `headline.movement.season.differences` | `int (ge=1)` | 4B, 5, FE |
 | `headline.movement.season.band` | `Literal['consistent', 'inconclusive', 'shortfall', 'excess']` | 4B, 5, FE |
 | `headline.movement.season.beyond_factor` | `float (gt=0)` | 4B, 5, FE |
+| `headline.hedge` | `Literal['seasonal', 'plain'] \| None` | 5, FE |
 | `hypotheses_note` | `str \| None` | 5, FE |
+| `year_ago` | `object \| None` | 5, FE |
+| `year_ago.previous` | `str (YYYY-MM)` | 5, FE |
+| `year_ago.current` | `str (YYYY-MM)` | 5, FE |
+| `year_ago.revenue_previous` | `float` | 5, FE |
+| `year_ago.revenue_current` | `float` | 5, FE |
+| `year_ago_reason` | `Literal['the year-ago pair is not in the data', 'the diagnosis is blocked'] \| None` | 5, FE |
 | `ai_findings` | `object \| None` | 5, FE |
 | `ai_findings.summary` | `str` | 5, FE |
 | `ai_findings.headline_explanation` | `str` | 5, FE |

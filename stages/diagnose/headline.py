@@ -8,7 +8,11 @@ Every number in a message comes from the blocks it is chosen from; nothing is
 estimated here.
 """
 
-from contracts.diagnosis import Headline, HeadlineMovement, Hypothesis, Tree, Trust
+from typing import Literal
+
+# The hedges' words live in the contract, so it can check a headline's message
+# ends with the one its `hedge` names (18.4; the report redesign, step 1).
+from contracts.diagnosis import HEDGE_SENTENCES, Headline, HeadlineMovement, Hypothesis, Tree, Trust
 from stages.diagnose.catalog import BY_ID
 from stages.diagnose.step7_inputs import Changes
 from stages.diagnose.numbers import is_negligible
@@ -27,15 +31,15 @@ CONTEXT = {"T1": "the calendar (the mix of weekdays in each month)",
 # "season" only under 4A's claim (Thach, 2026-10-04, (i)) AND a comparison the
 # season is consistent with (2026-10-05, Q1): a shortfall or excess measures
 # the month as off its season, and no comparison measures nothing.
-SEASON_HEDGE = "This may be seasonal."
-PLAIN_HEDGE = "Shifts like this can happen in an ordinary month; treat it as a pointer, not a finding."
+SEASON_HEDGE = HEDGE_SENTENCES["seasonal"]
+PLAIN_HEDGE = HEDGE_SENTENCES["plain"]
 SEASON_HEDGE_BANDS = ("consistent", "inconclusive")
 
 
-def _masked_hedge(moved: Changes) -> str:
+def _masked_hedge(moved: Changes) -> Literal["seasonal", "plain"]:
     season = moved.movement.season if moved.movement is not None else None
     seasonal = moved.season_claimed and season is not None and season.band in SEASON_HEDGE_BANDS
-    return SEASON_HEDGE if seasonal else PLAIN_HEDGE
+    return "seasonal" if seasonal else "plain"
 
 
 def _residue(amount: float, moved: Changes) -> bool:
@@ -233,11 +237,12 @@ def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | Non
         # Named by what was counted (2E-e): lines, unless order_id was mapped.
         unit, average = (("orders", "average order value") if moved.orders_basis == "order_id"
                          else ("lines", "average line value"))
+        hedge = _masked_hedge(moved)
         return Headline(
-            rule=4, hypothesis_id=None, lens=None,
+            rule=4, hypothesis_id=None, lens=None, hedge=hedge,
             message=f"{change} Underneath that, {unit} contributed {pair['orders']:+,.2f} and "
                     f"{average} {pair['aov']:+,.2f}: large movements that "
-                    f"largely cancelled out. {_masked_hedge(moved)}")
+                    f"largely cancelled out. {HEDGE_SENTENCES[hedge]}")
 
     # The size test (3E1b; Thach, 3E2-F1): rules 5 and 6 single a cause out
     # only beyond twice the shop's median month-to-month movement - inside it
