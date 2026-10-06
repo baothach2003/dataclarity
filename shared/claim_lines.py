@@ -1,8 +1,10 @@
 """The checklist's lines and sentence C's phrases, one wording per hypothesis
 id (docs/REPORT_REDESIGN.md 1.3 and section 3's glossary; Thach Q16, Q20,
-Q33, Q34). Every figure is a field of metrics.json or diagnosis.json read
-through CONTRACTS 11's rows - never a hypothesis's evidence keys - formatted;
-stage 5 computes none. The words match the field's unit (Q34): a money field
+Q33, Q34). One copy for stage 5's checklist and stage 4's claims (design
+4.1: a claim's fact is the checklist's own sentence; CLAUDE.md 3.1). Every
+figure is a field of metrics.json or diagnosis.json read through CONTRACTS
+11's rows - never a hypothesis's evidence keys - formatted; nothing is
+computed. The words match the field's unit (Q34): a money field
 is worded as money ("Refunds for returned goods fell: X, down from Y"), a
 count as a count. A direction word reads which of two fields is larger, or a
 field's sign, never a new figure."""
@@ -12,13 +14,14 @@ from dataclasses import dataclass
 from contracts.diagnosis import Hypothesis, Tree, YearAgo
 from contracts.lever_bridge import LeverBridge
 from contracts.metrics import MetricsContract
-from stages.report.wording import amount, month_only, prints_as_zero, signed, two
+from shared.wording import amount, month_only, prints_as_zero, signed, two
 
 # What each check is about, in plain words - where a line names no figure.
 SUBJECTS = {
     "D1": "days without sales", "D2": "a sudden price jump or fall across most products",
     "D3": "rows flagged during cleaning",
-    "T1": "The calendar: the month's length and mix of weekdays", "T2": "The change a year earlier between the same months",
+    "T1": "The calendar: the month's length and mix of weekdays",
+    "T2": "The change a year earlier between the same months",
     "C1": "new customers", "C2": "customers who stopped buying", "C3": "customers who came back after a break",
     "B1": "How often customers ordered", "B2": "Basket size (items per order)",
     "P1": "Prices of products sold in both months", "P2": "A shift to cheaper or pricier products",
@@ -96,7 +99,7 @@ def _money_moved(subject: str, now: float, was: float, ctx: Context, rose: str =
     return f"{subject} {word}: {amount(now, ctx.code)}, {_up(now, was)} from {amount(was, ctx.code)}"
 
 
-def _money_terms(hypothesis_id: str, ctx: Context) -> tuple[str, float, float] | None:
+def money_terms(hypothesis_id: str, ctx: Context) -> tuple[str, float, float] | None:
     """The money fields a customer or returns line compares: the subject, this
     month's amount, last month's."""
     tree = ctx.tree
@@ -144,7 +147,7 @@ def moved_line(hypothesis: Hypothesis, ctx: Context) -> str:
     month, previous = month_only(ctx.metrics.period.current), month_only(ctx.metrics.period.previous)
     worth = _worth(hypothesis, ctx)
     unit = "lines" if ctx.lines_basis else "orders"
-    terms = _money_terms(hypothesis.id, ctx)
+    terms = money_terms(hypothesis.id, ctx)
     match hypothesis.id:
         case "D1":
             text = ("Days with no sales at all - missing data, or days the shop was closed (the file cannot tell "
@@ -184,7 +187,9 @@ def moved_line(hypothesis: Hypothesis, ctx: Context) -> str:
                     f"{previous} ({signed(products.new_products, code)}) and the other way round "
                     f"({signed(products.discontinued_products, code)}){together}.")
         case "R3":
-            text = f"A best-seller may have run out - check the shelf{worth}."
+            # Stage 3's own words (stockout.py; Thach, Q54).
+            text = (f"At least one best-selling product stopped selling - consistent with a stockout, verify on the "
+                    f"shelf{worth}.")
         case _:
             subject = ctx.subject(hypothesis.id)
             text = f"{subject[:1].upper()}{subject[1:]}{worth}."
@@ -198,7 +203,7 @@ def match_phrase(hypothesis: Hypothesis, ctx: Context, *, with_worth: bool = Fal
     up = (hypothesis.contribution or 0.0) > 0
     month, previous = month_only(ctx.metrics.period.current), month_only(ctx.metrics.period.previous)
     worth = _worth(hypothesis, ctx) if with_worth else ""
-    terms = _money_terms(hypothesis.id, ctx)
+    terms = money_terms(hypothesis.id, ctx)
     unit = "lines" if ctx.lines_basis else "orders"
     match hypothesis.id:
         case "B1":
@@ -248,7 +253,8 @@ def match_phrase(hypothesis: Hypothesis, ctx: Context, *, with_worth: bool = Fal
                     f"{previous} ({signed(products.new_products, code)}) and the other way round "
                     f"({signed(products.discontinued_products, code)}){worth}")
         case "R3":
-            return f"a best-seller that may have run out - check the shelf{worth}"
+            return ("at least one best-selling product that stopped selling - consistent with a stockout, verify on "
+                    f"the shelf{worth}")
         case "D1":
             return f"days with no sales at all - missing data, or days the shop was closed{worth}"
     subject = ctx.subject(hypothesis.id)

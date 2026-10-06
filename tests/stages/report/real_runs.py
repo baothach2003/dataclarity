@@ -35,7 +35,7 @@ def build_real(run: str, **replaced: dict[str, Any]) -> ReportContract:
         diagnosis=DiagnosisContract.model_validate(replaced.get("diagnosis", data["diagnosis.json"])),
         forecast=ForecastContract.model_validate(replaced.get("forecast", data["forecast.json"])),
         cleaning=CleaningReportContract.model_validate(replaced.get("cleaning", data["cleaning_report.json"])),
-        schema=None, plan_source=None, include_recommendations=False, now=NOW)
+        schema=None, plan_source=None, now=NOW)
 
 
 def with_actions(run: str, status: str, actions: list[dict[str, Any]] | None = None,

@@ -29,7 +29,6 @@ def _args(tmp_path: Path, *more: str) -> list[str]:
 def _no_dotenv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Never the developer's real .env: each test says what the sources hold.
     monkeypatch.setattr(cli, "DOTENV", tmp_path / "no.env")
-    monkeypatch.setenv("STRATEGY_AI_ENABLED", "false")
 
 
 def test_the_cli_writes_both_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -62,31 +61,27 @@ def test_the_uploaded_files_name_is_the_callers_or_the_backends(tmp_path: Path,
     assert _report(run).source_file == "b\u00e1o c\u00e1o.csv"
 
 
-# Q42: on, the free-text recommendations are still never shown - "unavailable".
-@pytest.mark.parametrize("switch,status", [("true", "unavailable"), ("FALSE", "switched_off"),
-                                           (None, "switched_off")])
-def test_the_recommendations_follow_the_backends_switch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-                                                        switch: str | None, status: str) -> None:
-    # 5D review #4: STRATEGY_AI_ENABLED, as the backend reads it; unset is off.
+@pytest.mark.parametrize("switch", ["true", "FALSE", None])
+def test_a_leftover_ai_switch_is_ignored(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, switch: str | None) -> None:
+    # Step 4 as option (d): STRATEGY_AI_ENABLED is gone (Q53); a .env or an
+    # environment that still holds it changes nothing - no AI writes a recommendation.
     run = run_dir(tmp_path)
-    if switch is None:
-        monkeypatch.delenv("STRATEGY_AI_ENABLED")
-    else:
+    if switch is not None:
         monkeypatch.setenv("STRATEGY_AI_ENABLED", switch)
     assert main(_args(tmp_path)) == 0
-    assert _report(run).layer_3_actions.recommendations_status == status
+    assert _report(run).layer_3_actions.recommendations_status == "switched_off"
 
 
-def test_a_switch_that_is_not_a_bool_is_a_usage_error_that_never_echoes_it(
+def test_a_leftover_switch_carrying_a_secret_is_never_read_nor_echoed(
         tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     # 5D review 2 #4: the backend's rule - input never echoed (a merged line
-    # may carry a secret).
+    # may carry a secret); the setting is no longer read at all (Q53).
     run = run_dir(tmp_path)
     monkeypatch.setenv("STRATEGY_AI_ENABLED", "false ANTHROPIC_API_KEY=sk-ant-FAKE-DISTINCTIVE")
-    assert main(_args(tmp_path)) == 2
-    err = capsys.readouterr().err
-    assert "STRATEGY_AI_ENABLED" in err and "FAKE-DISTINCTIVE" not in err
-    assert not (run / "report.json").exists()
+    assert main(_args(tmp_path)) == 0
+    captured = capsys.readouterr()
+    assert "FAKE-DISTINCTIVE" not in captured.err + captured.out
+    assert (run / "report.json").exists()
 
 
 def test_the_runs_root_comes_from_the_backends_sources(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -105,7 +100,6 @@ def test_the_runs_root_comes_from_the_backends_sources(tmp_path: Path, monkeypat
     monkeypatch.chdir(runs)  # not the current directory's
     assert main(source) == 0
     monkeypatch.delenv("RUNS_DIR")
-    monkeypatch.delenv("STRATEGY_AI_ENABLED")
     dotenv = tmp_path / ".env"
     # 5D review 2 #3: as pydantic-settings reads it - any case, quotes, a
     # comment after a quoted value.
@@ -113,10 +107,7 @@ def test_the_runs_root_comes_from_the_backends_sources(tmp_path: Path, monkeypat
                       encoding="utf-8")
     monkeypatch.setattr(cli, "DOTENV", dotenv)
     assert main(source) == 0
-    assert _report(run).layer_3_actions.recommendations_status == "unavailable"  # on (Q42: never shown)
-    monkeypatch.setenv("STRATEGY_AI_ENABLED", "false")  # the environment before .env
-    assert main(source) == 0
-    assert _report(run).layer_3_actions.recommendations_status == "switched_off"
+    assert _report(run).layer_3_actions.recommendations_status == "switched_off"  # the leftover line ignored
 
 
 def test_a_relative_runs_dir_argument_is_taken_from_the_current_directory(tmp_path: Path,

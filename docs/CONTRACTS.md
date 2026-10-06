@@ -1754,25 +1754,13 @@ metrics.json's `period` and `core.revenue_by_month` only (section 11).
 - **Figures** are finite, or the file refuses them as "too large" (the
   user's amounts - months hundreds of orders of magnitude apart).
 
-Forecast numbers come from code; the AI writes only `recommendations` and
-`do_not_do`, and no digit in them is its own (4B): every figure is an input
-figure cited by path and rendered by stage 4, every proposal a bounded token
-("20% (assumed)"), and every `expected_impact` is the AI's formula with the
-result stage 4 computed (`docs/AI_PIPELINE.md` section 8). The example
-above shows the fields' shape in the older free-text style. The step is
-built but off by default in v1 (4B's review 3): until Thach decides, every
-forecast.json carries these blocks null, the answer saying why.
-
-When the AI step is unavailable, meaning no AI output was accepted after the
-shared retry (`docs/AI_PIPELINE.md` section 9), stage 4 still writes this file:
-`forecast` is always filled, and `model_used`, `recommendations` and
-`do_not_do` are all `null`. They are either all `null` or all filled, never
-partially filled. The keys are always written: `null` is a value, not a missing
-key, and it is never replaced by an empty list. Minimum counts such as "3 to 5
-recommendations" (`docs/AI_PIPELINE.md` section 8) are enforced by stage 4
-before writing, not by this contract. The AI blocks are null the same way
-when stage 4 does not ask the AI (4B): the diagnosis is blocked, or the
-previous month is not complete - the endpoint's answer says which.
+Stage 4 asks no AI in v1 (the report redesign's step 4, Thach's option (d)
+and Q53, 2026-10-06): `model_used`, `recommendations` and `do_not_do` - the
+free-text strategy step (4B, removed) - are written null, and a 2.1 file
+holding them filled is refused. The example above shows their shape for a file written
+before. They are either all `null` or all filled, never partially filled;
+the keys are always written (`null` is a value, not a missing key). No
+reader shows them (Q42).
 
 **Structured actions (2.1; the report redesign, D4 - Thach, 2026-10-05;
 `contracts/forecast_actions.py`).** Optional fields, version-gated: absent
@@ -1784,26 +1772,25 @@ before 2.1, required from it.
              "fact": "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29.",
              "action": "...", "why": "...",
              "watch": "Next month, check: orders per customer (13.72 this month; 12.32 the month before)."}],
-"actions_model": "claude-sonnet-5"
+"actions_model": null
 ```
 
+Every sentence is code-written (Thach's option (d): `stages/predict/claims.py`
+selects the claims, `stages/predict/catalog.py` holds each action and why by
+the claim's kind and the direction its own figure moved; design section 4).
 `actions_status` is one of three states (Thach): `"list"` - the claims code
 selected (at most 3, K1-K3 in rank order, each on its own hypothesis), each
-with the AI's `action` and `why`; an EMPTY list when no claim is selected
-(headline rules 1-4 and 7, a blocked run, an incomplete previous month: the
-AI is not asked); `"off"` - claims were selected and the AI step is
-switched off; `"suppressed"` - the AI's answer failed its checks twice, or
-the call failed: nothing is listed, never a part. `actions` is a list
-exactly when the status is "list"; `actions_model` names the model exactly
-when actions are listed. `fact` and `watch` are code-written; `action` and
-`why` are the AI's and hold no digit (any script), no percent or currency
-sign, at most 30 words, never empty - held here whoever wrote the file.
-The front section's banned words (`FRONT_BANNED`, "median" included) are
-stage 4's check, not the contract's (Thach, Q43): the AI's text is refused
-and retried there (`contracts.forecast_actions.front_word_problems`), so a
-file holding one still loads and the report is still built. Stage 4's own
-checks are fuller (design section 4.4). Read by stage 5 and the
-page through section 11's forecast.json rows.
+with its fact, action, why and watch line; an EMPTY list when no claim can
+be selected (headline rules 1-4 and 7, a blocked run, an incomplete
+previous month); `"suppressed"` - checks a claim may rest on exist, but
+none has a catalog entry for the way its figure moved: nothing to act on;
+`"off"` - only for a run where stage 4 did not produce actions (stage 4
+writes it no more). `actions` is a list exactly when the status is "list";
+`actions_model` is null (Q53: code writes the actions). `action` and `why`
+hold no digit (any script), no percent or currency sign, at most 30 words,
+never empty - held here whoever wrote the file; no catalog sentence holds a
+word of `FRONT_BANNED` (tested in stage 4). Read by stage 5 and the page
+through section 11's forecast.json rows.
 
 ## 9. `report.json` (stage 5 output, data layer)
 
@@ -1979,10 +1966,11 @@ writes the file):
   day-grain file ends in it (a month-grain file's month-to-date line has no
   such day: 2E-o). The free-text recommendations and do-not-do are never
   shown since 2.9, the appendix included (Thach, Q42: the unchecked format
-  v1 switched off because it fabricated numbers): stage 5 writes
-  `recommendations_status` "switched_off" (the AI step off) or "unavailable"
-  (on), both null, and report.html prints none whoever wrote the file;
-  "shown" stays in the contract for files written before; `notes` beside them: every
+  v1 switched off because it fabricated numbers), and no AI writes any in
+  v1 (Q50 (d), Q53): stage 5 writes `recommendations_status`
+  "switched_off" with both null, and report.html prints none whoever wrote
+  the file; "shown" and "unavailable" stay in the contract for files
+  written before; `notes` beside them: every
   note of either file that is not always-on (section 11). A recommendation's
   `confidence` is replaced by `confidence_label` - "high" from 0.7,
   "medium" from 0.4, "low" below (display cut points, 5A) - never a figure.
@@ -2080,8 +2068,9 @@ Optional fields, version-gated (a 2.9 report carries `front` and
   blocks - "no problem found", or "in the checks this file allows" when one
   could not run - else each caution's line, shown once: by the caution when
   there is one, else in section 3; empty only when blocked), `next_steps` (forecast.json's `actions_status`; a forecast before 2.1
-  reads "off" with the AI step off and "unavailable" with it on, Q36;
-  actions listed where no cause is named are "unavailable" too),
+  reads "unavailable" - "made before they existed"; "off", and actions
+  listed where no cause is named, read "not available - run the forecast
+  again"),
   `next_month` (with the forecast's history and season notes in plain
   words), `cannot_know` and `notes` - `{summary, change, checked,
   next_month}`, each section's notes that are not always-on and name a
@@ -2179,6 +2168,17 @@ before.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-06: **the report redesign, step 4 - stage 4 writes forecast.json
+  2.1** (docs/REPORT_REDESIGN.md section 4; AI_PIPELINE 8.0). The suggested
+  actions by their state (section 8): "list" (the checked actions, or none
+  when no claim is selected), "off", "suppressed"; `model_used`,
+  `recommendations` and `do_not_do` (4B's free text) null from 2.1 - never
+  shown (Q42). Stage 4 also reads cleaning_report.json's confirmed currency,
+  so a claim's money reads as the report's. The checklist's wording moved to
+  `shared/claim_lines.py` and `shared/wording.py` unchanged (one copy for
+  stages 4 and 5). Rebuilt the same day as Thach's option (d): the actions
+  are code-written, no AI is counted or named for them, `actions_model` is
+  null.
 - 2026-10-06: **the report redesign, Thach's pattern (Q39-Q43).**
   `diagnosis.json` 18.7, additive: `trust.checks[].month` and
   `headline.offsetting` (section 7; rows added in section 11, reader 5;
@@ -2199,7 +2199,7 @@ before.
   version-gated: `report.json` 2.9 (`front`, `currency`, `rows_left_out`,
   `layer_1_numbers.partial_months`, `layer_2_causes.lever_levels`) and
   `forecast.json` 2.1 (`actions`, `actions_status`, `actions_model`; stage 4
-  writes them in step 4 - a 2.0 file still loads and reads as "off"). Section
+  writes them in step 4 - a 2.0 file still loads; it reads as "not available"). Section
   11 gains a forecast.json table (readers 5, FE), frozen as first written.
   The share bars a verdict is decided by moved to `shared/share_bars.py`,
   unchanged (stage 3 re-exports them; stages 4 and 5 read them).
@@ -2656,9 +2656,8 @@ one. A field not listed follows section 10 alone, and no consumer reads it
 until its row is added (section 10: "never let a stage read a field that is
 not documented here").
 
-Readers: **4A** the forecast (the revenue series and the period); **4B**
-the strategy step's AI input (`docs/AI_PIPELINE.md` section 8): built from
-the 4B rows only, never the whole file, each list capped; **5** the report
+Readers: **4A** the forecast (the revenue series and the period) and the
+suggested actions' claims (stage 4, code only); **5** the report
 (stage 5: `report.json`, `report.html`); **FE** the frontend's Insights
 page (Phase 6, through the API answers that carry these files).
 
@@ -2671,7 +2670,7 @@ How the fields are read:
   it is shown: once, in "How to read these figures", when true; beside
   each figure its `figures` name otherwise. The file's `text` is NOT a
   consumer field: a consumer words a note by its code, from one copy -
-  stage 5 and 4B's input from `contracts.lines.NOTE_TEXTS`, the frontend
+  stage 5 from `contracts.lines.NOTE_TEXTS`, the frontend
   from the note text a contract pins to `NOTE_TEXTS` by code - report.json's
   on Insights, which stage 5 writes, and the line summary's on Review,
   which `shared/line_report` writes (Thach, 2026-10-04, decision (v): no
@@ -2729,14 +2728,13 @@ How the fields are read:
   include `revenue` and is not `always_on` is shown beside it, as beside
   the revenue it came from; and so are forecast.json's own `history_note`
   and `season_note` when not null.
-- **The notes stand beside the recommendations too** (4B review 1 #10, the
-  standing rule): the AI's recommendations cite the files' figures in free
-  text, which no code maps back to a figure, so wherever stage 5 or the
-  frontend shows `recommendations`, every note of metrics.json and
-  diagnosis.json that is not `always_on` is shown beside them - by
-  construction, not left to the AI's wording.
+- **The notes stand beside the suggested actions too** (the standing
+  rule): each action's fact reprints figures, so wherever stage 5 or the
+  frontend shows `actions`, the notes naming those figures stand beside them
+  (report.json's `front.notes.next_steps`). The free-text `recommendations`
+  are shown nowhere (Q42).
 - **Signals describe; none is a verdict in v1** (ADR-0006, ADR-0007): never
-  word one as normal or unusual - the AI of 4B included - and read `mode`
+  word one as normal or unusual - and read `mode`
   before comparing two rows (money or counts on a `level` row, percentage
   points on a `yoy` row).
 - **Stock is not supported in v1**: `products.velocity` is null and
@@ -2764,152 +2762,152 @@ How the fields are read:
 |---|---|---|
 | `schema_version` | `str` | 5 |
 | `generated_at` | `AwareDatetime` | 5 |
-| `period` | `object` | 4A, 4B, 5, FE |
-| `period.current` | `str (YYYY-MM)` | 4A, 4B, 5, FE |
-| `period.previous` | `str (YYYY-MM)` | 4A, 4B, 5, FE |
-| `period.data_start` | `date` | 4A, 4B, 5, FE |
-| `period.data_end` | `date` | 4A, 4B, 5, FE |
-| `period.previous_complete` | `bool` | 4A, 4B, 5, FE |
-| `period.previous_incomplete_reason` | `str \| None` | 4B, 5, FE |
-| `period.month_grain` | `bool` | 4A, 4B, 5, FE |
-| `period.upload_cutoff` | `date \| None` | 4B, 5 |
-| `core` | `object` | 4A, 4B, 5, FE |
-| `core.revenue_current` | `float` | 4B, 5, FE |
-| `core.revenue_previous` | `float` | 4B, 5, FE |
-| `core.revenue_change_pct` | `float \| None` | 4B, 5, FE |
-| `core.revenue_change_pct_reason` | `str \| None` | 4B, 5, FE |
-| `core.revenue_change` | `float \| None` | 5, FE |
+| `period` | `object` | 4A, 5, FE |
+| `period.current` | `str (YYYY-MM)` | 4A, 5, FE |
+| `period.previous` | `str (YYYY-MM)` | 4A, 5, FE |
+| `period.data_start` | `date` | 4A, 5, FE |
+| `period.data_end` | `date` | 4A, 5, FE |
+| `period.previous_complete` | `bool` | 4A, 5, FE |
+| `period.previous_incomplete_reason` | `str \| None` | 5, FE |
+| `period.month_grain` | `bool` | 4A, 5, FE |
+| `period.upload_cutoff` | `date \| None` | 5 |
+| `core` | `object` | 4A, 5, FE |
+| `core.revenue_current` | `float` | 5, FE |
+| `core.revenue_previous` | `float` | 5, FE |
+| `core.revenue_change_pct` | `float \| None` | 5, FE |
+| `core.revenue_change_pct_reason` | `str \| None` | 5, FE |
+| `core.revenue_change` | `float \| None` | 4A, 5, FE |
 | `core.revenue_change_reason` | `str \| None` | 5, FE |
-| `core.orders_basis` | `Literal['order_id', 'lines']` | 4B, 5, FE |
-| `core.orders_basis_reason` | `str \| None` | 4B, 5, FE |
-| `core.orders_current` | `int (ge=0)` | 4B, 5, FE |
-| `core.orders_previous` | `int (ge=0)` | 4B, 5, FE |
-| `core.active_customers_current` | `int (ge=0)` | 4B, 5, FE |
-| `core.active_customers_previous` | `int (ge=0)` | 4B, 5, FE |
-| `core.aov_current` | `float \| None` | 4B, 5, FE |
-| `core.aov_current_reason` | `str \| None` | 4B, 5, FE |
-| `core.aov_previous` | `float \| None` | 4B, 5, FE |
-| `core.aov_previous_reason` | `str \| None` | 4B, 5, FE |
-| `core.return_rate_current` | `float (ge=0) \| None` | 4B, 5, FE |
-| `core.return_rate_current_reason` | `str \| None` | 4B, 5, FE |
-| `core.return_rate_previous` | `float (ge=0) \| None` | 4B, 5, FE |
-| `core.return_rate_previous_reason` | `str \| None` | 4B, 5, FE |
-| `core.revenue_by_month` | `list[object]` | 4A, 4B, 5, FE |
-| `core.revenue_by_month[].period` | `str (YYYY-MM)` | 4A, 4B, 5, FE |
-| `core.revenue_by_month[].revenue` | `float` | 4A, 4B, 5, FE |
-| `core.undated_lines` | `int (ge=0)` | 4B, 5, FE |
-| `core.undated_lines_reason` | `str \| None` | 4B, 5, FE |
-| `core.future_lines` | `int (ge=0)` | 4B, 5, FE |
-| `core.future_revenue` | `float` | 4B, 5, FE |
-| `core.future_lines_reason` | `str \| None` | 4B, 5, FE |
-| `core.non_product` | `list[object]` | 4B, 5, FE |
-| `core.non_product[].line_class` | `Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']` | 4B, 5, FE |
-| `core.non_product[].lines` | `int (gt=0)` | 4B, 5, FE |
-| `core.non_product[].amount` | `float` | 4B, 5, FE |
-| `core.non_product[].amount_current` | `float` | 4B, 5, FE |
-| `core.non_product[].amount_previous` | `float` | 4B, 5, FE |
-| `core.non_product[].reason` | `str` | 4B, 5, FE |
-| `core.identity` | `object` | 4B, 5, FE |
-| `core.identity.current` | `object` | 4B, 5, FE |
-| `core.identity.current.gross_sales` | `float` | 4B, 5, FE |
-| `core.identity.current.returns` | `float` | 4B, 5, FE |
-| `core.identity.current.discounts` | `float` | 4B, 5, FE |
-| `core.identity.current.other_deductions` | `float` | 4B, 5, FE |
-| `core.identity.current.other_revenue` | `float` | 4B, 5, FE |
-| `core.identity.current.net_revenue` | `float` | 4B, 5, FE |
-| `core.identity.current.returns_on_suggested_keys` | `float` | 4B, 5, FE |
-| `core.identity.current.money_moved` | `float (ge=0)` | 4B, 5, FE |
-| `core.identity.previous` | `object` | 4B, 5, FE |
-| `core.identity.previous.gross_sales` | `float` | 4B, 5, FE |
-| `core.identity.previous.returns` | `float` | 4B, 5, FE |
-| `core.identity.previous.discounts` | `float` | 4B, 5, FE |
-| `core.identity.previous.other_deductions` | `float` | 4B, 5, FE |
-| `core.identity.previous.other_revenue` | `float` | 4B, 5, FE |
-| `core.identity.previous.net_revenue` | `float` | 4B, 5, FE |
-| `core.identity.previous.returns_on_suggested_keys` | `float` | 4B, 5, FE |
-| `core.identity.previous.money_moved` | `float (ge=0)` | 4B, 5, FE |
-| `core.outside_revenue` | `list[object]` | 4B, 5, FE |
-| `core.outside_revenue[].line_class` | `Literal['sale', 'pooled_sale', 'customer_return', 'pooled_return', 'allowance', 'pooled_allowance', 'discount', 'charge', 'no_money', 'pooled_no_money', 'gift_card_sale', 'gift_card_redemption', 'cost', 'adjustment', 'stock_in', 'unclassified', 'unmeasurable']` | 4B, 5, FE |
-| `core.outside_revenue[].scope` | `Literal['file', 'current', 'previous']` | 4B, 5, FE |
-| `core.outside_revenue[].sign` | `Literal['positive', 'negative', 'no_money'] \| None` | 4B, 5, FE |
-| `core.outside_revenue[].lines` | `int (gt=0)` | 4B, 5, FE |
-| `core.outside_revenue[].amount` | `float (finite)` | 4B, 5, FE |
-| `core.outside_revenue[].lines_without_amount` | `int (ge=0)` | 4B, 5, FE |
-| `core.unclassified` | `object` | 4B, 5, FE |
-| `core.unclassified.lines` | `int (ge=0)` | 4B, 5, FE |
-| `core.unclassified.amount` | `float (finite)` | 4B, 5, FE |
-| `core.unclassified.share_of_money_moved` | `float (finite) \| None` | 4B, 5, FE |
-| `core.unmeasurable` | `list[object]` | 4B, 5, FE |
-| `core.unmeasurable[].scope` | `Literal['file', 'current', 'previous']` | 4B, 5, FE |
-| `core.unmeasurable[].reason` | `Literal['no quantity', 'no price', 'amount too large to add']` | 4B, 5, FE |
-| `core.unmeasurable[].lines` | `int (gt=0)` | 4B, 5, FE |
-| `core.notes` | `list[object] (one_per_code)` | 4B, 5, FE |
-| `core.notes[].code` | `Literal['same_day_cancellations', 'returns_booked_as_in', 'unconfirmed_suggestions', 'unconfirmed_deductions', 'discounts_in_prices', 'other_transaction_types']` | 4B, 5, FE |
-| `core.notes[].figures` | `list[Literal['revenue', 'gross_sales', 'returns', 'discounts', 'other_deductions', 'return_rate', 'orders', 'aov', 'units', 'customers', 'products', 'diagnosis']]` | 4B, 5, FE |
-| `core.notes[].measures` | `list[object]` | 4B, 5, FE |
-| `core.notes[].measures[].name` | `str (min_length=1)` | 4B, 5, FE |
-| `core.notes[].measures[].scope` | `Literal['file', 'current', 'previous']` | 4B, 5, FE |
-| `core.notes[].measures[].lines` | `int (ge=0)` | 4B, 5, FE |
-| `core.notes[].measures[].amount` | `float (finite) \| None` | 4B, 5, FE |
-| `core.notes[].measures[].orders` | `int (ge=0) \| None` | 4B, 5, FE |
-| `core.notes[].measures[].keys` | `int (ge=0) \| None` | 4B, 5, FE |
-| `core.notes[].always_on` | `bool` | 4B, 5, FE |
-| `customers` | `object` | 4B, 5, FE |
-| `customers.rfm_reference_date` | `date` | 4B, 5, FE |
-| `customers.segments` | `list[object]` | 4B, 5, FE |
-| `customers.segments[].segment` | `str` | 4B, 5, FE |
-| `customers.segments[].customers` | `int (ge=0)` | 4B, 5, FE |
-| `customers.segments[].revenue_share_pct` | `float \| None` | 4B, 5, FE |
-| `customers.segments[].avg_monetary` | `float` | 4B, 5, FE |
-| `customers.segments[].customers_previous` | `int (ge=0) \| None` | 4B, 5, FE |
-| `customers.new_vs_returning` | `object` | 4B, 5, FE |
-| `customers.new_vs_returning.new_customers` | `int (ge=0)` | 4B, 5, FE |
-| `customers.new_vs_returning.returning_customers` | `int (ge=0)` | 4B, 5, FE |
-| `customers.new_vs_returning.new_revenue` | `float` | 4B, 5, FE |
-| `customers.new_vs_returning.returning_revenue` | `float` | 4B, 5, FE |
-| `customers.customers_previous_reason` | `str \| None` | 4B, 5, FE |
-| `customers.revenue_share_reason` | `str \| None` | 4B, 5, FE |
-| `customers.unfilled_receipt_lines` | `int (ge=0)` | 4B, 5, FE |
-| `customers.unfilled_receipt_lines_reason` | `str \| None` | 4B, 5, FE |
-| `customers.placeholder_lines` | `int (ge=0)` | 4B, 5, FE |
-| `customers.placeholder_lines_reason` | `str \| None` | 4B, 5, FE |
+| `core.orders_basis` | `Literal['order_id', 'lines']` | 4A, 5, FE |
+| `core.orders_basis_reason` | `str \| None` | 5, FE |
+| `core.orders_current` | `int (ge=0)` | 4A, 5, FE |
+| `core.orders_previous` | `int (ge=0)` | 4A, 5, FE |
+| `core.active_customers_current` | `int (ge=0)` | 5, FE |
+| `core.active_customers_previous` | `int (ge=0)` | 5, FE |
+| `core.aov_current` | `float \| None` | 5, FE |
+| `core.aov_current_reason` | `str \| None` | 5, FE |
+| `core.aov_previous` | `float \| None` | 5, FE |
+| `core.aov_previous_reason` | `str \| None` | 5, FE |
+| `core.return_rate_current` | `float (ge=0) \| None` | 5, FE |
+| `core.return_rate_current_reason` | `str \| None` | 5, FE |
+| `core.return_rate_previous` | `float (ge=0) \| None` | 5, FE |
+| `core.return_rate_previous_reason` | `str \| None` | 5, FE |
+| `core.revenue_by_month` | `list[object]` | 4A, 5, FE |
+| `core.revenue_by_month[].period` | `str (YYYY-MM)` | 4A, 5, FE |
+| `core.revenue_by_month[].revenue` | `float` | 4A, 5, FE |
+| `core.undated_lines` | `int (ge=0)` | 5, FE |
+| `core.undated_lines_reason` | `str \| None` | 5, FE |
+| `core.future_lines` | `int (ge=0)` | 5, FE |
+| `core.future_revenue` | `float` | 5, FE |
+| `core.future_lines_reason` | `str \| None` | 5, FE |
+| `core.non_product` | `list[object]` | 5, FE |
+| `core.non_product[].line_class` | `Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']` | 5, FE |
+| `core.non_product[].lines` | `int (gt=0)` | 5, FE |
+| `core.non_product[].amount` | `float` | 5, FE |
+| `core.non_product[].amount_current` | `float` | 5, FE |
+| `core.non_product[].amount_previous` | `float` | 5, FE |
+| `core.non_product[].reason` | `str` | 5, FE |
+| `core.identity` | `object` | 5, FE |
+| `core.identity.current` | `object` | 5, FE |
+| `core.identity.current.gross_sales` | `float` | 5, FE |
+| `core.identity.current.returns` | `float` | 5, FE |
+| `core.identity.current.discounts` | `float` | 5, FE |
+| `core.identity.current.other_deductions` | `float` | 5, FE |
+| `core.identity.current.other_revenue` | `float` | 5, FE |
+| `core.identity.current.net_revenue` | `float` | 5, FE |
+| `core.identity.current.returns_on_suggested_keys` | `float` | 5, FE |
+| `core.identity.current.money_moved` | `float (ge=0)` | 5, FE |
+| `core.identity.previous` | `object` | 5, FE |
+| `core.identity.previous.gross_sales` | `float` | 5, FE |
+| `core.identity.previous.returns` | `float` | 5, FE |
+| `core.identity.previous.discounts` | `float` | 5, FE |
+| `core.identity.previous.other_deductions` | `float` | 5, FE |
+| `core.identity.previous.other_revenue` | `float` | 5, FE |
+| `core.identity.previous.net_revenue` | `float` | 5, FE |
+| `core.identity.previous.returns_on_suggested_keys` | `float` | 5, FE |
+| `core.identity.previous.money_moved` | `float (ge=0)` | 5, FE |
+| `core.outside_revenue` | `list[object]` | 5, FE |
+| `core.outside_revenue[].line_class` | `Literal['sale', 'pooled_sale', 'customer_return', 'pooled_return', 'allowance', 'pooled_allowance', 'discount', 'charge', 'no_money', 'pooled_no_money', 'gift_card_sale', 'gift_card_redemption', 'cost', 'adjustment', 'stock_in', 'unclassified', 'unmeasurable']` | 5, FE |
+| `core.outside_revenue[].scope` | `Literal['file', 'current', 'previous']` | 5, FE |
+| `core.outside_revenue[].sign` | `Literal['positive', 'negative', 'no_money'] \| None` | 5, FE |
+| `core.outside_revenue[].lines` | `int (gt=0)` | 5, FE |
+| `core.outside_revenue[].amount` | `float (finite)` | 5, FE |
+| `core.outside_revenue[].lines_without_amount` | `int (ge=0)` | 5, FE |
+| `core.unclassified` | `object` | 5, FE |
+| `core.unclassified.lines` | `int (ge=0)` | 5, FE |
+| `core.unclassified.amount` | `float (finite)` | 5, FE |
+| `core.unclassified.share_of_money_moved` | `float (finite) \| None` | 5, FE |
+| `core.unmeasurable` | `list[object]` | 5, FE |
+| `core.unmeasurable[].scope` | `Literal['file', 'current', 'previous']` | 5, FE |
+| `core.unmeasurable[].reason` | `Literal['no quantity', 'no price', 'amount too large to add']` | 5, FE |
+| `core.unmeasurable[].lines` | `int (gt=0)` | 5, FE |
+| `core.notes` | `list[object] (one_per_code)` | 5, FE |
+| `core.notes[].code` | `Literal['same_day_cancellations', 'returns_booked_as_in', 'unconfirmed_suggestions', 'unconfirmed_deductions', 'discounts_in_prices', 'other_transaction_types']` | 5, FE |
+| `core.notes[].figures` | `list[Literal['revenue', 'gross_sales', 'returns', 'discounts', 'other_deductions', 'return_rate', 'orders', 'aov', 'units', 'customers', 'products', 'diagnosis']]` | 5, FE |
+| `core.notes[].measures` | `list[object]` | 5, FE |
+| `core.notes[].measures[].name` | `str (min_length=1)` | 5, FE |
+| `core.notes[].measures[].scope` | `Literal['file', 'current', 'previous']` | 5, FE |
+| `core.notes[].measures[].lines` | `int (ge=0)` | 5, FE |
+| `core.notes[].measures[].amount` | `float (finite) \| None` | 5, FE |
+| `core.notes[].measures[].orders` | `int (ge=0) \| None` | 5, FE |
+| `core.notes[].measures[].keys` | `int (ge=0) \| None` | 5, FE |
+| `core.notes[].always_on` | `bool` | 5, FE |
+| `customers` | `object` | 5, FE |
+| `customers.rfm_reference_date` | `date` | 5, FE |
+| `customers.segments` | `list[object]` | 5, FE |
+| `customers.segments[].segment` | `str` | 5, FE |
+| `customers.segments[].customers` | `int (ge=0)` | 5, FE |
+| `customers.segments[].revenue_share_pct` | `float \| None` | 5, FE |
+| `customers.segments[].avg_monetary` | `float` | 5, FE |
+| `customers.segments[].customers_previous` | `int (ge=0) \| None` | 5, FE |
+| `customers.new_vs_returning` | `object` | 5, FE |
+| `customers.new_vs_returning.new_customers` | `int (ge=0)` | 5, FE |
+| `customers.new_vs_returning.returning_customers` | `int (ge=0)` | 5, FE |
+| `customers.new_vs_returning.new_revenue` | `float` | 5, FE |
+| `customers.new_vs_returning.returning_revenue` | `float` | 5, FE |
+| `customers.customers_previous_reason` | `str \| None` | 5, FE |
+| `customers.revenue_share_reason` | `str \| None` | 5, FE |
+| `customers.unfilled_receipt_lines` | `int (ge=0)` | 5, FE |
+| `customers.unfilled_receipt_lines_reason` | `str \| None` | 5, FE |
+| `customers.placeholder_lines` | `int (ge=0)` | 5, FE |
+| `customers.placeholder_lines_reason` | `str \| None` | 5, FE |
 | `customers.unconfirmed_placeholders` | `list[object]` | FE |
 | `customers.unconfirmed_placeholders[].value` | `str` | FE |
 | `customers.unconfirmed_placeholders[].lines` | `int (gt=0)` | FE |
 | `customers.unconfirmed_placeholders[].lines_current` | `int (ge=0)` | FE |
 | `customers.unconfirmed_placeholders[].lines_previous` | `int (ge=0)` | FE |
 | `customers.unconfirmed_placeholders_reason` | `str \| None` | 5, FE |
-| `products` | `object` | 4B, 5, FE |
-| `products.pareto` | `object` | 4B, 5, FE |
-| `products.pareto.products_for_80pct_revenue` | `int (ge=0)` | 4B, 5, FE |
-| `products.pareto.total_products` | `int (ge=0)` | 4B, 5, FE |
-| `products.pareto.concentration_pct` | `float (ge=0, le=100) \| None` | 4B, 5, FE |
-| `products.pareto.concentration_reason` | `str \| None` | 4B, 5, FE |
-| `products.top_products` | `list[object]` | 4B, 5, FE |
-| `products.top_products[].product` | `str` | 4B, 5, FE |
-| `products.top_products[].revenue` | `float` | 4B, 5, FE |
-| `products.top_products[].units` | `int` | 4B, 5, FE |
-| `products.biggest_decliners` | `list[object] \| None` | 4B, 5, FE |
-| `products.biggest_decliners[].product` | `str` | 4B, 5, FE |
-| `products.biggest_decliners[].revenue_change` | `float` | 4B, 5, FE |
-| `products.biggest_decliners[].revenue_change_pct` | `float \| None` | 4B, 5, FE |
-| `products.biggest_decliners[].revenue_change_pct_reason` | `str \| None` | 4B, 5, FE |
-| `products.biggest_decliners_reason` | `str \| None` | 4B, 5, FE |
+| `products` | `object` | 5, FE |
+| `products.pareto` | `object` | 5, FE |
+| `products.pareto.products_for_80pct_revenue` | `int (ge=0)` | 5, FE |
+| `products.pareto.total_products` | `int (ge=0)` | 5, FE |
+| `products.pareto.concentration_pct` | `float (ge=0, le=100) \| None` | 5, FE |
+| `products.pareto.concentration_reason` | `str \| None` | 5, FE |
+| `products.top_products` | `list[object]` | 5, FE |
+| `products.top_products[].product` | `str` | 5, FE |
+| `products.top_products[].revenue` | `float` | 5, FE |
+| `products.top_products[].units` | `int` | 5, FE |
+| `products.biggest_decliners` | `list[object] \| None` | 5, FE |
+| `products.biggest_decliners[].product` | `str` | 5, FE |
+| `products.biggest_decliners[].revenue_change` | `float` | 5, FE |
+| `products.biggest_decliners[].revenue_change_pct` | `float \| None` | 5, FE |
+| `products.biggest_decliners[].revenue_change_pct_reason` | `str \| None` | 5, FE |
+| `products.biggest_decliners_reason` | `str \| None` | 5, FE |
 | `products.velocity` | `list[object] \| None` | 5, FE |
 | `products.velocity_reason` | `str \| None` | 5, FE |
-| `products.suggested_classes` | `dict[str, Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']]` | 4B, 5, FE |
-| `by_dimension` | `object` | 4B, 5, FE |
-| `by_dimension.country` | `list[object]` | 4B, 5, FE |
-| `by_dimension.country[].name` | `str` | 4B, 5, FE |
-| `by_dimension.country[].revenue_current` | `float` | 4B, 5, FE |
-| `by_dimension.country[].revenue_previous` | `float` | 4B, 5, FE |
-| `by_dimension.country[].contribution_pct` | `float \| None` | 4B, 5, FE |
-| `by_dimension.category` | `list[object]` | 4B, 5, FE |
-| `by_dimension.category[].name` | `str` | 4B, 5, FE |
-| `by_dimension.category[].revenue_current` | `float` | 4B, 5, FE |
-| `by_dimension.category[].revenue_previous` | `float` | 4B, 5, FE |
-| `by_dimension.category[].contribution_pct` | `float \| None` | 4B, 5, FE |
-| `by_dimension.contribution_reason` | `str \| None` | 4B, 5, FE |
+| `products.suggested_classes` | `dict[str, Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']]` | 5, FE |
+| `by_dimension` | `object` | 5, FE |
+| `by_dimension.country` | `list[object]` | 5, FE |
+| `by_dimension.country[].name` | `str` | 5, FE |
+| `by_dimension.country[].revenue_current` | `float` | 5, FE |
+| `by_dimension.country[].revenue_previous` | `float` | 5, FE |
+| `by_dimension.country[].contribution_pct` | `float \| None` | 5, FE |
+| `by_dimension.category` | `list[object]` | 5, FE |
+| `by_dimension.category[].name` | `str` | 5, FE |
+| `by_dimension.category[].revenue_current` | `float` | 5, FE |
+| `by_dimension.category[].revenue_previous` | `float` | 5, FE |
+| `by_dimension.category[].contribution_pct` | `float \| None` | 5, FE |
+| `by_dimension.contribution_reason` | `str \| None` | 5, FE |
 
 #### diagnosis.json
 
@@ -2917,178 +2915,178 @@ How the fields are read:
 |---|---|---|
 | `schema_version` | `str` | 5 |
 | `generated_at` | `AwareDatetime` | 5 |
-| `model_used` | `str \| None` | 4B, 5, FE |
-| `frame` | `object` | 4B, 5, FE |
-| `frame.current` | `str (YYYY-MM)` | 4B, 5, FE |
-| `frame.previous` | `str (YYYY-MM)` | 4B, 5, FE |
-| `frame.year_ago_current` | `str (YYYY-MM) \| None` | 4B, 5, FE |
-| `frame.year_ago_previous` | `str (YYYY-MM) \| None` | 4B, 5, FE |
-| `frame.history_months` | `int (ge=0)` | 4B, 5, FE |
-| `trust` | `object` | 4B, 5, FE |
-| `trust.verdict` | `Literal['trusted', 'caution', 'blocked']` | 4B, 5, FE |
-| `trust.checks` | `list[object]` | 4B, 5, FE |
-| `trust.checks[].id` | `Literal['D1', 'D2', 'D3']` | 4B, 5, FE |
-| `trust.checks[].status` | `Literal['ok', 'caution', 'blocked', 'inconclusive', 'not_applicable']` | 4B, 5, FE |
-| `trust.checks[].message` | `str` | 4B, 5, FE |
+| `model_used` | `str \| None` | 5, FE |
+| `frame` | `object` | 5, FE |
+| `frame.current` | `str (YYYY-MM)` | 5, FE |
+| `frame.previous` | `str (YYYY-MM)` | 5, FE |
+| `frame.year_ago_current` | `str (YYYY-MM) \| None` | 5, FE |
+| `frame.year_ago_previous` | `str (YYYY-MM) \| None` | 5, FE |
+| `frame.history_months` | `int (ge=0)` | 5, FE |
+| `trust` | `object` | 4A, 5, FE |
+| `trust.verdict` | `Literal['trusted', 'caution', 'blocked']` | 4A, 5, FE |
+| `trust.checks` | `list[object]` | 5, FE |
+| `trust.checks[].id` | `Literal['D1', 'D2', 'D3']` | 5, FE |
+| `trust.checks[].status` | `Literal['ok', 'caution', 'blocked', 'inconclusive', 'not_applicable']` | 5, FE |
+| `trust.checks[].message` | `str` | 5, FE |
 | `trust.checks[].month` | `Literal['current', 'previous', 'coverage'] \| None` | 5 |
-| `trust.limitations` | `list[str]` | 4B, 5, FE |
-| `calendar` | `object \| None` | 4B, 5, FE |
-| `calendar.method` | `Literal['weekday_weights', 'day_count', 'not_applicable']` | 4B, 5, FE |
-| `calendar.expected_cur` | `float \| None` | 4B, 5, FE |
-| `calendar.expected_prev` | `float \| None` | 4B, 5, FE |
-| `calendar.calendar_effect` | `float` | 4B, 5, FE |
-| `calendar.calendar_adjusted_change` | `float` | 4B, 5, FE |
-| `signals` | `list[object] \| None` | 4B, 5, FE |
-| `signals[].series` | `Literal['revenue', 'orders', 'active_customers', 'frequency', 'aov', 'units_per_order', 'price_per_unit', 'return_rate']` | 4B, 5, FE |
-| `signals[].mode` | `Literal['level', 'yoy']` | 4B, 5, FE |
-| `signals[].value_cur` | `float \| None` | 4B, 5, FE |
-| `signals[].center` | `float \| None` | 4B, 5, FE |
-| `signals[].lower` | `float \| None` | 4B, 5, FE |
-| `signals[].upper` | `float \| None` | 4B, 5, FE |
-| `signals[].signal` | `Literal['above', 'below', 'within', 'insufficient_history']` | 4B, 5, FE |
-| `signals[].rule` | `Literal[1, 2] \| None` | 4B, 5, FE |
-| `signals[].mode_fallback` | `Literal['no_year_ago_value', 'unusable_year_ago_base'] \| None` | 4B, 5, FE |
-| `signals[].insufficient_reason` | `Literal['too_few_points', 'no_current_value', 'no_measurable_spread'] \| None` | 4B, 5, FE |
+| `trust.limitations` | `list[str]` | 5, FE |
+| `calendar` | `object \| None` | 5, FE |
+| `calendar.method` | `Literal['weekday_weights', 'day_count', 'not_applicable']` | 5, FE |
+| `calendar.expected_cur` | `float \| None` | 5, FE |
+| `calendar.expected_prev` | `float \| None` | 5, FE |
+| `calendar.calendar_effect` | `float` | 5, FE |
+| `calendar.calendar_adjusted_change` | `float` | 5, FE |
+| `signals` | `list[object] \| None` | 5, FE |
+| `signals[].series` | `Literal['revenue', 'orders', 'active_customers', 'frequency', 'aov', 'units_per_order', 'price_per_unit', 'return_rate']` | 5, FE |
+| `signals[].mode` | `Literal['level', 'yoy']` | 5, FE |
+| `signals[].value_cur` | `float \| None` | 5, FE |
+| `signals[].center` | `float \| None` | 5, FE |
+| `signals[].lower` | `float \| None` | 5, FE |
+| `signals[].upper` | `float \| None` | 5, FE |
+| `signals[].signal` | `Literal['above', 'below', 'within', 'insufficient_history']` | 5, FE |
+| `signals[].rule` | `Literal[1, 2] \| None` | 5, FE |
+| `signals[].mode_fallback` | `Literal['no_year_ago_value', 'unusable_year_ago_base'] \| None` | 5, FE |
+| `signals[].insufficient_reason` | `Literal['too_few_points', 'no_current_value', 'no_measurable_spread'] \| None` | 5, FE |
 | `signals[].limits_method` | `Literal['median_moving_range', 'mean_moving_range', 'minimum_spread']` | 5, FE |
-| `tree` | `object \| None` | 4B, 5, FE |
-| `tree.method` | `Literal['shapley']` | 4B, 5, FE |
-| `tree.lever` | `object` | 4B, 5, FE |
-| `tree.lever.level1` | `object \| None` | 4B, 5, FE |
-| `tree.lever.level1.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 4B, 5, FE |
-| `tree.lever.level1.factors` | `list[object]` | 4B, 5, FE |
-| `tree.lever.level1.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 4B, 5, FE |
-| `tree.lever.level1.factors[].value_prev` | `float` | 4B, 5, FE |
-| `tree.lever.level1.factors[].value_cur` | `float` | 4B, 5, FE |
-| `tree.lever.level1.factors[].contribution` | `float` | 4B, 5, FE |
-| `tree.lever.level2` | `object \| None` | 4B, 5, FE |
-| `tree.lever.level2.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 4B, 5, FE |
-| `tree.lever.level2.factors` | `list[object]` | 4B, 5, FE |
-| `tree.lever.level2.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 4B, 5, FE |
-| `tree.lever.level2.factors[].value_prev` | `float` | 4B, 5, FE |
-| `tree.lever.level2.factors[].value_cur` | `float` | 4B, 5, FE |
-| `tree.lever.level2.factors[].contribution` | `float` | 4B, 5, FE |
-| `tree.lever.gross_to_net` | `float \| None` | 4B, 5, FE |
-| `tree.lever.masked_shift_alert` | `bool \| None` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair` | `object \| None` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.factors` | `list[object]` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.factors[].value_prev` | `float` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.factors[].value_cur` | `float` | 4B, 5, FE |
-| `tree.lever.masked_shift_pair.factors[].contribution` | `float` | 4B, 5, FE |
-| `tree.lever.bridge` | `object \| None` | 5, FE |
+| `tree` | `object \| None` | 4A, 5, FE |
+| `tree.method` | `Literal['shapley']` | 5, FE |
+| `tree.lever` | `object` | 4A, 5, FE |
+| `tree.lever.level1` | `object \| None` | 5, FE |
+| `tree.lever.level1.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 5, FE |
+| `tree.lever.level1.factors` | `list[object]` | 5, FE |
+| `tree.lever.level1.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 5, FE |
+| `tree.lever.level1.factors[].value_prev` | `float` | 5, FE |
+| `tree.lever.level1.factors[].value_cur` | `float` | 5, FE |
+| `tree.lever.level1.factors[].contribution` | `float` | 5, FE |
+| `tree.lever.level2` | `object \| None` | 5, FE |
+| `tree.lever.level2.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 5, FE |
+| `tree.lever.level2.factors` | `list[object]` | 5, FE |
+| `tree.lever.level2.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 5, FE |
+| `tree.lever.level2.factors[].value_prev` | `float` | 5, FE |
+| `tree.lever.level2.factors[].value_cur` | `float` | 5, FE |
+| `tree.lever.level2.factors[].contribution` | `float` | 5, FE |
+| `tree.lever.gross_to_net` | `float \| None` | 5, FE |
+| `tree.lever.masked_shift_alert` | `bool \| None` | 5, FE |
+| `tree.lever.masked_shift_pair` | `object \| None` | 5, FE |
+| `tree.lever.masked_shift_pair.formula` | `Literal['customers*frequency*aov', 'orders*aov', 'units_per_order*price_per_unit']` | 5, FE |
+| `tree.lever.masked_shift_pair.factors` | `list[object]` | 5, FE |
+| `tree.lever.masked_shift_pair.factors[].name` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 5, FE |
+| `tree.lever.masked_shift_pair.factors[].value_prev` | `float` | 5, FE |
+| `tree.lever.masked_shift_pair.factors[].value_cur` | `float` | 5, FE |
+| `tree.lever.masked_shift_pair.factors[].contribution` | `float` | 5, FE |
+| `tree.lever.bridge` | `object \| None` | 4A, 5, FE |
 | `tree.lever.bridge.revenue_previous` | `float` | 5, FE |
 | `tree.lever.bridge.revenue_current` | `float` | 5, FE |
 | `tree.lever.bridge.change` | `float` | 5, FE |
 | `tree.lever.bridge.shown_previous` | `float` | 5, FE |
 | `tree.lever.bridge.shown_current` | `float` | 5, FE |
 | `tree.lever.bridge.shown_change` | `float` | 5, FE |
-| `tree.lever.bridge.bars` | `list[object]` | 5, FE |
-| `tree.lever.bridge.bars[].factor` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 5, FE |
-| `tree.lever.bridge.bars[].value_prev` | `float` | 5, FE |
-| `tree.lever.bridge.bars[].value_cur` | `float` | 5, FE |
+| `tree.lever.bridge.bars` | `list[object]` | 4A, 5, FE |
+| `tree.lever.bridge.bars[].factor` | `Literal['customers', 'frequency', 'orders', 'aov', 'units_per_order', 'price_per_unit']` | 4A, 5, FE |
+| `tree.lever.bridge.bars[].value_prev` | `float` | 4A, 5, FE |
+| `tree.lever.bridge.bars[].value_cur` | `float` | 4A, 5, FE |
 | `tree.lever.bridge.bars[].contribution` | `float` | 5, FE |
-| `tree.lever.bridge.bars[].shown` | `float` | 5, FE |
-| `tree.lever.bridge.aov_split` | `bool` | 5, FE |
-| `tree.lever.bridge.aov_split_withheld` | `Literal['refund_lines', 'aov_unchanged', 'net_units_not_positive'] \| None` | 5, FE |
+| `tree.lever.bridge.bars[].shown` | `float` | 4A, 5, FE |
+| `tree.lever.bridge.aov_split` | `bool` | 4A, 5, FE |
+| `tree.lever.bridge.aov_split_withheld` | `Literal['refund_lines', 'aov_unchanged', 'net_units_not_positive'] \| None` | 4A, 5, FE |
 | `tree.lever.bridge_withheld` | `Literal['zero_orders', 'month_not_positive', 'not_to_the_cent', 'failed_checks'] \| None` | 5, FE |
-| `tree.customers` | `object \| None` | 4B, 5, FE |
-| `tree.customers.new` | `float` | 4B, 5, FE |
-| `tree.customers.resurrected` | `float` | 4B, 5, FE |
-| `tree.customers.expansion` | `float` | 4B, 5, FE |
-| `tree.customers.contraction` | `float` | 4B, 5, FE |
-| `tree.customers.lapsed` | `float` | 4B, 5, FE |
-| `tree.customers.unattributed` | `float` | 4B, 5, FE |
-| `tree.customers.previous_transition` | `object \| None` | 5, FE |
-| `tree.customers.previous_transition.new` | `float` | 5, FE |
-| `tree.customers.previous_transition.resurrected` | `float` | 5, FE |
-| `tree.customers.previous_transition.lapsed` | `float` | 5, FE |
-| `tree.returns` | `object` | 4B, 5, FE |
-| `tree.returns.gross_prev` | `float` | 4B, 5, FE |
-| `tree.returns.gross_cur` | `float` | 4B, 5, FE |
-| `tree.returns.returns_prev` | `float` | 4B, 5, FE |
-| `tree.returns.returns_cur` | `float` | 4B, 5, FE |
-| `tree.returns.deductions_prev` | `float` | 4B, 5, FE |
-| `tree.returns.deductions_cur` | `float` | 4B, 5, FE |
-| `tree.returns.charges_prev` | `float` | 4B, 5, FE |
-| `tree.returns.charges_cur` | `float` | 4B, 5, FE |
-| `tree.products` | `object` | 4B, 5, FE |
-| `tree.products.volume` | `float` | 4B, 5, FE |
-| `tree.products.mix` | `float` | 4B, 5, FE |
-| `tree.products.price` | `float` | 4B, 5, FE |
-| `tree.products.new_products` | `float` | 4B, 5, FE |
-| `tree.products.discontinued_products` | `float` | 4B, 5, FE |
-| `tree.products.unidentified` | `float` | 4B, 5, FE |
-| `localization` | `object \| None` | 4B, 5, FE |
-| `localization.dimensions` | `list[object]` | 4B, 5, FE |
-| `localization.dimensions[].name` | `str` | 4B, 5, FE |
-| `localization.dimensions[].members` | `list[object]` | 4B, 5, FE |
-| `localization.dimensions[].members[].name` | `str` | 4B, 5, FE |
-| `localization.dimensions[].members[].rev_prev` | `float` | 4B, 5, FE |
-| `localization.dimensions[].members[].rev_cur` | `float` | 4B, 5, FE |
-| `localization.dimensions[].members[].delta` | `float` | 4B, 5, FE |
-| `localization.dimensions[].members[].share_of_change` | `float` | 4B, 5, FE |
-| `localization.dimensions[].members[].is_data_gap` | `bool` | 4B, 5, FE |
-| `localization.dimensions[].members[].is_not_a_product` | `bool` | 4B, 5, FE |
-| `localization.dimensions[].other` | `object \| None` | 4B, 5, FE |
-| `localization.dimensions[].other.name` | `str` | 4B, 5, FE |
-| `localization.dimensions[].other.rev_prev` | `float` | 4B, 5, FE |
-| `localization.dimensions[].other.rev_cur` | `float` | 4B, 5, FE |
-| `localization.dimensions[].other.delta` | `float` | 4B, 5, FE |
-| `localization.dimensions[].other.share_of_change` | `float` | 4B, 5, FE |
-| `localization.dimensions[].other.is_data_gap` | `bool` | 4B, 5, FE |
-| `localization.dimensions[].other.is_not_a_product` | `bool` | 4B, 5, FE |
-| `localization.dimensions[].new_members` | `list[str]` | 4B, 5, FE |
-| `localization.dimensions[].removed_members` | `list[str]` | 4B, 5, FE |
-| `localization.mix_rate` | `object \| None` | 4B, 5, FE |
-| `localization.mix_rate.metric` | `Literal['aov', 'price_per_unit']` | 4B, 5, FE |
-| `localization.mix_rate.mix` | `float` | 4B, 5, FE |
-| `localization.mix_rate.rate` | `float` | 4B, 5, FE |
-| `localization.breadth` | `object` | 4B, 5, FE |
-| `localization.breadth.declining_base_share` | `float (ge=0, le=1)` | 4B, 5, FE |
-| `localization.breadth.top_member_share` | `float (ge=0, le=1)` | 4B, 5, FE |
-| `localization.breadth.classification` | `Literal['broad', 'mixed', 'concentrated', 'outside_products']` | 4B, 5, FE |
-| `localization.breadth.products_share_of_change` | `float \| None` | 4B, 5, FE |
-| `hypotheses` | `list[object]` | 4B, 5, FE |
-| `hypotheses[].id` | `str` | 4B, 5, FE |
-| `hypotheses[].family` | `str` | 4B, 5, FE |
-| `hypotheses[].lens` | `str` | 4B, 5, FE |
-| `hypotheses[].statement` | `str` | 4B, 5, FE |
-| `hypotheses[].verdict` | `Literal['supported', 'partial', 'ruled_out', 'inconclusive', 'not_testable']` | 4B, 5, FE |
-| `hypotheses[].contribution` | `float \| None` | 4B, 5, FE |
-| `hypotheses[].share` | `float \| None` | 4B, 5, FE |
+| `tree.customers` | `object \| None` | 4A, 5, FE |
+| `tree.customers.new` | `float` | 4A, 5, FE |
+| `tree.customers.resurrected` | `float` | 4A, 5, FE |
+| `tree.customers.expansion` | `float` | 5, FE |
+| `tree.customers.contraction` | `float` | 5, FE |
+| `tree.customers.lapsed` | `float` | 4A, 5, FE |
+| `tree.customers.unattributed` | `float` | 5, FE |
+| `tree.customers.previous_transition` | `object \| None` | 4A, 5, FE |
+| `tree.customers.previous_transition.new` | `float` | 4A, 5, FE |
+| `tree.customers.previous_transition.resurrected` | `float` | 4A, 5, FE |
+| `tree.customers.previous_transition.lapsed` | `float` | 4A, 5, FE |
+| `tree.returns` | `object` | 4A, 5, FE |
+| `tree.returns.gross_prev` | `float` | 5, FE |
+| `tree.returns.gross_cur` | `float` | 5, FE |
+| `tree.returns.returns_prev` | `float` | 4A, 5, FE |
+| `tree.returns.returns_cur` | `float` | 4A, 5, FE |
+| `tree.returns.deductions_prev` | `float` | 4A, 5, FE |
+| `tree.returns.deductions_cur` | `float` | 4A, 5, FE |
+| `tree.returns.charges_prev` | `float` | 4A, 5, FE |
+| `tree.returns.charges_cur` | `float` | 4A, 5, FE |
+| `tree.products` | `object` | 5, FE |
+| `tree.products.volume` | `float` | 5, FE |
+| `tree.products.mix` | `float` | 5, FE |
+| `tree.products.price` | `float` | 5, FE |
+| `tree.products.new_products` | `float` | 5, FE |
+| `tree.products.discontinued_products` | `float` | 5, FE |
+| `tree.products.unidentified` | `float` | 5, FE |
+| `localization` | `object \| None` | 5, FE |
+| `localization.dimensions` | `list[object]` | 5, FE |
+| `localization.dimensions[].name` | `str` | 5, FE |
+| `localization.dimensions[].members` | `list[object]` | 5, FE |
+| `localization.dimensions[].members[].name` | `str` | 5, FE |
+| `localization.dimensions[].members[].rev_prev` | `float` | 5, FE |
+| `localization.dimensions[].members[].rev_cur` | `float` | 5, FE |
+| `localization.dimensions[].members[].delta` | `float` | 5, FE |
+| `localization.dimensions[].members[].share_of_change` | `float` | 5, FE |
+| `localization.dimensions[].members[].is_data_gap` | `bool` | 5, FE |
+| `localization.dimensions[].members[].is_not_a_product` | `bool` | 5, FE |
+| `localization.dimensions[].other` | `object \| None` | 5, FE |
+| `localization.dimensions[].other.name` | `str` | 5, FE |
+| `localization.dimensions[].other.rev_prev` | `float` | 5, FE |
+| `localization.dimensions[].other.rev_cur` | `float` | 5, FE |
+| `localization.dimensions[].other.delta` | `float` | 5, FE |
+| `localization.dimensions[].other.share_of_change` | `float` | 5, FE |
+| `localization.dimensions[].other.is_data_gap` | `bool` | 5, FE |
+| `localization.dimensions[].other.is_not_a_product` | `bool` | 5, FE |
+| `localization.dimensions[].new_members` | `list[str]` | 5, FE |
+| `localization.dimensions[].removed_members` | `list[str]` | 5, FE |
+| `localization.mix_rate` | `object \| None` | 5, FE |
+| `localization.mix_rate.metric` | `Literal['aov', 'price_per_unit']` | 5, FE |
+| `localization.mix_rate.mix` | `float` | 5, FE |
+| `localization.mix_rate.rate` | `float` | 5, FE |
+| `localization.breadth` | `object` | 5, FE |
+| `localization.breadth.declining_base_share` | `float (ge=0, le=1)` | 5, FE |
+| `localization.breadth.top_member_share` | `float (ge=0, le=1)` | 5, FE |
+| `localization.breadth.classification` | `Literal['broad', 'mixed', 'concentrated', 'outside_products']` | 5, FE |
+| `localization.breadth.products_share_of_change` | `float \| None` | 5, FE |
+| `hypotheses` | `list[object]` | 4A, 5, FE |
+| `hypotheses[].id` | `str` | 4A, 5, FE |
+| `hypotheses[].family` | `str` | 5, FE |
+| `hypotheses[].lens` | `str` | 5, FE |
+| `hypotheses[].statement` | `str` | 5, FE |
+| `hypotheses[].verdict` | `Literal['supported', 'partial', 'ruled_out', 'inconclusive', 'not_testable']` | 4A, 5, FE |
+| `hypotheses[].contribution` | `float \| None` | 4A, 5, FE |
+| `hypotheses[].share` | `float \| None` | 4A, 5, FE |
 | `hypotheses[].evidence` | `dict[str, Any]` | 5, FE |
-| `hypotheses[].rule` | `str` | 4B, 5, FE |
-| `hypotheses[].against_the_change` | `bool` | 5, FE |
-| `not_testable` | `list[object]` | 4B, 5, FE |
-| `not_testable[].id` | `str` | 4B, 5, FE |
-| `not_testable[].statement` | `str` | 4B, 5, FE |
-| `not_testable[].reason` | `str` | 4B, 5, FE |
-| `headline` | `object` | 4B, 5, FE |
-| `headline.rule` | `Literal[1, 2, 3, 4, 5, 6, 7]` | 4B, 5, FE |
-| `headline.hypothesis_id` | `str \| None` | 4B, 5, FE |
-| `headline.lens` | `str \| None` | 4B, 5, FE |
-| `headline.message` | `str` | 4B, 5, FE |
-| `headline.movement` | `object \| None` | 4B, 5, FE |
-| `headline.movement.change_pct` | `float \| None` | 4B, 5, FE |
-| `headline.movement.typical_pct` | `float \| None` | 4B, 5, FE |
-| `headline.movement.movements` | `int (ge=0)` | 4B, 5, FE |
-| `headline.movement.factor` | `float (gt=0)` | 4B, 5, FE |
-| `headline.movement.singled_out` | `bool \| None` | 4B, 5, FE |
-| `headline.movement.reason` | `str \| None` | 4B, 5, FE |
-| `headline.movement.season` | `object \| None` | 4B, 5, FE |
-| `headline.movement.season.expected_change_pct` | `float` | 4B, 5, FE |
-| `headline.movement.season.years` | `int (ge=1)` | 4B, 5, FE |
-| `headline.movement.season.difference_pct` | `float` | 4B, 5, FE |
-| `headline.movement.season.typical_pct` | `float (ge=0)` | 4B, 5, FE |
-| `headline.movement.season.differences` | `int (ge=1)` | 4B, 5, FE |
-| `headline.movement.season.band` | `Literal['consistent', 'inconclusive', 'shortfall', 'excess']` | 4B, 5, FE |
-| `headline.movement.season.beyond_factor` | `float (gt=0)` | 4B, 5, FE |
+| `hypotheses[].rule` | `str` | 5, FE |
+| `hypotheses[].against_the_change` | `bool` | 4A, 5, FE |
+| `not_testable` | `list[object]` | 5, FE |
+| `not_testable[].id` | `str` | 5, FE |
+| `not_testable[].statement` | `str` | 5, FE |
+| `not_testable[].reason` | `str` | 5, FE |
+| `headline` | `object` | 4A, 5, FE |
+| `headline.rule` | `Literal[1, 2, 3, 4, 5, 6, 7]` | 4A, 5, FE |
+| `headline.hypothesis_id` | `str \| None` | 4A, 5, FE |
+| `headline.lens` | `str \| None` | 5, FE |
+| `headline.message` | `str` | 5, FE |
+| `headline.movement` | `object \| None` | 5, FE |
+| `headline.movement.change_pct` | `float \| None` | 5, FE |
+| `headline.movement.typical_pct` | `float \| None` | 5, FE |
+| `headline.movement.movements` | `int (ge=0)` | 5, FE |
+| `headline.movement.factor` | `float (gt=0)` | 5, FE |
+| `headline.movement.singled_out` | `bool \| None` | 5, FE |
+| `headline.movement.reason` | `str \| None` | 5, FE |
+| `headline.movement.season` | `object \| None` | 5, FE |
+| `headline.movement.season.expected_change_pct` | `float` | 5, FE |
+| `headline.movement.season.years` | `int (ge=1)` | 5, FE |
+| `headline.movement.season.difference_pct` | `float` | 5, FE |
+| `headline.movement.season.typical_pct` | `float (ge=0)` | 5, FE |
+| `headline.movement.season.differences` | `int (ge=1)` | 5, FE |
+| `headline.movement.season.band` | `Literal['consistent', 'inconclusive', 'shortfall', 'excess']` | 5, FE |
+| `headline.movement.season.beyond_factor` | `float (gt=0)` | 5, FE |
 | `headline.hedge` | `Literal['seasonal', 'plain'] \| None` | 5, FE |
-| `headline.named` | `list[str] \| None` | 5, FE |
+| `headline.named` | `list[str] \| None` | 4A, 5, FE |
 | `headline.offsetting` | `bool \| None` | 5 |
 | `hypotheses_note` | `str \| None` | 5, FE |
-| `year_ago` | `object \| None` | 5, FE |
+| `year_ago` | `object \| None` | 4A, 5, FE |
 | `year_ago.previous` | `str (YYYY-MM)` | 5, FE |
 | `year_ago.current` | `str (YYYY-MM)` | 5, FE |
 | `year_ago.revenue_previous` | `float` | 5, FE |
@@ -3101,31 +3099,32 @@ How the fields are read:
 | `ai_findings.hypothesis_notes[].id` | `str` | 5, FE |
 | `ai_findings.hypothesis_notes[].text` | `str` | 5, FE |
 | `ai_findings.not_tested_note` | `str` | 5, FE |
-| `notes` | `list[object] (one_per_code)` | 4B, 5, FE |
-| `notes[].code` | `Literal['same_day_cancellations', 'returns_booked_as_in', 'unconfirmed_suggestions', 'unconfirmed_deductions', 'discounts_in_prices', 'other_transaction_types']` | 4B, 5, FE |
-| `notes[].figures` | `list[Literal['revenue', 'gross_sales', 'returns', 'discounts', 'other_deductions', 'return_rate', 'orders', 'aov', 'units', 'customers', 'products', 'diagnosis']]` | 4B, 5, FE |
-| `notes[].measures` | `list[object]` | 4B, 5, FE |
-| `notes[].measures[].name` | `str (min_length=1)` | 4B, 5, FE |
-| `notes[].measures[].scope` | `Literal['file', 'current', 'previous']` | 4B, 5, FE |
-| `notes[].measures[].lines` | `int (ge=0)` | 4B, 5, FE |
-| `notes[].measures[].amount` | `float (finite) \| None` | 4B, 5, FE |
-| `notes[].measures[].orders` | `int (ge=0) \| None` | 4B, 5, FE |
-| `notes[].measures[].keys` | `int (ge=0) \| None` | 4B, 5, FE |
-| `notes[].always_on` | `bool` | 4B, 5, FE |
-| `suggested_classes` | `dict[str, Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']]` | 4B, 5, FE |
+| `notes` | `list[object] (one_per_code)` | 5, FE |
+| `notes[].code` | `Literal['same_day_cancellations', 'returns_booked_as_in', 'unconfirmed_suggestions', 'unconfirmed_deductions', 'discounts_in_prices', 'other_transaction_types']` | 5, FE |
+| `notes[].figures` | `list[Literal['revenue', 'gross_sales', 'returns', 'discounts', 'other_deductions', 'return_rate', 'orders', 'aov', 'units', 'customers', 'products', 'diagnosis']]` | 5, FE |
+| `notes[].measures` | `list[object]` | 5, FE |
+| `notes[].measures[].name` | `str (min_length=1)` | 5, FE |
+| `notes[].measures[].scope` | `Literal['file', 'current', 'previous']` | 5, FE |
+| `notes[].measures[].lines` | `int (ge=0)` | 5, FE |
+| `notes[].measures[].amount` | `float (finite) \| None` | 5, FE |
+| `notes[].measures[].orders` | `int (ge=0) \| None` | 5, FE |
+| `notes[].measures[].keys` | `int (ge=0) \| None` | 5, FE |
+| `notes[].always_on` | `bool` | 5, FE |
+| `suggested_classes` | `dict[str, Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']]` | 5, FE |
 
 #### forecast.json
 
 Since forecast.json 2.1 (the report redesign, D4; Thach, 2026-10-05): the
-structured actions stage 5 and the page read. `actions_status` says which of
-three states to show - "list" (the claims code selected, each with the AI's
-action and why; empty when no claim is selected: headline rules 1-4 and 7, a
-blocked run, an incomplete previous month), "off" (claims selected, the AI
-step switched off), "suppressed" (the AI's answer failed its checks twice, or
-the call failed: nothing is shown) - and a file before 2.1 carries none (read
-as "off"). `fact` and `watch` are code-written; `action` and `why` are the
-AI's, never holding a digit, a percent or currency sign, or more than 30
-words (contracts/forecast_actions.py). Shown as written, escaped.
+structured actions stage 5 and the page read, every sentence code-written
+(the report redesign's step 4, Thach's option (d)). `actions_status` says
+which of three states to show - "list" (the claims code selected, each with
+its fact, action, why and watch line; empty when no claim can be selected:
+headline rules 1-4 and 7, a blocked run, an incomplete previous month),
+"suppressed" (checks a claim may rest on exist, but none has an action for
+the way its figure moved), "off" (only a run where stage 4 produced no
+actions) - and a file before 2.1 carries none (read as "not available").
+`action` and `why` never hold a digit, a percent or currency sign, or more
+than 30 words (contracts/forecast_actions.py). Shown as written, escaped.
 
 | Field | Type | Read by |
 |---|---|---|

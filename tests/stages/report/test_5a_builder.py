@@ -124,18 +124,16 @@ def test_the_forecast_and_the_partial_month_it_starts_in() -> None:
     assert (forecast.months_used, forecast.partial_first_month_until) == (36, date(2011, 12, 9))
 
 
-def test_the_recommendations_are_shown_only_while_the_step_is_on() -> None:
+def test_the_recommendations_are_never_shown() -> None:
     # Thach, Q42: the free-text recommendations - the unchecked format v1
     # switched off because it fabricated numbers - are never shown, even with
-    # the step on and the file holding them.
-    shown = build().layer_3_actions
-    assert (shown.recommendations_status, shown.recommendations, shown.do_not_do) == ("unavailable", None, None)
-    off = build(include_recommendations=False).layer_3_actions
-    assert (off.recommendations_status, off.recommendations, off.do_not_do) == ("switched_off", None, None)
+    # the file holding them; and no AI writes any in v1 (Q50 (d), Q53).
+    held = build().layer_3_actions
+    assert (held.recommendations_status, held.recommendations, held.do_not_do) == ("switched_off", None, None)
     forecast = forecast_payload()
     forecast.update({"model_used": None, "recommendations": None, "do_not_do": None})
     empty = build(forecast=forecast).layer_3_actions
-    assert (empty.recommendations_status, empty.recommendations) == ("unavailable", None)
+    assert (empty.recommendations_status, empty.recommendations) == ("switched_off", None)
 
 
 def test_the_notes_stand_beside_the_forecast_and_the_recommendations() -> None:
@@ -166,7 +164,7 @@ def test_the_provenance_counts_the_ai_answers_the_files_hold() -> None:
     provenance = build().provenance
     assert (provenance.stages_run, provenance.ai_calls, provenance.models_used) == (
         ["ingest", "analyze", "diagnose", "predict"], 3, ["claude-sonnet-5"])  # Q42: the free-text recommendations are never shown, nor counted
-    assert build(schema=False, plan_source=None, include_recommendations=False).provenance.ai_calls == 1
+    assert build(schema=False, plan_source=None).provenance.ai_calls == 1
 
 
 def test_the_files_quality_is_the_cleaning_reports() -> None:
@@ -182,7 +180,7 @@ def test_the_files_quality_is_the_cleaning_reports() -> None:
 
 def test_report_run_writes_report_json_and_a_failed_write_leaves_the_old_one(tmp_path: Path) -> None:
     run = run_dir(tmp_path)
-    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
+    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", now=NOW)
     assert ReportContract.model_validate(json.loads((run / "report.json").read_text(encoding="utf-8"))) == report
     assert report.provenance.ai_calls == 3  # Q42: the free-text recommendations are never shown, nor counted
     before = (run / "report.json").read_bytes()
@@ -194,5 +192,5 @@ def test_report_run_writes_report_json_and_a_failed_write_leaves_the_old_one(tmp
         raise Refused
 
     with pytest.raises(Refused):
-        report_run(tmp_path, RUN, source_file="x.csv", include_recommendations=False, now=NOW, around_write=refuse)
+        report_run(tmp_path, RUN, source_file="x.csv", now=NOW, around_write=refuse)
     assert (run / "report.json").read_bytes() == before

@@ -11,7 +11,6 @@ import pytest
 
 from contracts.report import ReportContract
 from stages.report.builder import ReportMismatchError, report_run
-from stages.report.layers import confidence_label
 from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.contracts.test_forecast import forecast_payload
 from tests.stages.report.report_fixtures import NOW, RUN, build, metrics_data, run_dir
@@ -57,12 +56,6 @@ def test_a_day_grain_file_says_the_day_it_ends() -> None:
     assert (forecast.first_month_in_file, forecast.partial_first_month_until) == (True, date(2011, 12, 9))
 
 
-@pytest.mark.parametrize("confidence,label", [
-    (1.0, "high"), (0.7, "high"), (0.69, "medium"), (0.4, "medium"), (0.39, "low"), (0.0, "low")])
-def test_confidence_is_a_label(confidence: float, label: str) -> None:
-    assert confidence_label(confidence) == label
-
-
 def test_a_recommendation_shows_its_confidence_as_a_label_never_a_figure() -> None:
     # Thach, Q42: the file's free-text recommendations are carried no more -
     # neither their text nor their confidence.
@@ -76,8 +69,8 @@ def test_the_models_named_are_those_of_the_answers_shown() -> None:
     forecast = forecast_payload() | {"model_used": "claude-haiku-4-5"}
     # Q42: the recommendations are never shown, so their model is never named.
     assert build(forecast=forecast).provenance.models_used == ["claude-sonnet-5"]
-    assert build(forecast=forecast, include_recommendations=False).provenance.models_used == ["claude-sonnet-5"]
-    assert build(forecast=forecast, schema=False, include_recommendations=False,
+    assert build(forecast=forecast).provenance.models_used == ["claude-sonnet-5"]
+    assert build(forecast=forecast, schema=False,
                  diagnosis=diagnosis_payload() | {"ai_findings": None, "model_used": None}).provenance.models_used == []
 
 
@@ -106,7 +99,7 @@ def test_a_forecast_of_other_months_is_refused() -> None:
 def test_report_run_without_stage_1s_ai_answers(tmp_path: Path) -> None:
     # Stage 1's AI gave no answer: only the narration and recommendations.
     run_dir(tmp_path, optional=False)
-    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
+    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", now=NOW)
     assert (report.provenance.ai_calls, report.provenance.models_used) == (1, ["claude-sonnet-5"])  # Q42
 
 
@@ -116,6 +109,6 @@ def test_report_run_reads_a_stage_1_answer_of_another_major_as_absent(tmp_path: 
     for name in ("schema_inference.json", "plan_proposed.json"):
         raw = json.loads((run / name).read_text(encoding="utf-8"))
         (run / name).write_text(json.dumps(raw | {"schema_version": "0.9"}), encoding="utf-8")
-    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
+    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", now=NOW)
     assert report.provenance.ai_calls == 1  # Q42: the recommendations are not counted
     assert ReportContract.model_validate_json((run / "report.json").read_text(encoding="utf-8")) == report

@@ -87,7 +87,7 @@ def test_a_chart_shows_its_gap_note_its_cautions_and_its_notes_beside_it() -> No
 
 def test_html_run_writes_report_html_and_a_failed_write_leaves_the_old_one(tmp_path: Path) -> None:
     run = run_dir(tmp_path)
-    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
+    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", now=NOW)
     path = html_run(tmp_path, RUN)
     assert path == run / "report.html"
     assert path.read_text(encoding="utf-8") == render_html(report)

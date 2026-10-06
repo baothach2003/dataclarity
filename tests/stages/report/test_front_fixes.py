@@ -10,7 +10,8 @@ from stages.report.html_report import render_html
 from tests.stages.report.html_probe import Page
 from tests.stages.report.real_runs import build_real, files, with_actions
 
-NOT_AVAILABLE = "Suggested actions are not available for this report."
+NOT_AVAILABLE = ("Suggested actions are not available for this report: its forecast was made before they existed - "
+                 "run the forecast again to see them.")
 
 
 def _front(run: str = "kaggle", **replaced):
@@ -51,7 +52,7 @@ def test_customers_ordering_more_often_reads_orders_per_customer() -> None:
     # Orders up, but each customer ordering less often: "less often", as the bar says.
     from contracts.diagnosis import DiagnosisContract
     from contracts.metrics import MetricsContract
-    from stages.report.front_lines import Context, match_phrase, moved_line
+    from shared.claim_lines import Context, match_phrase, moved_line
 
     data = files("kaggle")
     metrics = MetricsContract.model_validate(data["metrics.json"])
@@ -125,7 +126,7 @@ def test_each_section_links_the_notes_naming_its_figures() -> None:
 # --- Q36, the actions guard -----------------------------------------------------------------------------------
 
 
-def test_a_forecast_from_before_the_actions_with_the_ai_on_is_not_available() -> None:
+def test_a_forecast_from_before_the_actions_is_not_available() -> None:
     from contracts.cleaning import CleaningReportContract
     from contracts.diagnosis import DiagnosisContract
     from contracts.forecast import ForecastContract
@@ -137,7 +138,7 @@ def test_a_forecast_from_before_the_actions_with_the_ai_on_is_not_available() ->
                           diagnosis=DiagnosisContract.model_validate(data["diagnosis.json"]),
                           forecast=ForecastContract.model_validate(data["forecast.json"]),
                           cleaning=CleaningReportContract.model_validate(data["cleaning_report.json"]),
-                          schema=None, plan_source=None, include_recommendations=True)
+                          schema=None, plan_source=None)
 
     assert (report.front.next_steps.status, report.front.next_steps.sentence) == ("unavailable", NOT_AVAILABLE)
 
@@ -145,9 +146,10 @@ def test_a_forecast_from_before_the_actions_with_the_ai_on_is_not_available() ->
 def test_actions_listed_where_no_cause_is_named_are_not_shown() -> None:
     action = {"claim": "K1", "hypothesis_id": "B1", "fact": "f", "action": "Keep going.", "why": "It worked.",
               "watch": "w"}
-    steps = _front("demo_classed", forecast=with_actions("demo_classed", "list", [action], "m")).next_steps
+    steps = _front("demo_classed", forecast=with_actions("demo_classed", "list", [action])).next_steps
 
-    assert (steps.items, steps.sentence) == ([], NOT_AVAILABLE)
+    assert (steps.items, steps.sentence) == (
+        [], "Suggested actions are not available for this report: run the forecast again.")
 
 
 def test_no_action_under_rule_2_says_why_without_contradicting_it() -> None:

@@ -129,7 +129,9 @@ def _charts(metrics: MetricsContract, numbers: Numbers, actions: Actions) -> lis
 
 def _provenance(schema: SchemaInferenceContract | None, plan_source: str | None, diagnosis: DiagnosisContract,
                 actions: Actions, forecast: ForecastContract) -> Provenance:
-    """The AI answers the report's files hold and it uses - not the calls made."""
+    """The AI answers the report's files hold and it uses - not the calls made.
+    Stage 4's suggested actions are code-written (step 4, Q50 (d)): no AI
+    answer."""
     answers = [schema is not None, plan_source == "ai", diagnosis.ai_findings is not None,
                actions.recommendations_status == "shown"]
     models = {schema.model_used if schema is not None else None,
@@ -140,7 +142,7 @@ def _provenance(schema: SchemaInferenceContract | None, plan_source: str | None,
 
 def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, diagnosis: DiagnosisContract,
                  forecast: ForecastContract, cleaning: CleaningReportContract,
-                 schema: SchemaInferenceContract | None, plan_source: str | None, include_recommendations: bool,
+                 schema: SchemaInferenceContract | None, plan_source: str | None,
                  now: datetime | None = None) -> ReportContract:
     """report.json from the run's files. Pure: writes nothing."""
     _same_months(metrics, diagnosis, forecast)
@@ -148,10 +150,13 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
     layer_1 = numbers(metrics, diagnosis, has_customers="customer" in cleaning.column_mapping.values()).model_copy(
         update={"partial_months": partial})
     layer_2 = causes(diagnosis, metrics.core.orders_basis, layer_1)
-    layer_3 = actions(metrics, diagnosis, forecast, include_recommendations)
+    layer_3 = actions(metrics, diagnosis, forecast)
     shown = report_currency(cleaning)
     left_out = rows_left_out(cleaning)
     charts = _charts(metrics, layer_1, layer_3)
+    front = build_front(metrics=metrics, diagnosis=diagnosis, forecast=forecast, cleaning=cleaning, numbers=layer_1,
+                        causes=layer_2, actions=layer_3, charts=charts, partial=partial, left_out=left_out,
+                        code=shown.code)
     return ReportContract(
         schema_version=SCHEMA_VERSION, generated_at=now or datetime.now(UTC), run_id=run_id, source_file=source_file,
         data_quality=DataQuality(rows_in=cleaning.rows_in, rows_out=cleaning.rows_out,
@@ -160,10 +165,7 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
                                  warnings=len(cleaning.warnings)),
         layer_1_numbers=layer_1, layer_2_causes=layer_2, layer_3_actions=layer_3,
         charts=charts, provenance=_provenance(schema, plan_source, diagnosis, layer_3, forecast),
-        currency=shown, rows_left_out=left_out,
-        front=build_front(metrics=metrics, diagnosis=diagnosis, forecast=forecast, cleaning=cleaning, numbers=layer_1,
-                          causes=layer_2, actions=layer_3, charts=charts, partial=partial, left_out=left_out,
-                          code=shown.code, ai_on=include_recommendations))
+        currency=shown, rows_left_out=left_out, front=front)
 
 
 def _read[T: (MetricsContract, DiagnosisContract, ForecastContract, CleaningReportContract)](
@@ -189,7 +191,7 @@ def _optional[T: (SchemaInferenceContract, CleaningPlanContract)](path: Path, mo
     return model.model_validate(raw) if major_of(raw) == model.supported_major else None
 
 
-def report_run(runs_root: Path, run_id: str, *, source_file: str, include_recommendations: bool,
+def report_run(runs_root: Path, run_id: str, *, source_file: str,
                now: datetime | None = None,
                around_write: Callable[[], AbstractContextManager[object]] | None = None) -> ReportContract:
     """Read runs/<run_id>/, build report.json and write it atomically: a
@@ -202,7 +204,7 @@ def report_run(runs_root: Path, run_id: str, *, source_file: str, include_recomm
         schema=_optional(run_file(runs_root, run_id, SchemaInferenceContract.filename or ""),
                          SchemaInferenceContract),
         plan_source=None if plan is None else plan.source,
-        include_recommendations=include_recommendations, now=now)
+        now=now)
     write_atomically(run_file(runs_root, run_id, ReportContract.filename or "report.json"),
                      report.model_dump_json(indent=2).encode("utf-8"), around_replace=around_write)
     return report
@@ -225,10 +227,10 @@ def _pair(runs_root: Path, run_id: str) -> Iterator[None]:
             raise
 
 
-def build_run(runs_root: Path, run_id: str, *, source_file: str, include_recommendations: bool,
+def build_run(runs_root: Path, run_id: str, *, source_file: str,
               now: datetime | None = None) -> ReportContract:
     """report.json and report.html for one run, both or neither within the
     process - the one way the backend and stage 5's CLI write them (5D
     review 2 #1: the CLI's own copy of this had drifted)."""
-    return report_run(runs_root, run_id, source_file=source_file, include_recommendations=include_recommendations,
+    return report_run(runs_root, run_id, source_file=source_file,
                       now=now, around_write=lambda: _pair(runs_root, run_id))

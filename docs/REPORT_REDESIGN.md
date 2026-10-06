@@ -366,15 +366,14 @@ worded inside the order-value bar), fewer returns +24,535.13, and charges
 
 ### 1.4 Section 4 - What to do next
 
-The structured recommendations of section 4 (D4). Each item shows **the
-action** (AI), **why** (AI), **the figure it rests on** (code) and **what to
-watch next month** (code). Under headline rules 1-4 and 7, a blocked
-diagnosis, or an incomplete previous month, no claim is selected and the
-AI is not asked (Thach, Q10); the section reads: "No action is suggested:
-no single reason stands out in these figures. Next month, compare sales
-with the estimate in section 5." Both demo runs (rule 7) read so. The
-Kaggle mock shows the claims code would select, with the AI's two fields
-marked as placeholders.
+The suggested actions of section 4 (D4), every sentence code-written
+since Thach's option (d) (section 4): each item shows **the figure it rests
+on**, **the action**, **why** and **what to watch next month**. Under
+headline rules 1-4 and 7, a blocked diagnosis, or an incomplete previous
+month, no claim is selected (Thach, Q10); the section reads: "No action is
+suggested: no single reason stands out in these figures. Next month,
+compare sales with the estimate in section 5." Both demo runs (rule 7) read
+so. On the Kaggle run three actions are listed (section 4.1).
 
 ### 1.5 Section 5 - Next month
 
@@ -585,111 +584,120 @@ contribution, AOV, yoy, year-over-year, limits, inconclusive, revenue,
 caused, launched, discontinued, usual, unusual, normal, abnormal,
 ordinary, "bigger than usual".
 
-## 4. Structured recommendations (D4; 3F closed)
+## 4. Suggested actions, written by code (D4; Thach's option (d), 2026-10-06)
 
-The design Thach set on 2026-10-01 (PROJECT_PLAN 4B): code selects the
-claims and writes every sentence of fact or figure; the AI writes only the
-action and the reason for each pre-selected claim, with no number and no
-choice of claims. It was designed to be shared with 3F. 3F closes (Q14),
-so this is now the only AI step after stage 1.
+**No AI in v1's recommendations** (Thach, Q50 (d)). Five review cycles
+over two designs - 4B's three, step 4's two - found the same thing: free
+text written by the AI cannot be closed by a banned-word list ("every
+fourth visit", "a fiver off" passed; 9 of 38 sound sentences were refused).
+So code selects the claims, picks each one's action from the catalog below
+by the claim's kind and the direction its own figure moved, and writes the
+why and the watch line. Every sentence is code-written and tested. The AI
+recommendation step moves to v2 (PROJECT_PLAN Backlog), starting from this
+measured finding. Stage 4 makes no AI call; `STRATEGY_AI_ENABLED` and the
+strategy AI path are removed (Q53).
 
-### 4.1 The input code builds
+### 4.1 Which claims (code, deterministic; Thach Q10, Q11, Q52, Q54)
 
-```
-{
-  "shop": {"orders_basis": "order_id", "currency": "not_stated"},
-  "claims": [                       # 0 to 3, ranked by code
-    {"id": "K1",
-     "kind": "B1",                  # the hypothesis it rests on
-     "fact": "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29.",
-     "direction": "up",             # up | down (with the change), against
-     "subject": "how often customers order"}
-  ],
-  "rules": [...]                    # the forbidden-words list, as text
-}
-```
+- Only when `headline.rule` is 5 or 6 (a cause named), the diagnosis is not
+  blocked and the previous month is complete. Otherwise no claim, and
+  section 4 says why (1.4).
+- From the hypotheses `supported`/`partial` moving with the change, plus
+  those against the change (`against_the_change`) at |share| >= the
+  supported bar (0.20); never the data checks (D1-D3: a data problem is
+  fixed, not acted on in the shop), the time checks (T1-T3: the calendar is
+  no lever), C4 (dormant), or R2 (Q52: no watch line next month can follow
+  products sold in only one of two closed months).
+- Ranked: the headline's causes (`named`) first, then by |contribution|,
+  the catalog's order on a tie. A claim whose catalog has no entry for the
+  way its figure moved (the figure unchanged as printed, or a lost-customer
+  term that is no loss) is dropped before the ranking is cut to three, and
+  the rest are numbered K1, K2, K3.
+- Kaggle: K1 = P2 (customers chose cheaper products - pulled the other
+  way). B1 and B2, which the headline names, are no claims since step 4's
+  scoped review (section 12).
 
-The `fact` is code-written (section 1.3's sentence, the same copy). The AI
-sees no file content, no free-text field of the file (no product name, no
-customer value) and no other figure. Kinds with a product (R3, R1's top
-member) send the product name only as a quoted string the checks treat as
-input text, as 4B does today.
+### 4.2 What each claim carries
 
-### 4.2 Which claims (code, deterministic; Thach, Q10, Q11)
-
-- Only when `headline.rule` is 5 or 6 (a cause named). Under rules 1-4
-  and 7, a blocked diagnosis, or `previous_complete` false: **no claim**.
-  The AI is not asked, and the code line of 1.4 is shown.
-- From `supported`/`partial` hypotheses moving with the change, plus
-  `against_the_change` ones at |share| >= the supported bar, excluding the
-  data family (D1-D3: a data problem is fixed, not acted on in the shop)
-  and time (T1, T2: the calendar is not a lever). Ranked: the headline's
-  hypothesis first, then by |contribution|. At most 3.
-- Kaggle: K1 = B1 (+4,712.29), K2 = B2 (+2,858.84), K3 = P2 (pulled the
-  other way, -1,479.65; its fact sentence is section 1.3's "inside the
-  chart's average price per item" line).
-
-### 4.3 What code writes, and what the AI writes
-
-| Part | Writer | Kaggle K1 |
+| Part | Writer | Kaggle K1 (P2) |
 |---|---|---|
-| The figure it rests on | code | "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29." |
-| What to watch next month | code, by kind | "Next month, check: orders per customer (13.72 this month; 12.32 the month before)." |
-| The action | AI | one sentence, <= 30 words, no digit |
-| Why | AI | one sentence, <= 30 words, no digit |
-| The notes beside them | code | every not-always-on note (CONTRACTS 11's standing rule) |
+| The figure it rests on (`fact`) | code: the checklist's own line (`shared/claim_lines`) | "Inside the chart's average price per item (-2,646.13): customers chose cheaper products among those sold in both months. Measured product by product, that shift is about -1,479.65 - a different measure, not an amount to add to the chart." |
+| The action | code: the catalog, by kind and direction | "Show a pricier alternative next to the cheaper products customers chose." |
+| Why | code: the catalog | "Customers chose cheaper products among those sold in both months; offering a step up may win some of them back." |
+| What to watch next month | code, by kind (the value the claim rests on) | "Next month, check: the average price per item (23.25 this month; 24.70 the month before)." |
 
-The watch line per kind reads the same lever value the claim rests on
-(`bridge.bars[].value_cur/value_prev`; for C1-C3 the bridge terms; for P1
-and P2 the product terms). No new figure is needed.
+**The direction** is the way the claim's own figure moved, read from the
+two figures' order (never a new figure): the money terms (C1-C3, P3, P5)
+this month against the month before; the sign of the measured amount for
+P1 (prices went up or down) and P2 (pricier or cheaper); for R1, which
+stage 3 writes with no amount, the sales change's. A refund that fell is
+"down" whatever it did to sales. R3 has one entry. **B1, B2 and P4 are no
+claims** (moved out by step 4's scoped review, Thach's stop rule: section
+12).
 
-### 4.4 Output schema and checks (code)
+### 4.3 The catalog (the exact sentences)
 
-```
-{"actions": [{"claim": "K1", "action": "...", "why": "..."}]}   # exactly one per claim, same order
-```
+No sentence holds a digit, a word of `FRONT_BANNED`, "order", "visit" or
+"basket" (so it reads true on a file with no order id - the orders-basis
+rule), or a movement word against its direction.
 
-Refused, each problem named for the one retry (4B's checks reused,
-`strategy_checks.py`, the rendering moved to `shared/` as AI_PIPELINE 8
-plans):
+| Kind and direction | Action | Why |
+|---|---|---|
+| P1 up | Watch whether customers keep buying at the new prices. | Prices of products sold in both months went up; how customers respond shows whether the new prices hold. |
+| P1 down | Check that the price cuts were intended and are bringing in extra buyers. | Prices of products sold in both months went down; a price cut pays only when it brings extra buyers. |
+| P2 up | Keep the pricier products customers chose easy to find. | Customers chose pricier products among those sold in both months; keeping them easy to find may keep that going. |
+| P2 down | Show a pricier alternative next to the cheaper products customers chose. | Customers chose cheaper products among those sold in both months; offering a step up may win some of them back. |
+| C1 up | Welcome new customers and give them a reason to come back. | Sales from new customers rose this month; a welcome may turn some of them into regular customers. |
+| C1 down | Look at how new customers find the shop, and make that easier. | Sales from new customers fell this month; an easier way in may help them find you. |
+| C2 up | Contact customers who have not bought for a while, with a reason to come back. | Sales lost to customers who stopped buying rose this month; a reminder may bring some of them back. |
+| C2 down | Keep in touch with customers who have not bought for a while. | Sales lost to customers who stopped buying fell this month; keeping in touch may keep it that way. |
+| C3 up | Thank customers who came back after a break. | Sales from customers who came back after a break rose this month; a thank-you may keep them coming. |
+| C3 down | Contact customers who have not bought for a while. | Sales from customers who came back after a break fell this month; a reminder may bring some of them back. |
+| P3 up | Check the most returned products for faults, sizing or how they are described. | Refunds for returned goods rose this month; a common reason behind them may be one the shop can fix. |
+| P3 down | Keep an eye on returns to see whether the lower level holds. | Refunds for returned goods fell this month; watching them shows whether that lasts. |
+| P5 up | Check that postage and other charges are clear before customers pay. | Postage and other charges paid by customers rose this month; clear charges avoid surprises when customers pay. |
+| P5 down | Check that postage and other charges are still collected where they should be. | Postage and other charges paid by customers fell this month; a missed charge may mean the shop pays it itself. |
+| R1 up | Look at the product or category named in the technical section and see what changed there. | The change was concentrated in one product or category, so that is where to look first. |
+| R1 down | Look at the product or category named in the technical section and see what changed there. | The change was concentrated in one product or category, so that is where to look first. |
+| R3 down | Check the shelf and the stock records for the products listed under the stockout check in the technical section. | Their sales stopped in a way consistent with a stockout - verify on the shelf. |
 
-1. invalid JSON or schema; a claim id missing, repeated or not given;
-2. **any digit** (0-9, any script: `str.isdigit` on every character), `%`,
-   a currency symbol (Unicode Sc), a number word (one ... twenty, dozen,
-   hundred, thousand, million, half, double, twice, triple, percent);
-3. stock words (`_STOCK`), a verdict on a period (`_VERDICT` with
-   `_PERIOD`), "orders"/"AOV" when `orders_basis` is lines (`_ORDERS`);
-4. certainty words: caused, causes, proves, proof, definitely, certainly,
-   guarantee(d), will increase, will grow;
-5. over 30 words, an empty field;
-6. any word the claims did not give that names a product, a customer or a
-   month (the input's own texts are the allow-list, as 4B's `input_texts`).
+R3's fact, the checklist's line, is worded with stage 3's own words (Q54):
+"At least one best-selling product stopped selling - consistent with a
+stockout, verify on the shelf - worth about ..." (stage 3 may find more than
+one). R1 has no measured amount (stage 3 writes none): its direction is the
+sales change's. A why never re-reads a figure as a behaviour it does not
+measure (orders per customer is no "regular customers bought more"; items
+per line is no "bought together"); B1, B2 and P4, for which no such wording
+held in every case, are no claims (section 12).
 
-**Retry:** one, with the problems listed (AI_PIPELINE 9's shared budget).
-**On a second failure, an API error, or a timeout: the whole section is
-suppressed** (never a partial list): "Suggested actions are not shown for
-this report: the AI's answer did not pass our checks, so nothing was shown
-rather than something unchecked. Every figure above is unaffected." Switched
-off (`STRATEGY_AI_ENABLED=false`): "Suggested actions are switched off for
-this report." Never fabricated: no fallback text pretends to be advice.
+### 4.4 forecast.json 2.1's three states (Thach)
+
+- **"list"**: the code-written actions - or empty when no claim is
+  selected (section 4 then says why, 1.4).
+- **"suppressed"**: claims were selected but none has a catalog entry for
+  the way its figure moved - nothing to act on. Section 4: "No action is
+  suggested: the figures above that moved have no action this report can
+  suggest."
+- **"off"**: only for a run where stage 4 did not produce actions (the new
+  stage 4 never writes it). Section 4: "Suggested actions are not available
+  for this report: run the forecast again." (A forecast before 2.1: "...its
+  forecast was made before they existed - run the forecast again to see
+  them.")
+- `actions_model` is null: code writes every action. 4B's `model_used`,
+  `recommendations`, `do_not_do` stay null (Q42, Q53).
 
 ### 4.5 Cost and model
 
-`MODEL_REASONING`, Sonnet 5 (Thach, Q19; ADR-0003), at $2 / $10 per
-million tokens (the eighteenth run's smoke test used the same rates).
-Estimated: system prompt and rules ~1,200 tokens, claims ~150 each ->
-~1,700 input; output ~300 tokens of JSON plus thinking, ~1,000 at most ->
-**about $0.01 to $0.014 a call; about $0.03 with the retry**. Today's 4B
-input is 8,000 to 9,000 tokens. **Estimated, not measured**: the first
-approved real call measures it (a real call needs Thach's approval).
+None: stage 4 makes no AI call, so no smoke test is needed (Thach, Q50).
 
 ### 4.6 3F closes (Thach, Q14 (a))
 
-The code-written front section is the narration; the AI writes only the
-recommendations. Stage 3 makes no AI call: `ai_findings` and `model_used`
-stay null (as every v1 run writes them today), the narration prompt
-(`prompts/root_cause.md`) is not built, and AI_PIPELINE 7.9 records the
-closure. The appendix's "AI narration is unavailable" line goes (1.7, Q21).
+The code-written front section is the narration, and since Q50 (d) the
+suggested actions are code-written too. Stage 3 makes no AI call:
+`ai_findings` and `model_used` stay null (as every v1 run writes them
+today), the narration prompt (`prompts/root_cause.md`) is not built, and
+AI_PIPELINE 7.9 records the closure. The appendix's "AI narration is
+unavailable" line goes (1.7, Q21).
 
 ## 5. What does not change
 
@@ -882,7 +890,7 @@ code before the code is written, and must fail there.
 | "Rows left out" names the dropping action and column (Kaggle: 1,213 rows with no value in "Item") | absent |
 | no "AI narration is unavailable" line | today's page prints it |
 | stage 1: one test per file of 6.5 - "a bare $ is not read as AUD", "a Country column is not read as a currency", mixed currencies block | no detection |
-| recommendations: a digit / a number word / a currency symbol / "caused" in the AI's text is refused; an extra or missing claim id is refused; one retry then the suppression notice; no AI call under rules 1-4 and 7, blocked, or an incomplete previous month; every fact sentence's figures equal the contract's | the step is off and unstructured |
+| recommendations (option (d)): every catalog sentence passes the front's banned words, holds no digit, no "order", "visit" or "basket", and no movement word against its direction; a refund that fell is never "rose"; no claim under rules 1-4 and 7, blocked, or an incomplete previous month; every fact sentence is the checklist's own line | the step is off and unstructured |
 | frontend: the same no-jargon and bridge tests in Vitest; the page never draws a refused split | the page draws it today |
 
 Process per CLAUDE.md 3.6: the new stage 3 fields and the claim selection
@@ -1100,6 +1108,45 @@ carry, the front says less (suppress, never fabricate).
 
 **Open:** none from this round (decisions made alone: section 12).
 
+**Open (step 4, stopped by its scoped review - section 12):**
+
+49. **Q49** - a claim's `direction` is the sign of its effect on SALES
+    (refunds falling adds to sales: "up"), not the way its own measure moved
+    (the refunds fell). The direction check and the prompt read it as the
+    measure's movement, so "Refunds rose" passed beside "Refunds ... fell"
+    (the scoped review's fabrication on a common shape: returns). (a) drop
+    the direction check and the field from the AI's input, refusing every
+    movement word (the prompt already says "do not restate how anything
+    moved"); (b) give the AI the measure's own movement as a separate field
+    stage 4 reads from the two figures' order (no new figure); (c) other?
+50. **Q50** - the AI's free text is checked against closed word lists; each
+    review finds more that slip through ("visiting more often" on a file
+    with no order id, "every fourth visit", "a fiver off", "a pair", ordinals,
+    synonyms of certainty and of a verdict on a month). A list cannot close
+    this. (a) **the AI picks, per claim, one action from a short code-written
+    catalogue by kind and writes only why** - the action can then never
+    fabricate; (b) keep free text but accept only words from an allow-list
+    (a small plain vocabulary); (c) keep the lists, add the review's words,
+    and rely on the smoke test and Thach's reading. Recommendation: (a) for
+    the action; the why under (c) or dropped.
+51. **Q51** - the checks also refuse sound answers (in a hand-written set of
+    38 Kaggle answers, 9 refused - "busy weeks", "a couple of add-ons",
+    "always", "keep a record") and the retry message does not name the word
+    that matched, so a retry can repeat it and the list is suppressed. If
+    the lists stay (Q50 (b) or (c)), name the matched word in each problem
+    and narrow the verdict and certainty lists?
+52. **Q52** - R2's watch line names the two compared months ("sold in
+    December but not in November"), a closed figure next month cannot
+    change. Word it "sales of products sold in one month and not the other,
+    month on month", without figures?
+53. **Q53** - stage 4's free-text step (4B: `ai_strategy.recommend`,
+    `strategy_checks`, `strategy_render`, `strategy_impact`,
+    `prompts/strategy.md`) is no longer called (Q42). Remove it, with its
+    tests, in its own session, or keep it?
+54. **Q54** - R3 (a best-seller that may have run out) as a claim: its
+    natural action is a reorder, which the stock rule refuses (v1 has no
+    stock). Leave R3 out of the claims (as D and T are)?
+
 **Answered by Thach, 2026-10-06 (seventh round, step 3's follow-up):**
 
 44. **Q44** - fix both figure-and-word mismatches this session, failing
@@ -1143,6 +1190,37 @@ file or a common shape):**
     (details in the technical section)" - a decision made alone; "passed ...
     except" can read as those having failed. Your wording?
 
+**Answered by Thach, 2026-10-06 (eighth round, step 4 - Q49-Q54):**
+
+50. **Q50** - option (d): **no AI in v1's recommendations.** *Why:* five
+    review cycles over two designs (4B's three, step 4's two) found the same
+    thing: free text written by the AI cannot be closed by a banned-word
+    list ("every fourth visit", "a fiver off" pass; 9 of 38 sound sentences
+    are refused). Option (a) still leaves the why as free text. In (d) code
+    selects the claims (as built), picks the action from a code-written
+    catalog by claim kind and direction, and writes the why and the watch
+    line: every sentence code-written and tested. The AI recommendation step
+    moves to v2 (PROJECT_PLAN Backlog), with this measured finding as its
+    starting point. Consequences: forecast.json 2.1 keeps its three states -
+    "list" code-written, "off" only for a run where stage 4 did not produce
+    actions, "suppressed" for a claim selection that yields nothing to act
+    on; `STRATEGY_AI_ENABLED` and the strategy AI path removed (Q53); no
+    smoke test for step 4.
+49. **Q49** - void under (d): no AI sentence is checked for its direction.
+    The catalog is keyed by the direction the claim's own figure moved, so a
+    refund that fell is worded "fell" by construction (tested). *Why void:*
+    the question was how to check an AI's movement words.
+51. **Q51** - void under (d): no AI answer is refused or retried. *Why
+    void:* the false refusals and retry messages belonged to the AI checks,
+    which are removed.
+52. **Q52** - R2 out of the claims. *Why:* no watch line next month can
+    follow products sold in only one of two closed months.
+53. **Q53** - yes: the old free-text 4B code and its prompt are deleted (git
+    history keeps them). *Why:* its known fabrication paths must not stay in
+    a portfolio repo.
+54. **Q54** - keep R3, worded with stage 3's own words ("consistent with a
+    stockout, verify on the shelf"), code-written.
+
 ## 11. The build, step by step
 
 1. **Stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`**
@@ -1156,7 +1234,10 @@ file or a common shape):**
    fabrication on a common shape moved to the appendix (safety valve):
    committed (section 12).**
 4. Stage 4 structured actions (full process; a real call only with
-   Thach's approval).
+   Thach's approval). **First built with the AI; stopped by its scoped
+   review (Q49-Q54); rebuilt as Thach's option (d) - code-written actions,
+   no AI; its scoped review moved B1, B2 and P4 out of the claims (stop
+   rule); committed (section 12).**
 5. The frontend (section 8), including the deploy blocker of Q17.
 
 Each is its own session, grouped for commits as CLAUDE.md says.
@@ -1601,6 +1682,60 @@ export shape; open questions Q44-Q48 in section 10):
 - OTHER (Q47): `front_word_problems` is called by no stage yet - stage 4
   writes no actions until step 4, which wires it.
 
+### Step 4 - stage 4's suggested actions (2026-10-06) - built, reviewed, fixed, STOPPED, not committed
+
+**Built (design section 4, full process; the AI faked, no real call):**
+`stages/predict/claims.py` (the claims: rules 5 and 6 only, never D/T/C4,
+the headline's causes first then by amount, at most three; each fact the
+checklist's own sentence - the wording moved to `shared/claim_lines.py`
+and `shared/wording.py` unchanged, one copy for stages 4 and 5 - in the
+file's confirmed currency read from cleaning_report.json; a watch line by
+kind from the bridge's bar or the money terms); `actions_checks.py` (design
+4.4's checks); `ai_actions.py` and `prompts/actions.md` (the input: the
+claims and the shop alone; one retry, then AIUnavailable); `assemble.py`
+writes forecast.json 2.1 (list / off / suppressed; 4B's blocks null - Q42;
+an answer reused only for the same claims); the backend builds the step
+when `STRATEGY_AI_ENABLED` is on; stage 5 counts the listed actions in the
+provenance and points the appendix to section 4. On the three real runs
+(the AI off): forecast.json's existing fields identical; Kaggle "off" (K1
+B1, K2 B2, K3 P2 selected - as design 4.2 says); both demo runs "list" with
+none (rule 7): "No action is suggested: no single reason stands out...".
+Tests first; mutation 32 of 33 (the survivor equivalent: the claim ids
+also cap the list at three).
+
+**Its review** found four fabrications - number words the list missed
+("forty", "a quarter", "½", "a pound"); "ordered" on a file with no order
+id; R2's watch line calling products "new"; every suppression said as "the
+AI's answer did not pass our checks" (a timeout too) - and five other
+findings (customer groups refused as names; "will", "ensures", "record
+month", holidays, abbreviated months, two sentences, a movement said the
+wrong way let through; no notes beside section 4; "AI" lowercased in the
+notices). All fixed, tests first (22 red); mutation 23 of 23; the full
+suite 5132 passed. Decisions made alone in the fixes: the suppressed
+sentence became "the AI gave no answer that passed our checks" (true of a
+timeout and of the attempts used; design 4.4's sentence was not);
+`front.notes.next_steps` added to report.json 2.9 (unreleased, in place).
+
+**The scoped review of the fixes found fabrications on common export
+shapes**: the direction check reads `claim.direction` - the sign of the
+effect on sales - as the measure's movement, so on falling refunds "Refunds
+rose" passed and "Refunds fell" was refused (returns; discounts and lost
+customers alike); "Customers are visiting more often" on a file with no
+order id; "every fourth visit", "a fiver off", "a pair" (ordinals and
+quantity words); and, on neither shape, a verdict on a named month ("After
+an exceptional December") that the narrowed period list stopped catching,
+and movements said without a listed verb. Other: holidays in capitals
+("Summer"), "May" opening a sentence; certainty synonyms; sound answers
+refused (9 of 38 hand-written) with retry messages that do not name the
+matched word; R2's watch line naming closed months; the design's 4.4 text
+not updated.
+
+**Stopped** under the stop rule for step 4: not committed; no further
+cycle. The work: the working tree, copied to
+`C:\Users\Happy\step4-actions-wip\` (working-tree.patch against a0ea4f0,
+untracked.tar). Open: Q49-Q54 (section 10). No real AI call was made;
+`STRATEGY_AI_ENABLED` stays false.
+
 **Step 3's follow-up (2026-10-06, Q44-Q48).** Q44: the decimals are decided
 on the text printed (`f"{value:.{d}f}"`, never `round(value * 10**d)`);
 beside a season the two changes and the typical difference are printed at
@@ -1617,3 +1752,73 @@ found no fabrication on a demo file or a common shape; its findings are
 Q55-Q59 (recorded, not fixed: the one review the round allows), except Q46's
 sentence in a second place (T2 with no year_ago pair, a diagnosis before
 18.4), applied with a test - Thach's own answer, completed.
+
+### Step 4 rebuilt as Thach's option (d) (2026-10-06) - code-written actions, no AI
+
+**Built** (section 4; full process): the claims as before (R2 out: Q52);
+each action and why picked from the catalog (`stages/predict/catalog.py`)
+by the claim's kind and the direction its own figure moved
+(`claims.own_direction`: the bars and money terms by their two figures'
+order; P1 and P2 by the measured amount's sign; R1 by the sales change -
+stage 3 writes R1 no amount; R3 "down"); R3 in stage 3's own words (Q54);
+forecast.json 2.1 "list" / "suppressed" (never "off"), `actions_model`
+null, a 2.1 file holding 4B's blocks refused; the strategy AI path deleted
+field by field (Q53): stage 4's `ai_strategy`, `strategy_*` modules and
+prompt, the AI actions and checks never committed, the backend's AI step
+and attempt count for stage 4, `STRATEGY_AI_ENABLED` (settings,
+`.env.example`, the report CLI, tests), stage 5's `include_recommendations`
+and the recommendations' confidence label; report.json keeps its fields
+(`recommendations_status` "switched_off", both null); CONTRACTS section 11:
+reader 4B dropped (no row lost its last reader), reader 4A added to the 41
+fields the claims read; the frontend's recommendations place says "No AI
+writes recommendations in this version." and lists nothing. Tests first;
+mutation 21 of 22 (the survivor equivalent: no reachable claim has a
+direction but no entry) plus a test for a calendar or R2 cause reading "no
+cause" rather than "nothing to act on".
+
+**Its review** found fabrications on common shapes - B1's why read orders
+per customer as "regular customers bought more / less" (false with new
+customers, or fewer bigger purchases); B2's "at a time" and "buy together"
+on a file with no order id; P4's action and why calling the deduction lines
+discounts (CLAUDE.md 3.3a: they may be coupons, refunds, write-offs) - and
+R3 worded as one product where stage 3 lists several; and: R1 never a claim
+(stage 3 writes it no amount); tests that did not guard `NOT_A_LEVER`; docs
+contradicting the code (CONTRACTS 9 and 11, SPECS, this design's 1.4 and
+test plan, CLAUDE.md's folder list, ADR-0002); the claims' fields without
+reader 4A; the frontend saying "switched off"; "made before" said of "off"
+and of a file out of step; an older report pointed to a section 4 it does not
+render. All fixed, tests first (8 red); mutation 8 of 8; the B1, B2 and P4
+whys point to "the figure above" and say only what is true.
+
+**Open (recorded, not fixed):**
+60. **Q60** - a drop that the calendar or the season also matches (T1/T2
+    supported beside a named B1) gets customer advice ("a reminder may help
+    bring it back"); the figures are true, but the advice treats a seasonal
+    or calendar drop as something to act on. Leave B1 out of the claims when
+    T1 or T2 is supported at the supported bar, or keep it?
+
+**The scoped review of the fixes (Thach's stop rule)** still found
+fabrications on common export shapes: B1's new why ("the figure above
+rose") under a fact line that prints the order count, which fell (new or
+lapsed customers); P4's fact and watch line still calling the deduction
+lines discounts beside a why that says the file cannot tell - and, where
+Review confirmed them as discounts, a why saying the file cannot tell; B2's
+"show a related item" on a file with no order id, where a related item is
+its own line and cannot move items per line. **Moved out of the claims, as
+the stop rule says: B1, B2 and P4** (`claims.MOVED_OUT`; their catalog
+entries removed; tests prove them absent - never a claim even when named,
+none in Kaggle's section 4). Kaggle now lists one action, P2 (customers
+chose cheaper products). The docs the review found contradicting the code
+were corrected (this design's 4.2 and 4.4, CONTRACTS' log and `year_ago`
+row, the API schema's notes, PROJECT_PLAN's folder list, LINE_TAXONOMY).
+No further cycle.
+
+**Open (recorded, not fixed):**
+61. **Q61** - R3's action points to "the products listed under the stockout
+    check in the technical section", a label the technical section does not
+    use (its row reads "A top product may have run out of stock"; the
+    products appear in its evidence). Name that row instead?
+62. **Q62** - R1's action points to "the product or category named in the
+    technical section", but stage 3's R1 is products only and its member
+    appears only as "top_member" in the evidence cell. Word it "the product
+    named in the technical section's row for this check"?

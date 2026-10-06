@@ -191,5 +191,10 @@ class ForecastContract(ContractFile):
                 "model_used, recommendations and do_not_do must be "
                 "all null or all filled"
             )
+        if not all(nulls) and minor_version(self.schema_version) >= (2, 1):
+            # The free-text strategy step is removed (Thach, Q53): no AI writes
+            # recommendations in v1, and a 2.1 file holds none.
+            raise ValueError("a 2.1 forecast holds no AI recommendations: model_used, recommendations and do_not_do "
+                             "are null")
         check_actions(self.actions, self.actions_status, self.actions_model, minor_version(self.schema_version))
         return self

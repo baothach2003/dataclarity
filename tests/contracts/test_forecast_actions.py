@@ -21,13 +21,15 @@ def _action(claim: str = "K1", hypothesis_id: str = "B1", **changes: str) -> dic
 
 def _forecast(status: str | None, actions: list | None = None, model: str | None = None,
               version: str = "2.1") -> dict[str, Any]:
-    return forecast_payload() | {"schema_version": version, "actions_status": status, "actions": actions,
-                                 "actions_model": model}
+    # A 2.1 file holds no free-text recommendations (Q53): the example's are nulled.
+    nulled = {"model_used": None, "recommendations": None, "do_not_do": None} if version >= "2.1" else {}
+    return forecast_payload() | nulled | {"schema_version": version, "actions_status": status, "actions": actions,
+                                          "actions_model": model}
 
 
 def test_the_three_states_are_accepted() -> None:
     for payload in (_forecast("off"), _forecast("suppressed"), _forecast("list", []),
-                    _forecast("list", [_action()], "claude-sonnet-5")):
+                    _forecast("list", [_action()])):
         ForecastContract.model_validate(payload)
 
 
@@ -45,7 +47,7 @@ def test_a_2_1_forecast_says_its_state() -> None:
 @pytest.mark.parametrize(("status", "actions"), [("off", []), ("suppressed", [_action()]), ("list", None)])
 def test_actions_are_listed_exactly_when_the_state_is_list(status: str, actions: list | None) -> None:
     with pytest.raises(ValidationError, match="list"):
-        ForecastContract.model_validate(_forecast(status, actions, "claude-sonnet-5" if actions else None))
+        ForecastContract.model_validate(_forecast(status, actions))
 
 
 @pytest.mark.parametrize("text", ["Raise prices by 5 percent.", "Aim for ２ more orders.", "Offer a 10% discount.",
@@ -53,20 +55,28 @@ def test_actions_are_listed_exactly_when_the_state_is_list(status: str, actions:
 def test_the_ais_sentence_holds_no_number_no_sign_and_at_most_30_words(text: str) -> None:
     for field in ("action", "why"):
         with pytest.raises(ValidationError, match="refused"):
-            ForecastContract.model_validate(_forecast("list", [_action(**{field: text})], "claude-sonnet-5"))
+            ForecastContract.model_validate(_forecast("list", [_action(**{field: text})]))
 
 
 def test_the_claims_are_k1_k2_k3_in_order_each_on_its_own_hypothesis() -> None:
     for actions in ([_action("K2")], [_action("K1"), _action("K1", "B2")], [_action("K1"), _action("K2", "B1")],
                     [_action("K1", "B1"), _action("K2", "B2"), _action("K3", "T1"), _action("K3", "P2")]):
         with pytest.raises(ValidationError):
-            ForecastContract.model_validate(_forecast("list", actions, "claude-sonnet-5"))
+            ForecastContract.model_validate(_forecast("list", actions))
 
 
-def test_listed_actions_name_their_model_and_no_other_state_does() -> None:
-    with pytest.raises(ValidationError, match="model"):
-        ForecastContract.model_validate(_forecast("list", [_action()], None))
-    with pytest.raises(ValidationError, match="model"):
-        ForecastContract.model_validate(_forecast("list", [], "claude-sonnet-5"))
-    with pytest.raises(ValidationError, match="model"):
-        ForecastContract.model_validate(_forecast("off", None, "claude-sonnet-5"))
+def test_no_state_names_a_model_code_writes_the_actions() -> None:
+    # Thach, Q50 (d), Q53: no AI writes an action in v1.
+    for status, actions in (("list", [_action()]), ("list", []), ("off", None), ("suppressed", None)):
+        with pytest.raises(ValidationError, match="actions_model is null"):
+            ForecastContract.model_validate(_forecast(status, actions, "claude-sonnet-5"))
+
+
+def test_a_2_1_forecast_holds_no_free_text_recommendations() -> None:
+    # Thach, Q53: the strategy AI step is removed; a 2.0 file may still hold them.
+    filled = {"model_used": "claude-sonnet-5", "do_not_do": [{"tempting_action": "t", "why_wrong_here": "w"}],
+              "recommendations": [{"priority": 1, "insight": "i", "cause": "c", "action": "a",
+                                   "expected_impact": "e", "how_to_measure": "h", "confidence": 0.5}]}
+    ForecastContract.model_validate(forecast_payload() | {"schema_version": "2.0"} | filled)
+    with pytest.raises(ValidationError, match="no AI recommendations"):
+        ForecastContract.model_validate(_forecast("list", []) | filled)

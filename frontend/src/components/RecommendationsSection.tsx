@@ -1,18 +1,10 @@
-// The recommendations' place (the design gap review: the cards REMOVED - stage 4's AI step is off in v1 -
-// an info Notice in their place, ADD 14), in stage 5's words (html_report._actions). When the backend shows
-// them, they are listed as written (AI text, rendered escaped - SEC-3) with every note beside them, by
-// construction (CONTRACTS 11: the AI's free text maps back to no figure).
+// The recommendations' place (the design gap review: the cards REMOVED, an info Notice in their place, ADD 14).
+// No AI writes a recommendation in v1 (the report redesign's step 4, Thach's option (d)), and the free text of an
+// older report is shown nowhere (Q42): one Notice, whatever the file holds. The code-written suggested actions
+// belong to the report's front section (step 5 brings it to the page).
 
 import type { ReactNode } from 'react'
-import type { Actions, NoteView, ReportPeriod } from '../types/report.ts'
 import { Notice } from './Notice.tsx'
-import { NotesBeside } from './NotesBeside.tsx'
-
-interface RecommendationsSectionProps {
-  actions: Actions
-  notes: NoteView[]
-  period: ReportPeriod
-}
 
 function Place({ children }: { children: ReactNode }) {
   // A heading in the recommendations' place, so a reader finds it whatever it holds (the 6E3 review).
@@ -24,46 +16,12 @@ function Place({ children }: { children: ReactNode }) {
   )
 }
 
-export function RecommendationsSection({ actions, notes, period }: RecommendationsSectionProps) {
-  if (actions.recommendations_status === 'switched_off') {
-    return (
-      <Place>
-        <Notice tone="info" title="The AI recommendations are switched off for this report." />
-      </Place>
-    )
-  }
-  const { recommendations, do_not_do: doNotDo } = actions
-  if (recommendations === null || doNotDo === null || recommendations.length === 0 || actions.recommendations_status === 'unavailable') {
-    return (
-      <Place>
-        <Notice tone="info" title="No AI recommendation is available for this run." />
-      </Place>
-    )
-  }
+export const NO_AI_RECOMMENDATIONS = 'No AI writes recommendations in this version.'
+
+export function RecommendationsSection() {
   return (
-    <section className="card insights-card">
-      <h2 className="insights-card__title">Recommendations</h2>
-      <ol className="recommendations">
-        {recommendations.map((item, index) => (
-          // The AI's priorities are not unique by contract; their place is their identity.
-          <li key={index}>
-            <p className="recommendations__action">{item.action}</p>
-            <p>{`Insight: ${item.insight}`}</p>
-            <p>{`Cause: ${item.cause}`}</p>
-            <p>{`Expected impact: ${item.expected_impact}`}</p>
-            <p>{`How to measure: ${item.how_to_measure}`}</p>
-            <p>{`Confidence: ${item.confidence_label}`}</p>
-          </li>
-        ))}
-      </ol>
-      {doNotDo.length > 0 && (
-        <ul>
-          {doNotDo.map((item, index) => (
-            <li key={index}>{`Do not: ${item.tempting_action} - ${item.why_wrong_here}`}</li>
-          ))}
-        </ul>
-      )}
-      <NotesBeside codes={actions.notes} notes={notes} period={period} />
-    </section>
+    <Place>
+      <Notice tone="info" title={NO_AI_RECOMMENDATIONS} />
+    </Place>
   )
 }

@@ -119,6 +119,8 @@ class FrontNotes(ContractModel):
     change: list[NoteCode]
     checked: list[NoteCode]
     next_month: list[NoteCode]
+    # Section 4 reprints its claims' figures (step 4's review; 3.3a).
+    next_steps: list[NoteCode] = Field(default_factory=list)
 
 
 class CannotKnow(ContractModel):

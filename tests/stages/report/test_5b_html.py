@@ -130,12 +130,11 @@ def test_too_short_a_history_says_so_and_draws_no_forecast() -> None:
 
 def test_the_recommendations_by_their_status() -> None:
     # Thach, Q42: the file's free-text recommendations are printed nowhere.
+    # And no AI writes any in v1 (Q50 (d)): the appendix says so, never "switched off".
     shown = _page().section("actions")
-    assert "No AI recommendation is available for this run." in shown
-    assert "win-back email" not in shown and "Champions" not in shown
-    off = _page(build(include_recommendations=False)).section("actions")
-    assert "The AI recommendations are switched off for this report." in off
-    assert "win-back email" not in off
+    assert ("No AI writes recommendations in this version: suggested actions, when there are any, are written by "
+            "code in section 4." in shown)
+    assert "win-back email" not in shown and "Champions" not in shown and "switched off" not in shown
 
 
 def test_the_causes_as_the_diagnosis_has_them() -> None:

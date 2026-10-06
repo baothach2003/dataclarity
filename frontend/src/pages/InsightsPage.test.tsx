@@ -202,7 +202,7 @@ describe('InsightsPage: the causes', () => {
 })
 
 // 6E part 3: cause -> what next. The revenue chart and the forecast follow the
-// causes; the recommendations' place says they are off in v1; the data-quality
+// causes; the recommendations' place says no AI writes them in v1; the data-quality
 // cards close the page.
 describe('InsightsPage: what next', () => {
   it('shows revenue by month and the forecast after the causes, then the recommendations, then the data-quality cards', () => {
@@ -225,7 +225,7 @@ describe('InsightsPage: what next', () => {
       const earlier = headings[i - 1] as Node
       expect(earlier.compareDocumentPosition(headings[i] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
-    expect(screen.getByText('The AI recommendations are switched off for this report.')).toBeDefined()
+    expect(screen.getByText('No AI writes recommendations in this version.')).toBeDefined()
   })
 })
 

@@ -197,7 +197,6 @@ def test_the_cli_answers_a_forecast_of_the_version_before_with_run_the_predictio
     from tests.stages.report.report_fixtures import RUN, run_dir
 
     monkeypatch.setattr(cli, "DOTENV", tmp_path / "no.env")
-    monkeypatch.setenv("STRATEGY_AI_ENABLED", "false")
     run = run_dir(tmp_path)
     forecast = json.loads((run / "forecast.json").read_text(encoding="utf-8"))
     forecast["schema_version"] = "1.0"

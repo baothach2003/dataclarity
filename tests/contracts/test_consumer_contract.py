@@ -34,7 +34,7 @@ FROZEN = Path(__file__).with_name("consumer_fields_v1.json")
 # forecast.json since the report redesign (its structured actions, 2.1; readers 5 and FE).
 MODELS: dict[str, type[BaseModel]] = {"metrics.json": MetricsContract, "diagnosis.json": DiagnosisContract,
                                       "forecast.json": ForecastContract}
-READERS = {"4A", "4B", "5", "FE"}
+READERS = {"4A", "5", "FE"}  # 4B (stage 4's AI input) removed with the AI step (Thach, Q53)
 _ROW = re.compile(r"^\| `(?P<path>[^`]+)` \| `(?P<type>(?:[^`\\]|\\.)+)` \| (?P<readers>[^|]+) \|$")
 _VOCABULARY = re.compile(r"^\| `(?P<name>[^`]+)` \| (?P<values>.+) \|$")
 YEAR_MONTH = r"^\d{4}-(0[1-9]|1[0-2])$"

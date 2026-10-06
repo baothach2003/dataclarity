@@ -34,7 +34,9 @@ be decision-ready.
   percentage, a count, or a projected date.
 - The AI's role is strictly interpretive: given already-computed numbers
   (metrics, decomposition, forecast), it explains *why* they moved and what
-  to do about it (`prompts/root_cause.md`, `prompts/strategy.md`). Every
+  to do about it (`prompts/root_cause.md`, `prompts/strategy.md` - the latter
+  removed on 2026-10-06: v1's suggested actions are code-written, the report
+  redesign's Q50 (d); `docs/AI_PIPELINE.md` section 8). Every
   prompt template embeds an explicit prohibition: no invented numbers, every
   claim must cite a figure present in the input (`docs/AI_PIPELINE.md`
   section 4).

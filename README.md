@@ -142,10 +142,11 @@ main ones:
   trades every day one lost day is caught, but in a shop that trades on a
   few days a week, or in a seasonal shop's quiet months, a lost day or two
   sits inside its ordinary variation and is not seen.
-- **No AI recommendations yet.** Stage 4's AI strategy step is built but
-  off in v1 (`STRATEGY_AI_ENABLED=false`): its reviews found numbers and
-  words it could still let through, so forecast.json carries the forecast
-  alone until that is decided (`PROJECT_PLAN.md` 4B).
+- **No AI recommendations in v1.** The report's suggested actions are
+  code-written: code selects at most three findings and picks each action
+  from a tested catalog. Five review cycles found that free text written by
+  an AI cannot be closed by a banned-word list, so the AI step was removed;
+  it is v2 work (`PROJECT_PLAN.md` Backlog, `docs/AI_PIPELINE.md` 8).
 - **The forecast's season.** Stage 4 multiplies the forecast by a monthly
   seasonality index only when two or more years agree on it. Some shapes
   still read as a season: a change of level between the two years in a

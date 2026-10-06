@@ -75,5 +75,5 @@ def test_report_run_reads_a_stage_1_answer_of_a_newer_major_as_absent(tmp_path: 
     run = run_dir(tmp_path)
     raw = json.loads((run / "schema_inference.json").read_text(encoding="utf-8"))
     (run / "schema_inference.json").write_text(json.dumps(raw | {"schema_version": "9.0"}), encoding="utf-8")
-    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
+    report = report_run(tmp_path, RUN, source_file="sales_2011.csv", now=NOW)
     assert report.provenance.ai_calls == 2  # Q42: the free-text recommendations are never shown, nor counted

@@ -1,5 +1,6 @@
-"""The front section's formats and plain words (the report redesign, step 3;
-docs/REPORT_REDESIGN.md section 1's conventions): a month as "December
+"""The plain-words formats of the report's front section and of stage 4's
+claims - one copy for both stages (CLAUDE.md 3.1; the report redesign, steps
+3 and 4; docs/REPORT_REDESIGN.md section 1's conventions): a month as "December
 2024", money with two decimals and its ISO code when one is confirmed (Q8:
 "AUD 46,292.50", the code first, before any sign), counts whole. Formats
 round for display; nothing is computed (CONTRACTS 9)."""

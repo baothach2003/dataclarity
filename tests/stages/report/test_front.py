@@ -13,7 +13,8 @@ import pytest
 from contracts.report_front import FRONT_BANNED
 from tests.stages.report.real_runs import RUNS, build_real, files, with_actions
 
-OFF = "Suggested actions are switched off for this report."
+NOT_AVAILABLE = ("Suggested actions are not available for this report: its forecast was made before they existed - "
+                 "run the forecast again to see them.")
 
 
 def _front(run: str = "kaggle", **replaced):
@@ -205,25 +206,29 @@ def test_t3_and_c4_are_left_to_the_appendix() -> None:
 # --- section 4: what to do next, its three states (1.4; D4) -------------------------------------------------
 
 
-def test_a_forecast_from_before_the_actions_reads_as_switched_off() -> None:
+def test_a_forecast_from_before_the_actions_reads_as_not_available() -> None:
+    # Step 4 as option (d): no AI switch - a forecast before 2.1 holds no actions.
     steps = _front().next_steps
 
-    assert (steps.status, steps.sentence, steps.items) == ("off", OFF, [])
+    assert (steps.status, steps.sentence, steps.items) == ("unavailable", NOT_AVAILABLE, [])
 
 
-def test_actions_switched_off() -> None:
+def test_actions_off_read_as_not_available() -> None:
+    # "off": only a run where stage 4 did not produce actions (design 4.4).
     steps = _front(forecast=with_actions("kaggle", "off")).next_steps
 
-    assert (steps.status, steps.sentence) == ("off", OFF)
+    # Never "made before" (the review).
+    assert (steps.status, steps.sentence) == (
+        "off", "Suggested actions are not available for this report: run the forecast again.")
 
 
 def test_actions_suppressed_say_so_and_show_nothing() -> None:
     steps = _front(forecast=with_actions("kaggle", "suppressed")).next_steps
 
     assert (steps.status, steps.items) == ("suppressed", [])
-    assert steps.sentence == ("Suggested actions are not shown for this report: the AI's answer did not pass our "
-                              "checks, so nothing was shown rather than something unchecked. Every figure above is "
-                              "unaffected.")
+    # Design 4.4: claims possible, nothing to act on.
+    assert steps.sentence == ("No action is suggested: the figures above that moved have no action this report can "
+                              "suggest.")
 
 
 def test_no_claim_selected_says_no_action_is_suggested() -> None:
@@ -234,13 +239,13 @@ def test_no_claim_selected_says_no_action_is_suggested() -> None:
                               "compare sales with the estimate in section 5.")
 
 
-def test_listed_actions_show_the_code_fact_the_ai_sentences_and_the_watch_line() -> None:
+def test_listed_actions_show_the_fact_the_action_the_why_and_the_watch_line() -> None:
     action = {"claim": "K1", "hypothesis_id": "B1",
               "fact": "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29.",
-              "action": "Keep the reminder emails going to regular customers.",
-              "why": "Regular customers ordering again is what moved sales this month.",
+              "action": "Thank customers with a small reward on their next purchase.",
+              "why": "The figure above rose; a reward on the next purchase may help keep it there.",
               "watch": "Next month, check: orders per customer (13.72 this month; 12.32 the month before)."}
-    steps = _front(forecast=with_actions("kaggle", "list", [action], model="claude-sonnet-5")).next_steps
+    steps = _front(forecast=with_actions("kaggle", "list", [action])).next_steps
 
     assert steps.status == "list" and steps.sentence is None
     assert [(i.rests_on, i.action, i.why, i.watch) for i in steps.items] == [

@@ -16,8 +16,8 @@ wins until Thach approves a change.
 - Stage 3 Diagnose: an 8-step diagnostic engine (data-trust gate, calendar
   adjustment, signal-vs-noise, Shapley metric tree, localization, a fixed
   hypothesis catalog with verdicts) whose conclusions the AI only narrates
-- Stage 4 Predict: interpretable forecast + AI recommendations with expected
-  impact and measurement plan
+- Stage 4 Predict: interpretable forecast + code-written suggested actions
+  (no AI writes a recommendation in v1: the report redesign's step 4)
 - Stage 5 Report: assembled 3-layer report (numbers, causes, actions) as HTML +
   in-app Insights page
 - Import of approved clean data into PostgreSQL; dashboard over imported data
@@ -373,8 +373,9 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 - `notices` holds the section 10 cases that are a 200 with a flag, each as
   `{code, message, details?}` like an error: `AI_UNAVAILABLE` (`details.reason`
   is the AI client's reason code), `NOT_INVENTORY` (`details.domain_confidence`,
-  `details.domain_reasoning`) and, from stage 4, `AI_NOT_ASKED` (`details.reason`
-  says why the AI was not asked). `schema_inference` / `plan` are `null` exactly when
+  `details.domain_reasoning`). Stage 4 asks no AI in v1, so it raises no
+  notice (`AI_NOT_ASKED` was its code while it had an AI step).
+  `schema_inference` / `plan` are `null` exactly when
   the AI produced no accepted answer.
 - The body of `preview` and `execute` is the plan as `plan_proposed.json` has it,
   as the user edited it. It is validated as a contract by the backend, so an action
@@ -422,27 +423,19 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     (synchronous, v1).
 - `POST /api/runs/{id}/predict` -> `forecast.json`
   - As built in 4C (200): `{run_id, status: "analyzed", forecast, notices}`.
-    The computed forecast always; the AI's recommendations only when
-    `STRATEGY_AI_ENABLED` is true - false in v1, as 4B stopped at its review
-    bound (PROJECT_PLAN 4B) - the AI is asked (not on a blocked diagnosis or
-    an incomplete previous month) and answers: otherwise the AI blocks are
-    null and `notices` holds AI_NOT_ASKED (`details.reason` `switched_off`,
-    `diagnosis_blocked`, `not_comparable` or `attempts_used`) or
-    AI_UNAVAILABLE (the AI client's reason code, or `internal_error`: the
-    forecast is written whatever the AI's path raises). An answer already
-    accepted into forecast.json is final: a second predict reuses it, never
-    asks again (a re-run of stage 2 or 3 removes the file first). Allowed from
+    The computed forecast and the code-written suggested actions
+    (forecast.json 2.1: `actions_status` "list" or "suppressed" - the report
+    redesign's step 4, Thach's option (d)); stage 4 asks no AI in v1, so
+    `model_used`, `recommendations` and `do_not_do` are null and `notices`
+    is empty. Allowed from
     `analyzed` once diagnosis.json exists (none: INVALID_STATE "Run the
     diagnosis first", `details.missing`); the run keeps `analyzed`; a re-run
     overwrites forecast.json, written atomically, and removes the report's
     files. A diagnosis of other months than the metrics': INVALID_STATE
     (`details.reason` `diagnosis_mismatch`); its files gone: EXPIRED; a run
     file another version wrote: INVALID_STATE "run that stage again";
-    amounts past a float: ANALYSIS_FAILED (`amounts_too_large`). The AI is
-    asked at most three times a run - counted only when asked; a fourth
-    predict writes the forecast without asking (AI_NOT_ASKED
-    `attempts_used`), never a 429 - and spends the run's one retry, shared
-    with stage 1. One piece of work at a time per run (INVALID_STATE,
+    amounts past a float: ANALYSIS_FAILED (`amounts_too_large`). No AI is
+    asked (v1). One piece of work at a time per run (INVALID_STATE,
     `step_in_progress`).
 - `POST /api/runs/{id}/report` -> `report.json` + html download url
   - As built in 5C (200): `{run_id, status: "analyzed", report, html_url,
@@ -453,8 +446,8 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
     the previous pair back, or removes a first one half written; a crash
     between them can leave report.json alone - the next report writes both).
     The uploaded file's name comes from the run's
-    row; the recommendations are shown only while `STRATEGY_AI_ENABLED` is
-    true, whatever forecast.json holds (4C review #4). Allowed from
+    row; no AI recommendation is shown in v1, whatever forecast.json holds
+    (Q42, Q53) - the suggested actions stand in the front's section 4. Allowed from
     `analyzed` once diagnosis.json and forecast.json exist (none:
     INVALID_STATE "Run the diagnosis first" / "Run the prediction first",
     `details.missing`); the run keeps `analyzed`; a re-run of stages 2-4
@@ -524,8 +517,8 @@ warning in the import summary when it would go negative).
 | Non-UTF8 | latin-1 fallback, warning in the report | success + warning |
 | All-null column | flagged; default action drop_column | - |
 | Not inventory data (domain_confidence < 0.5) | say so plainly; offer generic cleaning with downloads only; disable mapping-dependent import and stages 2-5 | NOT_INVENTORY (200 + flag) |
-| AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stages 3-4 still write their computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` sections 7-8) | AI_UNAVAILABLE (200 + flag) |
-| Stage 4 does not ask the AI: its strategy step is switched off (v1's default), the diagnosis is blocked, the previous month is not complete, or the AI was already asked 3 times for the run (4C) | the forecast is written, the recommendations are null; the message says why (`details.reason`: `switched_off`, `diagnosis_blocked`, `not_comparable`, `attempts_used`) | AI_NOT_ASKED (200 + flag) |
+| AI invalid twice / API down | degraded mode: profiling + manual plan building still work; stage 3 still writes its computed blocks with the AI blocks `null` (`docs/CONTRACTS.md` section 7) | AI_UNAVAILABLE (200 + flag) |
+| Stage 4 | asks no AI in v1 (the report redesign's step 4): the forecast and the code-written suggested actions are written; no notice | - |
 | Stage called out of order | rejected | INVALID_STATE (409) |
 | Run id that names no run (unknown, or not a UUID) | rejected | NOT_FOUND (404) |
 | Malformed request (no `file` part, a body that is not a JSON object, a wrong type) | rejected; the message lists where, never the value sent | INVALID_REQUEST (400) |
@@ -544,7 +537,7 @@ warning in the import summary when it would go negative).
 - Performance: profiling and preview under 3 s for a 50MB file on the dev
   machine; full stage 1 execution under 30 s; stages 2-5 under 60 s combined.
   Synchronous processing is acceptable at this size
-- AI budget: max 4 calls per run plus 1 shared retry; inputs bounded (60 columns,
+- AI budget: max 4 calls per run plus 1 shared retry (stage 4 asks none in v1); inputs bounded (60 columns,
   30 sample rows, 10 top values per column)
 - Abuse guards: 10 uploads/hour/IP; 24-hour retention then a cleanup job deletes
   run directories and marks runs `expired`

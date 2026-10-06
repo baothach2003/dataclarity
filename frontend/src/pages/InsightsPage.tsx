@@ -156,7 +156,8 @@ export function InsightsPage({ baseUrl, runId, report, diagnosis, ordersBasis }:
           <RevenueChartCard chart={revenueChart} numbers={numbers} notes={besideFigures} />
         )}
         <ForecastCard forecast={report.layer_3_actions.forecast} chart={forecastChart} notes={besideFigures} period={period} />
-        <RecommendationsSection actions={report.layer_3_actions} notes={besideFigures} period={period} />
+        {/* No AI writes recommendations in v1; an older report's free text is shown nowhere (Q42). */}
+        <RecommendationsSection />
 
         {/* The data-quality section: what no figure counts, the file, how to read the figures. */}
         <LinesInNoFigureCard numbers={numbers} />

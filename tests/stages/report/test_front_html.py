@@ -170,14 +170,15 @@ def test_the_checklist_prints_its_groups_and_the_overlap_sentence() -> None:
 # --- section 4: what to do next, three states (1.4) -----------------------------------------------------------
 
 
-def test_switched_off() -> None:
-    assert "Suggested actions are switched off for this report." in _page().section("next-steps")
+def test_a_forecast_without_actions_says_not_available() -> None:
+    # Step 4 as option (d): no AI switch to be off.
+    assert "Suggested actions are not available for this report" in _page().section("next-steps")
 
 
 def test_suppressed() -> None:
     steps = _page(forecast=with_actions("kaggle", "suppressed")).section("next-steps")
 
-    assert "Suggested actions are not shown for this report" in steps
+    assert "No action is suggested: the figures above that moved have no action this report can suggest." in steps
 
 
 def test_a_listed_action_is_printed_and_escaped() -> None:
@@ -185,7 +186,7 @@ def test_a_listed_action_is_printed_and_escaped() -> None:
               "fact": "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29.",
               "action": "Keep <b>reminder</b> emails going.", "why": "Regular customers ordered again.",
               "watch": "Next month, check: orders per customer (13.72 this month; 12.32 the month before)."}
-    html = _html(forecast=with_actions("kaggle", "list", [action], model="claude-sonnet-5"))
+    html = _html(forecast=with_actions("kaggle", "list", [action]))
     steps = Page(html).section("next-steps")
 
     assert "Keep <b>reminder</b> emails going." in steps and "&lt;b&gt;reminder&lt;/b&gt;" in html

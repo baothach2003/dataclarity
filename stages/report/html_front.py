@@ -83,6 +83,7 @@ def _next_steps(front: Front) -> str:
         parts.append(f'<div class="rec">{para("Rests on: " + item.rests_on, "small")}'
                      f"<p><strong>Action:</strong> {esc(item.action)}</p><p><strong>Why:</strong> {esc(item.why)}</p>"
                      f"{para(item.watch, 'small')}</div>")
+    parts.append(_read_with(front.notes.next_steps))
     parts.append("</section>")
     return "".join(parts)
 

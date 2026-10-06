@@ -91,7 +91,7 @@ def test_t2_without_a_year_ago_pair_says_the_same_subject() -> None:
     # The review: a diagnosis before 18.4 has no year_ago pair; its line kept the old words.
     from contracts.diagnosis import DiagnosisContract
     from contracts.metrics import MetricsContract
-    from stages.report.front_lines import Context, moved_line
+    from shared.claim_lines import Context, moved_line
 
     data = files("demo_classed")
     diagnosis = DiagnosisContract.model_validate(data["diagnosis.json"])

@@ -274,7 +274,8 @@ class ReportContract(ContractFile):
         shown = {note.code for note in [*numbers.notes, *self.layer_2_causes.notes]}
         lists = [*(kpi.notes for kpi in numbers.kpis), actions.notes, actions.forecast.notes,
                  *(chart.notes for chart in self.charts),
-                 *((n.summary, n.change, n.checked, n.next_month) if (n := self.front.notes if self.front else None)
+                 *((n.summary, n.change, n.checked, n.next_month, n.next_steps)
+                   if (n := self.front.notes if self.front else None)
                    else ())]
         named = {code for codes in lists for code in codes}
         if not named <= shown:

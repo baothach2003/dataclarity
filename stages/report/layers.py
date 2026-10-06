@@ -27,7 +27,6 @@ from contracts.report import (
     NoteView,
     Numbers,
     OutsideRevenueView,
-    RecommendationView,
     ReportPeriod,
     SignalView,
     TrustBadge,
@@ -56,9 +55,6 @@ _SERIES_LINES_LABELS = {"orders": "Lines", "frequency": "Lines per customer", "a
 NO_CUSTOMER_COLUMN = "no column is mapped as the customer, so no customer can be counted"
 NO_LINE_IN_MONTH = ("no line counted in revenue is dated in it - a closed month or missing data, which the file "
                     "cannot tell apart")
-# The AI's own confidence, shown as a word (CLAUDE.md 3.2): the floor of each
-# label, highest first; below the last, "low". Display cut points (5A).
-CONFIDENCE_LABELS = ((0.7, "high"), (0.4, "medium"))
 
 
 def view(note: FigureNote) -> NoteView:
@@ -241,10 +237,6 @@ def _lever_levels(diagnosis: DiagnosisContract) -> list[LeverLevelView]:
         for f in level.factors]) for name, level in levels if level is not None]
 
 
-def confidence_label(confidence: float) -> str:
-    return next((label for floor, label in CONFIDENCE_LABELS if confidence >= floor), "low")
-
-
 def _first_month(metrics: MetricsContract, forecast: ForecastContract) -> tuple[bool, date | None]:
     """Whether the first forecast month is one the file holds lines of (a
     day-grain file ending part-way through it; a month-grain file's
@@ -255,14 +247,12 @@ def _first_month(metrics: MetricsContract, forecast: ForecastContract) -> tuple[
     return in_file, end if in_file and part_way else None
 
 
-def actions(metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: ForecastContract,
-            include_recommendations: bool) -> Actions:
+def actions(metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: ForecastContract) -> Actions:
     block = forecast.forecast
     not_always_on = [n for n in _unique([*metrics.core.notes, *diagnosis.notes]) if not n.always_on]
     # The free-text recommendations (stage 4's format before 2.1) are never
-    # shown, the appendix included: the unchecked format v1 switched off
-    # because it fabricated numbers (Thach, Q42).
-    shown = False
+    # shown, the appendix included (Thach, Q42), and no AI writes any in v1
+    # (Q50 (d), Q53): "switched_off", both null.
     in_file, until = _first_month(metrics, forecast)
     return Actions(
         forecast=ForecastView(
@@ -270,10 +260,5 @@ def actions(metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: Fo
             points=list(block.revenue), history_note=block.history_note, season_years=block.season_years,
             season_note=block.season_note,
             notes=revenue_notes(metrics), first_month_in_file=in_file, partial_first_month_until=until),
-        recommendations=[RecommendationView(
-            priority=r.priority, insight=r.insight, cause=r.cause, action=r.action, expected_impact=r.expected_impact,
-            how_to_measure=r.how_to_measure, confidence_label=confidence_label(r.confidence))
-            for r in forecast.recommendations or []] if shown else None,
-        do_not_do=forecast.do_not_do if shown else None,
-        recommendations_status="shown" if shown else "unavailable" if include_recommendations else "switched_off",
+        recommendations=None, do_not_do=None, recommendations_status="switched_off",
         notes=[n.code for n in not_always_on])

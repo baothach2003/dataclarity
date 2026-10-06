@@ -14,8 +14,8 @@ from contracts.diagnosis import DiagnosisContract, HeadlineMovement, TrustCheck
 from contracts.lever_bridge import LeverBridge
 from contracts.metrics import MetricsContract, Period
 from contracts.report_front import FrontBar, Waterfall
-from stages.report.front_lines import Context, match_phrase
-from stages.report.wording import amount, count, month_name, month_only, prints_as_zero, signed, times, two
+from shared.claim_lines import Context, match_phrase
+from shared.wording import amount, count, month_name, month_only, prints_as_zero, signed, times, two
 
 NOT_PROFIT = ("Sales here means the money customers paid (before any costs). It is not profit: the file has no "
               "cost data.")

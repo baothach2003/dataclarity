@@ -7,9 +7,9 @@ point's own words are in its <title> (hover, and read by screen readers)."""
 
 from contracts.report import Chart
 from contracts.report_front import Waterfall
+from shared.wording import amount, count, month_name
 from stages.report.html_charts import months_only
 from stages.report.html_parts import esc
-from stages.report.wording import amount, count, month_name
 
 WIDTH, HEIGHT, LEFT, RIGHT, TOP, BOTTOM = 640, 230, 64, 20, 22, 34
 

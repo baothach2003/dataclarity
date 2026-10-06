@@ -2,8 +2,8 @@
 download (docs/SPECS.md sections 3 and 8; session 5C). The logic stays in
 `stages/report` (CLAUDE.md 3.4): this service enforces the state machine,
 keeps one piece of work at a time per run, tells the stage what only the
-backend knows - the uploaded file's name (the run's row) and whether the AI
-strategy step is on (4C review #4) - and shapes the answer.
+backend knows - the uploaded file's name (the run's row) - and shapes the
+answer.
 
 The run stays `analyzed` (stages 2-5 all live in it; which files exist says
 how far it went - 3G-lite's rule). Both files are written by stage 5's
@@ -56,8 +56,7 @@ def build_report(session: Session, run_id: str, *, settings: Settings, work: Run
         # cannot remove the files between the check and the read (4C review #3).
         _require_run_files(runs_root, run_id)
         try:
-            report = build_run(runs_root, run_id, source_file=source_file,
-                               include_recommendations=settings.strategy_ai_enabled)
+            report = build_run(runs_root, run_id, source_file=source_file)
         except ReportMismatchError as error:
             raise ApiError("INVALID_STATE", f"The run's files do not describe the same months: {error}.",
                            {"reason": "files_mismatch"}) from error

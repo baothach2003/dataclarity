@@ -1,17 +1,18 @@
-"""forecast.json's structured actions (docs/CONTRACTS.md section 8; the
-report redesign, D4 and section 4; Thach, 2026-10-05): code selects at most
-three claims and writes each one's fact and what to watch; the AI writes only
-the action and why - no number, no choice of claims. Split out of
-contracts/forecast.py for file size.
+"""forecast.json's suggested actions (docs/CONTRACTS.md section 8; the
+report redesign, D4 and section 4): code selects at most three claims and
+writes every sentence - each one's fact, action, why and what to watch
+(Thach's option (d), 2026-10-06: no AI writes a recommendation in v1). Split
+out of contracts/forecast.py for file size.
 
 `actions_status` says which of three states a report shows (Thach):
-- "list": the claims code selected, each with the AI's two sentences - or
-  none selected (headline rules 1-4 and 7, a blocked run, an incomplete
-  previous month: no claim, the AI not asked, `actions` empty);
-- "off": claims were selected but the AI step is switched off
-  (STRATEGY_AI_ENABLED false);
-- "suppressed": the AI's answer failed the checks twice, or the call failed
-  - the whole list is withheld, never a part of it.
+- "list": the claims code selected, each with its catalog sentences - or
+  none (headline rules 1-4 and 7, a blocked run, an incomplete previous
+  month: no claim, `actions` empty);
+- "suppressed": checks a claim may rest on exist, but none has an action for
+  the way its figure moved - nothing to act on;
+- "off": only for a run where stage 4 did not produce actions (stage 4
+  writes it no more).
+`actions_model` is null: code writes the actions (Q53).
 """
 
 import re
@@ -62,10 +63,10 @@ class SuggestedAction(ContractModel):
 
     claim: Literal["K1", "K2", "K3"]
     hypothesis_id: str = Field(min_length=1)  # the hypothesis the claim rests on (diagnosis.json)
-    fact: str = Field(min_length=1)  # code: the figure it rests on, the checklist's own sentence
-    action: str  # the AI
-    why: str  # the AI
-    watch: str = Field(min_length=1)  # code: what to check next month
+    fact: str = Field(min_length=1)  # the figure it rests on, the checklist's own sentence
+    action: str  # the catalog's, by kind and direction (stages/predict/catalog.py)
+    why: str  # the catalog's
+    watch: str = Field(min_length=1)  # what to check next month
 
     @field_validator("action", "why")
     @classmethod
@@ -85,12 +86,13 @@ def check_actions(actions: list[SuggestedAction] | None, status: ActionsStatus |
         return
     if status is None:
         raise ValueError("a 2.1 forecast says its actions' state (actions_status)")
+    if model is not None:
+        # Thach, Q50 (d), Q53: no AI writes an action in v1.
+        raise ValueError("code writes the actions: actions_model is null")
     if (status == "list") != (actions is not None):
         raise ValueError("actions are listed exactly when actions_status is 'list' - an empty list when no claim "
-                         "is selected; null when switched off or suppressed")
+                         "is selected; null when off or suppressed")
     if actions is None:
-        if model is not None:
-            raise ValueError("no action is listed, so no model wrote one")
         return
     if len(actions) > MAX_ACTIONS:
         raise ValueError(f"at most {MAX_ACTIONS} actions")
@@ -98,5 +100,3 @@ def check_actions(actions: list[SuggestedAction] | None, status: ActionsStatus |
         raise ValueError("the claims are K1, K2, K3 in their rank order, each once")
     if len({a.hypothesis_id for a in actions}) != len(actions):
         raise ValueError("each claim rests on a different hypothesis")
-    if bool(actions) != (model is not None):
-        raise ValueError("listed actions name the model that wrote them (actions_model), and only then")

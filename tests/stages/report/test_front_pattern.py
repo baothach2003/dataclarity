@@ -14,7 +14,8 @@ from stages.report.html_report import render_html
 from tests.stages.report.html_probe import Page
 from tests.stages.report.real_runs import build_real, files
 
-NOT_AVAILABLE = "Suggested actions are not available for this report."
+NOT_AVAILABLE = ("Suggested actions are not available for this report: its forecast was made before they existed - "
+                 "run the forecast again to see them.")
 
 
 def _18_7(run: str = "kaggle") -> dict:
@@ -229,7 +230,7 @@ def test_no_pre_2_1_ai_text_anywhere_in_the_page() -> None:
                           diagnosis=DiagnosisContract.model_validate(data["diagnosis.json"]),
                           forecast=ForecastContract.model_validate(forecast),
                           cleaning=CleaningReportContract.model_validate(data["cleaning_report.json"]),
-                          schema=None, plan_source=None, include_recommendations=True)
+                          schema=None, plan_source=None)
     html = render_html(report)
 
     assert not re.search(r"OLD(TEMPTING|WHY|INSIGHT|CAUSE|ACTION|IMPACT|MEASURE)", html)
@@ -245,7 +246,7 @@ def test_the_contract_no_longer_refuses_a_front_word_and_median_is_banned() -> N
 
     action = {"claim": "K1", "hypothesis_id": "B1", "fact": "f", "action": "Grow revenue with regulars.",
               "why": "It worked.", "watch": "w"}
-    ForecastContract.model_validate(with_actions("kaggle", "list", [action], "m"))
+    ForecastContract.model_validate(with_actions("kaggle", "list", [action]))
     assert "median" in FRONT_BANNED
 
 
@@ -333,7 +334,7 @@ def test_more_than_only_when_the_printed_figures_say_so() -> None:
 def test_lapsed_customers_are_never_worded_as_a_loss_when_they_added() -> None:
     from contracts.diagnosis import DiagnosisContract
     from contracts.metrics import MetricsContract
-    from stages.report.front_lines import Context, moved_line
+    from shared.claim_lines import Context, moved_line
 
     data = files("demo_classed")
     diagnosis = DiagnosisContract.model_validate(data["diagnosis.json"])

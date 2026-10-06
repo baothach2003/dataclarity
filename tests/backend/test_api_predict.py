@@ -1,51 +1,44 @@
 """POST /api/runs/{id}/predict (session 4C) - written before the code,
-widened by its review. Stage 4 writes forecast.json: the computed forecast
-always; the AI's recommendations only when the step is on
-(`STRATEGY_AI_ENABLED`, off by default in v1: 4B stopped at its review
-bound), the AI faked here. Allowed from `analyzed` once diagnosis.json
-exists; the run stays `analyzed`. The run's one AI retry is shared with
-stage 1 (SPECS 11); an accepted answer is final; the AI is asked at most
-three times a run, and never at the forecast's expense.
+widened by its review, and rewritten for the report redesign's step 4 as
+Thach's option (d). Stage 4 writes forecast.json 2.1: the computed forecast
+and the code-written suggested actions - it asks no AI (Q50 (d), Q53).
+Allowed from `analyzed` once diagnosis.json exists; the run stays
+`analyzed`.
 """
 
-import json
 from contextlib import contextmanager
 from typing import Any
 
+import pandas as pd
+
 from app.models import RunStatus
 from contracts import ForecastContract
-from tests.ai_fakes import FakeResponse
-from tests.backend.api_support import UNKNOWN_RUN, MakeApi, codes, make_api_with_plan, unusable_reply
+from tests.backend.api_support import UNKNOWN_RUN, MakeApi, codes, make_api_with_plan
 from tests.backend.test_api_diagnose import _monthly_analyzed_run
 
-# A sound answer on the monthly fixture (two products, Mug and Cup): every
-# figure cited by path, the impact a formula.
-TOP = "metrics.products.top_products"
-REC = {"insight": "Revenue was £{metrics.core.revenue_current} in {metrics.period.current}.",
-       "cause": "{" + TOP + "[0].product} took £{" + TOP + "[0].revenue}.",
-       "action": "Bundle {" + TOP + "[1].product} with it for {window:30 days}.",
-       "expected_impact": "£{" + TOP + "[0].revenue} x {assume:10%}",
-       "how_to_measure": "Its revenue over {window:30 days}.", "confidence": 0.5}
-ANSWER = {"recommendations": [REC | {"priority": i} for i in (1, 2, 3)],
-          "do_not_do": [{"tempting_action": "A {offer:20%} discount to everyone",
-                         "why_wrong_here": "Revenue was £{metrics.core.revenue_current}."}]}
+
+def _price_rise_csv() -> bytes:
+    """The monthly fixture with the Mug's price up from February 2024:
+    stage 3 names the price change (rule 6, P1), so one claim is selected."""
+    days = pd.date_range("2023-01-01", "2024-03-10", freq="D")
+    lines = ["sku,name,qty,price,day"]
+    for day in days:
+        price = "14" if day >= pd.Timestamp("2024-02-01") else "10"
+        lines.append(f"A1,Mug,{2 + day.day % 3},{price},{day.date()}")
+        lines.append(f"B2,Cup,1,4.50,{day.date()}")
+    return ("\n".join(lines) + "\n").encode()
 
 
-def _diagnosed(make_api: MakeApi, *answers: Any, **settings: Any) -> tuple[Any, str]:
-    api, run_id = _monthly_analyzed_run(make_api, **settings)
-    api.messages.outcomes.extend(answers)
+def _diagnosed(make_api: MakeApi, *, named: bool = True, **settings: Any) -> tuple[Any, str]:
+    api, run_id = _monthly_analyzed_run(make_api, _price_rise_csv() if named else None, **settings)
     assert api.post(run_id, "diagnose").status_code == 200
     return api, run_id
 
 
-def _reason(body: dict[str, Any]) -> str:
-    return body["notices"][0]["details"]["reason"]
+# --- the forecast and the code-written actions ----------------------------------------------------------------
 
 
-# --- the step off (v1's default) --------------------------------------------------------------
-
-
-def test_predict_writes_the_forecast_with_the_ai_step_off_by_default(make_api: MakeApi) -> None:
+def test_predict_writes_the_forecast_and_the_code_written_actions(make_api: MakeApi) -> None:
     api, run_id = _diagnosed(make_api)
     calls = api.ai_requests
 
@@ -53,92 +46,42 @@ def test_predict_writes_the_forecast_with_the_ai_step_off_by_default(make_api: M
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert (body["run_id"], body["status"], codes(body), _reason(body)) == (
-        run_id, "analyzed", ["AI_NOT_ASKED"], "switched_off")
-    assert "The forecast is written" in body["notices"][0]["message"]
+    assert (body["run_id"], body["status"], codes(body)) == (run_id, "analyzed", [])
     forecast = ForecastContract.model_validate(body["forecast"])
     assert forecast == ForecastContract.model_validate(api.read_json(run_id, "forecast.json"))
-    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("2.0", None, None)
+    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("2.1", None, None)
+    assert (forecast.actions_status, forecast.actions_model) == ("list", None)
+    (action,) = forecast.actions
+    assert (action.claim, action.hypothesis_id) == ("K1", "P1")
+    assert action.action == "Watch whether customers keep buying at the new prices."  # the catalog's
+    assert action.fact.startswith("Inside the chart's average price per item")
     assert forecast.forecast.insufficient_history is False
-    assert api.ai_requests == calls  # the AI was never called
+    assert api.ai_requests == calls  # stage 4 asks no AI
     assert api.status(run_id) is RunStatus.ANALYZED
 
 
-# --- the step on -------------------------------------------------------------------------------
-
-
-def test_the_step_switched_on_asks_the_ai_and_renders_its_answer(make_api: MakeApi) -> None:
-    api, run_id = _diagnosed(make_api, FakeResponse(json.dumps(ANSWER)), strategy_ai_enabled=True)
+def test_no_claim_selected_lists_no_action(make_api: MakeApi) -> None:
+    # Design 4.1: the unchanged fixture names no cause the shop acts on.
+    api, run_id = _diagnosed(make_api, named=False)
 
     response = api.post(run_id, "predict")
 
     assert response.status_code == 200, response.text
-    body = response.json()
-    assert codes(body) == []
-    forecast = ForecastContract.model_validate(body["forecast"])
-    assert forecast.model_used == "served-model" and len(forecast.recommendations) == 3
-    assert "{" not in forecast.recommendations[0].insight  # rendered by code, never the AI's placeholders
-    # 0.10 x the top product's revenue, computed by code and appended.
-    assert " = " in forecast.recommendations[0].expected_impact
-    assert api.messages.calls[-1]["model"] == "test-model-reasoning"  # the reasoning model (ADR-0003)
+    forecast = response.json()["forecast"]
+    assert (forecast["actions_status"], forecast["actions"], codes(response.json())) == ("list", [], [])
 
 
-def test_an_accepted_answer_is_final_a_second_predict_asks_nothing(make_api: MakeApi) -> None:
-    # 4C review #2 (SPECS 11, 4 calls a run): as stage 1's answers are final.
-    api, run_id = _diagnosed(make_api, FakeResponse(json.dumps(ANSWER)), strategy_ai_enabled=True)
+def test_predict_never_asks_the_ai_however_often_it_runs(make_api: MakeApi) -> None:
+    # 4C's attempt count and shared retry are gone with the AI step (Q53):
+    # a predict run again writes the same actions, and nothing is asked.
+    api, run_id = _diagnosed(make_api)
+    calls = api.ai_requests
     first = api.post(run_id, "predict").json()["forecast"]
-    calls = api.ai_requests
 
-    second = api.post(run_id, "predict")
-
-    assert second.status_code == 200 and api.ai_requests == calls
-    assert second.json()["forecast"]["recommendations"] == first["recommendations"]
-
-
-def test_the_runs_one_retry_is_shared_with_stage_1(make_api: MakeApi) -> None:
-    # 4C's C5 (SPECS 11: "max 4 calls per run plus 1 shared retry"): the
-    # fixture's stage 1 spent the retry on two unusable schema answers, so a
-    # refused strategy answer is not retried - one call, then unavailable.
-    wrong = json.loads(json.dumps(ANSWER))
-    wrong["do_not_do"] = []
-    api, run_id = _diagnosed(make_api, FakeResponse(json.dumps(wrong)), FakeResponse(json.dumps(ANSWER)),
-                             strategy_ai_enabled=True)
-    calls = api.ai_requests
-
-    response = api.post(run_id, "predict")
-
-    assert response.status_code == 200, response.text
-    assert (codes(response.json()), _reason(response.json())) == (["AI_UNAVAILABLE"], "invalid_response")
-    assert api.ai_requests == calls + 1
-    assert response.json()["forecast"]["recommendations"] is None
-
-
-def test_the_ai_is_asked_at_most_three_times_and_the_forecast_is_never_locked_out(make_api: MakeApi) -> None:
-    # 4C review #1: the fourth predict was a 429 and a re-analysis left the
-    # run with no forecast for good. Now the AI is asked three times at most;
-    # a fourth predict writes the forecast without asking.
-    api, run_id = _diagnosed(make_api, unusable_reply(), unusable_reply(), unusable_reply(),
-                             strategy_ai_enabled=True)
     for _ in range(3):
-        assert codes(api.post(run_id, "predict").json()) == ["AI_UNAVAILABLE"]
-    calls = api.ai_requests
-
-    fourth = api.post(run_id, "predict")
-
-    assert fourth.status_code == 200 and api.ai_requests == calls
-    assert (codes(fourth.json()), _reason(fourth.json())) == (["AI_NOT_ASKED"], "attempts_used")
-    assert "forecast.json" in api.files(run_id)
-
-
-def test_an_unexpected_error_on_the_ai_path_keeps_the_forecast(make_api: MakeApi) -> None:
-    # 4C review #7: a TypeError of the AI's path threw the computed forecast away.
-    api, run_id = _diagnosed(make_api, TypeError("a client that cannot build a request"), strategy_ai_enabled=True)
-
-    response = api.post(run_id, "predict")
-
-    assert response.status_code == 200, response.text
-    assert (codes(response.json()), _reason(response.json())) == (["AI_UNAVAILABLE"], "internal_error")
-    assert response.json()["forecast"]["forecast"] is not None
+        again = api.post(run_id, "predict")
+        assert again.status_code == 200 and again.json()["forecast"]["actions"] == first["actions"]
+    assert api.ai_requests == calls
 
 
 # --- the order of the steps and the run's files -------------------------------------------------

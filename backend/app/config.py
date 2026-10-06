@@ -49,10 +49,6 @@ class Settings(BaseSettings):
     # waits for a slot (Thach, 2026-10-02, for deploy: each needs about
     # 0.5-0.7 GB of its own on a 50 MB file - PROJECT_PLAN Phase 9).
     max_concurrent_heavy_steps: Annotated[int, Field(gt=0)]
-    # Stage 4's AI strategy step (4B): false in v1 - its review found numbers
-    # and words it lets through (PROJECT_PLAN 4B); Thach turns it on once he
-    # has decided. Off, forecast.json carries the forecast alone.
-    strategy_ai_enabled: bool
 
     @field_validator("allowed_origins", mode="before")
     @classmethod

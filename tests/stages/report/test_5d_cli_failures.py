@@ -19,7 +19,6 @@ from tests.stages.report.test_5d_cli import ROOT, _args, _report
 @pytest.fixture(autouse=True)
 def _no_dotenv(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "DOTENV", tmp_path / "no.env")
-    monkeypatch.setenv("STRATEGY_AI_ENABLED", "false")
 
 
 def _damage(run: Path, problem: str) -> None:
@@ -100,7 +99,7 @@ def test_a_page_that_fails_leaves_the_previous_pair_whole(tmp_path: Path, monkey
 
 def _fresh(*args: str, extra_env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     env = {key: value for key, value in os.environ.items() if key not in ("RUNS_DIR", "PYTHONIOENCODING")}
-    env |= {"STRATEGY_AI_ENABLED": "false"} | (extra_env or {})
+    env |= extra_env or {}
     return subprocess.run([sys.executable, *args], cwd=ROOT, env=env, capture_output=True, text=True, timeout=300)
 
 

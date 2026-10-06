@@ -4,12 +4,11 @@ stage's independence, proved by running it (CLAUDE.md 3.1).
 
 What only the backend knows comes from the caller or from the backend's own
 sources, read here without importing it (SPECS SEC-4):
-- RUNS_DIR and STRATEGY_AI_ENABLED are read with pydantic-settings - the
-  library, the repo root's `.env` and the rules the backend's Settings use
-  (case, quotes, comments; the environment first; input never echoed) - a
-  relative RUNS_DIR anchored at the repo root, as the backend anchors it;
-  unset, the AI step is off (v1's default). `--runs-dir` overrides RUNS_DIR (a
-  relative path from the current directory).
+- RUNS_DIR is read with pydantic-settings - the library, the repo root's
+  `.env` and the rules the backend's Settings use (case, quotes, comments;
+  the environment first; input never echoed) - a relative RUNS_DIR anchored
+  at the repo root, as the backend anchors it. `--runs-dir` overrides
+  RUNS_DIR (a relative path from the current directory).
 - The uploaded file's name is the database's: `--source-file`, a bare file
   name, or else the name the run's report.json already holds (the backend's).
 Both files are written by `build_run`, the one way the backend writes them
@@ -51,13 +50,12 @@ class UsageError(Exception):
 
 
 class _Sources(BaseSettings):
-    """The two backend settings stage 5 needs, read as the backend reads
-    them (backend/app/config.py) - never by importing it."""
+    """The backend setting stage 5 needs, read as the backend reads it
+    (backend/app/config.py) - never by importing it."""
 
     model_config = SettingsConfigDict(env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True)
 
     runs_dir: Path | None = None
-    strategy_ai_enabled: bool = False
 
 
 def _sources() -> _Sources:
@@ -134,7 +132,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         sources = _sources()
         runs_root = _runs_root(args.runs_dir, sources)
         source_file = _source_file(args.source_file, runs_root, args.run)
-        build_run(runs_root, args.run, source_file=source_file, include_recommendations=sources.strategy_ai_enabled)
+        build_run(runs_root, args.run, source_file=source_file)
     except (UsageError, InvalidRunIdError) as error:
         _say(f"error: {error}", sys.stderr)
         return USAGE_ERROR

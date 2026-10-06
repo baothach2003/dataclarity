@@ -1,6 +1,6 @@
 // Stages 2-5 as the Insights flow drives them (docs/SPECS.md section 8): analyze, diagnose, predict,
 // report - each POST only after the one before succeeded, since each reads the file the one before
-// wrote. Stage 4 asks no AI in v1 (STRATEGY_AI_ENABLED false) and stages 2, 3 and 5 never do.
+// wrote. Stage 4 asks no AI in v1 (its suggested actions are code-written) and stages 2, 3 and 5 never do.
 
 import type { AnalysisStep } from '../domain/analysisSteps.ts'
 import type { ReportContract } from '../types/report.ts'

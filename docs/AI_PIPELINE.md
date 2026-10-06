@@ -23,17 +23,17 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 5. **Degradable.** With the AI unavailable, profiling, manual plan building, and
    all of stages 2-5's computed numbers still work; only narrative text is lost.
 
-## 2. Where AI is used (4 calls maximum per run)
+## 2. Where AI is used (4 calls maximum per run; stage 4's is removed in v1)
 
 | # | Stage | Step | Prompt file | Model | Input | Output contract |
 |---|---|---|---|---|---|---|
 | 1 | ingest | schema inference | `prompts/schema_inference.md` | `claude-sonnet-5` | profile + sample rows | `schema_inference.json` |
 | 2 | ingest | cleaning plan | `prompts/cleaning_plan.md` | `claude-sonnet-5` | profile + schema inference | `plan_proposed.json` |
 | 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output, with the notes and the suggested classes (2E-t2) | `diagnosis.ai_findings` |
-| 4 | predict | strategy | `prompts/strategy.md` | `claude-sonnet-5` | metrics + diagnosis + forecast | `forecast.recommendations` |
+| 4 | predict | strategy - **removed in v1** (section 8): the suggested actions are code-written | - | - | - | - |
 
 Shared retry budget: 1 per run - every AI call of the run shares it (stage
-1's, stage 3's narration once built, stage 4's): the backend keeps it when
+1's, stage 3's narration once built): the backend keeps it when
 the plan runs (4C); a process restart gives a run a fresh one. Max tokens 3000 per call. JSON only; the
 client strips markdown fences defensively. No sampling parameters:
 `claude-sonnet-5` rejects `temperature` with a 400 (1C, 2026-09-19; this line
@@ -1731,98 +1731,36 @@ only 18 of 30 calendar runs, so no band reaches 25 of 30, and an unplanted T2
 fits as closely as a planted one (0.915 of the change in S0 seed 1; the
 planted season's 25th-best is 0.218 from the change) - nothing built for F2.
 
-## 8. Strategy step (stage 4)
+## 8. Strategy step (stage 4) - removed in v1
 
-Input: the 4B fields of `metrics.json` and `diagnosis.json` (the consumer
-contract, `docs/CONTRACTS.md` section 11), never the whole files, each list
-capped (the dimensions' members to the largest movers), with every note
-worded from `contracts.lines.NOTE_TEXTS` by its code; plus the computed
-`forecast` block.
-Required output: 3 to 5 ranked recommendations, each with insight, cause, action,
-expected_impact (a formula of cited figures and tokens; code computes the
-result), how_to_measure, confidence; plus a `do_not_do` list.
+**No AI writes a recommendation in v1** (Thach, 2026-10-06, the report
+redesign's Q50 option (d) and Q53). Stage 4 makes no AI call: code selects
+the claims (`stages/predict/claims.py`) and picks each one's action and why
+from a code-written catalog by the claim's kind and the direction its own
+figure moved (`stages/predict/catalog.py`); the fact and the watch line are
+code-written too. Every sentence is tested (no digit, no word of
+`FRONT_BANNED`, no "order", "visit" or "basket", no movement word against
+its direction). The design: `docs/REPORT_REDESIGN.md` section 4.
 
-Mapping logic the prompt enforces:
-- Decline driven by frequency, not customer count -> fix the purchase cycle
-  (replenishment reminders, bundles), not acquisition spend
-- A large At-risk segment -> win-back sized by that segment's spend (never a
-  comparison of a segment's customers between months: stage 3's C4)
-- Champions -> loyalty and early access, never discounts
-- Revenue concentrated in few products (Pareto) -> focus budget there; bundle
-  weak products with strong ones
-- Stock figures are not supported in v1 (the line taxonomy's scope cut,
-  2E-t2): no reorder recommendation and no stock level - the forecast's
-  stockout risk is null; `prompts/strategy.md` says so
-- The "No purchases in file" segment (customers with only refunds, free
-  items or coupons) is never targeted as if it had bought
+**Why (the measured finding, the starting point of v2's AI step):** five
+review cycles over two designs - the free-text strategy step (4B, three
+cycles) and the structured actions (the redesign's step 4, two cycles) -
+found the same thing: free text written by the AI cannot be closed by a
+banned-word list. Number words and quantities the lists missed ("forty",
+"every fourth visit", "a fiver off", "a pair"), synonyms of a figure the
+file cannot count ("visiting more often" on a file with no order id), a
+movement said the wrong way ("Refunds rose" beside refunds that fell); and,
+the other way, 9 of 38 sound hand-written sentences refused. Each closed
+gap opened the next.
 
-As built (4B, `stages/predict/strategy_input.py`, `strategy_checks.py`,
-`ai_strategy.py`):
-- **The input** is built from the 4B rows only (a test walks it against
-  section 11's table), each list cut to its 10 largest movers (countries,
-  categories, a dimension's members, top products, decliners), every note
-  worded from `NOTE_TEXTS` by its code with its figures, measures and
-  `always_on`; hypotheses without their evidence; never `ai_findings`. It
-  runs whether or not stage 3 narrated (the deterministic blocks are the
-  input). On the demo runs: about 31,500-35,800 characters (8,000-9,000
-  tokens).
-- **Not asked** (`ai_strategy.not_asked`) when the diagnosis is blocked
-  (the engine refuses to diagnose the data) or the previous month is not
-  complete (CONTRACTS 11: nothing is compared with part of a month): the
-  forecast stands, the AI blocks are null, and the answer says why.
-- **The AI writes no number** (CLAUDE.md 3.2 by construction; the redesign
-  after 4B's review 2, whose value checks kept letting a computed or
-  invented number through): it cites a figure of its input by path -
-  `{metrics.core.revenue_current}`, a list item by index or natural key
-  (`segments[At-risk]`, `signals[revenue]`, `hypotheses[T2]`,
-  `revenue_by_month[2011-11]`, `top_products[0]`) - and code renders it
-  (`strategy_render.py`): a `*_pct` field, a fraction x 100 or a `yoy`
-  signal's points as a percentage, with its sign; after a direction word
-  ("fell", "rose") its size, the word refused when it disagrees with the
-  sign; a product marked in either file's `suggested_classes` with its mark.
-  Its own numbers are bounded tokens: `{offer:10%}` (an action or a
-  tempting action), `{assume:20%}` (an action or an expected impact;
-  rendered "20% (assumed)"), `{window:30 days}` (at most a year; required
-  in `how_to_measure`, SPECS 7.6). `expected_impact` is a formula of
-  figures and tokens (x, /, +, -; "of" multiplies) whose result code
-  computes and appends (`strategy_impact.py`): at most 6 terms, two
-  assumptions, one window (in
-  months); an assumption or a window only multiplies; the "No purchases in
-  file" customers never sized. After rendering, any digit the AI wrote
-  itself - outside a placeholder and outside the input's own texts (a
-  product name, a period, a hypothesis id) - is refused.
-- **The rest is checked by code** (`strategy_checks.py`), every problem
-  named for the one retry: 3 to 5 recommendations, priorities 1..n in
-  order, at least one do_not_do, no empty field, a figure cited in each
-  insight or cause; no stock, inventory, reorder or stockout (stage 3's
-  "consistent with a stockout, verify on the shelf" may be quoted); no
-  period called normal, typical, usual, unusual, routine, as expected,
-  abnormal, exceptional, extraordinary or an outlier - checked only in a
-  sentence about a period, so "a typical Champion" stays sound; a tempting
-  action may name what not to do; a marked product named in prose (a name
-  of several words in any case, a one-word name in its own case: "a
-  discount" is not the product "Discount") must carry its mark and is the
-  subject of no action; the "No purchases in file" customers only looked
-  into; with `orders_basis` "lines", never "order", "orders" or "AOV" ("in
-  order to" aside). A number the check cannot read is a problem, never a
-  crash.
-- **What this proves - and does not (4B's review 3, the bound)**: no digit
-  the AI writes reaches the report; every figure is the input's, rendered by
-  code. It does NOT hold that every number shown is right, nor that the
-  prose around it is: an impact's formula is computed with the usual
-  precedence where the AI wrote brackets or a leading minus (so the shown
-  formula can differ from the computed one), a percentage-only result is
-  shown as a fraction, the partial month after the compared one can be
-  cited; a direction word further from the figure, a synonym, or a minus
-  the AI writes is not checked; a token can carry an invented claim ("lifts
-  spend by 37%"); stock and verdicts in other words pass. **So stage 4's AI
-  step is built but OFF by default (4C) until Thach decides** (PROJECT_PLAN
-  4B lists the findings and three options). Phase 4's DoD keeps a manual
-  review of real answers - none made yet: a real call needs Thach's
-  approval. Stage 3's narration (3F) should cite the same way, with the
-  rendering moved to `shared/` (CLAUDE.md 3.1).
-- **Degraded**: two answers that fail, or an API failure, raise
-  `AIUnavailable`; 4C writes the forecast with the AI blocks null.
+**Removed** (git history keeps them): the 4B step (`stages/predict/
+ai_strategy.py`, `strategy_input.py`, `strategy_checks.py`,
+`strategy_render.py`, `strategy_impact.py`, `prompts/strategy.md`), the
+redesign's AI actions (`ai_actions.py`, `actions_checks.py`,
+`prompts/actions.md`, never committed), the backend's AI step and its
+attempt count for stage 4, and the `STRATEGY_AI_ENABLED` setting. The AI
+recommendation step moves to v2 (PROJECT_PLAN Backlog). Sections 2, 3 and
+9's shared retry budget now cover stage 1 alone.
 
 ## 9. Failure handling
 
@@ -1833,11 +1771,7 @@ As built (4B, `stages/predict/strategy_input.py`, `strategy_checks.py`,
    - stage 3: every deterministic block (`frame` through `headline`, section 7)
      is still produced and shown, including the code-written headline sentence;
      only `ai_findings` and `model_used` are `null`
-   - stage 4: the computed `forecast` block still produced and shown; narrative
-     sections marked "unavailable" in the report. Stage 4 also does not ask
-     the AI at all - the same null blocks, an AI_NOT_ASKED notice - when its
-     strategy step is switched off (v1's default, 4B), the diagnosis is
-     blocked, or the previous month is not complete
+   - stage 4: asks no AI in v1 (section 8) - nothing to degrade
 3. Timeout or network error -> same as 2; the run keeps its state so a retry is
    possible
 4. `domain_confidence < 0.5` -> NOT_INVENTORY path (SPECS section 10)

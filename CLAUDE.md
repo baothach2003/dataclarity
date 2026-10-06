@@ -117,7 +117,7 @@ is the default rendering, never parsed.
 dataclarity/
 ├── CLAUDE.md  PROJECT_PLAN.md  CONSTRAINTS.md  KICKOFF_PROMPT.md  README.md
 ├── docs/       SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
-├── prompts/    schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md
+├── prompts/    schema_inference.md  cleaning_plan.md  root_cause.md
 ├── contracts/  profile.py  cleaning.py  metrics.py  diagnosis.py  forecast.py
 │               report.py  __init__.py
 ├── stages/
@@ -127,7 +127,7 @@ dataclarity/
 │   │              __main__.py
 │   ├── diagnose/  thresholds.py  the 8 engine steps + ai narration, split
 │   │              across 3B-3G (docs/AI_PIPELINE.md 7)  __main__.py
-│   ├── predict/   forecast.py  ai_strategy.py  __main__.py
+│   ├── predict/   forecast.py  claims.py  catalog.py  assemble.py  (no AI in v1)
 │   └── report/    builder.py  html_report.py  __main__.py
 ├── shared/        # infrastructure: ai_client.py  run_registry.py
 │                  #   contract_files.py

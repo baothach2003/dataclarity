@@ -16,10 +16,11 @@ from pathlib import Path
 
 from contracts.forecast import MIN_HISTORY_MONTHS
 from contracts.report import Actions, Chart, Kpi, Numbers, ReportContract
+from contracts.report_front import Front
 from shared.contract_files import write_atomically
 from shared.later_outputs import REPORT_HTML
 from shared.run_registry import run_file
-from stages.report.wording import month_name
+from shared.wording import month_name
 from stages.report.html_causes import causes_html
 from stages.report.html_charts import chart_html, plotly_js
 from stages.report.html_front import front_html
@@ -164,7 +165,7 @@ def _other_lines(numbers: Numbers, withheld: bool) -> str:
     return "<h3>Other lines and where their money went</h3>" + "".join(parts) if parts else ""
 
 
-def _actions(actions: Actions, charts: dict[str, Chart]) -> str:
+def _actions(actions: Actions, charts: dict[str, Chart], front: Front | None) -> str:
     forecast, parts = actions.forecast, ["<h2>What next</h2>"]
     months = f"{forecast.months_used} complete month{'' if forecast.months_used == 1 else 's'}"
     if forecast.insufficient_history:
@@ -201,10 +202,16 @@ def _actions(actions: Actions, charts: dict[str, Chart]) -> str:
     # The free-text recommendations are printed nowhere, whoever wrote the
     # report.json (Thach, Q42): the unchecked format v1 switched off because
     # it fabricated numbers.
-    if actions.recommendations_status == "switched_off":
-        parts.append(para("The AI recommendations are switched off for this report."))
+    steps = front.next_steps if front is not None else None
+    if steps is not None and steps.status == "list" and steps.items:
+        # Stage 4's suggested actions stand in the front, never repeated here.
+        parts.append(para("The suggested actions are in section 4 (What to do next)."))
     else:
-        parts.append(para("No AI recommendation is available for this run."))
+        # No AI writes a recommendation in v1 (Q50 (d)), whatever an older
+        # report.json says; its free text is printed nowhere (Q42).
+        parts.append(para("No AI writes recommendations in this version: suggested actions, when there are any, are "
+                          "written by code in section 4." if front is not None
+                          else "No AI writes recommendations in this version."))
     return "".join(parts)
 
 
@@ -272,7 +279,7 @@ def _render(report: ReportContract) -> str:
         "".join(note(n, previous_complete=numbers.period.previous_complete) for n in numbers.how_to_read),
         "</section>",
         f'<section id="causes">{causes_html(report.layer_2_causes, numbers)}</section>',
-        f'<section id="actions">{_actions(report.layer_3_actions, charts)}</section>',
+        f'<section id="actions">{_actions(report.layer_3_actions, charts, report.front)}</section>',
         '<section id="provenance"><h2>Where these figures come from</h2>',
         f"<p>Stages run: {esc(', '.join(provenance.stages_run))}. AI answers used: {count(provenance.ai_calls)}"
         # An AI answer counted here can be a column mapping or a cleaning plan

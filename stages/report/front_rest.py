@@ -14,12 +14,18 @@ from contracts.metrics import MetricsContract
 from contracts.report import ForecastView, Numbers
 from contracts.report_front import CannotKnow, FrontAction, NextSteps, PartialMonth, ReportCurrency, RowsLeftOut
 from shared.periods import complete_months
-from stages.report.wording import amount, count, days, month_name
+from shared.wording import amount, count, days, month_name
 
-SWITCHED_OFF = "Suggested actions are switched off for this report."
-NOT_AVAILABLE = "Suggested actions are not available for this report."
-SUPPRESSED = ("Suggested actions are not shown for this report: the AI's answer did not pass our checks, so nothing "
-              "was shown rather than something unchecked. Every figure above is unaffected.")
+# Stage 4 wrote no actions: a forecast before 2.1, or "off" (Thach: only for
+# a run where stage 4 did not produce actions; design 4.4).
+NOT_AVAILABLE = ("Suggested actions are not available for this report: its forecast was made before they existed - "
+                 "run the forecast again to see them.")
+# "off", or actions listed where no cause is named (a file out of step):
+# nothing here says when the forecast was made (step 4's review).
+NOT_PRODUCED = "Suggested actions are not available for this report: run the forecast again."
+# Checks a claim may rest on, none with an action for the way its figure
+# moved (design 4.4).
+SUPPRESSED = "No action is suggested: the figures above that moved have no action this report can suggest."
 # Why no claim was selected, by the headline's rule (the review: under rule 2
 # "no single reason stands out" contradicted sentence C).
 _NONE_WHY = {2: "the change matches days with no sales, a matter of the data rather than of the shop",
@@ -34,23 +40,22 @@ def none_selected(rule: int) -> str:
 NOT_STATED = "Amounts are in your file's currency."
 
 
-def next_steps(forecast: ForecastContract, rule: int, ai_on: bool) -> NextSteps:
-    """By `actions_status` (Thach: off, suppressed, list). A forecast from
-    before 2.1 carries none: "switched off" when the AI step is off, else not
-    available (Q36). Actions listed where no cause is named (rules 1-4, 7)
-    are no answer this report can show (design 4.2; the review)."""
+def next_steps(forecast: ForecastContract, rule: int) -> NextSteps:
+    """By `actions_status` (Thach: list, suppressed, off - design 4.4). A
+    forecast from before 2.1 carries none: not available. Actions listed
+    where no cause is named (rules 1-4, 7) are no answer this report can
+    show (design 4.1; the review)."""
     status, actions = forecast.actions_status, forecast.actions
     if status is None:
-        return NextSteps(status="unavailable" if ai_on else "off",
-                         sentence=NOT_AVAILABLE if ai_on else SWITCHED_OFF, items=[])
+        return NextSteps(status="unavailable", sentence=NOT_AVAILABLE, items=[])
     if status == "suppressed":
         return NextSteps(status="suppressed", sentence=SUPPRESSED, items=[])
     if status == "list" and actions is not None:
         if actions and rule not in (5, 6):
-            return NextSteps(status="unavailable", sentence=NOT_AVAILABLE, items=[])
+            return NextSteps(status="unavailable", sentence=NOT_PRODUCED, items=[])
         items = [FrontAction(rests_on=a.fact, action=a.action, why=a.why, watch=a.watch) for a in actions]
         return NextSteps(status="list", sentence=None if items else none_selected(rule), items=items)
-    return NextSteps(status="off", sentence=SWITCHED_OFF, items=[])
+    return NextSteps(status="off", sentence=NOT_PRODUCED, items=[])
 
 
 def next_month(view: ForecastView, partial: list[PartialMonth], code: str | None) -> list[str]:

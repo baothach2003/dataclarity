@@ -7,10 +7,10 @@ read `hypotheses[].verdict`, `.share` and the report's own "moved against"
 from contracts.diagnosis import DiagnosisContract, Hypothesis
 from contracts.report import HypothesisView
 from contracts.report_front import ChecklistGroup
+from shared.claim_lines import DATA_IDS, Context, cannot_show_line, moved_line, not_reason_lines
 from shared.share_bars import PARTIAL_MIN_SHARE
-from stages.report.front_lines import DATA_IDS, Context, cannot_show_line, moved_line, not_reason_lines
+from shared.wording import amount, times
 from stages.report.front_summary import whom
-from stages.report.wording import amount, times
 
 APPENDIX_ONLY = ("T3", "C4")
 MOVED = "Moved this month, but not singled out"

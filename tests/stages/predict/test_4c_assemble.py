@@ -1,10 +1,13 @@
-"""Session 4C (ninth run): stage 4 assembles forecast.json - the computed
-forecast always; the AI's checked recommendations only when the step is on,
-the AI is asked and answers; the AI blocks null together otherwise (CONTRACTS
-8) - and refuses a diagnosis of other months than the metrics'. The AI
-faked. Written before the code.
-"""
+"""Session 4C (ninth run), rewritten for the report redesign's step 4 as
+Thach's option (d): stage 4 assembles forecast.json 2.1 - the computed
+forecast always, and the code-written suggested actions by their state
+(docs/CONTRACTS.md section 8; design 4.1-4.4): "list" (the actions, or none
+when no claim can be selected), "suppressed" (claims possible but nothing to
+act on); never "off"; no model; 4B's free-text blocks null (Q42, Q53). It
+asks no AI and refuses a diagnosis of other months than the metrics'.
+Written before the code."""
 
+import copy
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -12,27 +15,16 @@ from pathlib import Path
 import pytest
 
 from contracts.diagnosis import DiagnosisContract
-from contracts.forecast import DoNotDo, ForecastContract, Recommendation
+from contracts.forecast import ForecastContract
 from contracts.metrics import MetricsContract
-from shared.ai_client import AIUnavailable
-from stages.predict.ai_strategy import BLOCKED, NOT_COMPARABLE, Strategy
-from stages.predict.assemble import (
-    SCHEMA_VERSION,
-    SWITCHED_OFF,
-    DiagnosisMismatchError,
-    Skip,
-    predict,
-    predict_run,
-)
+from stages.predict.assemble import SCHEMA_VERSION, DiagnosisMismatchError, predict, predict_run
+from stages.predict.claims import BLOCKED, NOT_COMPARABLE
 from stages.predict.forecast import forecast
 from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.contracts.test_metrics import metrics_payload
+from tests.stages.report.real_runs import files
 
 NOW = datetime(2026, 9, 29, tzinfo=UTC)
-STRATEGY = Strategy(
-    recommendations=[Recommendation(priority=i, insight="i", cause="c", action="a", expected_impact="e = 1",
-                                    how_to_measure="m over 30 days", confidence=0.5) for i in (1, 2, 3)],
-    do_not_do=[DoNotDo(tempting_action="t", why_wrong_here="w")], model="served-model")
 
 
 def _files(**period: object) -> tuple[MetricsContract, DiagnosisContract]:
@@ -41,118 +33,91 @@ def _files(**period: object) -> tuple[MetricsContract, DiagnosisContract]:
     return MetricsContract.model_validate(metrics), DiagnosisContract.model_validate(diagnosis_payload())
 
 
-def _answering(*_: object) -> Strategy:
-    return STRATEGY
+def _real(run: str) -> tuple[MetricsContract, DiagnosisContract]:
+    data = files(run)
+    return (MetricsContract.model_validate(data["metrics.json"]),
+            DiagnosisContract.model_validate(data["diagnosis.json"]))
 
 
-def _unavailable(*_: object) -> Strategy:
-    raise AIUnavailable("timeout")
-
-
-def test_the_forecast_and_the_checked_recommendations_make_the_file() -> None:
-    metrics, diagnosis = _files()
-    prediction = predict(metrics, diagnosis, _answering, NOW)
+def test_the_forecast_and_the_code_written_actions_make_the_file() -> None:
+    prediction = predict(*_real("kaggle"), NOW)
     contract = prediction.contract
-    assert (contract.schema_version, contract.generated_at, contract.model_used) == ("2.0", NOW, "served-model")
-    assert SCHEMA_VERSION == "2.0"  # 2 since 4A-b (the season reading noted)
-    assert (contract.recommendations, contract.do_not_do) == (STRATEGY.recommendations, STRATEGY.do_not_do)
-    assert (prediction.ai, prediction.code) == ("answered", None)
+
+    assert (contract.schema_version, SCHEMA_VERSION, contract.generated_at) == ("2.1", "2.1", NOW)
+    assert (contract.actions_status, contract.actions_model, prediction.why_none) == ("list", None, None)
+    # B1 and B2 moved out of the claims (step 4's scoped review): P2 remains.
+    assert [(a.claim, a.hypothesis_id) for a in contract.actions] == [("K1", "P2")]
+    assert contract.actions[0].action == "Show a pricier alternative next to the cheaper products customers chose."
+    assert (contract.model_used, contract.recommendations, contract.do_not_do) == (None, None, None)  # Q42, Q53
+    assert contract.forecast == forecast(_real("kaggle")[0])
 
 
-def test_the_step_switched_off_leaves_the_forecast_and_null_ai_blocks() -> None:
-    # 4C's C9 (4B blocked at its review bound): off, the AI is never asked.
-    metrics, diagnosis = _files()
-    prediction = predict(metrics, diagnosis, SWITCHED_OFF, NOW)
-    contract = prediction.contract
-    assert (contract.model_used, contract.recommendations, contract.do_not_do) == (None, None, None)
-    assert contract.forecast == forecast(metrics)  # the computed block, whatever the AI step does
-    assert (prediction.ai, prediction.code) == ("not_asked", "switched_off")
+@pytest.mark.parametrize("run", ["demo_classed", "demo_unanswered"])
+def test_no_cause_named_lists_no_action(run: str) -> None:
+    prediction = predict(*_real(run), NOW)
+
+    assert (prediction.contract.actions_status, prediction.contract.actions) == ("list", [])
+    assert prediction.why_none == "no suggested action: the diagnosis names no cause an action in the shop works on"
 
 
-def test_an_ai_that_gives_no_accepted_answer_leaves_the_forecast_and_null_ai_blocks() -> None:
-    metrics, diagnosis = _files()
-    prediction = predict(metrics, diagnosis, _unavailable, NOW)
-    assert (prediction.contract.model_used, prediction.contract.recommendations) == (None, None)
-    assert (prediction.ai, prediction.code) == ("unavailable", "timeout")
-
-
-def test_a_blocked_diagnosis_is_not_sent_to_the_ai() -> None:
+def test_a_blocked_diagnosis_lists_no_action() -> None:
     metrics, _ = _files()
     blocked = diagnosis_payload()
     blocked["trust"]["verdict"] = "blocked"
     blocked.update({"calendar": None, "signals": None, "tree": None, "localization": None,
                     "headline": {"rule": 1, "hypothesis_id": None, "lens": None, "message": "m"}})
-    asked: list[object] = []
+    prediction = predict(metrics, DiagnosisContract.model_validate(blocked), NOW)
 
-    def step(*args: object) -> Strategy:
-        asked.append(args)
-        return STRATEGY
-
-    prediction = predict(metrics, DiagnosisContract.model_validate(blocked), step, NOW)
-    assert asked == [] and (prediction.ai, prediction.code, prediction.sentence) == (
-        "not_asked", "diagnosis_blocked", BLOCKED)
-    assert prediction.contract.recommendations is None
+    assert (prediction.contract.actions_status, prediction.contract.actions, prediction.why_none) == (
+        "list", [], BLOCKED)
 
 
-def test_months_that_cannot_be_compared_are_not_sent_to_the_ai() -> None:
-    # CONTRACTS 11: nothing is compared with part of a month.
-    metrics, diagnosis = _files()
+def test_months_that_cannot_be_compared_list_no_action() -> None:
+    metrics, diagnosis = _real("kaggle")
     incomplete = metrics.model_copy(update={"period": metrics.period.model_copy(update={"previous_complete": False})})
-    prediction = predict(incomplete, diagnosis, _answering, NOW)
-    assert (prediction.ai, prediction.code, prediction.sentence) == ("not_asked", "not_comparable", NOT_COMPARABLE)
+    prediction = predict(incomplete, diagnosis, NOW)
+
+    assert (prediction.contract.actions_status, prediction.contract.actions, prediction.why_none) == (
+        "list", [], NOT_COMPARABLE)
 
 
-def test_an_answer_already_accepted_is_final_but_never_kept_with_the_step_off() -> None:
-    # 4C review #2 (SPECS 11: 4 calls a run) and #4 (the step switched off
-    # after an answer: none is kept).
-    metrics, diagnosis = _files()
-    previous = predict(metrics, diagnosis, _answering, NOW).contract
-    asked: list[object] = []
+def test_claims_with_nothing_to_act_on_are_suppressed_never_off() -> None:
+    # Kaggle with P3 the named cause: no refund in either month, so its figure did
+    # not move and no catalog entry applies; P2 under the bar.
+    metrics, diagnosis = _real("kaggle")
+    hypotheses = [h.model_copy(update={"share": -0.1}) if h.id == "P2" else
+                  h.model_copy(update={"verdict": "supported", "against_the_change": False}) if h.id == "P3" else h
+                  for h in diagnosis.hypotheses]
+    headline = diagnosis.headline.model_copy(update={"hypothesis_id": "P3", "named": ["P3"]})
+    flat = diagnosis.model_copy(update={"hypotheses": hypotheses, "headline": headline})
+    prediction = predict(metrics, flat, NOW)
 
-    def step(*args: object) -> Strategy:
-        asked.append(args)
-        return STRATEGY
-
-    again = predict(metrics, diagnosis, step, NOW, previous)
-    assert asked == [] and again.contract.recommendations == previous.recommendations
-    assert predict(metrics, diagnosis, SWITCHED_OFF, NOW, previous).contract.recommendations is None
-    assert predict(metrics, diagnosis, Skip("attempts_used", "s"), NOW, previous).ai == "answered"
-
-
-def test_an_unexpected_error_on_the_ai_path_keeps_the_forecast() -> None:
-    # 4C review #7: only AIUnavailable was caught; a TypeError lost the forecast.
-    metrics, diagnosis = _files()
-
-    def broken(*_: object) -> Strategy:
-        raise TypeError("a client that cannot build a request")
-
-    prediction = predict(metrics, diagnosis, broken, NOW)
-    assert (prediction.ai, prediction.code, prediction.contract.forecast) == (
-        "unavailable", "internal_error", forecast(metrics))
+    assert (prediction.contract.actions_status, prediction.contract.actions) == ("suppressed", None)
+    assert prediction.why_none == "no suggested action: the figures that moved have no action to suggest"
 
 
 def test_a_diagnosis_of_other_months_is_refused() -> None:
-    # PROJECT_PLAN 4C: a hand-edited directory, or a standalone run after a
-    # re-analysis (the backend sets stale outputs aside itself).
     metrics, diagnosis = _files(current="2011-10", previous="2011-09")
     with pytest.raises(DiagnosisMismatchError, match="run the diagnosis again"):
-        predict(metrics, diagnosis, _answering, NOW)
+        predict(metrics, diagnosis, NOW)
 
 
-def _run_dir(tmp_path: Path) -> Path:
-    run = tmp_path / "11111111-1111-4111-8111-111111111111"
-    run.mkdir()
-    metrics, diagnosis = _files()
-    (run / "metrics.json").write_text(metrics.model_dump_json(), encoding="utf-8")
-    (run / "diagnosis.json").write_text(diagnosis.model_dump_json(), encoding="utf-8")
-    return run
+def _run_dir(tmp_path: Path, run: str = "kaggle", currency: str | None = None) -> Path:
+    path = tmp_path / "11111111-1111-4111-8111-111111111111"
+    path.mkdir()
+    data = copy.deepcopy(files(run))
+    if currency is not None:
+        data["cleaning_report.json"]["currency"] = {"code": currency, "source": "user", "evidence": None}
+    for name in ("metrics.json", "diagnosis.json", "cleaning_report.json"):
+        (path / name).write_text(json.dumps(data[name]), encoding="utf-8")
+    return path
 
 
 def test_predict_run_writes_forecast_json_and_a_failed_write_leaves_the_old_one(tmp_path: Path) -> None:
     run = _run_dir(tmp_path)
-    prediction = predict_run(tmp_path, run.name, recommend_step=_answering, now=NOW)
+    prediction = predict_run(tmp_path, run.name, now=NOW)
     written = ForecastContract.model_validate(json.loads((run / "forecast.json").read_text(encoding="utf-8")))
-    assert written == prediction.contract
+    assert written == prediction.contract and [a.hypothesis_id for a in written.actions] == ["P2"]
     before = (run / "forecast.json").read_bytes()
 
     class Refused(Exception):
@@ -162,5 +127,38 @@ def test_predict_run_writes_forecast_json_and_a_failed_write_leaves_the_old_one(
         raise Refused
 
     with pytest.raises(Refused):
-        predict_run(tmp_path, run.name, recommend_step=SWITCHED_OFF, now=NOW, around_write=refuse)
+        predict_run(tmp_path, run.name, now=NOW, around_write=refuse)
     assert (run / "forecast.json").read_bytes() == before
+
+
+def test_predict_run_writes_money_in_the_files_confirmed_currency(tmp_path: Path) -> None:
+    run = _run_dir(tmp_path, currency="GBP")
+
+    assert "about GBP -1,479.65" in predict_run(tmp_path, run.name, now=NOW).contract.actions[0].fact
+
+
+def test_predict_run_without_a_cleaning_report_writes_no_code(tmp_path: Path) -> None:
+    run = _run_dir(tmp_path, currency="GBP")
+    (run / "cleaning_report.json").unlink()
+
+    fact = predict_run(tmp_path, run.name, now=NOW).contract.actions[0].fact
+    assert "about -1,479.65" in fact and "GBP" not in fact
+
+
+def test_a_cause_no_action_works_on_is_no_claim_never_nothing_to_act_on() -> None:
+    # Rule 5 naming the calendar (T1), or rule 6 naming R2 (Q52): neither is a
+    # check a claim may rest on, so the list is empty - never "suppressed".
+    data = files("kaggle")
+    for hypothesis_id, rule in (("T1", 5), ("R2", 6)):
+        diagnosis = copy.deepcopy(data["diagnosis.json"])
+        diagnosis["headline"] |= {"rule": rule, "hypothesis_id": None if rule == 5 else hypothesis_id,
+                                  "lens": None, "named": [hypothesis_id], "hedge": None}
+        for hypothesis in diagnosis["hypotheses"]:
+            if hypothesis["id"] not in (hypothesis_id, "D1", "D2", "D3", "T2", "T3", "C4"):
+                hypothesis |= {"verdict": "ruled_out", "against_the_change": False}
+        if hypothesis_id == "R2":
+            next(h for h in diagnosis["hypotheses"] if h["id"] == "R2")["verdict"] = "supported"
+        prediction = predict(MetricsContract.model_validate(data["metrics.json"]),
+                             DiagnosisContract.model_validate(diagnosis), NOW)
+
+        assert (prediction.contract.actions_status, prediction.contract.actions) == ("list", []), hypothesis_id

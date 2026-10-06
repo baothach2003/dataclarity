@@ -1,25 +1,23 @@
 """POST /api/runs/{id}/report and GET /api/runs/{id}/download/report.html
 (session 5C) - written before the code. Stage 5 writes report.json and
 report.html from the run's files: allowed from `analyzed` once forecast.json
-exists, the run stays `analyzed`; the recommendations only while the AI
-step is on; the file's name from the run's row. The page downloads as an
+exists, the run stays `analyzed`; no AI recommendation (the suggested
+actions are code-written: Thach, Q50 (d)); the file's name from the run's row. The page downloads as an
 attachment under a sanitized name.
 """
 
-import json
 import re
 from typing import Any
 
 from app.models import RunStatus
 from contracts import ReportContract
-from tests.ai_fakes import FakeResponse
 from tests.backend.api_support import UNKNOWN_RUN, MakeApi, make_api_with_plan
 from tests.backend.test_api_diagnose import _monthly_analyzed_run
-from tests.backend.test_api_predict import ANSWER, _diagnosed
+from tests.backend.test_api_predict import _diagnosed
 
 
-def _predicted(make_api: MakeApi, *answers: Any, **settings: Any) -> tuple[Any, str]:
-    api, run_id = _diagnosed(make_api, *answers, **settings)
+def _predicted(make_api: MakeApi, **settings: Any) -> tuple[Any, str]:
+    api, run_id = _diagnosed(make_api, **settings)
     assert api.post(run_id, "predict").status_code == 200
     return api, run_id
 
@@ -53,15 +51,16 @@ def test_report_writes_report_json_and_the_page(make_api: MakeApi) -> None:
     assert api.status(run_id) is RunStatus.ANALYZED
 
 
-def test_the_recommendations_are_never_shown_even_while_the_step_is_on(make_api: MakeApi) -> None:
-    # Thach, Q42: the free-text format v1 switched off because it fabricated
-    # numbers is shown nowhere, the appendix included.
-    api, run_id = _predicted(make_api, FakeResponse(json.dumps(ANSWER)), strategy_ai_enabled=True)
+def test_the_code_written_actions_stand_in_the_front_and_no_ai_is_named(make_api: MakeApi) -> None:
+    # Thach, Q42: the free-text format is shown nowhere; Q50 (d): the actions
+    # are code-written, so no model is named for them.
+    api, run_id = _predicted(make_api)
 
     report = ReportContract.model_validate(api.post(run_id, "report").json()["report"])
 
-    assert report.layer_3_actions.recommendations_status == "unavailable"
+    assert report.layer_3_actions.recommendations_status == "switched_off"
     assert report.layer_3_actions.recommendations is None and report.layer_3_actions.do_not_do is None
+    assert (report.front.next_steps.status, len(report.front.next_steps.items)) == ("list", 1)
     assert report.provenance.models_used == []
 
 

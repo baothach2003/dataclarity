@@ -174,15 +174,9 @@ def diagnose(run_id: str, settings: SettingsDep, session: SessionDep, work: Work
 
 
 @router.post("/{run_id}/predict")
-def predict(
-    run_id: str,
-    settings: SettingsDep,
-    session: SessionDep,
-    make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
-    budgets: Annotated[RetryBudgets, Depends(get_retry_budgets)],
-    work: WorkDep,
-) -> PredictResponse:
-    return prediction.predict(session, run_id, settings=settings, make_client=make_client, budgets=budgets, work=work)
+def predict(run_id: str, settings: SettingsDep, session: SessionDep, work: WorkDep) -> PredictResponse:
+    # Stage 4 asks no AI in v1 (Thach, Q50 (d)): no client, no retry budget.
+    return prediction.predict(session, run_id, settings=settings, work=work)
 
 
 @router.post("/{run_id}/report")

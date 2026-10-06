@@ -460,7 +460,8 @@ and removed members, R1's top member and R3's products. Stage 5 and the
 frontend print such a product as "<name> (suggested: <class>, not
 confirmed)"; a headline that names a product (none does today - rules 5-7
 name causes and lenses) does the same. `prompts/root_cause.md` and
-`prompts/strategy.md` receive `suggested_classes` and the notes, with the
+`prompts/strategy.md` (removed 2026-10-06 with stage 4's AI step) receive
+`suggested_classes` and the notes, with the
 rule that a product marked suggested is named with its mark and is never the
 subject of a product recommendation (review 6 #6: DOTCOM POSTAGE, unanswered,
 is 2011-11's top product). Measured on the demo outputs, with

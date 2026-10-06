@@ -164,8 +164,7 @@ def test_stage_4s_stockout_risk_is_not_supported_in_v1() -> None:
 
 
 def test_the_prompts_read_the_notes_and_the_marks() -> None:
-    for name in ("root_cause.md", "strategy.md"):
-        text = (PROMPTS / name).read_text(encoding="utf-8")
-        assert "suggested_classes" in text and "notes" in text, name
-    strategy = (PROMPTS / "strategy.md").read_text(encoding="utf-8")
-    assert "reorder recommendation with a unit figure" not in strategy
+    # strategy.md went with stage 4's AI step (the report redesign, Q53).
+    text = (PROMPTS / "root_cause.md").read_text(encoding="utf-8")
+    assert "suggested_classes" in text and "notes" in text
+    assert not (PROMPTS / "strategy.md").exists()

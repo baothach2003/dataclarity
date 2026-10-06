@@ -73,7 +73,7 @@ trade-offs accepted: `docs/adr/0001-stage-isolation-single-repo.md`.
 dataclarity/
 ├── CLAUDE.md  PROJECT_PLAN.md  CONSTRAINTS.md  KICKOFF_PROMPT.md  README.md
 ├── docs/           SPECS.md  CONTRACTS.md  AI_PIPELINE.md  FIGMA_DESIGN_NOTES.md
-├── prompts/        schema_inference.md  cleaning_plan.md  root_cause.md  strategy.md
+├── prompts/        schema_inference.md  cleaning_plan.md  root_cause.md
 ├── contracts/      # Pydantic models shared by all stages - the ONLY shared import
 │   ├── profile.py  cleaning.py  metrics.py  diagnosis.py  forecast.py  report.py
 ├── stages/
@@ -3876,7 +3876,17 @@ dataclarity/
       years; the band's `point > 0`, which holds whenever the errors are in
       logs; `>=`/`>` and `<`/`<=` at the agreement and ramp thresholds,
       which differ only at an exact float tie).
-- [ ] 4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
+- [x] 4B - **closed by removal (Thach, 2026-10-06, the report redesign's
+      Q50 option (d) and Q53): no AI writes a recommendation in v1.** Five
+      review cycles over two designs (this step's three, the redesign's step
+      4's two) found that free text written by the AI cannot be closed by a
+      banned-word list ("every fourth visit", "a fiver off" passed; 9 of 38
+      sound sentences were refused). The suggested actions are code-written
+      (`stages/predict/claims.py`, `catalog.py`; docs/REPORT_REDESIGN.md
+      section 4); this step's code, prompt and tests, and
+      `STRATEGY_AI_ENABLED`, are deleted (git history keeps them). The AI
+      step moves to v2 (Backlog). The record of the step as planned:
+      4B `ai_strategy.py`: AI turns metrics + diagnosis + forecast into ranked
       recommendations, each with insight, cause, action, expected impact
       (arithmetic shown), how to measure. Validated. Decide whether stage 4
       calls the AI when `diagnosis.json` has `ai_findings: null`. Also
@@ -5929,7 +5939,16 @@ dataclarity/
       **Thach (2026-10-06, later):** the pattern (meaning is stage 3's data)
       and Q39-Q43 answered; applied; the scoped review's one fabrication on
       a common shape moved to the appendix (safety valve); step 3
-      committed. Open: Q44-Q48.
+      committed. Open: Q44-Q48. Step 4 (stage 4's suggested actions)
+      built, reviewed, fixed; the scoped review found fabrications on
+      common shapes: stopped, not committed; Q49-Q54.
+      **Thach (2026-10-06, the eighth round):** Q44-Q48 answered - step 3's
+      follow-up committed (46cf7cc). Q50 option (d): no AI in v1's
+      recommendations - step 4 rebuilt with code-written actions from a
+      catalog by kind and direction; Q49, Q51 void; Q52 R2 out of the claims;
+      Q53 the strategy AI path deleted; Q54 R3 kept in stage 3's own words.
+      Step 4 rebuilt so; its scoped review moved B1, B2 and P4 out of the
+      claims (stop rule); committed. Open: Q55-Q62.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5944,6 +5963,18 @@ dataclarity/
 ### Backlog (never start without explicit approval)
 Auth/accounts, XLSX input, multi-file merge, scheduled re-runs, PDF export,
 comparing two runs, email delivery of reports, mobile layout.
+
+**v2: AI-written recommendations** (Thach, 2026-10-06, the report
+redesign's Q50 option (d)). v1's suggested actions are code-written. The
+starting point is the measured finding of v1 (docs/AI_PIPELINE.md section
+8): five review cycles over two designs found that free text written by an
+AI cannot be closed by a banned-word list - number words and quantities
+slip through ("every fourth visit", "a fiver off"), a figure the file cannot
+count slips through as a synonym ("visiting more often" on a file with no
+order id), a movement is said the wrong way ("Refunds rose" beside refunds
+that fell), and sound sentences are refused (9 of 38). A v2 design starts
+from a constrained output (a choice among code-written options, or an
+allow-list vocabulary), never a blocklist.
 
 **Mixed currencies, option B** (Thach, 2026-10-05, the report redesign's
 Q7): analyse one currency, the other lines left out in stage 1 with a
@@ -6118,6 +6149,15 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - step 4 as Thach's option (d), committed** (2026-10-06,
+later). No AI in v1's recommendations: code selects the claims and picks
+each action and why from a tested catalog by kind and the direction the
+claim's own figure moved (forecast.json 2.1, `actions_model` null); the
+strategy AI path and `STRATEGY_AI_ENABLED` deleted (Q53); R2 out (Q52); R3
+in stage 3's words (Q54). Its review's fabrications fixed; the scoped review
+still found some on common shapes, so B1, B2 and P4 left the claims (stop
+rule; tests prove them absent) - Kaggle lists one action, P2. Open: Q55-Q62.
+
 **Report redesign - step 3's follow-up (Q44-Q48)** (2026-10-06, later):
 the printed figures and the words beside them agree (decimals decided on
 the printed text; a season's gap read on the printed changes), "Data checks
@@ -6126,6 +6166,16 @@ Its scoped review found no fabrication on a demo file or a common shape
 (Q55-Q59 open). Committed as its own group. Step 4 is rebuilt next as
 Thach's option (d).
 
+**Report redesign - step 4 STOPPED, not committed** (2026-10-06, later).
+Stage 4's suggested actions built (claims by code, the AI's action and why
+checked, forecast.json 2.1; the AI faked), reviewed, all nine findings
+fixed; the scoped review of the fixes still found fabrications on common
+shapes (the direction check reads the effect on sales as the measure's
+movement - "Refunds rose" beside refunds that fell; "visiting more often"
+on a file with no order id; ordinals and quantity words). Under the stop
+rule: not committed. **Next session: the tree is not clean on purpose**
+(copy: `C:\Users\Happy\step4-actions-wip\`). Open: Q49-Q54 and step 3's
+Q44-Q48. No real AI call; `STRATEGY_AI_ENABLED` false.
 **Report redesign - step 3: Thach's pattern applied, safety valve, committed**
 (2026-10-06, later). Q39-Q43 applied - diagnosis.json 18.7
 (`trust.checks[].month`, `headline.offsetting`; the three real runs

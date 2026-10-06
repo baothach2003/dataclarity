@@ -55,7 +55,7 @@ def cleaning_data(**mapping: str) -> dict[str, Any]:
 
 
 def build(metrics: dict | None = None, diagnosis: dict | None = None, forecast: dict | None = None,
-          include_recommendations: bool = True, schema: bool = True, plan_source: str | None = "ai",
+          schema: bool = True, plan_source: str | None = "ai",
           cleaning: dict | None = None) -> ReportContract:
     return build_report(
         run_id=RUN, source_file="sales_2011.csv",
@@ -64,7 +64,7 @@ def build(metrics: dict | None = None, diagnosis: dict | None = None, forecast: 
         forecast=ForecastContract.model_validate(forecast or forecast_payload()),
         cleaning=CleaningReportContract.model_validate(cleaning or cleaning_data()),
         schema=SchemaInferenceContract.model_validate(inference_payload()) if schema else None,
-        plan_source=plan_source, include_recommendations=include_recommendations, now=NOW)
+        plan_source=plan_source, now=NOW)
 
 
 def before_2_9(payload: dict[str, Any]) -> dict[str, Any]:

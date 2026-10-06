@@ -16,12 +16,12 @@ from contracts.lines import NoteFigure
 from contracts.metrics import MetricsContract
 from contracts.report import Actions, Causes, Chart, NoteView, Numbers
 from contracts.report_front import Front, FrontNotes, PartialMonth, RowsLeftOut
+from shared.claim_lines import Context
+from shared.wording import amount, month_name
 from stages.report.front_checklist import checklist
-from stages.report.front_lines import Context
 from stages.report.front_rest import cannot_know, chart_note, next_month, next_steps
 from stages.report.front_summary import (BRIDGE_WITHHELD, NOT_DRAWN, NOT_PROFIT, check_lines, data_checks, sentence_a,
                                          sentence_b, sentence_c, waterfall)
-from stages.report.wording import amount, month_name
 
 CHART_TITLE = "Sales by month (before any costs)"
 # The figures a check's line prints, by the notes' vocabulary (contracts/lines):
@@ -47,9 +47,9 @@ def _notes(views: list[NoteView], forecast_notes: list[str], shows: dict[str, se
     reads the forecast's own list (revenue's notes: CONTRACTS 11)."""
     def beside(section: str) -> list[str]:
         # Once each: metrics.json and diagnosis.json carry the same codes.
-        return list(dict.fromkeys(view.code for view in views if shows[section] & set(view.figures)))
+        return list(dict.fromkeys(view.code for view in views if shows.get(section, set()) & set(view.figures)))
     return FrontNotes(summary=beside("summary"), change=beside("change"), checked=beside("checked"),
-                      next_month=list(forecast_notes))
+                      next_month=list(forecast_notes), next_steps=beside("next_steps"))
 
 
 def _gaps(trend: Chart | None, numbers: Numbers) -> list[str]:
@@ -95,7 +95,7 @@ def _not_compared(numbers: Numbers, code: str | None) -> list[str]:
 def build_front(*, metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: ForecastContract,
                 cleaning: CleaningReportContract, numbers: Numbers, causes: Causes, actions: Actions,
                 charts: list[Chart], partial: list[PartialMonth], left_out: list[RowsLeftOut], code: str | None,
-                ai_on: bool) -> Front:
+                ) -> Front:
     tree = diagnosis.tree
     bridge = tree.lever.bridge if tree is not None else None
     ctx = Context(metrics=metrics, tree=tree, bridge=bridge, year_ago=diagnosis.year_ago, code=code)
@@ -137,11 +137,14 @@ def build_front(*, metrics: MetricsContract, diagnosis: DiagnosisContract, forec
     named = (headline.named or ([headline.hypothesis_id] if headline.hypothesis_id else [])) if c else []
     shows = _shows(list(named), headline.rule if c else None)
     shows["checked"] |= _shows([h.id for h in diagnosis.hypotheses], None)["checked"] if groups else set()
+    steps = next_steps(forecast, diagnosis.headline.rule)
+    if steps.items and forecast.actions:
+        # The facts listed are the checklist's lines: the same figures, notes.
+        shows["next_steps"] = _shows([a.hypothesis_id for a in forecast.actions], None)["checked"]
     return Front(
         state="compared", caution=caution, summary=summary, chart_note=chart_lines,
         waterfall=waterfall(bridge, metrics, code) if bridge is not None else None,
         waterfall_note=None if bridge is not None else NOT_DRAWN.format(
             why=BRIDGE_WITHHELD[lever.bridge_withheld if lever is not None else None].format(unit=unit)),
-        checklist=groups, data_checks=checks,
-        next_steps=next_steps(forecast, diagnosis.headline.rule, ai_on),
+        checklist=groups, data_checks=checks, next_steps=steps,
         notes=_notes(views, actions.forecast.notes, shows), **common)

@@ -12,7 +12,7 @@ from contracts.cleaning import CleaningReportContract
 from contracts.diagnosis import DiagnosisContract, YearAgo
 from contracts.metrics import MetricsContract
 from contracts.report_front import FrontBar, Waterfall
-from stages.report.front_lines import Context, moved_line, not_reason_lines
+from shared.claim_lines import Context, moved_line, not_reason_lines
 from stages.report.front_rest import rows_left_out
 from stages.report.front_summary import sentence_a
 from tests.stages.report.real_runs import build_real, files
