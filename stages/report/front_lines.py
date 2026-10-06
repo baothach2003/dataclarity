@@ -18,7 +18,7 @@ from stages.report.wording import amount, month_only, prints_as_zero, signed, tw
 SUBJECTS = {
     "D1": "days without sales", "D2": "a sudden price jump or fall across most products",
     "D3": "rows flagged during cleaning",
-    "T1": "The calendar: the month's length and mix of weekdays", "T2": "Last year's change between the same months",
+    "T1": "The calendar: the month's length and mix of weekdays", "T2": "The change a year earlier between the same months",
     "C1": "new customers", "C2": "customers who stopped buying", "C3": "customers who came back after a break",
     "B1": "How often customers ordered", "B2": "Basket size (items per order)",
     "P1": "Prices of products sold in both months", "P2": "A shift to cheaper or pricier products",
@@ -274,7 +274,7 @@ def _customers_ordering(phrase: str, ctx: Context, unit: str) -> str:
 def _last_year(hypothesis: Hypothesis, ctx: Context) -> str:
     year_ago = ctx.year_ago
     if year_ago is None:
-        return f"Last year's change between the same months{_worth(hypothesis, ctx)}."
+        return f"{SUBJECTS['T2']}{_worth(hypothesis, ctx)}."  # no year_ago pair (before 18.4): Q46's subject
     rose = year_ago.revenue_current > year_ago.revenue_previous
     fell = year_ago.revenue_current < year_ago.revenue_previous
     moved = "rose" if rose else "fell" if fell else "stayed the same"

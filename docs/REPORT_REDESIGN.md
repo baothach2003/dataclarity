@@ -1100,26 +1100,48 @@ carry, the front says less (suppress, never fabricate).
 
 **Open:** none from this round (decisions made alone: section 12).
 
-**Open (the scoped review's findings left by the safety valve - section 12):**
+**Answered by Thach, 2026-10-06 (seventh round, step 3's follow-up):**
 
-44. **Q44** - two rare figure-and-word disagreements (neither on a demo
-    file nor a common shape): beside a season, "more than N times" decided
-    on the unprinted difference; and the decimals test reading
-    `round(value * 10**d)` rather than the printed text (one line, introduced
-    in this session). Fix both in the next session with a scoped review?
-45. **Q45** - an annual closure the season explains (D1's check ok, the D1
-    hypothesis matching the change): "Data checks: no problem found" stands
-    beside "days with no sales - missing data, or closed". Word the
-    data-checks line "no problem found in how the data was recorded", or
-    leave it?
-46. **Q46** - T2's subject "Last year's change between the same months" in
-    "checked - not the reason" beside a season of several years: reword it
-    "The change a year earlier between the same months"?
-47. **Q47** - `front_word_problems` is wired in step 4 (stage 4's checks).
-    Confirm that is where it belongs.
-48. **Q48** - the general caution opener left the front (safety valve). Does
-    a caution need a general sentence there at all - and if so, one that
-    names no month ("Some of the data may be missing or wrong")?
+44. **Q44** - fix both figure-and-word mismatches this session, failing
+    tests first, then one scoped review. *Why:* a printed figure and the word
+    beside it must agree, however rare the case.
+45. **Q45** - "Data checks passed (details in the technical section)".
+    *Why:* "no problem found" stood beside days with no sales that a season
+    explains.
+46. **Q46** - yes: "The change a year earlier between the same months".
+47. **Q47** - confirmed (it is Q43).
+48. **Q48** - no generic opening line: each caution line names its own month
+    from `trust.checks[].month`.
+
+**Open (step 3's follow-up, its scoped review - section 12; none on a demo
+file or a common shape):**
+
+55. **Q55** - figure-and-word disagreements left (contrived values only): a
+    near-zero change printed with more decimals than were checked ("0.03%
+    ... 10.0% ... at least 4 times ... about 2.5 points": printed 9.97); no
+    precision up to 4 agreeing, the bound word still said (stage 3's own
+    `season_headline._places` searches to 10 places and drops the bound);
+    a typical printed "0.0"; the month-to-month typical 0.049 printed "0.05"
+    beside "+0.1%" and "more than twice". Share stage 3's decimals function
+    through `shared/` and drop the bound word where no precision agrees?
+56. **Q56** - one change printed two ways: with a season stated, sentence A
+    takes the month-to-month test's decimals ("+12.05%") while sentence B
+    prints the season's ("12.0%"); and the KPI table prints one decimal
+    ("+12.0%") beside A's "+12.05%". Print A at the season's decimals when B
+    is the season's, and the KPI table's percentage as A prints it?
+57. **Q57** - a season "in line" with no yardstick (demo_unanswered as
+    shipped): "This change is in line with last year's: 39.1% last year,
+    27.1% this year" - stage 3's band (a 12-point gap under twice the
+    typical 8.6) but the reader sees only the gap. Add the yardstick ("within
+    twice this shop's typical year-on-year difference, about 8.6 points")?
+58. **Q58** - "at least" printed where the printed gap is strictly more (the
+    stored gap exactly on the bound, the printed one above it): true, but
+    not Q44's pairing. Say "at least" whenever stage 3's gap is on the
+    bound, whatever the print?
+59. **Q59** - where a data check could not run (inconclusive, not
+    applicable): "Data checks passed, except those this file cannot run
+    (details in the technical section)" - a decision made alone; "passed ...
+    except" can read as those having failed. Your wording?
 
 ## 11. The build, step by step
 
@@ -1578,3 +1600,20 @@ export shape; open questions Q44-Q48 in section 10):
   years - true of T2 (one year), but the letter of "never last year's".
 - OTHER (Q47): `front_word_problems` is called by no stage yet - stage 4
   writes no actions until step 4, which wires it.
+
+**Step 3's follow-up (2026-10-06, Q44-Q48).** Q44: the decimals are decided
+on the text printed (`f"{value:.{d}f}"`, never `round(value * 10**d)`);
+beside a season the two changes and the typical difference are printed at
+the decimals where the printed changes' gap agrees with stage 3's band and
+its word ("more than" only where it is more; "at least" where equal), and
+sentence A prints the change at those decimals. Q45: "Data checks passed
+(details in the technical section)"; where a check could not run, "Data
+checks passed, except those this file cannot run (details in the technical
+section)" - a decision made alone, the same correction applied to the other
+line. Q46: T2's subject reworded. Q48: already so since the safety valve
+(each caution line names its month; no opener), now pinned by a test.
+Tests first (4 red, 2 already holding); mutation 6 of 6. The scoped review
+found no fabrication on a demo file or a common shape; its findings are
+Q55-Q59 (recorded, not fixed: the one review the round allows), except Q46's
+sentence in a second place (T2 with no year_ago pair, a diagnosis before
+18.4), applied with a test - Thach's own answer, completed.

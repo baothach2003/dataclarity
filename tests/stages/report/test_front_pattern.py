@@ -104,7 +104,7 @@ def test_a_caution_from_a_check_that_could_not_run_shows_the_data_checks_line() 
     report = build_real("kaggle", diagnosis=diagnosis)
 
     assert report.front.caution == []
-    assert ("Data checks: no problem found in the checks this file allows (details in the technical section)."
+    assert ("Data checks passed, except those this file cannot run (details in the technical section)."
             in Page(render_html(report)).section("checked"))
 
 
@@ -142,22 +142,22 @@ def test_a_check_that_could_not_run_is_no_problem_found_said_as_such() -> None:
     front = build_real("kaggle", diagnosis=diagnosis).front
     lines = [line for group in front.checklist for line in group.lines]
 
-    assert front.data_checks == ["Data checks: no problem found in the checks this file allows (details in the "
-                                 "technical section)."]
+    assert front.data_checks == ["Data checks passed, except those this file cannot run (details in the technical "
+                                 "section)."]
     assert not any("price jump" in line or "wrong scale" in line for line in lines)  # D2: the one line only
 
 
 def test_the_data_checks_line_is_printed_in_section_3() -> None:
     page = Page(render_html(build_real("kaggle")))
 
-    assert "Data checks: no problem found (details in the technical section)." in page.section("checked")
+    assert "Data checks passed (details in the technical section)." in page.section("checked")
 
 
 def test_all_three_data_checks_ok_is_one_line() -> None:
     front = build_real("kaggle").front
     lines = [line for group in front.checklist for line in group.lines]
 
-    assert front.data_checks == ["Data checks: no problem found (details in the technical section)."]
+    assert front.data_checks == ["Data checks passed (details in the technical section)."]
     assert not any("days without sales" in line or "wrong scale" in line or "flagged" in line for line in lines)
 
 
@@ -299,7 +299,10 @@ def test_an_18_7_tie_is_read_as_a_tie_never_as_offsetting() -> None:
 
 def test_the_season_gap_is_never_a_figure_the_front_computes() -> None:
     diagnosis = _18_7("demo_classed")
-    diagnosis["headline"]["movement"]["season"] |= {"band": "excess", "difference_pct": 18.04, "typical_pct": 4.0}
+    # Consistent figures: the gap is this month's change minus the season's (CONTRACTS 7).
+    diagnosis["headline"]["movement"]["change_pct"] = 22.04
+    diagnosis["headline"]["movement"]["season"] |= {"band": "excess", "expected_change_pct": 4.0,
+                                                    "difference_pct": 18.04, "typical_pct": 4.0}
     diagnosis["headline"]["rule"] = 7
     sentence = build_real("demo_classed", diagnosis=diagnosis).front.summary[0]
 

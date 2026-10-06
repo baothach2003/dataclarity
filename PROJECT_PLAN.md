@@ -6118,6 +6118,14 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - step 3's follow-up (Q44-Q48)** (2026-10-06, later):
+the printed figures and the words beside them agree (decimals decided on
+the printed text; a season's gap read on the printed changes), "Data checks
+passed", T2's subject reworded, each caution naming its month (pinned).
+Its scoped review found no fabrication on a demo file or a common shape
+(Q55-Q59 open). Committed as its own group. Step 4 is rebuilt next as
+Thach's option (d).
+
 **Report redesign - step 3: Thach's pattern applied, safety valve, committed**
 (2026-10-06, later). Q39-Q43 applied - diagnosis.json 18.7
 (`trust.checks[].month`, `headline.offsetting`; the three real runs

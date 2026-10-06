@@ -159,7 +159,7 @@ def test_kaggles_checked_and_cannot_show() -> None:
     front = _front()
 
     # D1-D3: the one data-checks line, before the groups (Thach, 2026-10-06).
-    assert front.data_checks == ["Data checks: no problem found (details in the technical section)."]
+    assert front.data_checks == ["Data checks passed (details in the technical section)."]
     assert _group(front, "not_reason").lines == [
         "Customers: no new customers, none stopped buying, none came back after a break - the same customers "
         "placed orders in both months.",

@@ -24,8 +24,10 @@ HEDGES = {"seasonal": "This may be seasonal: treat it as a pointer, not a findin
 # D1-D3 in one line when none cautions or blocks (Thach, 2026-10-06); a check
 # that could not run (too few products, a month-grain file) is no problem
 # found either, said as such.
-CHECKS_OK = "Data checks: no problem found (details in the technical section)."
-CHECKS_PARTLY = "Data checks: no problem found in the checks this file allows (details in the technical section)."
+# Thach, Q45: "passed" - "no problem found" stood beside days with no sales a
+# season explains (D1's check ok, its hypothesis matching the change).
+CHECKS_OK = "Data checks passed (details in the technical section)."
+CHECKS_PARTLY = "Data checks passed, except those this file cannot run (details in the technical section)."
 # The trust checks by id, status and the month stage 3 says they are about
 # (Thach, Q37, Q39); stage 3's own message stays in the appendix, as written.
 # `{when}` is " in <month>", or nothing where the file names no month (before
@@ -91,7 +93,9 @@ def data_checks(checks: list[TrustCheck], period: Period) -> list[str]:
 
 
 def _printed(value: float, decimals: int) -> Fraction:
-    return Fraction(round(value * 10 ** decimals), 10 ** decimals)
+    """The figure as the text prints it (Q44: never round(value * 10**d),
+    which can differ - 4.35 is stored just under 4.35 and prints "4.3")."""
+    return Fraction(f"{value:.{decimals}f}")
 
 
 def places(value: float, typical: float, factor: float, at_least: bool, strict: bool) -> int:
@@ -103,6 +107,18 @@ def places(value: float, typical: float, factor: float, at_least: bool, strict: 
     for found in (1, 2, 3, 4):
         shown, bound = _printed(abs(value), found), Fraction(str(factor)) * _printed(typical, found)
         if (shown > bound if strict else shown >= bound) if at_least else shown < bound:
+            return found
+    return 4
+
+
+def season_places(change: float, expected: float, typical: float, factor: float, strict: bool) -> int:
+    """The decimals at which the printed changes' gap agrees with stage 3's
+    band and the word beside it (Q44: "10.0% ... 12.0%" stood beside "more
+    than 4 times ... about 0.50 points" - printed, exactly 4 times)."""
+    for found in (1, 2, 3, 4):
+        gap = abs(_printed(change, found) - _printed(expected, found))
+        bound = Fraction(str(factor)) * _printed(typical, found)
+        if gap > bound if strict else gap >= bound:
             return found
     return 4
 
@@ -140,19 +156,22 @@ def sentence_b(movement: HeadlineMovement | None) -> tuple[str | None, bool, int
         decimals = places(change, movement.typical_pct, movement.factor, movement.singled_out, more)
     if season is not None and season.band in ("consistent", "shortfall", "excess"):
         expected = season.expected_change_pct
+        beyond = abs(season.difference_pct) > season.beyond_factor * season.typical_pct
+        # The gap itself is not printed (a reader subtracts the two changes):
+        # the changes and the typical are printed at the decimals where that
+        # subtraction says what stage 3 decided (Q44).
+        gap = 1 if season.band == "consistent" else season_places(
+            change, expected, season.typical_pct, season.beyond_factor, beyond)
+        decimals = max(decimals, gap)
         if season.years == 1:
-            facts = f"{_pct(expected, 1, False)} last year, {_pct(change, 1, False)} this year (one earlier year to " \
-                    "compare with)"
+            facts = f"{_pct(expected, gap, False)} last year, {_pct(change, gap, False)} this year (one earlier year " \
+                    "to compare with)"
         else:
             facts = (f"in the {season.years} earlier years, sales typically {_moved(expected)} "
-                     f"{_pct(abs(expected), 1, False)} between these months; this year they {_moved(change)} "
-                     f"{_pct(abs(change), 1, False)}")
+                     f"{_pct(abs(expected), gap, False)} between these months; this year they {_moved(change)} "
+                     f"{_pct(abs(change), gap, False)}")
         if season.band == "consistent":
             return f"This change is in line with {whom(season.years)}: {facts}.", inside, decimals
-        # The gap itself is not printed: beside two rounded changes, a reader
-        # subtracts them and gets another figure (the review).
-        beyond = abs(season.difference_pct) > season.beyond_factor * season.typical_pct
-        gap = places(season.difference_pct, season.typical_pct, season.beyond_factor, True, beyond)
         bound = "more than" if beyond else "at least"
         return (f"This change differs from {whom(season.years)}: {facts}; the difference is {bound} "
                 f"{times(season.beyond_factor)} this shop's typical year-on-year difference (about "
