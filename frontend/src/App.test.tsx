@@ -24,6 +24,8 @@ vi.mock('./api/runs.ts', () => ({
   downloadCleanedCsv: vi.fn(),
   // Review asks for the whole file when it opens (2E-t3): not what these tests follow.
   lineSummary: vi.fn(() => new Promise(() => undefined)),
+  // Review's currency question (step 5): pending, so the page reads as before.
+  currencyQuestion: vi.fn(() => new Promise(() => undefined)),
 }))
 
 function upload(run: RunCreated): RunUpload {

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
+import { CurrencyNotice } from '../components/CurrencyNotice.tsx'
 import { DateOrderNotice } from '../components/DateOrderNotice.tsx'
 import { NumberFormatNotice } from '../components/NumberFormatNotice.tsx'
 import { LineSummaryNotice } from '../components/LineSummaryNotice.tsx'
@@ -23,6 +24,7 @@ import { describeError } from '../domain/errorCopy.ts'
 import { mappingConflict, missingRequiredFields } from '../domain/planRules.ts'
 import { buildManualPlan, reconcileAction, withMappingDisabled } from '../domain/reviewPlan.ts'
 import { defaultParams } from '../domain/transformParams.ts'
+import { useCurrencyQuestion, withCurrency } from './useCurrencyQuestion.ts'
 import { useLineSummary } from './useLineSummary.ts'
 import { useOrderAnswers } from './useOrderAnswers.ts'
 import type {
@@ -103,6 +105,8 @@ export function ReviewPage({
   const previewLoading = previewedPlan !== planToPreview
   // The whole file for the answers as they stand (2E-t3).
   const lineSummary = useLineSummary(baseUrl, runId, planToPreview, !isNotInventory)
+  // The file's currency, always asked for a file the analysis reads (the report redesign, step 5).
+  const currency = useCurrencyQuestion(baseUrl, runId, planToPreview, !isNotInventory)
 
   // Preview refreshes 400ms after the last edit (SPECS 4.2 C), cancelling a
   // request superseded by a newer edit before it answers.
@@ -209,7 +213,8 @@ export function ReviewPage({
     setExecuting(true)
     setExecuteError(null)
     try {
-      const result = await executePlan(baseUrl, runId, orderAnswers.confirmed(planToSubmit))
+      const answered = isNotInventory ? null : currency.answer
+      const result = await executePlan(baseUrl, runId, withCurrency(orderAnswers.confirmed(planToSubmit), answered))
       onCleaned({ report: result.report, notices: result.notices })
     } catch (error) {
       setExecuteError(error)
@@ -333,6 +338,7 @@ export function ReviewPage({
               onChange={setRemovesCopies}
             />
             <LineSummaryNotice state={lineSummary} />
+            <CurrencyNotice state={currency} />
             <DateOrderNotice
               plan={plan}
               profile={profile}
@@ -408,7 +414,9 @@ export function ReviewPage({
           isNotInventory={isNotInventory}
           missingFields={missingFields}
           unanswered={
-            orderAnswers.dateUnanswered
+            currency.blocked
+              ? 'This file cannot run: it has amounts in more than one currency'
+              : orderAnswers.dateUnanswered
               ? 'Answer how the dates are written first'
               : orderAnswers.numbersUnanswered
                 ? 'Answer how the numbers are written first'

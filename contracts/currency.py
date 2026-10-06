@@ -125,3 +125,25 @@ class AppliedCurrency(ContractModel):
         if (self.code is None) != (self.source == NOT_STATED):
             raise ValueError("a currency carries a code exactly when it is stated")
         return self
+
+
+class CurrencyQuestion(ContractModel):
+    """Review's currency question (the report redesign's step 5; design 6.2
+    and 6.3): stage 1's finding on the raw file, the codes in the order
+    Review offers them, the answer pre-selected (a found code, else "not
+    stated" - never assumed), and stage 1's own sentences: the block (more
+    than one currency: no answer offered), the unreadable cells, the hint."""
+
+    finding: CurrencyFinding
+    options: list[CurrencyCode]
+    selected: CurrencyAnswer | None
+    blocked: str | None
+    unreadable: str | None
+    hint: str | None
+
+    @model_validator(mode="after")
+    def _blocked_exactly_when_mixed(self) -> Self:
+        mixed = self.finding.kind == "mixed"
+        if mixed != (self.blocked is not None) or mixed != (self.selected is None) or mixed == bool(self.options):
+            raise ValueError("a mixed file is blocked with no answer offered; any other is asked")
+        return self

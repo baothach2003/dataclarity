@@ -72,6 +72,7 @@ How the steps move through it (stage 1 in 1G; stages 2-5 in 2D, 3G-lite, 4C and 
 | `POST /plan` | `profiled`, and `schema_inference.json` must exist | `planned`; stays `profiled` when the AI is unavailable |
 | `POST /preview` | `profiled`, `planned` | no change |
 | `POST /line-summary` | `profiled`, `planned` | no change |
+| `POST /currency` | `profiled`, `planned` | no change |
 | `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
 | `POST /analyze` | `cleaned`, `analyzed` | `analyzed` |
 | `POST /diagnose` | `analyzed` | stays `analyzed` (3G-lite: stages 2-4 all live in it; which of their files exist says how far the run went - a stage run again removes the later stages' outputs) |
@@ -349,6 +350,9 @@ again. This is why the product can claim AI assistance without AI opacity.
   column deltas (sample execution, max 500 rows)
 - `POST /api/runs/{id}/line-summary` (body: final plan, answers included) ->
   Review's whole-file view of the line taxonomy (2E-t3): nothing written
+- `POST /api/runs/{id}/currency` (body: the plan as edited) -> Review's
+  currency question (the report redesign's step 5, design 6.2 and 6.3):
+  nothing written
 - `POST /api/runs/{id}/execute` (body: final plan) -> `cleaning_report.json` +
   download urls
 
@@ -357,6 +361,15 @@ As built in 1G (200 responses; the run id is always in the URL and repeated in t
 - `plan` -> `{run_id, status: "profiled" | "planned", plan | null, notices}`
 - `preview` -> `{run_id, preview: {rows_in_file, sample_rows, sampled, rows_after,
   columns_after, rows, deltas}}`
+- `currency` -> `{run_id, question}`; `question` is `contracts/currency.py`'s
+  `CurrencyQuestion` - `{finding, options, selected, blocked, unreadable,
+  hint}`: stage 1's finding on the raw file on the plan's unit-price
+  columns (the reading execute applies), the ISO codes in Review's order
+  (a narrowed family first, else GBP, EUR, USD, AUD, CAD, NZD, JPY, CNY,
+  CHF, INR, SGD, HKD, then the rest alphabetically), the pre-selection (a
+  found code, else `not_stated`; null when blocked), and stage 1's own
+  sentences: `blocked` (more than one currency - the sentence execute
+  refuses with), `unreadable`, `hint`
 - `line-summary` -> `{run_id, reserved_renames: [{source, written_as, holds}], summary
   | null, summary_unavailable_reason}`; `summary` is `contracts/lines.py`'s
   `LineSummary` - `{lines, undated_lines, identity, outside_revenue,

@@ -86,3 +86,70 @@ def test_the_previews_whole_file_load_waits_for_a_slot(tmp_path) -> None:  # typ
     reader.join(timeout=5)
     assert loaded == [1]
 
+
+
+def _currency_and_preview(holder_reads: bool, cache_bytes: int, tmp_path) -> dict[str, object]:  # type: ignore[no-untyped-def]  # pytest's tmp_path
+    """Review open, as it happens: a step holds the one slot, the currency question is asked at once, the
+    preview 400 ms later; then the slot is released. What finished within 5 s."""
+    from app.services.plan_execution import _read_frame, _read_frame_heavy, currency_question_for
+    from app.services.run_memory import FrameCache
+    from shared.run_registry import create_run
+    from tests.stages.ingest.test_currency import plan
+
+    run = create_run(tmp_path)
+    (run.path / "raw.csv").write_bytes(b"sku,name,qty,price,day\nA1,Mug,2,\xc2\xa32.50,2024-01-05\n")
+    work = RunWork(heavy_steps=1)
+    cache = FrameCache(max_bytes=cache_bytes, ttl_seconds=900)
+    done: dict[str, object] = {}
+    release = threading.Event()
+
+    def hold() -> None:
+        with work.heavy():
+            if holder_reads:  # the line summary's own shape: the load inside its slot
+                cache.get_or_load(run.run_id, lambda: _read_frame(tmp_path, run.run_id))
+            release.wait()
+
+    def currency() -> None:
+        done["currency"] = currency_question_for(
+            work, cache, tmp_path, run.run_id, plan(["sku", "name", "qty", "price", "day"])).finding.kind
+
+    def preview() -> None:
+        done["preview"] = len(cache.get_or_load(run.run_id, lambda: _read_frame_heavy(work, tmp_path, run.run_id)))
+
+    threads = [threading.Thread(target=step, daemon=True) for step in (hold, currency, preview)]
+    for thread in threads:
+        thread.start()
+        time.sleep(0.2)
+    release.set()
+    for thread in threads[1:]:
+        thread.join(timeout=5)
+    return done
+
+
+@pytest.mark.parametrize(("holder_reads", "cache_bytes"), [(False, 10_000_000), (True, 1), (True, 10_000_000)])
+def test_reviews_currency_question_and_the_preview_never_deadlock(holder_reads, cache_bytes, tmp_path) -> None:  # type: ignore[no-untyped-def]  # pytest's
+    # Step 5's scoped review: the reading inside the slot took the slot before the cache's lock, the preview
+    # the other way round - with one slot both waited forever, and every later heavy step behind them.
+    assert _currency_and_preview(holder_reads, cache_bytes, tmp_path) == {"currency": "found", "preview": 1}
+
+
+def test_reviews_currency_question_loads_the_file_in_a_slot(tmp_path) -> None:  # type: ignore[no-untyped-def]  # pytest's tmp_path
+    from app.services.plan_execution import currency_question_for
+    from app.services.run_memory import FrameCache
+    from shared.run_registry import create_run
+    from tests.stages.ingest.test_currency import plan
+
+    run = create_run(tmp_path)
+    (run.path / "raw.csv").write_bytes(b"sku,name,qty,price,day\nA1,Mug,2,\xc2\xa32.50,2024-01-05\n")
+    work = RunWork(heavy_steps=1)
+    asked: list[str] = []
+    cache = FrameCache(max_bytes=10_000_000, ttl_seconds=900)
+    with work.heavy():
+        reader = threading.Thread(target=lambda: asked.append(
+            currency_question_for(work, cache, tmp_path, run.run_id, plan(["sku", "name", "qty", "price", "day"]))
+            .finding.kind))
+        reader.start()
+        reader.join(timeout=0.3)
+        assert reader.is_alive() and asked == []  # the whole-file load waits for the slot
+    reader.join(timeout=5)
+    assert asked == ["found"]

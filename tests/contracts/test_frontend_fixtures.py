@@ -9,9 +9,14 @@ import json
 import re
 from pathlib import Path
 
+import pytest
+
+from contracts.diagnosis import LeverBridge
 from contracts.forecast import MIN_HISTORY_MONTHS
 from contracts.lines import NOTE_FIGURES
 from contracts.report import ReportContract
+from contracts.report_front import FRONT_BANNED
+from tests.contracts.front_fixtures import CASES, FRONT_FIXTURES, written
 
 FRONTEND = Path(__file__).resolve().parents[2] / "frontend" / "src"
 FIXTURE = FRONTEND / "pages" / "insightsFixture.json"
@@ -44,3 +49,25 @@ def test_the_frontends_history_minimum_is_the_contracts() -> None:
 
     assert found is not None
     assert int(found.group(1)) == MIN_HISTORY_MONTHS
+
+
+# --- the report redesign, step 5: the front section's fixtures are stage 5's output, unchanged ---------------
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_each_front_fixture_is_what_stage_5_writes_today(case: str) -> None:
+    on_disk = (FRONT_FIXTURES / f"{case}.json").read_text(encoding="utf-8")
+    data = json.loads(on_disk)
+
+    ReportContract.model_validate(data["report"])
+    LeverBridge.model_validate(data["bridge"])
+    assert on_disk == written(case), "regenerate: python -m tests.contracts.front_fixtures"
+
+
+def test_the_pages_banned_words_are_the_contracts() -> None:
+    # The Insights page checks its front against the same list report.html is checked against (step 5).
+    source = (FRONTEND / "domain" / "frontBanned.ts").read_text(encoding="utf-8")
+    found = re.search(r"export const FRONT_BANNED = \[(.*?)\]", source, re.S)
+
+    assert found is not None
+    assert tuple(re.findall(r"'([^']*)'", found.group(1))) == FRONT_BANNED

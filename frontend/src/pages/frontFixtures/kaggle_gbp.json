@@ -1,0 +1,1421 @@
+{
+ "report": {
+  "schema_version": "2.9",
+  "generated_at": "2026-09-29T00:00:00Z",
+  "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
+  "source_file": "kaggle.csv",
+  "data_quality": {
+   "rows_in": 12575,
+   "rows_out": 11362,
+   "issues_fixed": 3,
+   "warnings": 0
+  },
+  "layer_1_numbers": {
+   "period": {
+    "current": "2024-12",
+    "previous": "2024-11",
+    "data_start": "2022-01-01",
+    "data_end": "2025-01-18",
+    "previous_complete": true,
+    "previous_incomplete_reason": null
+   },
+   "trust": {
+    "verdict": "trusted",
+    "checks": [
+     {
+      "id": "D1",
+      "status": "ok",
+      "message": "Coverage matches this store's normal trading pattern."
+     },
+     {
+      "id": "D2",
+      "status": "ok",
+      "message": "No order-of-magnitude price shift across the 19 comparable products."
+     },
+     {
+      "id": "D3",
+      "status": "ok",
+      "message": "Stage 1 flagged no rows in this file."
+     }
+    ],
+    "limitations": [
+     "rows dropped in stage 1 cannot be assigned to a period, so a gap caused by dropped rows is invisible here"
+    ]
+   },
+   "kpis": [
+    {
+     "id": "revenue",
+     "label": "Revenue",
+     "unit": "money",
+     "current": 46292.5,
+     "previous": 41367.5,
+     "change_pct": 11.905481356137065,
+     "change_reason": null,
+     "change": 4925.0,
+     "current_reason": null,
+     "previous_reason": null,
+     "notes": []
+    },
+    {
+     "id": "orders",
+     "label": "Orders",
+     "unit": "count",
+     "current": 343,
+     "previous": 308,
+     "change_pct": null,
+     "change_reason": null,
+     "change": null,
+     "current_reason": null,
+     "previous_reason": null,
+     "notes": []
+    },
+    {
+     "id": "active_customers",
+     "label": "Active customers",
+     "unit": "count",
+     "current": 25,
+     "previous": 25,
+     "change_pct": null,
+     "change_reason": null,
+     "change": null,
+     "current_reason": null,
+     "previous_reason": null,
+     "notes": []
+    },
+    {
+     "id": "aov",
+     "label": "Average order value",
+     "unit": "money",
+     "current": 134.96355685131195,
+     "previous": 134.31006493506493,
+     "change_pct": null,
+     "change_reason": null,
+     "change": null,
+     "current_reason": null,
+     "previous_reason": null,
+     "notes": []
+    },
+    {
+     "id": "return_rate",
+     "label": "Return rate",
+     "unit": "ratio",
+     "current": 0.0,
+     "previous": 0.0,
+     "change_pct": null,
+     "change_reason": null,
+     "change": null,
+     "current_reason": null,
+     "previous_reason": null,
+     "notes": []
+    }
+   ],
+   "current_note": null,
+   "revenue_by_month": [
+    {
+     "period": "2022-01",
+     "revenue": 50525.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-02",
+     "revenue": 41579.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-03",
+     "revenue": 38566.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-04",
+     "revenue": 38650.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-05",
+     "revenue": 38752.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-06",
+     "revenue": 40846.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-07",
+     "revenue": 41098.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-08",
+     "revenue": 38178.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-09",
+     "revenue": 44287.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-10",
+     "revenue": 35580.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-11",
+     "revenue": 39989.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2022-12",
+     "revenue": 36249.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-01",
+     "revenue": 45989.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-02",
+     "revenue": 36520.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-03",
+     "revenue": 35978.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-04",
+     "revenue": 37003.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-05",
+     "revenue": 38563.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-06",
+     "revenue": 40540.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-07",
+     "revenue": 43334.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-08",
+     "revenue": 37238.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-09",
+     "revenue": 37945.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-10",
+     "revenue": 36091.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-11",
+     "revenue": 34900.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2023-12",
+     "revenue": 41046.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-01",
+     "revenue": 44885.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-02",
+     "revenue": 35054.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-03",
+     "revenue": 40841.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-04",
+     "revenue": 43280.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-05",
+     "revenue": 42254.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-06",
+     "revenue": 42583.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-07",
+     "revenue": 39896.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-08",
+     "revenue": 41459.0,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-09",
+     "revenue": 40023.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-10",
+     "revenue": 41399.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-11",
+     "revenue": 41367.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2024-12",
+     "revenue": 46292.5,
+     "revenue_reason": null,
+     "complete": true
+    },
+    {
+     "period": "2025-01",
+     "revenue": 24211.5,
+     "revenue_reason": null,
+     "complete": false
+    }
+   ],
+   "undated_lines": 0,
+   "undated_lines_reason": null,
+   "future_lines": 0,
+   "future_lines_reason": null,
+   "unconfirmed_placeholders_reason": null,
+   "unmeasurable": [],
+   "non_product": [],
+   "outside_revenue": [],
+   "how_to_read": [
+    {
+     "code": "discounts_in_prices",
+     "text": "Discounts count only lines classed as discounts; a discount already taken off a line's price is not visible, and that line's gross sales are at the reduced price.",
+     "figures": [
+      "gross_sales",
+      "discounts"
+     ],
+     "measures": []
+    }
+   ],
+   "notes": [],
+   "partial_months": [
+    {
+     "period": "2025-01",
+     "covers_from": "2025-01-01",
+     "covers_to": "2025-01-18",
+     "position": "last"
+    }
+   ]
+  },
+  "layer_2_causes": {
+   "headline": {
+    "rule": 6,
+    "hypothesis_id": "B1",
+    "lens": "lever",
+    "message": "Revenue went from 41,367.50 to 46,292.50 (+4,925.00). The best-supported explanation: customers bought more often (lever lens, 96% of the change).",
+    "movement": {
+     "change_pct": 11.905481356137065,
+     "typical_pct": 4.885954856307071,
+     "movements": 23,
+     "factor": 2.0,
+     "singled_out": true,
+     "reason": null,
+     "season": null
+    },
+    "hedge": null,
+    "named": [
+     "B1"
+    ],
+    "offsetting": null
+   },
+   "hypotheses_note": null,
+   "hypotheses": [
+    {
+     "id": "D1",
+     "lens": "data",
+     "statement": "Days with no sales (missing data or a closure) explain the change",
+     "verdict": "ruled_out",
+     "contribution": null,
+     "share": null,
+     "rule": "excess zero days (current 0.0, previous 0.0) stay under the D1 check's thresholds",
+     "evidence": {
+      "estimated_revenue_gap": 0.0,
+      "estimated_revenue_gap_prev": 0.0,
+      "d1_status": "ok"
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "estimated_revenue_gap: 0",
+      "estimated_revenue_gap_prev: 0",
+      "d1_status: ok"
+     ]
+    },
+    {
+     "id": "D2",
+     "lens": "data",
+     "statement": "Prices shifted uniformly (possible unit or currency issue)",
+     "verdict": "ruled_out",
+     "contribution": null,
+     "share": null,
+     "rule": "supported when D2 cautions",
+     "evidence": {
+      "check_status": "ok",
+      "comparable_products": 19,
+      "median_ratio": 1.0,
+      "share_extreme": 0.0,
+      "rule": "small_catalog_order_of_magnitude"
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "check_status: ok",
+      "comparable_products: 19",
+      "median_ratio: 1",
+      "share_extreme: 0",
+      "rule: small_catalog_order_of_magnitude"
+     ]
+    },
+    {
+     "id": "D3",
+     "lens": "data",
+     "statement": "Flagged rows concentrated in the current period",
+     "verdict": "ruled_out",
+     "contribution": null,
+     "share": null,
+     "rule": "supported when D3 cautions",
+     "evidence": {
+      "check_status": "ok",
+      "flag_columns": 0,
+      "uncategorised_revenue_share_cur": 0.0,
+      "uncategorised_revenue_share_prev": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "check_status: ok",
+      "flag_columns: 0",
+      "uncategorised_revenue_share_cur: 0",
+      "uncategorised_revenue_share_prev: 0"
+     ]
+    },
+    {
+     "id": "T1",
+     "lens": "time",
+     "statement": "The calendar explains the change",
+     "verdict": "supported",
+     "contribution": 1274.1501792043844,
+     "share": 0.2587106962851542,
+     "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "calendar_effect": 1274.1501792043844,
+      "method": "weekday_weights"
+     },
+     "moved_against": false,
+     "verdict_label": "supported",
+     "evidence_text": [
+      "calendar_effect: 1,274.15",
+      "method: weekday_weights"
+     ]
+    },
+    {
+     "id": "T2",
+     "lens": "time",
+     "statement": "Last year's change between the same two months explains the change",
+     "verdict": "supported",
+     "contribution": 7284.947134670491,
+     "share": 1.4791770831818256,
+     "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "ly_prev": 34900.0,
+      "ly_cur": 41046.0,
+      "revenue_prev": 41367.5,
+      "typical_month": 40281.75,
+      "excess_zero_days_year_ago_cur": 0.0,
+      "excess_zero_days_year_ago_prev": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "supported",
+     "evidence_text": [
+      "ly_prev: 34,900.00",
+      "ly_cur: 41,046.00",
+      "revenue_prev: 41,367.50",
+      "typical_month: 40,281.75",
+      "excess_zero_days_year_ago_cur: 0",
+      "excess_zero_days_year_ago_prev: 0"
+     ]
+    },
+    {
+     "id": "T3",
+     "lens": "time",
+     "statement": "The change is routine variation",
+     "verdict": "inconclusive",
+     "contribution": null,
+     "share": null,
+     "rule": "revenue has no year-over-year verdict (ADR-0006, ADR-0007)",
+     "evidence": {
+      "series_without_verdict": [
+       "revenue",
+       "orders",
+       "active_customers",
+       "frequency",
+       "aov",
+       "units_per_order",
+       "price_per_unit",
+       "return_rate"
+      ]
+     },
+     "moved_against": false,
+     "verdict_label": "inconclusive",
+     "evidence_text": [
+      "series_without_verdict: [\"revenue\", \"orders\", \"active_customers\", \"frequency\", \"aov\", \"units_per_order\", \"price_per_unit\", \"return_rate\"]"
+     ]
+    },
+    {
+     "id": "C1",
+     "lens": "customers",
+     "statement": "New-customer revenue changed",
+     "verdict": "ruled_out",
+     "contribution": 0.0,
+     "share": 0.0,
+     "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "new_current": 0.0,
+      "new_previous": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "new_current: 0",
+      "new_previous: 0"
+     ]
+    },
+    {
+     "id": "C2",
+     "lens": "customers",
+     "statement": "Revenue lost to lapsed customers changed",
+     "verdict": "ruled_out",
+     "contribution": 0.0,
+     "share": 0.0,
+     "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "lapsed_current": -0.0,
+      "lapsed_previous": -0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "lapsed_current: 0",
+      "lapsed_previous: 0"
+     ]
+    },
+    {
+     "id": "C3",
+     "lens": "customers",
+     "statement": "Returning-customer revenue changed",
+     "verdict": "ruled_out",
+     "contribution": 0.0,
+     "share": 0.0,
+     "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "resurrected_current": 0.0,
+      "resurrected_previous": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "resurrected_current: 0",
+      "resurrected_previous: 0"
+     ]
+    },
+    {
+     "id": "C4",
+     "lens": "customers",
+     "statement": "Customers moved between segments",
+     "verdict": "inconclusive",
+     "contribution": null,
+     "share": null,
+     "rule": "stage 2's segment counts are a snapshot at the file's end, not at the end of each compared month (off in v1)",
+     "evidence": {},
+     "moved_against": false,
+     "verdict_label": "inconclusive",
+     "evidence_text": []
+    },
+    {
+     "id": "B1",
+     "lens": "lever",
+     "statement": "Customers bought more often",
+     "verdict": "supported",
+     "contribution": 4712.288381261595,
+     "share": 0.9568098236064152,
+     "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "frequency_prev": 12.32,
+      "frequency_cur": 13.72
+     },
+     "moved_against": false,
+     "verdict_label": "supported",
+     "evidence_text": [
+      "frequency_prev: 12.32",
+      "frequency_cur: 13.72"
+     ]
+    },
+    {
+     "id": "B2",
+     "lens": "lever",
+     "statement": "Baskets got bigger",
+     "verdict": "supported",
+     "contribution": 2858.8431342485997,
+     "share": 0.580475763299208,
+     "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "units_per_order_prev": 5.438311688311688,
+      "units_per_order_cur": 5.80466472303207
+     },
+     "moved_against": false,
+     "verdict_label": "supported",
+     "evidence_text": [
+      "units_per_order_prev: 5.438",
+      "units_per_order_cur: 5.805"
+     ]
+    },
+    {
+     "id": "P1",
+     "lens": "product",
+     "statement": "Like-for-like prices changed",
+     "verdict": "ruled_out",
+     "contribution": 0.0,
+     "share": 0.0,
+     "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "price_effect": 0.0,
+      "products_in_both_periods": 118
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "price_effect: 0",
+      "products_in_both_periods: 118"
+     ]
+    },
+    {
+     "id": "P2",
+     "lens": "product",
+     "statement": "Sales mix shifted towards cheaper products",
+     "verdict": "ruled_out",
+     "contribution": -1479.6472434497755,
+     "share": -0.3004359885177209,
+     "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "mix_effect": -1479.6472434497755,
+      "products_in_both_periods": 118
+     },
+     "moved_against": true,
+     "verdict_label": "moved against the change in gross sales (-1,479.65)",
+     "evidence_text": [
+      "mix_effect: -1,479.65",
+      "products_in_both_periods: 118"
+     ]
+    },
+    {
+     "id": "P3",
+     "lens": "returns",
+     "statement": "Returns changed",
+     "verdict": "ruled_out",
+     "contribution": -0.0,
+     "share": -0.0,
+     "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "returns_prev": 0.0,
+      "returns_cur": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "returns_prev: 0",
+      "returns_cur: 0"
+     ]
+    },
+    {
+     "id": "P4",
+     "lens": "returns",
+     "statement": "Discounts and other deductions changed",
+     "verdict": "ruled_out",
+     "contribution": -0.0,
+     "share": -0.0,
+     "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "deductions_prev": 0.0,
+      "deductions_cur": 0.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "deductions_prev: 0",
+      "deductions_cur: 0"
+     ]
+    },
+    {
+     "id": "P5",
+     "lens": "returns",
+     "statement": "Charges paid by customers changed",
+     "verdict": "not_testable",
+     "contribution": null,
+     "share": null,
+     "rule": "requires lines classed as charges",
+     "evidence": {
+      "reason": "no line is classed as a charge in Review"
+     },
+     "moved_against": false,
+     "verdict_label": "not testable",
+     "evidence_text": [
+      "reason: no line is classed as a charge in Review"
+     ]
+    },
+    {
+     "id": "R1",
+     "lens": "localization",
+     "statement": "The change is concentrated in one product or category",
+     "verdict": "ruled_out",
+     "contribution": null,
+     "share": null,
+     "rule": "breadth concentrated - more than half of the change in the products' sales, the concentration over each product's own change - and the top product moving with the total",
+     "evidence": {
+      "classification": "mixed",
+      "top_member_share": 0.03407336421231965,
+      "products_share_of_change": 1.0,
+      "top_member": "Product 029",
+      "top_member_delta": 1280.0
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "classification: mixed",
+      "top_member_share: 0.03407",
+      "products_share_of_change: 1",
+      "top_member: Product 029",
+      "top_member_delta: 1,280.00"
+     ]
+    },
+    {
+     "id": "R2",
+     "lens": "product",
+     "statement": "Products were launched or discontinued",
+     "verdict": "partial",
+     "contribution": 265.5,
+     "share": 0.05390862944162437,
+     "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+     "evidence": {
+      "new_products": 9101.0,
+      "discontinued_products": -8835.5
+     },
+     "moved_against": false,
+     "verdict_label": "partial",
+     "evidence_text": [
+      "new_products: 9,101.00",
+      "discontinued_products: -8,835.50"
+     ]
+    },
+    {
+     "id": "R3",
+     "lens": "product",
+     "statement": "A top product may have run out of stock",
+     "verdict": "ruled_out",
+     "contribution": 0.0,
+     "share": 0.0,
+     "rule": "share = contribution / D, D = |change in gross sales|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+     "evidence": {
+      "products": [],
+      "wording": "consistent with a stockout, verify on the shelf"
+     },
+     "moved_against": false,
+     "verdict_label": "ruled out",
+     "evidence_text": [
+      "products: []",
+      "wording: consistent with a stockout, verify on the shelf"
+     ]
+    }
+   ],
+   "not_testable": [
+    {
+     "id": "X1",
+     "statement": "Marketing and promotions",
+     "reason": "no campaign data; discounts booked as lines are P4, a discount column is not canonical"
+    },
+    {
+     "id": "X2",
+     "statement": "Competitor actions",
+     "reason": "no competitor data"
+    },
+    {
+     "id": "X3",
+     "statement": "Weather and macro events",
+     "reason": "no external data"
+    },
+    {
+     "id": "X4",
+     "statement": "Traffic and conversion",
+     "reason": "no footfall or session data; sales rows record only purchases"
+    },
+    {
+     "id": "X5",
+     "statement": "Margin",
+     "reason": "no cost column"
+    },
+    {
+     "id": "X6",
+     "statement": "Country or region",
+     "reason": "no canonical country field (the 2D finding)"
+    },
+    {
+     "id": "X7",
+     "statement": "Sales channel or payment method",
+     "reason": "no canonical channel or payment field"
+    }
+   ],
+   "signals": [
+    {
+     "series": "revenue",
+     "label": "Revenue",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 12.782000682161476,
+     "center": 1.653860324792079,
+     "lower": -19.703860688419997,
+     "upper": 23.011581338004152,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "orders",
+     "label": "Orders",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 9.235668789808917,
+     "center": 1.4370995047240682,
+     "lower": -24.947304606825032,
+     "upper": 27.821503616273166,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "active_customers",
+     "label": "Active customers",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 0.0,
+     "center": 0.0,
+     "lower": -2.0,
+     "upper": 2.0,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "minimum_spread"
+    },
+    {
+     "series": "frequency",
+     "label": "Orders per customer",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 9.235668789808917,
+     "center": 1.4370995047240684,
+     "lower": -24.947304606825032,
+     "upper": 27.821503616273166,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "aov",
+     "label": "Average order value",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 3.2464962513081765,
+     "center": 0.37716459582885503,
+     "lower": -17.548973572323593,
+     "upper": 18.303302763981304,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "units_per_order",
+     "label": "Units per order",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": 6.77590644593263,
+     "center": -0.8379549262171658,
+     "lower": -8.784651991477954,
+     "upper": 7.108742139043623,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "price_per_unit",
+     "label": "Price per unit",
+     "mode": "yoy",
+     "signal": "within",
+     "value_cur": -3.3054368837520673,
+     "center": 1.2085436092433772,
+     "lower": -13.024208905484205,
+     "upper": 15.441296123970957,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "median_moving_range"
+    },
+    {
+     "series": "return_rate",
+     "label": "Return rate",
+     "mode": "level",
+     "signal": "within",
+     "value_cur": 0.0,
+     "center": 0.0,
+     "lower": -0.01,
+     "upper": 0.01,
+     "rule": null,
+     "mode_fallback": null,
+     "insufficient_reason": null,
+     "limits_method": "minimum_spread"
+    }
+   ],
+   "narration": null,
+   "narration_status": "not_in_v1",
+   "notes": [],
+   "suggested_classes": {},
+   "lever_levels": [
+    {
+     "level": "level1",
+     "formula": "customers*frequency*aov",
+     "factors": [
+      {
+       "name": "customers",
+       "value_prev": 25.0,
+       "value_cur": 25.0,
+       "contribution": 0.0
+      },
+      {
+       "name": "frequency",
+       "value_prev": 12.32,
+       "value_cur": 13.72,
+       "contribution": 4712.288381261595
+      },
+      {
+       "name": "aov",
+       "value_prev": 134.31006493506493,
+       "value_cur": 134.96355685131195,
+       "contribution": 212.71161873840538
+      }
+     ]
+    },
+    {
+     "level": "level2",
+     "formula": "units_per_order*price_per_unit",
+     "factors": [
+      {
+       "name": "units_per_order",
+       "value_prev": 5.438311688311688,
+       "value_cur": 5.80466472303207,
+       "contribution": 2858.8431342485997
+      },
+      {
+       "name": "price_per_unit",
+       "value_prev": 24.697014925373136,
+       "value_cur": 23.250878955298845,
+       "contribution": -2646.1315155101943
+      }
+     ]
+    },
+    {
+     "level": "pair",
+     "formula": "orders*aov",
+     "factors": [
+      {
+       "name": "orders",
+       "value_prev": 308.0,
+       "value_cur": 343.0,
+       "contribution": 4712.288381261595
+      },
+      {
+       "name": "aov",
+       "value_prev": 134.31006493506493,
+       "value_cur": 134.96355685131195,
+       "contribution": 212.71161873840538
+      }
+     ]
+    }
+   ]
+  },
+  "layer_3_actions": {
+   "forecast": {
+    "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3), no seasonality claimed",
+    "months_used": 36,
+    "insufficient_history": false,
+    "points": [
+     {
+      "period": "2025-01",
+      "point": 43835.33333333333,
+      "low": 38893.13949234326,
+      "high": 49405.537159650725,
+      "confidence": 0.8
+     },
+     {
+      "period": "2025-02",
+      "point": 43835.33333333333,
+      "low": 38969.26800830175,
+      "high": 49309.02084265716,
+      "confidence": 0.8
+     },
+     {
+      "period": "2025-03",
+      "point": 43835.33333333333,
+      "low": 38914.7309379888,
+      "high": 49378.12499607001,
+      "confidence": 0.8
+     }
+    ],
+    "history_note": null,
+    "season_years": null,
+    "season_note": null,
+    "notes": [],
+    "first_month_in_file": true,
+    "partial_first_month_until": "2025-01-18"
+   },
+   "recommendations": null,
+   "do_not_do": null,
+   "recommendations_status": "switched_off",
+   "notes": []
+  },
+  "charts": [
+   {
+    "id": "revenue_trend",
+    "type": "line",
+    "title": "Revenue by month",
+    "series": [
+     {
+      "name": "revenue",
+      "x": [
+       "2022-01",
+       "2022-02",
+       "2022-03",
+       "2022-04",
+       "2022-05",
+       "2022-06",
+       "2022-07",
+       "2022-08",
+       "2022-09",
+       "2022-10",
+       "2022-11",
+       "2022-12",
+       "2023-01",
+       "2023-02",
+       "2023-03",
+       "2023-04",
+       "2023-05",
+       "2023-06",
+       "2023-07",
+       "2023-08",
+       "2023-09",
+       "2023-10",
+       "2023-11",
+       "2023-12",
+       "2024-01",
+       "2024-02",
+       "2024-03",
+       "2024-04",
+       "2024-05",
+       "2024-06",
+       "2024-07",
+       "2024-08",
+       "2024-09",
+       "2024-10",
+       "2024-11",
+       "2024-12"
+      ],
+      "y": [
+       50525.0,
+       41579.5,
+       38566.0,
+       38650.0,
+       38752.5,
+       40846.0,
+       41098.5,
+       38178.0,
+       44287.0,
+       35580.5,
+       39989.0,
+       36249.5,
+       45989.5,
+       36520.0,
+       35978.5,
+       37003.0,
+       38563.0,
+       40540.0,
+       43334.0,
+       37238.5,
+       37945.5,
+       36091.5,
+       34900.0,
+       41046.0,
+       44885.0,
+       35054.0,
+       40841.5,
+       43280.5,
+       42254.0,
+       42583.0,
+       39896.0,
+       41459.0,
+       40023.5,
+       41399.5,
+       41367.5,
+       46292.5
+      ]
+     }
+    ],
+    "notes": [],
+    "note": null,
+    "cautions": []
+   },
+   {
+    "id": "forecast",
+    "type": "line",
+    "title": "Revenue forecast",
+    "series": [
+     {
+      "name": "point",
+      "x": [
+       "2025-01",
+       "2025-02",
+       "2025-03"
+      ],
+      "y": [
+       43835.33333333333,
+       43835.33333333333,
+       43835.33333333333
+      ]
+     },
+     {
+      "name": "low",
+      "x": [
+       "2025-01",
+       "2025-02",
+       "2025-03"
+      ],
+      "y": [
+       38893.13949234326,
+       38969.26800830175,
+       38914.7309379888
+      ]
+     },
+     {
+      "name": "high",
+      "x": [
+       "2025-01",
+       "2025-02",
+       "2025-03"
+      ],
+      "y": [
+       49405.537159650725,
+       49309.02084265716,
+       49378.12499607001
+      ]
+     }
+    ],
+    "notes": [],
+    "note": null,
+    "cautions": []
+   }
+  ],
+  "provenance": {
+   "stages_run": [
+    "ingest",
+    "analyze",
+    "diagnose",
+    "predict"
+   ],
+   "ai_calls": 0,
+   "models_used": []
+  },
+  "currency": {
+   "code": "GBP",
+   "sentence": null
+  },
+  "rows_left_out": [
+   {
+    "action": "drop_rows_missing",
+    "column": "Item",
+    "rows": 1213,
+    "sentence": "1,213 rows with no value in \"Item\" were left out"
+   }
+  ],
+  "front": {
+   "state": "compared",
+   "caution": [],
+   "summary": [
+    "Sales in December 2024 were GBP 46,292.50, up GBP 4,925.00 (+11.9%) on November 2024 (GBP 41,367.50).",
+    "That is more than twice this shop's typical month-to-month change (about 4.9%).",
+    "The figures match customers ordering more often: 25 customers placed an order in each month, and together they placed 343 orders, up from 308."
+   ],
+   "sales_note": "Sales here means the money customers paid (before any costs). It is not profit: the file has no cost data.",
+   "chart_title": "Sales by month (before any costs)",
+   "chart_note": [
+    "January 2025 is not in the chart: the file covers only 1 to 18 January 2025. Comparing part of a month with full months would mislead, so it is left out."
+   ],
+   "waterfall": {
+    "previous_label": "November 2024 sales",
+    "current_label": "December 2024 sales",
+    "shown_previous": 41367.5,
+    "shown_current": 46292.5,
+    "shown_change": 4925.0,
+    "previous_text": "GBP 41,367.50",
+    "current_text": "GBP 46,292.50",
+    "change_text": "GBP +4,925.00",
+    "bars": [
+     {
+      "factor": "customers",
+      "label": "Customers who placed an order",
+      "was": "25",
+      "now": "25",
+      "shown": 0.0,
+      "worth": "GBP +0.00"
+     },
+     {
+      "factor": "frequency",
+      "label": "Orders per customer",
+      "was": "12.32",
+      "now": "13.72",
+      "shown": 4712.29,
+      "worth": "GBP +4,712.29"
+     },
+     {
+      "factor": "units_per_order",
+      "label": "Items per order",
+      "was": "5.44",
+      "now": "5.80",
+      "shown": 2858.84,
+      "worth": "GBP +2,858.84"
+     },
+     {
+      "factor": "price_per_unit",
+      "label": "Average price per item",
+      "was": "GBP 24.70",
+      "now": "GBP 23.25",
+      "shown": -2646.13,
+      "worth": "GBP -2,646.13"
+     }
+    ],
+    "caption": "Read left to right: November's sales, then what each part added or took away, ending at December's sales. The bars add up exactly to the change. 'Worth' amounts split the effect of things that moved together, so read them as sizes, not exact causes.",
+    "note": null
+   },
+   "waterfall_note": null,
+   "checklist": [
+    {
+     "kind": "matches",
+     "title": "Matches the figures",
+     "note": null,
+     "lines": [
+      "Customers ordered more often: 343 orders, up from 308 - worth about GBP +4,712.29.",
+      "Last year alone, sales rose between November and December: GBP 34,900.00 to GBP 41,046.00.",
+      "Bigger baskets: 5.80 items per order, up from 5.44 - worth about GBP +2,858.84.",
+      "The calendar: December's length and mix of weekdays - worth about GBP +1,274.15.",
+      "Products sold in only one of the two months: sales of products sold in December but not in November (GBP +9,101.00) and the other way round (GBP -8,835.50) - together worth about GBP +265.50 (a small part)."
+     ],
+     "after": "These amounts are measured in different ways and overlap, so they do not add up to the change (GBP 4,925.00). The chart in section 2 is the one that adds up."
+    },
+    {
+     "kind": "against",
+     "title": "Pulled the other way",
+     "note": null,
+     "lines": [
+      "Inside the chart's average price per item (GBP -2,646.13): customers chose cheaper products among those sold in both months. Measured product by product, that shift is about GBP -1,479.65 - a different measure, not an amount to add to the chart."
+     ],
+     "after": null
+    },
+    {
+     "kind": "not_reason",
+     "title": "Checked - not the reason",
+     "note": null,
+     "lines": [
+      "Customers: no new customers, none stopped buying, none came back after a break - the same customers placed orders in both months.",
+      "Prices: products sold in both months kept their prices, so the chart's average price per item (GBP -2,646.13) moved with what customers bought, not with price changes.",
+      "Refunds for returned goods: none in either month.",
+      "Discounts: none booked as separate lines (a discount already taken off a price cannot be seen).",
+      "One product or category: the change was not concentrated in one.",
+      "Stockouts: no best-selling product stopped selling in a way that suggests it ran out."
+     ],
+     "after": null
+    },
+    {
+     "kind": "cannot_show",
+     "title": "This file cannot show it",
+     "note": null,
+     "lines": [
+      "Postage and other charges paid by customers: no line was classed as a charge in Review."
+     ],
+     "after": null
+    }
+   ],
+   "data_checks": [
+    "Data checks passed (details in the technical section)."
+   ],
+   "next_steps": {
+    "status": "list",
+    "sentence": null,
+    "items": [
+     {
+      "rests_on": "Inside the chart's average price per item (GBP -2,646.13): customers chose cheaper products among those sold in both months. Measured product by product, that shift is about GBP -1,479.65 - a different measure, not an amount to add to the chart.",
+      "action": "Show a pricier alternative next to the cheaper products customers chose.",
+      "why": "Customers chose cheaper products among those sold in both months; offering a step up may win some of them back.",
+      "watch": "Next month, check: the average price per item (GBP 23.25 this month; GBP 24.70 the month before)."
+     }
+    ]
+   },
+   "next_month": [
+    "Next month (January 2025): about GBP 43,835.33, likely between GBP 38,893.14 and GBP 49,405.54 (the real figure should land in this range about 8 months in 10).",
+    "It is based on the last three full months, the latest counting most, and assumes no seasonal pattern.",
+    "Your file already has sales for 1 to 18 January 2025; that part-month is not compared with this estimate."
+   ],
+   "cannot_know": [
+    {
+     "title": "Profit",
+     "text": "The file has no costs, so these figures are sales, not profit."
+    },
+    {
+     "title": "Marketing and promotions",
+     "text": "The file has no campaign data."
+    },
+    {
+     "title": "Competitors, weather and events",
+     "text": "Nothing outside the file is used."
+    },
+    {
+     "title": "How many people visited or browsed",
+     "text": "The file records only purchases."
+    },
+    {
+     "title": "Stock",
+     "text": "This version analyses sales, not stock levels."
+    },
+    {
+     "title": "Sales by channel, payment method or country",
+     "text": "This version does not split sales that way."
+    },
+    {
+     "title": "Rows left out",
+     "text": "12,575 rows were read and 11,362 used: 1,213 rows with no value in \"Item\" were left out during cleaning, as the plan you approved in Review said. Rows left out are in no figure, and a gap they leave cannot be seen."
+    }
+   ],
+   "notes": {
+    "summary": [],
+    "change": [],
+    "checked": [],
+    "next_month": [],
+    "next_steps": []
+   }
+  }
+ },
+ "bridge": {
+  "revenue_previous": 41367.5,
+  "revenue_current": 46292.5,
+  "change": 4925.0,
+  "shown_previous": 41367.5,
+  "shown_current": 46292.5,
+  "shown_change": 4925.0,
+  "bars": [
+   {
+    "factor": "customers",
+    "value_prev": 25.0,
+    "value_cur": 25.0,
+    "contribution": 0.0,
+    "shown": 0.0
+   },
+   {
+    "factor": "frequency",
+    "value_prev": 12.32,
+    "value_cur": 13.72,
+    "contribution": 4712.288381261595,
+    "shown": 4712.29
+   },
+   {
+    "factor": "units_per_order",
+    "value_prev": 5.438311688311688,
+    "value_cur": 5.80466472303207,
+    "contribution": 2858.8431342485997,
+    "shown": 2858.84
+   },
+   {
+    "factor": "price_per_unit",
+    "value_prev": 24.697014925373136,
+    "value_cur": 23.250878955298845,
+    "contribution": -2646.1315155101943,
+    "shown": -2646.13
+   }
+  ],
+  "aov_split": true,
+  "aov_split_withheld": null
+ }
+}

@@ -13,6 +13,7 @@ from contracts import (
     ReportContract,
     SchemaInferenceContract,
 )
+from contracts.currency import CurrencyQuestion
 from contracts.lines import LineSummary, ReservedRename
 from stages.ingest.preview import PreviewResult
 
@@ -50,6 +51,14 @@ class PlanResponse(BaseModel):
 class PreviewResponse(BaseModel):
     run_id: str
     preview: PreviewResult
+
+
+class CurrencyResponse(BaseModel):
+    """Review's currency question (the report redesign's step 5): stage 1's
+    reading of the raw file on the plan as it stands, worded by stage 1."""
+
+    run_id: str
+    question: CurrencyQuestion
 
 
 class LineSummaryResponse(BaseModel):

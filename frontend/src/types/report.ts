@@ -2,6 +2,8 @@
 // section 9), as the Insights page reads it. Stage 5 computes nothing and neither does this page: every
 // figure is shown as the file has it, a null with its reason (CONTRACTS 11).
 
+import type { Front, LeverLevelView, ReportCurrency, RowsLeftOut } from './reportFront.ts'
+
 export type NoteCode =
   | 'same_day_cancellations'
   | 'returns_booked_as_in'
@@ -76,6 +78,8 @@ export interface Kpi {
   current: number | null
   previous: number | null
   change_pct: number | null
+  // 2.8 (Thach, Q22): revenue's exact change, beside its percentage; null for the other KPIs.
+  change?: number | null
   change_reason: string | null
   current_reason: string | null
   previous_reason: string | null
@@ -181,6 +185,9 @@ export interface Causes {
   hypotheses_note?: string | null
   hypotheses: HypothesisView[]
   not_testable: NotTestable[]
+  // 2.9 (design 1.7): the change's split, exact - level 1, level 2 (shown here even where the front withholds
+  // it, never drawn) and the orders x average order value pair.
+  lever_levels?: LeverLevelView[]
   // Not shown in the v1 UI (Thach, 2026-10-03): it stays in the downloadable report.
   signals: unknown[] | null
   narration: AiFindings | null
@@ -278,4 +285,9 @@ export interface ReportContract {
   layer_3_actions: Actions
   charts: Chart[]
   provenance: Provenance
+  // 2.9 (the report redesign, step 3): the currency (Q8), the rows the cleaning left out, and the front
+  // section - one copy of its wording for report.html and this page. Absent before 2.9.
+  currency?: ReportCurrency | null
+  rows_left_out?: RowsLeftOut[]
+  front?: Front | null
 }

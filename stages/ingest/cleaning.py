@@ -33,8 +33,8 @@ from stages.ingest import transforms
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.cleaned_text import as_read, cleaned_csv_text
 from stages.ingest.contract_files import write_files_atomically
-from stages.ingest.currency import currency_finding
 from stages.ingest.currency_apply import apply_currency
+from stages.ingest.currency_question import plan_currency
 from stages.ingest.customer_placeholders import unanswered_placeholders
 from stages.ingest.date_order import execution_order
 from stages.ingest.number_apply import apply_number_formats
@@ -275,8 +275,7 @@ def execute_run(
     # Q26). More than one refuses the plan, whatever the answer (Q7 = A);
     # else the answer, the file's, or not stated. Generic cleaning sums
     # nothing, so it neither blocks nor records one.
-    money = [action.source_name for action in plan.column_actions if action.canonical_field == "unit_price"]
-    currency = (apply_currency(currency_finding(frame, money), plan.confirmations.currency)
+    currency = (apply_currency(plan_currency(frame, plan), plan.confirmations.currency)
                 if require_required_fields else None)
     # Each line's class, decided once, here (2E-t1; docs/LINE_TAXONOMY.md
     # section 4).

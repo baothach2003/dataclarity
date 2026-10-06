@@ -1,6 +1,8 @@
 // How the Insights page prints report.json's figures: stage 5's own rules (stages/report/html_parts.py),
 // so the page and the downloadable report print every figure alike. Formatting only - rounding for
-// display, never a computed figure (CLAUDE.md 3.2). No currency symbol: the file never says which.
+// display, never a computed figure (CLAUDE.md 3.2). An amount carries the confirmed currency's ISO code
+// when the report has one (the report redesign's Q8: "GBP 46,292.50"), as html_parts.money does; a count
+// never does.
 
 import type { KpiUnit } from '../types/report.ts'
 
@@ -75,8 +77,9 @@ function signless(text: string): string {
   return /^-[0.,]+%?$/.test(text) ? text.slice(1) : text
 }
 
-export function money(value: number): string {
-  return signless(fixed(value, 2, true))
+export function money(value: number, code: string | null = null): string {
+  const text = signless(fixed(value, 2, true))
+  return code ? `${code} ${text}` : text
 }
 
 export function count(value: number): string {
@@ -105,6 +108,25 @@ export function share(value: number): string {
 
 export const FORMATS: Record<KpiUnit, (value: number) => string> = { money, count, ratio }
 
+/** A signed amount, "+4,712.29" / "-2,646.13" ("+0.00" for zero, a small negative rounded away "0.00"),
+ * with the currency's code when there is one - html_parts.signed_money, digit for digit. */
+export function signedMoney(value: number, code: string | null = null): string {
+  const text = signless(`${value >= 0 && !Object.is(value, -0) ? '+' : ''}${fixed(value, 2, true)}`)
+  return code ? `${code} ${text}` : text
+}
+
+/** A chart axis's amount tick: whole, grouped, the code on it when the report has one (report.html's
+ * tickprefix) - geometry, never a figure of the report. */
+export function axisAmount(value: number, code: string | null): string {
+  const text = count(value)
+  return code ? `${code} ${text}` : text
+}
+
+/** A KPI's value: the currency's code on money, never on a count or a ratio. */
+export function kpiValue(unit: KpiUnit, value: number, code: string | null): string {
+  return unit === 'money' ? money(value, code) : FORMATS[unit](value)
+}
+
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 /** "2026-05" -> "May 2026"; a value of another shape is shown as written. */
@@ -112,4 +134,10 @@ export function monthLabel(period: string): string {
   const match = /^(\d{4})-(\d{2})$/.exec(period)
   const name = match ? MONTHS[Number(match[2]) - 1] : undefined
   return match && name ? `${name} ${match[1]}` : period
+}
+
+/** A rate as report.html's exact split prints it (html_causes._signless_number): four decimals, trailing zeros
+ * dropped, "0" for zero. */
+export function plainNumber(value: number): string {
+  return value === 0 ? '0' : fixed(value, 4, true).replace(/0+$/, '').replace(/\.$/, '')
 }

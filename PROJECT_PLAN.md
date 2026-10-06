@@ -5960,6 +5960,19 @@ dataclarity/
       line built, fixed after its scoped review, then hidden by the stop
       rule (still false on a common shape after the fix). Open: Q63-Q65
       (docs/REPORT_REDESIGN.md section 10).
+      **Step 5, the frontend (2026-10-06), built:** Insights opens with
+      report.json's front section (one copy of the wording); the waterfall
+      draws the bridge - the refused basket split drawn nowhere (Q17, the
+      deploy blocker, closed); KPI cards, the hypothesis table, the limits
+      and the rest behind "Technical details"; "Sales by month (before any
+      costs)" with the part-month sentence; the ISO code on every amount,
+      never a count; Review's currency question (POST /currency, stage 1's
+      own reading) and the mixed-currency block; Results' currency line.
+      DESIGN EXCEPTION (Thach): the front section has no Figma frame - it
+      follows report.html's approved layout in the existing tokens
+      (recorded in docs/FIGMA_DESIGN_NOTES.md section 3). Checked in the
+      real app on the three runs at 390 and 1440 px, console clean; one
+      review cycle, its fixes and their scoped review. Open: Q66-Q67.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6159,6 +6172,15 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**Report redesign - step 5, the frontend (2026-10-06, later)**: Insights
+opens with the front section; the waterfall draws the bridge (Q17 closed);
+today's cards behind "Technical details"; Review asks the currency (POST
+/currency) and blocks a mixed file; Results shows it. No Figma frame for
+the front: report.html's layout in the existing tokens (Thach's exception,
+recorded). Checked in the real app (AI faked locally) on the three runs at
+390 and 1440 px, console clean. One review cycle, fixed; the fixes' scoped
+review. Its own commit group. Open: Q63-Q67. No deploy step started.
 
 **Report redesign - Q56-Q62, committed** (2026-10-06, later). One change
 printed one way (A and B); the season sentence carries its gap and the

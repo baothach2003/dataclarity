@@ -17,6 +17,7 @@ from app.dependencies import (
 from app.schemas import (
     AnalyzeResponse,
     AnalyzeSchemaResponse,
+    CurrencyResponse,
     DiagnoseResponse,
     ExecuteResponse,
     LineSummaryResponse,
@@ -134,6 +135,18 @@ def preview_plan(
 ) -> PreviewResponse:
     return plan_execution.preview_plan(
         session, run_id, body, settings=settings, cache=cache, work=work)
+
+
+@router.post("/{run_id}/currency")
+def ask_currency(
+    run_id: str,
+    body: PlanBody,
+    settings: SettingsDep,
+    session: SessionDep,
+    cache: Annotated[FrameCache, Depends(get_frame_cache)],
+    work: WorkDep,
+) -> CurrencyResponse:
+    return plan_execution.ask_currency(session, run_id, body, settings=settings, cache=cache, work=work)
 
 
 @router.post("/{run_id}/line-summary")

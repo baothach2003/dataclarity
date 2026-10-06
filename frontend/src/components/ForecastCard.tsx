@@ -7,8 +7,9 @@
 
 import { Area, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from 'recharts'
 import { cautionsToSay, forecastRows } from '../domain/chartData.ts'
+import { useCurrencyCode } from '../domain/currencyCode.ts'
 import { MIN_HISTORY_MONTHS } from '../domain/forecastRules.ts'
-import { count, money, monthLabel, share } from '../domain/reportFormat.ts'
+import { axisAmount, count, money, monthLabel, share } from '../domain/reportFormat.ts'
 import type { Chart, ForecastView, NoteView, ReportPeriod } from '../types/report.ts'
 import { Notice } from './Notice.tsx'
 import { NotesBeside } from './NotesBeside.tsx'
@@ -27,14 +28,15 @@ function months(n: number): string {
   return `${count(n)} complete ${n === 1 ? 'month' : 'months'}`
 }
 
-function tooltipValue(value: unknown): string {
+function tooltipValue(value: unknown, code: string | null): string {
   if (typeof value === 'number') {
-    return money(value)
+    return money(value, code)
   }
-  return Array.isArray(value) ? value.map((v) => money(Number(v))).join(' to ') : String(value)
+  return Array.isArray(value) ? value.map((v) => money(Number(v), code)).join(' to ') : String(value)
 }
 
 export function ForecastCard({ forecast, chart, notes, period }: ForecastCardProps) {
+  const code = useCurrencyCode()
   const title = chart?.title ?? 'Revenue forecast'
   // A blank note is no note (contracts/forecast.py) - the 6E3 review #13.
   const ownNotes = [forecast.history_note, forecast.season_note].filter((note): note is string => Boolean(note?.trim()))
@@ -93,8 +95,8 @@ export function ForecastCard({ forecast, chart, notes, period }: ForecastCardPro
           >
             <CartesianGrid stroke="var(--divider)" vertical={false} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(value: number) => count(value)} allowDecimals={false} tick={{ fontSize: 12 }} width={80} />
-            <Tooltip formatter={tooltipValue} />
+            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12 }} width={88} />
+            <Tooltip formatter={(value) => tooltipValue(value, code)} />
             <Legend />
             {/* The band, low to high, as one range area. */}
             <Area dataKey="band" name={band} stroke="none" fill="var(--accent)" fillOpacity={0.15} isAnimationActive={false} />
@@ -127,9 +129,9 @@ export function ForecastCard({ forecast, chart, notes, period }: ForecastCardPro
             {forecast.points.map((point) => (
               <tr key={point.period}>
                 <th scope="row">{monthLabel(point.period)}</th>
-                <td className="hypotheses__figure">{money(point.point)}</td>
-                <td className="hypotheses__figure">{money(point.low)}</td>
-                <td className="hypotheses__figure">{money(point.high)}</td>
+                <td className="hypotheses__figure">{money(point.point, code)}</td>
+                <td className="hypotheses__figure">{money(point.low, code)}</td>
+                <td className="hypotheses__figure">{money(point.high, code)}</td>
               </tr>
             ))}
           </tbody>

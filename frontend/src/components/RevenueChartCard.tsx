@@ -7,7 +7,8 @@
 
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { cautionsToSay, revenueRows } from '../domain/chartData.ts'
-import { count, money, monthLabel } from '../domain/reportFormat.ts'
+import { useCurrencyCode } from '../domain/currencyCode.ts'
+import { axisAmount, money, monthLabel } from '../domain/reportFormat.ts'
 import { NOT_COMPARED_ABOVE } from '../domain/reportText.ts'
 import type { Chart, NoteView, Numbers } from '../types/report.ts'
 import { NotesBeside } from './NotesBeside.tsx'
@@ -21,6 +22,7 @@ interface RevenueChartCardProps {
 }
 
 export function RevenueChartCard({ chart, numbers, notes }: RevenueChartCardProps) {
+  const code = useCurrencyCode()
   const rows = chart ? revenueRows(chart) : []
   const { period } = numbers
   const title = chart?.title ?? 'Revenue by month'
@@ -41,8 +43,8 @@ export function RevenueChartCard({ chart, numbers, notes }: RevenueChartCardProp
           >
             <CartesianGrid stroke="var(--divider)" vertical={false} />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(value: number) => count(value)} allowDecimals={false} tick={{ fontSize: 12 }} width={80} />
-            <Tooltip formatter={(value) => (typeof value === 'number' ? money(value) : String(value))} />
+            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12 }} width={88} />
+            <Tooltip formatter={(value) => (typeof value === 'number' ? money(value, code) : String(value))} />
             {/* A null month is a gap: never joined across (CONTRACTS 11). */}
             <Line type="linear" dataKey="revenue" stroke="var(--accent)" strokeWidth={2} connectNulls={false} isAnimationActive={false} />
           </LineChart>
@@ -79,7 +81,7 @@ export function RevenueChartCard({ chart, numbers, notes }: RevenueChartCardProp
                         : month.period === period.previous && !period.previous_complete
                           ? // Never a previous value beside a current one: its reason is said once, above.
                             NOT_COMPARED_ABOVE
-                          : money(month.revenue)}
+                          : money(month.revenue, code)}
                     </td>
                     <td>{month.complete ? 'yes' : 'no'}</td>
                   </tr>

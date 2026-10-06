@@ -21,6 +21,8 @@ vi.mock('../api/runs.ts', () => ({
   executePlan: vi.fn(),
   proposePlan: vi.fn(),
   lineSummary: vi.fn(),
+  // Review's currency question (step 5): pending, so the page reads as before.
+  currencyQuestion: vi.fn(() => new Promise(() => undefined)),
 }))
 
 const MAPPED: [string, CanonicalField][] = [

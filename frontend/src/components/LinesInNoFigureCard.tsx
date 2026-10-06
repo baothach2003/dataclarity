@@ -4,6 +4,7 @@
 // real amount standing. The lines dated after the upload are counted here too; why is said beside the
 // dates covered, at the top (the 6E3 review #5).
 
+import { useCurrencyCode } from '../domain/currencyCode.ts'
 import { count, money, monthLabel } from '../domain/reportFormat.ts'
 import { NOT_COMPARED_ABOVE, scopeLabel } from '../domain/reportText.ts'
 import type { Numbers } from '../types/report.ts'
@@ -42,6 +43,7 @@ function Table({ caption, headers, rows, prose }: { caption: string; headers: st
 }
 
 export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
+  const code = useCurrencyCode()
   const { period } = numbers
   const compared = period.previous_complete
   const shownScope = (scope: Numbers['unmeasurable'][number]['scope']) => scope !== 'previous' || compared
@@ -75,10 +77,10 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
           rows={numbers.non_product.map((row) => [
             row.line_class,
             count(row.lines),
-            money(row.amount),
+            money(row.amount, code),
             // Only a withheld month's 0; a real amount stands (5B review 2 #8).
-            withheld && row.amount_current === 0 ? "withheld, with the current month's figures" : money(row.amount_current),
-            compared ? money(row.amount_previous) : NOT_COMPARED_ABOVE,
+            withheld && row.amount_current === 0 ? "withheld, with the current month's figures" : money(row.amount_current, code),
+            compared ? money(row.amount_previous, code) : NOT_COMPARED_ABOVE,
             row.reason,
           ])}
         />
@@ -93,7 +95,7 @@ export function LinesInNoFigureCard({ numbers }: { numbers: Numbers }) {
             scopeLabel(row.scope, period),
             row.sign ?? '',
             count(row.lines),
-            money(row.amount),
+            money(row.amount, code),
             count(row.lines_without_amount),
             // Worded by its class code (Thach, 2026-10-04, (ix)).
             row.reason,

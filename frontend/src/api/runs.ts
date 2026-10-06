@@ -11,6 +11,7 @@ import type {
   ProfileContract,
   RunCreated,
 } from '../types/contracts.ts'
+import type { CurrencyResponse } from '../types/currency.ts'
 import type { LineSummaryResponse } from '../types/lineSummary.ts'
 import { errorFromBody, throwApiError, UnreachableError } from './errors.ts'
 import { getJson, postJson, trimSlash } from './http.ts'
@@ -104,6 +105,18 @@ export function lineSummary(
   signal?: AbortSignal,
 ): Promise<LineSummaryResponse> {
   return postJson<LineSummaryResponse>(baseUrl, `/api/runs/${runId}/line-summary`, plan, signal)
+}
+
+/** POST /api/runs/{id}/currency: Review's currency question for the plan as
+ * edited (the report redesign's step 5) - stage 1's reading of the raw file
+ * on the plan's money column, worded by stage 1. Read only. */
+export function currencyQuestion(
+  baseUrl: string,
+  runId: string,
+  plan: CleaningPlan,
+  signal?: AbortSignal,
+): Promise<CurrencyResponse> {
+  return postJson<CurrencyResponse>(baseUrl, `/api/runs/${runId}/currency`, plan, signal)
 }
 
 /** GET /api/runs/{id}/download/cleaned.csv, as a Blob the caller turns into a

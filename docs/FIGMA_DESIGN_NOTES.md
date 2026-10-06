@@ -57,6 +57,22 @@ reliable fallback and should exist either way.
 | 10 | Dashboard | `Dashboard` | `8:1057` | KPI cards, 30-day trend + product selector, top-5 bar, low-stock table. Empty + loading spec `13:2403` |
 | 11 | Error states | `Errors` | `13:2144` | all 12 SPECS section 10 cases with code + HTTP status |
 
+**Deliberate exception (Thach, 2026-10-06, the report redesign's step 5):**
+Insights' new front section - the summary and "Sales by month (before any
+costs)", "Where the change came from" (the bridge waterfall), "What was
+checked", "What to do next", "Next month", "What this report cannot know" -
+has NO Figma frame. It follows report.html's approved layout (the mock Thach
+reviewed; `stages/report/html_front.py`) in this file's design tokens only:
+no new colour, size or radius. Frame `4:1489`'s cards (KPI cards, the
+hypothesis table, the forecast, the data-quality cards) now stand behind one
+"Technical details" toggle; its diverging-bar decomposition and its
+recommendations card are gone (Q17: the bridge is the one drawing of the
+change; recommendations are the front's "What to do next"). Review gained
+the currency question on the Notice component (`1:271`) with a Dropdown
+(`1:321`). On a phone the waterfall's bars run across, each label on its own
+line (five labelled columns do not fit at 390 px) - a decision made alone,
+recorded in docs/REPORT_REDESIGN.md section 12, step 5.
+
 Link format: `https://www.figma.com/design/DYhLQp7bxoa5HqfvIFNTej?node-id=<id with - instead of :>`
 (e.g. Review = `node-id=3-2`).
 

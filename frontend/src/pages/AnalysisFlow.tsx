@@ -75,7 +75,7 @@ export function AnalysisFlow({ baseUrl, runId, filename, rows, onBack }: Analysi
 
   if (result !== null) {
     return (
-      <InsightsPage baseUrl={baseUrl} runId={runId} report={result.report} diagnosis={result.diagnosis} ordersBasis={result.ordersBasis} />
+      <InsightsPage baseUrl={baseUrl} runId={runId} report={result.report} />
     )
   }
   return (

@@ -108,8 +108,28 @@ function placeholderSentence(report: CleaningReport, context: ReadingContext): s
   return `${lead} ${outcome}`
 }
 
+// The currency the amounts are in (the report redesign's step 5; design 8, Results): the user's answer, or
+// what the file showed with where (stage 1's evidence, as written), or none stated. Only for a file the
+// analysis reads: a generic clean sums nothing and records none.
+function currencySentence(report: CleaningReport, context: ReadingContext): string | null {
+  const currency = report.currency
+  if (!currency || !context.analysis) {
+    return null
+  }
+  if (currency.code === null) {
+    // "Not stated" picked in Review is the user's answer, whatever the file shows (step 5's review).
+    return report.confirmations?.currency === 'not_stated'
+      ? 'Amounts are shown without a currency code, as you answered in Review.'
+      : "No currency was stated: amounts are shown in your file's currency, without a code."
+  }
+  if (currency.source === 'user') {
+    return `Amounts are in ${currency.code}, as you answered in Review.`
+  }
+  return `Amounts are in ${currency.code}, as the file shows${currency.evidence ? ` (${currency.evidence})` : ''}.`
+}
+
 export function describeReading(report: CleaningReport, context: ReadingContext): string[] {
-  return [dateSentence(report), ...numberSentences(report), placeholderSentence(report, context)].filter(
+  return [currencySentence(report, context), dateSentence(report), ...numberSentences(report), placeholderSentence(report, context)].filter(
     (sentence): sentence is string => sentence !== null,
   )
 }

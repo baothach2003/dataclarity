@@ -4,7 +4,8 @@
 // a figure names sit behind a small marker that reveals them, not inline text.
 
 import { useId, useState } from 'react'
-import { FORMATS, change, monthLabel } from '../domain/reportFormat.ts'
+import { useCurrencyCode } from '../domain/currencyCode.ts'
+import { change, kpiValue, monthLabel, signedMoney } from '../domain/reportFormat.ts'
 import type { Kpi, NoteView, ReportPeriod } from '../types/report.ts'
 import { ArrowDownIcon, ArrowUpIcon, InfoIcon } from './Icon.tsx'
 import { NoteBody } from './NoteBody.tsx'
@@ -23,12 +24,12 @@ interface KpiCardProps {
   unconfirmedWalkIns?: boolean
 }
 
-function previousText(kpi: Kpi, period: ReportPeriod): string {
+function previousText(kpi: Kpi, period: ReportPeriod, code: string | null): string {
   const label = monthLabel(period.previous)
   if (!period.previous_complete) {
     return `${label}: ${NOT_COMPARED}`
   }
-  return `${label}: ${kpi.previous === null ? (kpi.previous_reason ?? '') : FORMATS[kpi.unit](kpi.previous)}`
+  return `${label}: ${kpi.previous === null ? (kpi.previous_reason ?? '') : kpiValue(kpi.unit, kpi.previous, code)}`
 }
 
 function Change({ kpi, period }: { kpi: Kpi; period: ReportPeriod }) {
@@ -59,6 +60,7 @@ function Change({ kpi, period }: { kpi: Kpi; period: ReportPeriod }) {
 export function KpiCard({ kpi, period, notes, unconfirmedWalkIns = false }: KpiCardProps) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
+  const code = useCurrencyCode()
   const named = notes.filter((note) => kpi.notes.includes(note.code))
 
   return (
@@ -85,10 +87,14 @@ export function KpiCard({ kpi, period, notes, unconfirmedWalkIns = false }: KpiC
       {kpi.current === null ? (
         <p className="kpi-card__reason kpi-card__reason--current">{kpi.current_reason}</p>
       ) : (
-        <p className="kpi-card__value">{FORMATS[kpi.unit](kpi.current)}</p>
+        <p className="kpi-card__value" data-testid="kpi-value">{kpiValue(kpi.unit, kpi.current, code)}</p>
       )}
       {kpi.id === 'revenue' && <Change kpi={kpi} period={period} />}
-      <p className="kpi-card__previous">{previousText(kpi, period)}</p>
+      {/* Revenue's exact change (report.json 2.8, Thach Q22), as report.html's appendix prints it. */}
+      {kpi.id === 'revenue' && kpi.change !== null && kpi.change !== undefined && (
+        <p className="kpi-card__previous">{signedMoney(kpi.change, code)}</p>
+      )}
+      <p className="kpi-card__previous">{previousText(kpi, period, code)}</p>
       {unconfirmedWalkIns && kpi.id === 'active_customers' && (
         <p className="kpi-card__mark">includes possible walk-ins not confirmed (see below)</p>
       )}

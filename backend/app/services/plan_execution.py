@@ -17,15 +17,17 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.models import RunStatus
-from app.schemas import ExecuteResponse, LineSummaryResponse, PreviewResponse
+from app.schemas import CurrencyResponse, ExecuteResponse, LineSummaryResponse, PreviewResponse
 from app.services import run_state, stage_errors
 from app.services.analysis import is_not_inventory, not_inventory_notice, read_schema
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from contracts import CleaningPlanContract
 from contracts.cleaning import PlanSource
+from contracts.currency import CurrencyQuestion
 from shared.run_registry import RunNotFoundError, run_file
 from stages.ingest.ai_plan import OUTPUT_FILENAME as PROPOSAL_FILENAME
 from stages.ingest.cleaning import CleaningError, execute_run
+from stages.ingest.currency_question import currency_question, plan_currency
 from stages.ingest.line_summary import line_summary
 from stages.ingest.plan_validation import InvalidPlanError, validate_final_plan
 from stages.ingest.preview import preview_frame, run_proven_formats
@@ -71,6 +73,45 @@ def preview_plan(
     except ProfilingError as error:
         raise stage_errors.profiling_failed(error) from error
     return PreviewResponse(run_id=run_id, preview=result)
+
+
+def ask_currency(
+    session: Session,
+    run_id: str,
+    body: dict[str, Any],
+    *,
+    settings: Settings,
+    cache: FrameCache,
+    work: RunWork,
+) -> CurrencyResponse:
+    """Review's currency question for the plan as the user edited it (design
+    6.2, 6.3): stage 1 reads the raw file on the plan's money column as
+    execute will. Read only, the preview's rules: nothing written, no status."""
+    run = run_state.load_live_run(session, run_id, runs_root=settings.runs_dir, work=work)
+    run_state.require_status(run, *run_state.PLANNING_STATUSES, step="ask the file's currency")
+    plan = stage_errors.parse_plan(body)
+    session.commit()  # the read transaction ends here: a first load parses the whole file
+    try:
+        _require_raw(settings.runs_dir, run_id)
+        question = currency_question_for(work, cache, settings.runs_dir, run_id, plan)
+    except RunNotFoundError:
+        raise stage_errors.files_gone() from None
+    except ProfilingError as error:
+        raise stage_errors.profiling_failed(error) from error
+    return CurrencyResponse(run_id=run_id, question=question)
+
+
+def currency_question_for(
+    work: RunWork, cache: FrameCache, runs_dir: Path, run_id: str, plan: CleaningPlanContract
+) -> CurrencyQuestion:
+    """The raw frame as the preview loads it - the whole-file load in a heavy
+    slot, taken INSIDE the cache's lock, the preview's order - then stage 1's
+    reading. Holding the slot around the cache instead (step 5's first fix:
+    the reading inside the slot too) inverted the lock order against the
+    preview and deadlocked the server (its scoped review): the reading runs
+    outside the slot, a known limit (docs/REPORT_REDESIGN.md, Q68)."""
+    frame = cache.get_or_load(run_id, lambda: _read_frame_heavy(work, runs_dir, run_id))
+    return currency_question(plan_currency(frame, plan))
 
 
 def summarise_lines(

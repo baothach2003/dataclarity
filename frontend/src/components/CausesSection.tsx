@@ -4,8 +4,10 @@
 // the data cannot test; the classes nobody confirmed. No signals table: it reads as an alert and stays in
 // the downloadable report (ADR-0007).
 
-import { money, share } from '../domain/reportFormat.ts'
+import { useCurrencyCode } from '../domain/currencyCode.ts'
+import { money, share, signedMoney } from '../domain/reportFormat.ts'
 import type { Causes, HypothesisView, Numbers } from '../types/report.ts'
+import { LeverTermsTable } from './LeverTermsTable.tsx'
 import { NoteBody } from './NoteBody.tsx'
 import { Notice } from './Notice.tsx'
 
@@ -17,7 +19,20 @@ interface CausesSectionProps {
 // The verdict as report.json words it - "moved against the change (+X)": stage 3's own sign test, shown by
 // stage 5 beside a comparison the report shows - and the evidence as report.html words it: one copy (Thach,
 // 2026-10-04, (vii)-(viii)).
+// report.json keeps a moved-against label's amount without the code, and the page prints it with the
+// confirmed currency's code (contracts/report_views.py against_label; report.html does the same): the label's
+// words up to its amount, then the row's own contribution, signed, with the code.
+function verdictLabel(hypothesis: HypothesisView, code: string | null): string {
+  const label = hypothesis.verdict_label
+  const cut = label.lastIndexOf(' (')
+  if (!hypothesis.moved_against || code === null || hypothesis.contribution === null || cut < 0) {
+    return label
+  }
+  return `${label.slice(0, cut)} (${signedMoney(hypothesis.contribution, code)})`
+}
+
 function HypothesisTable({ hypotheses }: { hypotheses: HypothesisView[] }) {
+  const code = useCurrencyCode()
   return (
     <div className="table-scroll">
       <table className="hypotheses">
@@ -41,10 +56,10 @@ function HypothesisTable({ hypotheses }: { hypotheses: HypothesisView[] }) {
                 </th>
                 <td>
                   <span className={hypothesis.moved_against ? 'verdict verdict--against' : `verdict verdict--${hypothesis.verdict}`}>
-                    {hypothesis.verdict_label}
+                    {verdictLabel(hypothesis, code)}
                   </span>
                 </td>
-                <td className="hypotheses__figure">{hypothesis.contribution === null ? '' : money(hypothesis.contribution)}</td>
+                <td className="hypotheses__figure">{hypothesis.contribution === null ? '' : money(hypothesis.contribution, code)}</td>
                 <td className="hypotheses__figure">{hypothesis.share === null ? '' : share(hypothesis.share)}</td>
                 <td>
                   <details>
@@ -117,6 +132,7 @@ export function CausesSection({ causes, numbers }: CausesSectionProps) {
         </Notice>
       )}
       <HypothesisTable hypotheses={causes.hypotheses} />
+      <LeverTermsTable levels={causes.lever_levels ?? []} />
       {numbers.unconfirmed_placeholders_reason && (
         // The customer causes read the same customers (2E-u3).
         <p className="insights-reason">{numbers.unconfirmed_placeholders_reason}</p>

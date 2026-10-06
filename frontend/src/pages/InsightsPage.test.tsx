@@ -4,7 +4,6 @@ import * as analysisApi from '../api/analysis.ts'
 import { ApiError } from '../api/errors.ts'
 import * as browserDownload from '../domain/browserDownload.ts'
 import type { ReportContract } from '../types/report.ts'
-import { makeDiagnosis } from './diagnosisFixture.ts'
 import { DISCOUNTS_TEXT, makeReport } from './insightsFixture.ts'
 import { InsightsPage } from './InsightsPage.tsx'
 
@@ -18,7 +17,7 @@ afterEach(() => {
 
 function show(report: ReportContract = makeReport()) {
   return render(
-    <InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} diagnosis={makeDiagnosis()} ordersBasis="order_id" />,
+    <InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} />,
   )
 }
 
@@ -89,7 +88,7 @@ describe('InsightsPage: the numbers', () => {
     }))
     show(report)
 
-    expect(screen.getByText(/June 2026 against May 2026: the current month's figures are withheld \(see below\)/)).toBeDefined()
+    expect(screen.getByText(/June 2026 against May 2026: the current month's figures are withheld \(see Technical details\)/)).toBeDefined()
   })
 
   it('shows the notes about the figures under the KPIs: a month the file starts inside, unconfirmed walk-ins, later lines', () => {
@@ -113,7 +112,8 @@ describe('InsightsPage: the numbers', () => {
 
     const reason = screen.getByText('3 lines are dated after the upload, so no figure counts them.')
     expect(reason.closest('.notice')).toBeNull()
-    expect(reason.previousElementSibling?.className).toBe('page__subtitle')
+    // Stage 2's sentence, where report.html keeps it: in the technical details (step 5's review).
+    expect(reason.closest('[data-testid="technical-details"]')).not.toBeNull()
   })
 
   it('says both when the previous month is not compared and the current one is withheld', () => {
@@ -141,7 +141,8 @@ describe('InsightsPage: the numbers', () => {
 
   it('ends with "How to read these figures": the always-on notes, once, in the last card', () => {
     show()
-    const cards = [...document.querySelectorAll('.page > section.card')]
+    // Inside "Technical details" since the report redesign's step 5 (open: this report has no front block).
+    const cards = [...document.querySelectorAll('[data-testid="technical-details"] section.card')]
 
     expect(screen.getAllByText(DISCOUNTS_TEXT)).toHaveLength(1)
     expect(cards.at(-1)?.querySelector('h2')?.textContent).toBe('How to read these figures')
@@ -185,27 +186,29 @@ describe('InsightsPage: the numbers', () => {
 })
 
 // 6E part 2: number -> cause (FIGMA_DESIGN_NOTES 9: "the causal chain
-// visible"): the decomposition and the causes follow the KPIs.
+// visible"): the causes follow the KPIs. Since the report redesign's step 5 the
+// change is drawn only as the bridge, in the front section: the lever card,
+// which drew a split stage 3 refuses (Q17, the deploy blocker), is gone.
 describe('InsightsPage: the causes', () => {
-  it('shows where the change came from, then why, after the numbers and before the file card', () => {
+  it('shows why after the numbers and before the file card, and no lever card', () => {
     show()
-    const order = ['Where the revenue change came from', 'Why it happened', 'The file and where these figures come from'].map((name) =>
+    const order = ['Why it happened', 'The file and where these figures come from'].map((name) =>
       screen.getByRole('heading', { name }),
     )
     const [kpi] = screen.getAllByTestId('kpi-label')
 
     expect(kpi.compareDocumentPosition(order[0] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect((order[0] as Node).compareDocumentPosition(order[1] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect((order[1] as Node).compareDocumentPosition(order[2] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText('moved against the change (+1,792.00)')).toBeDefined()
+    expect(screen.queryByRole('heading', { name: 'Where the revenue change came from' })).toBeNull()
   })
 })
 
 // 6E part 3: cause -> what next. The revenue chart and the forecast follow the
-// causes; the recommendations' place says no AI writes them in v1; the data-quality
-// cards close the page.
+// causes; the data-quality cards close the page. What to do next is the front
+// section's (step 5): the old recommendations card is gone.
 describe('InsightsPage: what next', () => {
-  it('shows revenue by month and the forecast after the causes, then the recommendations, then the data-quality cards', () => {
+  it('shows revenue by month and the forecast after the causes, then the data-quality cards', () => {
     const report = makeReport()
     report.layer_1_numbers.undated_lines = 14
     report.layer_1_numbers.undated_lines_reason = '14 lines carry no date the file can read.'
@@ -214,7 +217,6 @@ describe('InsightsPage: what next', () => {
       'Why it happened',
       'Revenue by month',
       'Revenue forecast',
-      'Recommendations',
       'Lines in no figure, and where their money went',
       'The file and where these figures come from',
       'How to read these figures',
@@ -225,7 +227,7 @@ describe('InsightsPage: what next', () => {
       const earlier = headings[i - 1] as Node
       expect(earlier.compareDocumentPosition(headings[i] as Node) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     }
-    expect(screen.getByText('No AI writes recommendations in this version.')).toBeDefined()
+    expect(screen.queryByRole('heading', { name: 'Recommendations' })).toBeNull()
   })
 })
 

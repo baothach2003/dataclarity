@@ -60,3 +60,46 @@ def test_one_currency_runs_and_is_recorded(make_api: MakeApi) -> None:
     assert response.status_code == 200, response.text
     assert api.read_json(run_id, "cleaning_report.json")["currency"] == {
         "code": "GBP", "source": "user", "evidence": None}
+
+
+# --- step 5: Review's question, POST /api/runs/{id}/currency (design 6.2, 6.3) -------------------------------
+
+
+def test_reviews_question_is_stage_1s_reading_of_the_raw_file_and_changes_nothing(make_api: MakeApi) -> None:
+    api, run_id, plan = _planned(make_api, MIXED.replace("€".encode(), "£".encode()))
+    files_before = api.files(run_id)
+
+    response = api.post(run_id, "currency", plan)
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["run_id"] == run_id
+    question = body["question"]
+    assert (question["finding"]["kind"], question["selected"], question["blocked"]) == ("found", "GBP", None)
+    assert question["options"][:3] == ["GBP", "EUR", "USD"]
+    assert api.status(run_id) is RunStatus.PLANNED
+    assert api.files(run_id) == files_before
+
+
+def test_reviews_question_on_a_mixed_file_is_the_block_execute_refuses_with(make_api: MakeApi) -> None:
+    api, run_id, plan = _planned(make_api, MIXED)
+
+    question = api.post(run_id, "currency", plan).json()["question"]
+    refused = api.post(run_id, "execute", plan).json()["error"]["details"]["problems"]
+
+    assert question["finding"]["kind"] == "mixed"
+    assert question["options"] == [] and question["selected"] is None
+    assert [question["blocked"]] == refused
+
+
+def test_reviews_question_reads_the_edited_plans_money_column(make_api: MakeApi) -> None:
+    # The plan as the user edited it: no column is the unit price - nothing is read, nothing found.
+    api, run_id, plan = _planned(make_api, MIXED)
+    edited_plan = {**plan, "column_actions": [
+        {**action, "canonical_field": "ignore", "action": "flag_only", "params": {}}
+        if action["canonical_field"] == "unit_price" else action for action in plan["column_actions"]]}
+
+    response = api.post(run_id, "currency", edited_plan)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["question"]["finding"]["kind"] == "none"

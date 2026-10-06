@@ -18,19 +18,23 @@ def _lines(count: int) -> str:
     return f"{count} line" + ("" if count == 1 else "s")
 
 
+def mixed_sentence(finding: CurrencyFinding) -> str:
+    """The block, in Thach's form (Q28): "Euro: 300 lines, US Dollar: 20
+    lines" - one sentence, which execute refuses with and Review shows."""
+    parts = ", ".join(f"{part.label}: {_lines(part.lines)}" for part in finding.parts)
+    if finding.more_parts:
+        parts += f" and {finding.more_parts} more"
+    return (f"Your file has amounts in more than one currency ({parts}). DataClarity cannot add different "
+            "currencies together. Split the file by currency and upload each part.")
+
+
 def apply_currency(finding: CurrencyFinding, answer: str | None) -> AppliedCurrency:
     """What runs: mixed is refused whatever the answer; an answer stands (the
     user may change what was found); unanswered, a found currency is the one
     found and anything else is "not stated" - never a dollar picked for a
     bare "$" (Thach, D6)."""
     if finding.kind == "mixed":
-        # Thach's form (Q28): "Euro: 300 lines, US Dollar: 20 lines".
-        parts = ", ".join(f"{part.label}: {_lines(part.lines)}" for part in finding.parts)
-        if finding.more_parts:
-            parts += f" and {finding.more_parts} more"
-        raise MixedCurrencies([
-            f"Your file has amounts in more than one currency ({parts}). DataClarity cannot add different "
-            "currencies together. Split the file by currency and upload each part."])
+        raise MixedCurrencies([mixed_sentence(finding)])
     if answer is None:
         if finding.kind == "found":
             return AppliedCurrency(code=finding.code, source=finding.source, evidence=finding.evidence)  # type: ignore[arg-type]  # a source of the Literal

@@ -71,3 +71,17 @@ describe('reportFormat at the edges', () => {
     expect(share(25.3)).toBe('2530%')
   })
 })
+
+// Step 5's review: an axis tick is an amount too - the code on it when the report has one (report.html's
+// tickprefix), never on a count.
+describe('axisAmount and signedMoney', () => {
+  it('prints a whole tick with the code, and none without one', async () => {
+    const { axisAmount, signedMoney } = await import('./reportFormat.ts')
+
+    expect(axisAmount(45000, 'GBP')).toBe('GBP 45,000')
+    expect(axisAmount(45000, null)).toBe('45,000')
+    expect(signedMoney(-1479.6472, 'GBP')).toBe('GBP -1,479.65')
+    expect(signedMoney(4925, null)).toBe('+4,925.00')
+    expect(signedMoney(-0.001, null)).toBe('0.00')
+  })
+})

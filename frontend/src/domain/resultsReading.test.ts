@@ -99,3 +99,38 @@ describe('describeReading', () => {
     expect(sentence).toBe(`Dates in "${'x'.repeat(59)}…" written like 05/01/2026 were read month first, as the file's own dates show.`)
   })
 })
+
+// The report redesign's step 5 (design 8, Results): the confirmed currency, with the other answers.
+describe('describeReading: the currency', () => {
+  it('names the currency the user picked in Review', () => {
+    expect(describeReading(report({ currency: { code: 'EUR', source: 'user', evidence: 'GBP, the £ in "Price"' } }), ANALYSIS)).toEqual([
+      'Amounts are in EUR, as you answered in Review.',
+    ])
+  })
+
+  it('names a currency the file shows, with where it was found', () => {
+    expect(describeReading(report({ currency: { code: 'GBP', source: 'symbol', evidence: 'GBP, the £ in "Price"' } }), ANALYSIS)).toEqual([
+      'Amounts are in GBP, as the file shows (GBP, the £ in "Price").',
+    ])
+  })
+
+  it('says when no currency was stated', () => {
+    expect(describeReading(report({ currency: { code: null, source: 'not_stated', evidence: null } }), ANALYSIS)).toEqual([
+      "No currency was stated: amounts are shown in your file's currency, without a code.",
+    ])
+  })
+
+  it('says nothing for a report from before the currency, or a file the analysis will not read', () => {
+    expect(describeReading(report({ currency: null }), ANALYSIS)).toEqual([])
+    expect(describeReading(report({ currency: { code: 'GBP', source: 'user', evidence: null } }), { analysis: false })).toEqual([])
+  })
+})
+
+describe('describeReading: "Not stated" chosen in Review (step 5\'s review)', () => {
+  it('says the user chose no code, not that the file stated none', () => {
+    expect(describeReading(report({
+      currency: { code: null, source: 'not_stated', evidence: 'GBP, the £ in "Price"' },
+      confirmations: { order_id_is_receipt: null, customer_on_first_line_only: null, currency: 'not_stated' },
+    }), ANALYSIS)).toEqual(['Amounts are shown without a currency code, as you answered in Review.'])
+  })
+})

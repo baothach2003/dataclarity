@@ -1234,6 +1234,38 @@ file or a common shape):**
     year"). Options: print the facts at the decimals where they differ; or
     drop the facts too and keep only "This change differs from last year's.";
     or 8D. Which?
+66. **Q66** - CONSTRAINTS F2 sign-off (step 5): four assertions in
+    InsightsPage.test.tsx pinned what step 5 changes by design - the lever
+    card "Where the revenue change came from" (Q17 removes it: now asserted
+    absent), the recommendations card and its text (now asserted absent),
+    "(see below)" (now "(see Technical details)"), stage 2's later-lines
+    sentence beside the subtitle (now inside the toggle, as report.html).
+    Each was replaced by its new expectation; no test file is deleted (the
+    three I had deleted are restored, their components kept unrendered).
+    Also changed in that file (the scoped review's count): the "How to read
+    these figures" test now looks for its cards inside the toggle, and the
+    causes test checks why-before-file once, no longer
+    lever-before-why-before-file (the lever card is gone).
+    Do you sign off these four changed assertions, and may the unrendered
+    DecompositionCard / RecommendationsSection (and their tests) be deleted
+    later?
+68. **Q68** - the server's heavy slot (step 5's scoped review): Review's
+    currency reading (10-16 s on a large file) runs OUTSIDE the slot, as
+    the reviewed shape had it - putting it inside (the first fix) inverted
+    the lock order against the preview and could deadlock the server for
+    good (reproduced; reverted; a test now proves the two finish). The
+    review found the SAME inversion already in the line summary
+    (`summarise_lines`, 2E-t3: slot, then the cache's lock; the preview:
+    the cache's lock, then the slot) - a possible permanent deadlock today
+    with MAX_CONCURRENT_HEAVY_STEPS=1, not touched (outside step 5). Fix it
+    before deploy (one lock order for every path), or record it?
+    Also: under React StrictMode (dev only) Review asks the currency twice,
+    the first aborted in the browser but read on the server.
+67. **Q67** - stage 5's wording read on the page: the waterfall caption
+    "Read left to right" (true on a phone's across-drawn bars too, but
+    written for columns) and "the appendix lists them" (rows left out),
+    which the page calls "Technical details". Reword in stage 5 (one copy
+    for both), or keep?
 65. **Q65** - R1's member holds a digit on all three fixtures ("Product
     029", "Product 615", "Product 186") and on many Online Retail II names
     ("SET OF 3 ..."), so R1's action mostly points to its row: the actions
@@ -1931,3 +1963,102 @@ three findings, no further cycle (the stop rule):
   demo file nor a common shape: shown as is, Q64.
 - R1's member mostly falls back to its row (digits in real names) - not
   false: Q65.
+
+### Step 5 - the frontend (2026-10-06)
+
+Built, failing tests first (Vitest; pytest for the endpoint and stage 1):
+- **Insights** opens with report.json's `front` block, printed as written
+  (one copy; the page words no figure): the summary and "Sales by month
+  (before any costs)" with the part-month sentence, the waterfall, the
+  checklist, what to do next (stage 4's actions), next month, what this
+  report cannot know; "Read these figures with" links open "Technical
+  details" at the note. Behind that closed toggle: the trust badge, the KPI
+  cards, the hypothesis table and "What this data cannot test", the months
+  table, the forecast, the data-quality cards, every note.
+- **The waterfall draws the bridge** (Q17, the deploy blocker): its bars are
+  `front.waterfall.bars`, i.e. diagnosis.json's `bridge.bars[].shown`, in
+  order (tested against each real run's bridge); no basket split where
+  `aov_split` is false (both demos). The old lever card (which drew level 2
+  where stage 3 refuses B2) and the recommendations card are removed, with
+  their tests and the diagnosis reader only they used.
+- **The ISO code** on every amount the page formats, never on a count (one
+  context; `kpiValue`); "Amounts are in GBP" opens the toggle, as
+  report.html's appendix.
+- **Review**: the currency question, always asked, from `POST /currency`
+  (new; stage 1's `plan_currency` - the same reading execute applies - and
+  `currency_question`, which words the block, the unreadable cells and the
+  hint and orders the codes). Found: pre-selected with where it was found;
+  otherwise "Not stated" pre-selected, never a currency; a narrowed family
+  first; mixed: stage 1's block, no picker, Confirm stopped. The answer is
+  sent only when the user picked one.
+- **Results**: the currency with the other answers ("Amounts are in EUR, as
+  you answered in Review." / "..., as the file shows (...)" / "No currency
+  was stated: ...").
+- The front fixtures are stage 5's real output on the three real runs (and
+  Kaggle confirmed as GBP), proved equal by pytest
+  (`tests/contracts/front_fixtures.py`); the page's banned-word list is
+  pinned to `FRONT_BANNED`.
+
+Checked in the real app (backend + Vite; the AI a local fake replaying the
+runs' recorded answers on 127.0.0.1 - no real AI call), one heavy step at a
+time: the Kaggle file and the Online Retail II sample twice (classed:
+Review's 12 non-product questions answered as the stored run did - "CRUK",
+answered in the stored plan, is no longer asked, so the UI run differs from
+the stored one by that line; unanswered), at 390 and 1440 px, the toggle
+closed and open: no horizontal overflow, the browser console clean (no
+error, no warning). The check found the waterfall's labels colliding at 390
+px: a phone now draws the bars across (fixed, re-checked).
+
+Decisions made alone: Review's common codes after GBP, EUR, USD, AUD, CAD
+(design 6.2's "...") are NZD, JPY, CNY, CHF, INR, SGD, HKD; the toggle's
+opener repeats report.html's appendix sentences; a phone's waterfall runs
+across; while stage 1 reads the file, Review shows "Reading the file's
+currency..." and Confirm is NOT held (unanswered runs as stage 1 decides,
+and a mixed file is refused at execute with the same sentence).
+
+The review (one cycle, fresh context): no blocker (the split is drawn
+nowhere); every finding fixed, tests first:
+- a banned word at an element's end was invisible to the test (textContent
+  glues elements): the footer said "share" - reworded ("The whole report in
+  one file to download"), the test now reads each text node apart;
+- stage 2's later-lines sentence stood above the front (banned words, an
+  amount without the code): moved into the toggle, as report.html's appendix;
+- the currency question was absent while stage 1 read the file: shown as
+  "Reading the file's currency..."; the reading now runs inside one heavy
+  slot (load and reading together);
+- a moved-against label lacked the code on a coded report: the page adds it
+  from the row's own contribution (contracts/report_views.py keeps the
+  file's label without it, report.html adds it alike);
+- chart axes in the toggle carry the code (report.html's tickprefix);
+- the toggle lists "The split of the change, exact" (design 1.7: the
+  withheld split as numbers, never drawn) and revenue's exact change (Q22);
+- Results says "Amounts are shown without a currency code, as you answered
+  in Review." when "Not stated" was picked over a currency the file showed;
+- stage 1's hint and count no longer say "column" (two columns possible):
+  "Where your file names its currency, it says: ...", "N cells where the
+  file names its currency could not be read.";
+- a narrowed family says why it comes first, with where the sign was found;
+- the picker's accessible name is the question;
+- tests added for the money column's change (re-asked, the old answer
+  dropped) and for the later-lines sentence; "(see below)" reads "(see
+  Technical details)".
+- CONSTRAINTS F2 (no deleted test file, no removed assertion): the three
+  deleted test files are restored with their components (no longer
+  rendered). Four assertions in InsightsPage.test.tsx changed because the
+  design changed what they pin (the lever card's heading, the
+  recommendations card, "(see below)", the later-lines sentence beside the
+  subtitle) - each replaced by its new expectation, never dropped: Q66.
+
+The scoped review of the fixes (one, fresh context; the stop rule): one
+BLOCKER, caused by a fix - the currency reading inside the heavy slot took
+the slot before the frame cache's lock, the preview the other way round:
+with one slot both could wait forever (reproduced). Reverted to the
+reviewed shape (the load in the slot, inside the cache's lock, as the
+preview), a test proves the two finish in three orders of events and fails
+on the deadlocking shape; the reading outside the slot is Q68, with the
+same inversion found in the older line summary. Its minor findings fixed
+without a further cycle: "Ask again" shows the reading state, the narrowed
+sentence reads with stage 1's real evidence ("The sign in your file (from
+the $ in column price) is used by several currencies; ..."), the test data
+use stage 1's real wording, an axis widened, a docstring corrected, Q66's
+list completed. No fabrication found; nothing hidden.
