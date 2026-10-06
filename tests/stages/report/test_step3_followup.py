@@ -27,9 +27,11 @@ def test_beside_a_season_more_than_holds_on_the_printed_changes() -> None:
     diagnosis["headline"]["rule"] = 7
     summary = build_real("demo_classed", diagnosis=diagnosis).front.summary
 
+    # Q57, Q58: printed at one decimal, 12.0 - 10.0 = 2.0 is exactly 4 x 0.5 - the gap
+    # stated, and "at least".
     assert summary[0] == ("This change differs from earlier years: in the 2 earlier years, sales typically rose "
-                          "10.04% between these months; this year they rose 12.05%; the difference is more than 4 "
-                          "times this shop's typical year-on-year difference (about 0.50 points).")
+                          "10.0% between these months; this year they rose 12.0% - a gap of 2.0 points, at least 4 "
+                          "times this shop's typical gap (0.5 points).")
 
 
 def test_sentence_a_prints_its_change_at_the_seasons_decimals() -> None:
@@ -42,7 +44,7 @@ def test_sentence_a_prints_its_change_at_the_seasons_decimals() -> None:
     metrics = copy.deepcopy(files("demo_classed")["metrics.json"])
     metrics["core"]["revenue_change_pct"] = 12.049
 
-    assert "(+12.05%)" in build_real("demo_classed", metrics=metrics, diagnosis=diagnosis).front.summary[1]
+    assert "(+12.0%)" in build_real("demo_classed", metrics=metrics, diagnosis=diagnosis).front.summary[1]
 
 
 def test_beside_a_season_at_least_when_the_printed_gap_equals_the_bound() -> None:
@@ -53,7 +55,7 @@ def test_beside_a_season_at_least_when_the_printed_gap_equals_the_bound() -> Non
                            "typical_pct": 0.5, "beyond_factor": 4.0}
     diagnosis["headline"]["rule"] = 7
 
-    assert "the difference is at least 4 times this shop's typical year-on-year difference (about 0.5 points)" in \
+    assert "a gap of 2.0 points, at least 4 times this shop's typical gap (0.5 points)" in \
         build_real("demo_classed", diagnosis=diagnosis).front.summary[0]
 
 

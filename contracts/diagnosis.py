@@ -725,6 +725,11 @@ class Hypothesis(ContractModel):
     # .against_the_change). Stated here once: no consumer re-derives it. False
     # in 18.2 and before.
     against_the_change: bool = False
+    # 18.8 (the report redesign, Thach Q62): the one product a check points
+    # to, the name as the file writes it - R1's top member - so a reader names
+    # it without reading the evidence keys (CONTRACTS 11). R1 only; null for
+    # every other check and before 18.8.
+    member: str | None = None
 
     @model_validator(mode="after")
     def _against_only_where_the_sign_test_said_it(self) -> Self:
@@ -1040,6 +1045,16 @@ class DiagnosisContract(ContractFile):
             raise ValueError("bridge_withheld 'failed_checks' exists from 18.5")
         headline, version = self.headline, minor_version(self.schema_version)
         months = [check.month for check in self.trust.checks]
+        members = [h.id for h in self.hypotheses if h.member is not None]
+        if version < (18, 8) and members:
+            raise ValueError("hypotheses[].member exists from 18.8")
+        if members and members != ["R1"]:
+            raise ValueError("only R1 names a member (hypotheses[].member)")
+        # The member is R1's top member, never another name (the scoped review:
+        # a member unlike its evidence escaped the unconfirmed-class mark).
+        if any(h.member is not None and (not h.member.strip() or h.member != h.evidence.get("top_member"))
+               for h in self.hypotheses):
+            raise ValueError("R1's member is its evidence's top_member, a name (hypotheses[].member)")
         if version < (18, 7):
             if headline.offsetting is not None or any(month is not None for month in months):
                 raise ValueError("headline.offsetting and trust.checks[].month exist from 18.7")

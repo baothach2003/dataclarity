@@ -1556,7 +1556,16 @@ which month a check that cautions or blocks is about - `current`,
 previous month: D1's block before any day is judged) - and null for every
 other status and before 18.7; required exactly on those checks in an 18.7
 file. A reader words a check from it, never from its message (Thach's
-pattern, 2026-10-06: the meaning is data stage 3 writes). **`year_ago`** (18.4):
+pattern, 2026-10-06: the meaning is data stage 3 writes).
+**`hypotheses[].member`** (18.8; Thach Q62): the one product a check points
+to, the name as the file writes it - R1's top member, the same value as its
+evidence's `top_member` - so a reader names it without the evidence keys;
+R1 only (the contract refuses it on any other check, unlike R1's
+`top_member`, or blank), null before 18.8. A suggested action prints it
+only where the sentence stays one the actions contract carries (no digit,
+no sign) and Review did not only suggest it is no product; else the action
+points to R1's row, by its label.
+**`year_ago`** (18.4):
 `{previous, current, revenue_previous, revenue_current}`, the same two
 months a year earlier and their revenue - T2's pair as a fact, whatever
 T2's verdict (its evidence keys are no consumer field); null with
@@ -2168,6 +2177,13 @@ before.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-06: **the report redesign, Q56-Q62.** `diagnosis.json` 18.8,
+  additive: `hypotheses[].member` - the one product a check points to, R1's
+  top member (the same value as its evidence), so a reader names it without
+  the evidence keys (Thach, Q62); R1 only, null for every other check and
+  before 18.8 (section 7; row added in section 11, readers 4A, 5, FE).
+  Section 11 also lists reader 4A on `hypotheses[].statement` (R3's row
+  label, Q61).
 - 2026-10-06: **the report redesign, step 4 - stage 4 writes forecast.json
   2.1** (docs/REPORT_REDESIGN.md section 4; AI_PIPELINE 8.0). The suggested
   actions by their state (section 8): "list" (the checked actions, or none
@@ -3051,13 +3067,14 @@ How the fields are read:
 | `hypotheses[].id` | `str` | 4A, 5, FE |
 | `hypotheses[].family` | `str` | 5, FE |
 | `hypotheses[].lens` | `str` | 5, FE |
-| `hypotheses[].statement` | `str` | 5, FE |
+| `hypotheses[].statement` | `str` | 4A, 5, FE |
 | `hypotheses[].verdict` | `Literal['supported', 'partial', 'ruled_out', 'inconclusive', 'not_testable']` | 4A, 5, FE |
 | `hypotheses[].contribution` | `float \| None` | 4A, 5, FE |
 | `hypotheses[].share` | `float \| None` | 4A, 5, FE |
 | `hypotheses[].evidence` | `dict[str, Any]` | 5, FE |
 | `hypotheses[].rule` | `str` | 5, FE |
 | `hypotheses[].against_the_change` | `bool` | 4A, 5, FE |
+| `hypotheses[].member` | `str \| None` | 4A, 5, FE |
 | `not_testable` | `list[object]` | 5, FE |
 | `not_testable[].id` | `str` | 5, FE |
 | `not_testable[].statement` | `str` | 5, FE |

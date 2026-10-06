@@ -139,6 +139,8 @@ def test_an_18_3_file_carrying_any_one_new_field_is_refused(field: str) -> None:
     found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
     for check in found["trust"]["checks"]:
         check["month"] = None
+    for hypothesis in found["hypotheses"]:
+        hypothesis["member"] = None  # 18.8's field, not the one under test
     if field == "hedge":
         found["headline"] = {"rule": 4, "hypothesis_id": None, "lens": None, "movement": None, "hedge": "plain",
                              "message": "x " + HEDGE_SENTENCES["plain"]}

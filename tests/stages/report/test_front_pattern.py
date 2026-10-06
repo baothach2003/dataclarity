@@ -105,7 +105,7 @@ def test_a_caution_from_a_check_that_could_not_run_shows_the_data_checks_line() 
     report = build_real("kaggle", diagnosis=diagnosis)
 
     assert report.front.caution == []
-    assert ("Data checks passed, except those this file cannot run (details in the technical section)."
+    assert ("Data checks passed (2 of 3 could run on this file; details in the technical section)."  # Q59
             in Page(render_html(report)).section("checked"))
 
 
@@ -143,8 +143,8 @@ def test_a_check_that_could_not_run_is_no_problem_found_said_as_such() -> None:
     front = build_real("kaggle", diagnosis=diagnosis).front
     lines = [line for group in front.checklist for line in group.lines]
 
-    assert front.data_checks == ["Data checks passed, except those this file cannot run (details in the technical "
-                                 "section)."]
+    assert front.data_checks == [  # Q59
+        "Data checks passed (2 of 3 could run on this file; details in the technical section)."]
     assert not any("price jump" in line or "wrong scale" in line for line in lines)  # D2: the one line only
 
 
@@ -298,7 +298,8 @@ def test_an_18_7_tie_is_read_as_a_tie_never_as_offsetting() -> None:
     assert "; and equally the calendar" in sentence and "opposite" not in sentence
 
 
-def test_the_season_gap_is_never_a_figure_the_front_computes() -> None:
+def test_the_season_gap_printed_is_the_readers_subtraction() -> None:
+    # Q57 prints stage 3's gap - only where it equals the two printed changes' difference.
     diagnosis = _18_7("demo_classed")
     # Consistent figures: the gap is this month's change minus the season's (CONTRACTS 7).
     diagnosis["headline"]["movement"]["change_pct"] = 22.04
@@ -307,8 +308,8 @@ def test_the_season_gap_is_never_a_figure_the_front_computes() -> None:
     diagnosis["headline"]["rule"] = 7
     sentence = build_real("demo_classed", diagnosis=diagnosis).front.summary[0]
 
-    assert "18.0" not in sentence and "points is" not in sentence
-    assert "more than 4 times this shop's typical year-on-year difference (about 4.0 points)" in sentence
+    assert "4.0% last year, 22.0% this year (one earlier year to compare with) - a gap of 18.0 points, more " \
+           "than 4 times this shop's typical gap (4.0 points)" in sentence
 
 
 def test_a_change_that_moved_never_prints_as_zero() -> None:
@@ -321,14 +322,17 @@ def test_a_change_that_moved_never_prints_as_zero() -> None:
     assert "(+0.03%)" in build_real("kaggle", metrics=metrics, diagnosis=diagnosis).front.summary[1]
 
 
-def test_more_than_only_when_the_printed_figures_say_so() -> None:
+def test_at_least_where_the_printed_figures_are_equal_q58() -> None:
+    # 9.804 against twice 4.9: printed at one decimal 9.8 is exactly 2 x 4.9 - "at least"
+    # (Thach, Q58), where Q44's rule had grown the decimals to say "more than".
     data = files("kaggle")
     metrics, diagnosis = copy.deepcopy(data["metrics.json"]), _18_7()
     diagnosis["headline"]["movement"] |= {"change_pct": 9.804, "typical_pct": 4.9, "singled_out": True}
     metrics["core"]["revenue_change_pct"] = 9.804
     summary = build_real("kaggle", metrics=metrics, diagnosis=diagnosis).front.summary
 
-    assert "(+9.804%)" in summary[0] and "(about 4.900%)" in summary[1]
+    assert "(+9.8%)" in summary[0]
+    assert summary[1] == "That is at least twice this shop's typical month-to-month change (about 4.9%)."
 
 
 def test_lapsed_customers_are_never_worded_as_a_loss_when_they_added() -> None:

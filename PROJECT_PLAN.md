@@ -5398,6 +5398,10 @@ dataclarity/
         ("Presentment Currency") is not read; two values alike in their
         first 40 characters are listed alike. `docs/REPORT_REDESIGN.md`
         section 12, step 2.
+      - the front's figure-and-word agreement with staged values only
+        (Thach, 2026-10-06, Q55): a near-zero change printed with more
+        decimals than checked, no precision up to 4 agreeing, a typical
+        printed "0.0" - none on a demo file or a common shape.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -5949,6 +5953,13 @@ dataclarity/
       Q53 the strategy AI path deleted; Q54 R3 kept in stage 3's own words.
       Step 4 rebuilt so; its scoped review moved B1, B2 and P4 out of the
       claims (stop rule); committed. Open: Q55-Q62.
+      **Thach (2026-10-06, the ninth round):** Q55 to 8D (staged values
+      only); Q56-Q62 fixed (one change one printing; the season's
+      yardstick; "at least" only on equal printed figures; the data-checks
+      count; R3's row label; R1's top member - diagnosis 18.8). Q60's
+      line built, fixed after its scoped review, then hidden by the stop
+      rule (still false on a common shape after the fix). Open: Q63-Q65
+      (docs/REPORT_REDESIGN.md section 10).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6148,6 +6159,17 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**Report redesign - Q56-Q62, committed** (2026-10-06, later). One change
+printed one way (A and B); the season sentence carries its gap and the
+shop's typical gap, at the decimals the printed figures agree on, else it
+says less; "at least" only on equal printed figures; the data-checks count;
+R3's row by its label; R1's top member (diagnosis.json 18.8
+`hypotheses[].member`, additive; the three real runs re-run, existing fields
+identical). Its scoped review: six findings fixed (stage 4 no longer fails on
+a digit in a name or a row id). The scoped review of the fixes still found
+Q60's line before the actions false on a common shape - hidden (stop rule;
+a test proves it absent). Open: Q63-Q65. Next: step 5, the frontend.
 
 **Report redesign - step 4 as Thach's option (d), committed** (2026-10-06,
 later). No AI in v1's recommendations: code selects the claims and picks

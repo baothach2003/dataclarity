@@ -19,10 +19,13 @@ Direction = Literal["up", "down"]
 
 # (kind, direction) -> (action, why). R1 reads the same either way; R3 has one
 # entry, worded with stage 3's own words (Thach, Q54).
-_R1 = ("Look at the product or category named in the technical section and see what changed there.",
-       "The change was concentrated in one product or category, so that is where to look first.")
-_R3 = ("Check the shelf and the stock records for the products listed under the stockout check in the technical "
-       "section.",
+# R1 names stage 3's top member (`hypotheses[].member`, 18.8; Thach Q62) -
+# `{member}`, or its row where a file before 18.8 names none; R3 names the
+# technical section's own label for its row (Q61) - `{row}`, the row's id and
+# stage 3's statement as the appendix prints them. Filled by claims.py.
+_R1 = ("Look at {member} and see what changed there.",
+       "The change was concentrated in one product, so that is where to look first.")
+_R3 = ("Check the shelf and the stock records for the products in {row}.",
        "Their sales stopped in a way consistent with a stockout - verify on the shelf.")
 ACTIONS: dict[tuple[str, str], tuple[str, str]] = {
     ("P1", "up"): ("Watch whether customers keep buying at the new prices.",

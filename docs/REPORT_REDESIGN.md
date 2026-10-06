@@ -1190,6 +1190,57 @@ file or a common shape):**
     (details in the technical section)" - a decision made alone; "passed ...
     except" can read as those having failed. Your wording?
 
+**Answered by Thach, 2026-10-06 (ninth round - Q55-Q62):**
+
+55. **Q55** - 8D: only staged values show it (the triage rule: no
+    fabrication on a demo file or a common shape).
+56. **Q56** - fix: one change is printed one way everywhere in the front
+    section (sentence A, sentence B). *Why:* visible on the demo runs. (The
+    KPI table is in the appendix, not the front.)
+57. **Q57** - fix: the season sentence carries its yardstick from stage 3's
+    fields ("a gap of 12.0 points, within twice this shop's typical gap (8.5
+    points)"); no new statistic.
+58. **Q58** - fix: "at least" only when the printed figures are equal;
+    otherwise "more than".
+59. **Q59** - accepted, with the count: "Data checks passed (N of 3 could run
+    on this file; details in the technical section)".
+60. **Q60** - keep the claims; one code-written line before the actions when
+    T1 or T2 matches the change: "Part of this change matches the calendar /
+    the change a year earlier; the action below is about the rest." - only the
+    parts true for the run.
+61. **Q61** - fix: R3's action uses the technical section's label.
+62. **Q62** - fix: R1's action names stage 3's top member (a new additive
+    stage 3 field, full process: diagnosis 18.8 `hypotheses[].member`).
+
+**Open (Q56-Q62's scoped reviews - section 12):**
+
+63. **Q63** - Q60's line before the actions is NOT shown (the stop rule).
+    Its fix said it only where a matching T1/T2 had a share in (0, 1), the
+    shares together under 1, and every action moved with the change; the
+    review of the fix still found it false: (a) a year before matching more
+    than the whole change (Kaggle's T2 1.48, demo_unanswered's 1.45) is
+    dropped from the parts, so "the rest" is said where nothing is left -
+    any rule 5/6 run with a with-the-change claim; (b) an action's own part
+    (P1 at 0.95) larger than what the calendar leaves (0.6). Stage 3 writes
+    no field saying how the parts overlap. Options: (i) keep it hidden; (ii)
+    say it only when every T1/T2 that matches is under the whole AND every
+    action's own share fits in what is left (still a sum of overlapping
+    shares); (iii) a fixed wording that claims no "rest" ("The calendar
+    also matches part of this change."); (iv) a new stage 3 field. Which?
+64. **Q64** - where no precision up to 4 agrees, the season sentence now
+    drops its yardstick and prints the two changes at one decimal; with a
+    band beyond (typical gap under ~0.03 points: staged values only) the two
+    can print equal beside "differs from" ("47.2% last year, 47.2% this
+    year"). Options: print the facts at the decimals where they differ; or
+    drop the facts too and keep only "This change differs from last year's.";
+    or 8D. Which?
+65. **Q65** - R1's member holds a digit on all three fixtures ("Product
+    029", "Product 615", "Product 186") and on many Online Retail II names
+    ("SET OF 3 ..."), so R1's action mostly points to its row: the actions
+    contract refuses any digit (design 4.4, written for AI text). Allow a
+    code-written member name to carry digits (the contract checks the
+    catalog sentence, then fills the name), or keep pointing to the row?
+
 **Answered by Thach, 2026-10-06 (eighth round, step 4 - Q49-Q54):**
 
 50. **Q50** - option (d): **no AI in v1's recommendations.** *Why:* five
@@ -1822,3 +1873,61 @@ No further cycle.
     technical section", but stage 3's R1 is products only and its member
     appears only as "top_member" in the evidence cell. Word it "the product
     named in the technical section's row for this check"?
+
+### Q56-Q62 (2026-10-06)
+
+Built, tests first: sentence B's season sentence carries its gap and the
+shop's typical gap (Q57), printed at the decimals where the printed gap is
+the reader's subtraction of the two printed changes and agrees with stage 3's
+band, the word following the printed figures (Q58), and sentence A prints the
+change as B does (Q56); the data-checks line counts the checks that ran
+(Q59); a line before the actions when T1 or T2 matches the change (Q60 -
+then hidden, below); R3's action names its row as the appendix
+labels it, from stage 3's `statement` (Q61); R1's action names
+`hypotheses[].member` (diagnosis 18.8, additive; the three real runs re-run:
+every existing field identical, only `member` and the stamps differ) and,
+before 18.8, points to its row (Q62).
+
+Decision made alone: on demo_unanswered the season sentence prints two
+decimals ("39.14% ... 27.08% ... a gap of 12.06 points ... (8.55 points)"),
+not Thach's example's one: at one decimal stage 3's gap prints 12.1 beside
+39.1 - 27.1 = 12.0. Noted: demo_unanswered's R1 member is "DOTCOM POSTAGE"
+(a line Review marks as possibly no product); R1 is ruled out there, so no
+action names it.
+
+Scoped review (one, fresh context), six findings, all fixed, tests first:
+1. stage 4 failed whenever R1 or R3 became a claim - "row R3" or a product
+   code (SKU-1042) put a digit in the action, which the actions contract
+   refuses. A row is now named by its label alone; R1's member is printed
+   only where the sentence passes the contract's checks and the front's
+   banned words and Review did not only suggest it is no product (3.3a,
+   finding 5); else the action points to the row.
+2-3. where no precision up to 4 agreed, the season sentence printed at four
+   decimals a gap that is not the printed subtraction, or a band word the
+   printed figures contradict (0.4% of a uniform sweep, no demo file). Now
+   the yardstick is not said there (the facts at one decimal), the
+   month-to-month sentence is not said, and a typical that is not zero
+   never prints as zero. The review's sweep re-run: no contradiction in
+   385,140 cases; 1,041 season sentences say less, 39 month-to-month ones
+   are left out.
+4. Q60's line was false on the Kaggle run once stage 4 re-runs (its one
+   action, P2, pulled against the change; T2 matched 1.48 times the
+   change). Now said only where every word is true: a matching T1/T2 with
+   a share above zero and under the whole, the shares together under the
+   whole, and every action resting on a check that moved with the change.
+   Not said on any of the three real runs.
+6. the 18.8 contract now refuses a member unlike R1's top member, or blank.
+
+The scoped review of the fixes (one, fresh context): fixes 1 and 6 hold;
+three findings, no further cycle (the stop rule):
+- Q60's line still false on a common shape (a T2 over the whole dropped
+  from the parts still leaves "the rest"; an action's own part larger than
+  what is left) - **hidden**: the line is not written, the field
+  (`next_steps.lead`) removed before it was ever committed, and a test
+  proves no "Part of this change matches" on the page in the reviews'
+  cases. report.html never had it in the appendix. Q63.
+- the said-less season sentence can print equal changes beside "differs
+  from" (staged values only, a typical gap under ~0.03 points) - neither a
+  demo file nor a common shape: shown as is, Q64.
+- R1's member mostly falls back to its row (digits in real names) - not
+  false: Q65.

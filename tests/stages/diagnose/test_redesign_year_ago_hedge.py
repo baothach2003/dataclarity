@@ -152,6 +152,8 @@ def test_an_18_3_file_carrying_a_new_field_is_refused() -> None:
     found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
     for check in found["trust"]["checks"]:
         check["month"] = None
+    for hypothesis in found["hypotheses"]:
+        hypothesis["member"] = None  # 18.8's field, not the one under test
 
     with pytest.raises(ValidationError, match="before 18.4"):
         DiagnosisContract.model_validate(found)
@@ -222,6 +224,8 @@ def test_an_18_3_file_without_the_new_fields_still_loads() -> None:
     found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
     for check in found["trust"]["checks"]:
         check["month"] = None
+    for hypothesis in found["hypotheses"]:
+        hypothesis["member"] = None  # 18.8's field, not the one under test
     del found["year_ago"], found["year_ago_reason"], found["headline"]["hedge"]
     del found["tree"]["lever"]["bridge"], found["tree"]["lever"]["bridge_withheld"]
 
@@ -231,7 +235,7 @@ def test_an_18_3_file_without_the_new_fields_still_loads() -> None:
 
 
 def test_the_version_is_18_5() -> None:
-    assert SCHEMA_VERSION == "18.7"  # 18.7: trust.checks[].month, headline.offsetting (Q39, Q40); 18.6: headline.named (Q33); 18.5: "failed_checks" (item 1); 18.4: bridge, year_ago, hedge (step 1)
+    assert SCHEMA_VERSION == "18.8"  # 18.8: hypotheses[].member (Q62); 18.7: trust.checks[].month, headline.offsetting (Q39, Q40); 18.6: headline.named (Q33); 18.5: "failed_checks" (item 1); 18.4: bridge, year_ago, hedge (step 1)
 
 
 def test_report_json_carries_the_headlines_hedge() -> None:

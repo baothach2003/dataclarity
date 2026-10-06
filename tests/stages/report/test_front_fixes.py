@@ -224,7 +224,8 @@ def test_a_season_of_several_years_is_said_without_the_word_median() -> None:
     front = _front("demo_classed", diagnosis=_season(3))
 
     assert front.summary[0] == ("This change is in line with earlier years: in the 3 earlier years, sales typically "
-                                "rose 27.1% between these months; this year they rose 27.2%.")
+                                "rose 27.1% between these months; this year they rose 27.2% - a gap of 0.1 points, "
+                                "within twice this shop's typical gap (13.1 points).")  # Q57
     assert "median" not in " ".join(front.summary).lower()
 
 

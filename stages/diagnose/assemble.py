@@ -52,8 +52,8 @@ from stages.diagnose.trust import evaluate_trust
 # redesign, step 1, 2026-10-05): tree.lever.bridge, year_ago, headline.hedge - all additive; 18.5
 # (Thach, item 1): bridge_withheld "failed_checks" - a vocabulary grown, additive by his ruling; 18.6
 # (Thach, Q33): headline.named, the hypotheses behind rules 5 and 6; 18.7 (Q39, Q40): trust.checks[].month and
-# headline.offsetting.
-SCHEMA_VERSION = "18.7"
+# headline.offsetting; 18.8 (Q62): hypotheses[].member, R1's top member.
+SCHEMA_VERSION = "18.8"
 logger = logging.getLogger(__name__)
 DIAGNOSIS_FILENAME = "diagnosis.json"
 

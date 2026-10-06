@@ -166,7 +166,11 @@ def evaluate_hypotheses(inputs: Step7Inputs) -> list[Hypothesis]:
 def _make(spec: HypothesisSpec, verdict: str, contribution: float | None,
           share: float | None, evidence: dict, rule: str,
           sign: float | None, moved: Changes, against: bool) -> Hypothesis:
+    # 18.8: R1's top member stated as a field (Q62) - the same value as its
+    # evidence, so no reader parses the evidence for it.
+    member = evidence.get("top_member") if spec.id == "R1" else None
     return Hypothesis(id=spec.id, family=spec.family, lens=spec.lens,
                       statement=spec.render(sign, moved.orders_basis), verdict=verdict,
                       contribution=contribution, share=share,
-                      evidence=evidence, rule=rule, against_the_change=against)
+                      evidence=evidence, rule=rule, against_the_change=against,
+                      member=member if isinstance(member, str) and member.strip() else None)

@@ -27,7 +27,8 @@ HEDGES = {"seasonal": "This may be seasonal: treat it as a pointer, not a findin
 # Thach, Q45: "passed" - "no problem found" stood beside days with no sales a
 # season explains (D1's check ok, its hypothesis matching the change).
 CHECKS_OK = "Data checks passed (details in the technical section)."
-CHECKS_PARTLY = "Data checks passed, except those this file cannot run (details in the technical section)."
+# Thach, Q59: with the count of the checks that could run.
+CHECKS_PARTLY = "Data checks passed ({ran} of {total} could run on this file; details in the technical section)."
 # The trust checks by id, status and the month stage 3 says they are about
 # (Thach, Q37, Q39); stage 3's own message stays in the appendix, as written.
 # `{when}` is " in <month>", or nothing where the file names no month (before
@@ -89,7 +90,10 @@ def data_checks(checks: list[TrustCheck], period: Period) -> list[str]:
     cautions = check_lines(checks, "caution", period)
     if cautions:
         return cautions
-    return [CHECKS_OK if all(check.status == "ok" for check in checks) else CHECKS_PARTLY]
+    if all(check.status == "ok" for check in checks):
+        return [CHECKS_OK]
+    ran = sum(1 for check in checks if check.status == "ok")  # a count of the checks listed, no figure of the file
+    return [CHECKS_PARTLY.format(ran=ran, total=len(checks))]
 
 
 def _printed(value: float, decimals: int) -> Fraction:
@@ -98,37 +102,71 @@ def _printed(value: float, decimals: int) -> Fraction:
     return Fraction(f"{value:.{decimals}f}")
 
 
-def places(value: float, typical: float, factor: float, at_least: bool, strict: bool) -> int:
+def _bumped(value: float, decimals: int) -> int:
+    """The decimals a figure is printed with: a change that moved never
+    prints as zero (the review: "+0.0%")."""
+    while value != 0 and decimals < 4 and round(value, decimals) == 0:
+        decimals += 1
+    return decimals
+
+
+def _shown(value: float, decimals: int) -> Fraction:
+    """The figure exactly as the sentence prints it."""
+    return _printed(value, _bumped(value, decimals))
+
+
+def places(value: float, typical: float, factor: float, singled_out: bool) -> int | None:
     """The decimals at which the printed figures agree with stage 3's test
-    (|value| >= factor x typical, or under it) AND with the word beside them:
-    "more than" only where the printed figure is more (`strict`), "less
-    than" only where it is less - "+10.04%" beside "less than twice ...
-    about 5.03%", never "+10.0%" beside "about 5.0%" (the reviews)."""
+    (|value| >= factor x typical when singled out, under it when not) - never
+    "+10.0%" beside "less than twice ... about 5.0%" (the reviews) - and a
+    typical that is not zero never prints as zero. None where no precision
+    up to 4 does: the sentence is then not said (the scoped review of
+    Q56-Q62: "+0.2780%" beside "less than twice ... 0.1390%")."""
     for found in (1, 2, 3, 4):
-        shown, bound = _printed(abs(value), found), Fraction(str(factor)) * _printed(typical, found)
-        if (shown > bound if strict else shown >= bound) if at_least else shown < bound:
+        typical_shown = _shown(typical, found)
+        if typical > 0 and typical_shown == 0:
+            continue
+        shown, bound = _shown(abs(value), found), Fraction(str(factor)) * typical_shown
+        if (shown >= bound) if singled_out else (shown < bound):
             return found
-    return 4
+    return None
 
 
-def season_places(change: float, expected: float, typical: float, factor: float, strict: bool) -> int:
-    """The decimals at which the printed changes' gap agrees with stage 3's
-    band and the word beside it (Q44: "10.0% ... 12.0%" stood beside "more
-    than 4 times ... about 0.50 points" - printed, exactly 4 times)."""
+def side(shown: Fraction, bound: Fraction) -> str:
+    """Thach, Q58: "at least" only where the printed figures are equal."""
+    return "more than" if shown > bound else "at least"
+
+
+def season_places(change: float, expected: float, gap: float, typical: float, factor: float,
+                  beyond: bool) -> int | None:
+    """The decimals at which the season sentence's printed figures agree with
+    themselves and with stage 3's band (Q44, Q57): the printed gap is the
+    reader's subtraction of the two printed changes; a typical gap that is
+    not zero never prints as zero; beyond the band the printed gap is at
+    least `factor` times the printed typical, inside it less. None where no
+    precision up to 4 does: the yardstick is then not said (the scoped
+    review: "a gap of 14.7364 points" beside 103.5729 - 88.8364)."""
     for found in (1, 2, 3, 4):
-        gap = abs(_printed(change, found) - _printed(expected, found))
-        bound = Fraction(str(factor)) * _printed(typical, found)
-        if gap > bound if strict else gap >= bound:
+        shown_gap = _shown(abs(gap), found)
+        if shown_gap != abs(_shown(change, found) - _shown(expected, found)):
+            continue
+        typical_shown = _shown(typical, found)
+        if typical > 0 and typical_shown == 0:
+            continue
+        bound = Fraction(str(factor)) * typical_shown
+        if (shown_gap >= bound) if beyond else (shown_gap < bound or shown_gap == 0):
             return found
-    return 4
+    return None
 
 
 def _pct(value: float, decimals: int, sign: bool = True) -> str:
-    # A change that moved never prints as zero (the review: "+0.0%").
-    while value != 0 and decimals < 4 and round(value, decimals) == 0:
-        decimals += 1
+    decimals = _bumped(value, decimals)
     text = f"{value:+,.{decimals}f}%" if sign else f"{value:,.{decimals}f}%"
     return text[1:] if text.startswith("-") and set(text) <= set("-0.,%") else text
+
+
+def _points(value: float, decimals: int) -> str:
+    return f"{value:,.{_bumped(value, decimals)}f}"
 
 
 def _moved(value: float) -> str:
@@ -145,42 +183,46 @@ def sentence_b(movement: HeadlineMovement | None) -> tuple[str | None, bool, int
     """The comparison with the shop's own history, as a fact with its figure
     (Q3: no adjective), whether the change is inside it (B opens: a season
     in line, or under the size test - design 1.1), and the decimals sentence
-    A prints its percentage with."""
+    A prints its percentage with: the decimals of the sentence printed, so
+    one change is printed one way (Q56)."""
     if movement is None or movement.change_pct is None:
         return None, False, 1
     season, change = movement.season, movement.change_pct
     inside = (season is not None and season.band == "consistent") or movement.singled_out is False
-    decimals, more = 1, False
-    if movement.singled_out is not None and movement.typical_pct is not None:
-        more = abs(change) > movement.factor * movement.typical_pct
-        decimals = places(change, movement.typical_pct, movement.factor, movement.singled_out, more)
     if season is not None and season.band in ("consistent", "shortfall", "excess"):
-        expected = season.expected_change_pct
-        beyond = abs(season.difference_pct) > season.beyond_factor * season.typical_pct
-        # The gap itself is not printed (a reader subtracts the two changes):
-        # the changes and the typical are printed at the decimals where that
-        # subtraction says what stage 3 decided (Q44).
-        gap = 1 if season.band == "consistent" else season_places(
-            change, expected, season.typical_pct, season.beyond_factor, beyond)
-        decimals = max(decimals, gap)
+        expected, gap, typical = season.expected_change_pct, season.difference_pct, season.typical_pct
+        beyond = season.band != "consistent"
+        factor = season.beyond_factor if beyond else movement.factor
+        agreed = season_places(change, expected, gap, typical, factor, beyond)
+        decimals = 1 if agreed is None else agreed
         if season.years == 1:
-            facts = f"{_pct(expected, gap, False)} last year, {_pct(change, gap, False)} this year (one earlier year " \
-                    "to compare with)"
+            facts = f"{_pct(expected, decimals, False)} last year, {_pct(change, decimals, False)} this year (one " \
+                    "earlier year to compare with)"
         else:
             facts = (f"in the {season.years} earlier years, sales typically {_moved(expected)} "
-                     f"{_pct(abs(expected), gap, False)} between these months; this year they {_moved(change)} "
-                     f"{_pct(abs(change), gap, False)}")
-        if season.band == "consistent":
-            return f"This change is in line with {whom(season.years)}: {facts}.", inside, decimals
-        bound = "more than" if beyond else "at least"
-        return (f"This change differs from {whom(season.years)}: {facts}; the difference is {bound} "
-                f"{times(season.beyond_factor)} this shop's typical year-on-year difference (about "
-                f"{season.typical_pct:,.{gap}f} points).", inside, decimals)
+                     f"{_pct(abs(expected), decimals, False)} between these months; this year they {_moved(change)} "
+                     f"{_pct(abs(change), decimals, False)}")
+        verb = "is in line with" if not beyond else "differs from"
+        if agreed is None:
+            return f"This change {verb} {whom(season.years)}: {facts}.", inside, decimals
+        # The yardstick from stage 3's fields (Thach, Q57): the gap and the
+        # shop's typical gap, printed as the reader can check them.
+        shown_gap = _shown(abs(gap), decimals)
+        bound = Fraction(str(factor)) * _shown(typical, decimals)
+        word = "within" if not beyond else side(shown_gap, bound)
+        yardstick = (f"a gap of {_points(abs(gap), decimals)} points, {word} {times(factor)} this shop's typical gap "
+                     f"({_points(typical, decimals)} points)")
+        return f"This change {verb} {whom(season.years)}: {facts} - {yardstick}.", inside, decimals
     if movement.singled_out is None or movement.typical_pct is None:
         return ("The file's history is too short to compare this change with this shop's earlier month-to-month "
-                "changes.", False, decimals)
-    side = ("more than" if more else "at least") if movement.singled_out else "less than"
-    return (f"That is {side} {times(movement.factor)} this shop's typical month-to-month change (about "
+                "changes.", False, 1)
+    decimals = places(change, movement.typical_pct, movement.factor, movement.singled_out)
+    if decimals is None:
+        return None, inside, 1
+    shown = _shown(abs(change), decimals)
+    bound = Fraction(str(movement.factor)) * _shown(movement.typical_pct, decimals)
+    word = side(shown, bound) if movement.singled_out else "less than"
+    return (f"That is {word} {times(movement.factor)} this shop's typical month-to-month change (about "
             f"{_pct(movement.typical_pct, decimals, False)}).", inside, decimals)
 
 

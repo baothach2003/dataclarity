@@ -40,7 +40,7 @@ SHORTFALL = _season("shortfall", 48.5, -33.9, 8.0)  # 33.9 >= 4 x 8.0
 
 
 def test_the_versions_are_additive() -> None:
-    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.7", "2.9")  # 18.7 the checks' month and headline.offsetting (Q39, Q40); 18.6 headline.named (Q33); 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 18.5 "failed_checks"; 18.4 the report redesign's bridge, year_ago, hedge; 2.7 the headline's hedge; 18.3 against_the_change; 2.5 the labels, evidence text, outside reasons; 2.6 the lens
+    assert (DIAGNOSIS_VERSION, REPORT_VERSION) == ("18.8", "2.9")  # 18.8 hypotheses[].member (Q62); 18.7 the checks' month and headline.offsetting (Q39, Q40); 18.6 headline.named (Q33); 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 18.5 "failed_checks"; 18.4 the report redesign's bridge, year_ago, hedge; 2.7 the headline's hedge; 18.3 against_the_change; 2.5 the labels, evidence text, outside reasons; 2.6 the lens
 
 
 def test_report_json_carries_the_season() -> None:

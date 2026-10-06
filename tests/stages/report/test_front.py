@@ -39,12 +39,18 @@ def test_kaggle_outside_the_typical_change_says_a_then_b_then_c() -> None:
         "together they placed 343 orders, up from 308."]
 
 
+# Q57: the yardstick; Q56: A prints the change as B does (two decimals on demo_unanswered,
+# where at one the printed gap 12.1 would not be 39.1 - 27.1).
 @pytest.mark.parametrize(("run", "sales", "change", "pct", "previous", "last_year"), [
-    ("demo_classed", "663,315.58", "141,755.41", "+27.2%", "521,560.17", "27.1% last year, 27.2% this year"),
-    ("demo_unanswered", "654,527.09", "139,466.56", "+27.1%", "515,060.53", "39.1% last year, 27.1% this year")])
+    ("demo_classed", "663,315.58", "141,755.41", "+27.2%", "521,560.17",
+     "27.1% last year, 27.2% this year (one earlier year to compare with) - a gap of 0.1 points, within twice this "
+     "shop's typical gap (13.1 points)"),
+    ("demo_unanswered", "654,527.09", "139,466.56", "+27.08%", "515,060.53",
+     "39.14% last year, 27.08% this year (one earlier year to compare with) - a gap of 12.06 points, within twice "
+     "this shop's typical gap (8.55 points)")])
 def test_inside_the_season_b_opens_the_summary(run, sales, change, pct, previous, last_year) -> None:
     assert _front(run).summary == [
-        f"This change is in line with last year's: {last_year} (one earlier year to compare with).",
+        f"This change is in line with last year's: {last_year}.",
         f"Sales in November 2011 were {sales}, up {change} ({pct}) on October 2011 ({previous}).",
         "Nothing else stands out: the change is in line with last year's, so none of the checks below is named "
         "as the reason."]

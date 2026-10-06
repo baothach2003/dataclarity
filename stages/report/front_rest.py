@@ -40,6 +40,14 @@ def none_selected(rule: int) -> str:
 NOT_STATED = "Amounts are in your file's currency."
 
 
+# Thach's Q60 line before the actions ("Part of this change matches the
+# calendar ...; the action below is about the rest.") is not shown: after
+# its fix, the scoped review still found it false on a common shape (a year
+# before matching more than the whole change, dropped from the parts, still
+# leaves "the rest"; an action's own part larger than what is left). The
+# stop rule, 2026-10-06; an open question to Thach.
+
+
 def next_steps(forecast: ForecastContract, rule: int) -> NextSteps:
     """By `actions_status` (Thach: list, suppressed, off - design 4.4). A
     forecast from before 2.1 carries none: not available. Actions listed
