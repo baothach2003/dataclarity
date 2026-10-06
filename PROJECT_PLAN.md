@@ -5918,6 +5918,18 @@ dataclarity/
       or recorded in 8D. Regression on HEAD and step 2: both Online Retail
       II demo runs and Thach's Kaggle run, stages 1-5 - every file identical
       but the new fields and the version stamps; neither file blocked.
+      **Thach (2026-10-05):** step 2's nine decisions accepted; steps 3 and 4
+      approved in that order. **Step 3 - built, STOPPED:** the front section
+      (report.json 2.9) and forecast.json 2.1's actions contract; its review
+      found fabrications on a common shape and the demo files - not
+      committed, step 4 not started; Q32-Q38 open (the design's sections 10
+      and 12). **Thach (2026-10-06):** Q32-Q38 answered (the design's
+      section 10). Fixed; the scoped review found fabrications again on
+      common shapes and the demo files: stopped, not committed; Q39-Q43.
+      **Thach (2026-10-06, later):** the pattern (meaning is stage 3's data)
+      and Q39-Q43 answered; applied; the scoped review's one fabrication on
+      a common shape moved to the appendix (safety valve); step 3
+      committed. Open: Q44-Q48.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6106,6 +6118,38 @@ significance threshold, making a one-cent price rise a step change.
 
 ## 12. Current Status
 
+**Report redesign - step 3: Thach's pattern applied, safety valve, committed**
+(2026-10-06, later). Q39-Q43 applied - diagnosis.json 18.7
+(`trust.checks[].month`, `headline.offsetting`; the three real runs
+re-run, existing fields identical), D2 by what it tests, orders by
+`orders_basis`, a season of several years never "last year's", D1-D3 one
+line, no free-text recommendation anywhere, the banned words a stage 4
+check; mutation 37 of 37; the full suite green. The scoped review's one
+fabrication on a common shape (the caution opener "this month's" beside a
+caution on the previous month) moved out of the front under the safety
+valve. Open: Q44-Q48 (the design's section 10).
+**Report redesign - step 3 stopped a second time, step 4 not started**
+(2026-10-06). Thach's Q32-Q38 applied (diagnosis.json 18.6
+`headline.named`; units from each field's contract, tested over the three
+real runs with GBP; notes per section; checks by id and status; and the
+review's other findings), mutation 35 of 35; the scoped review found
+fabrications on common export shapes (a check on last month worded as this
+month; D2 choosing one of two meanings; lines called orders) and on the
+demo files (a note missing beside the summary), so under the stop rule step
+3 is NOT committed and step 4 did not start. **Next session: the tree is
+not clean on purpose** (copy: `C:\Users\Happy\step3-front-wip\`). Open:
+Q39-Q43.
+**Report redesign - step 3 STOPPED, step 4 not started** (2026-10-05).
+Thach accepted step 2's nine decisions and approved steps 3 and 4. Step 3
+(stage 5's front section; report.json 2.9, forecast.json 2.1's actions
+contract) was built and tested (mutation 41 of 41; rendered on the three
+real runs at 390 and 1440 px, no overflow); its one review cycle found a
+fabrication on a common shape (a confirmed currency labels counts as money
+in the appendix) and on the demo files (C3/P3 worded as counts from money),
+so under Thach's rule it stopped: NOT committed (copy:
+`C:\Users\Happy\step3-front-wip\`). **Next session: the tree is not clean
+on purpose.** Open: Q32-Q38 (`docs/REPORT_REDESIGN.md` section 10; the
+findings and the ready fixes in its section 12).
 **Report redesign - step 2, stage 1 currency** (2026-10-05, on Thach's
 principle and his Q24-Q31, recorded at 9R). Built on strong evidence only:
 the plan's money column and a currency-named column, at execute; one block

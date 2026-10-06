@@ -19,12 +19,15 @@ from contracts.report import Actions, Chart, Kpi, Numbers, ReportContract
 from shared.contract_files import write_atomically
 from shared.later_outputs import REPORT_HTML
 from shared.run_registry import run_file
+from stages.report.wording import month_name
 from stages.report.html_causes import causes_html
 from stages.report.html_charts import chart_html, plotly_js
+from stages.report.html_front import front_html
 from stages.report.html_parts import (
     FORMATS,
     change,
     count,
+    currency_code,
     esc,
     items,
     links,
@@ -49,7 +52,8 @@ padding:0 1rem;color:#1d2330;line-height:1.5}h1{margin-bottom:.2rem}.meta,.reaso
 #dde1e8;padding:.35rem .5rem;text-align:left;vertical-align:top}.badge{border-left:6px solid #8a93a5;padding:.4rem
 .9rem;margin:1rem 0;background:#f5f6f8}.badge-trusted{border-color:#2e7d4f}.badge-caution{border-color:#c98a00}
 .badge-blocked{border-color:#b3261e}.note{border-left:3px solid #dde1e8;padding-left:.8rem;margin:.6rem 0}
-.caution{color:#7a5200}section{margin-top:2.2rem}@media print{.plotly-graph-div{break-inside:avoid}}"""
+.caution{color:#7a5200}@media (prefers-color-scheme:dark){.caution{color:#f0c060}}section{margin-top:2.2rem}
+@media print{.plotly-graph-div{break-inside:avoid}}"""
 
 
 def _change_cell(kpi: Kpi, incomplete: str | None) -> str:
@@ -184,35 +188,82 @@ def _actions(actions: Actions, charts: dict[str, Chart]) -> str:
         parts.append(table(["Month", "Forecast", "Low", "High"],
                            [[esc(p.period), money(p.point), money(p.low), money(p.high)] for p in forecast.points],
                            f"Low and high: the {share(first.confidence)} band, from the method's own past errors"))
+        # How the front's "likely between" range is built (Thach, Q12: moved here).
+        parts.append(para(f"The range is an {share(first.confidence)} interval worked out from how far off this "
+                          "method's past estimates were (their root mean square times Student's t) or, with too few "
+                          "past estimates, from the spread of the months themselves."))
         if "forecast" in charts:
             parts.append(_chart(charts["forecast"], first.confidence, with_note=False))
         elif forecast.notes:
             # The chart carries them when drawn - once, never twice (5B review 2 #4, #6).
             parts.append(f"<p>Read the forecast with: {links(forecast.notes)}</p>")
     parts.append("<h3>Recommendations</h3>")
+    # The free-text recommendations are printed nowhere, whoever wrote the
+    # report.json (Thach, Q42): the unchecked format v1 switched off because
+    # it fabricated numbers.
     if actions.recommendations_status == "switched_off":
         parts.append(para("The AI recommendations are switched off for this report."))
-    elif actions.recommendations is None or actions.do_not_do is None:
-        parts.append(para("No AI recommendation is available for this run."))
     else:
-        parts.append("<ol>" + "".join(
-            f"<li><p><strong>{esc(r.action)}</strong></p>{para('Insight: ' + r.insight)}{para('Cause: ' + r.cause)}"
-            f"{para('Expected impact: ' + r.expected_impact)}{para('How to measure: ' + r.how_to_measure)}"
-            f"{para('Confidence: ' + r.confidence_label)}</li>" for r in actions.recommendations) + "</ol>")
-        parts.append(items(f"Do not: {esc(d.tempting_action)} - {esc(d.why_wrong_here)}" for d in actions.do_not_do))
-        if actions.notes:
-            parts.append(f"<p>Read with: {links(actions.notes)}</p>")
+        parts.append(para("No AI recommendation is available for this run."))
     return "".join(parts)
 
 
+# The appendix opens to the note a front link names, and resizes its charts
+# when opened: a chart drawn while closed has no width (inline, no network).
+_APPENDIX_JS = ("(function(){var a=document.getElementById('appendix');if(!a)return;"
+                "function open(){if(location.hash&&a.querySelector(location.hash)){a.open=true;}}"
+                "window.addEventListener('hashchange',open);open();"
+                "a.addEventListener('toggle',function(){if(a.open&&window.Plotly){"
+                "document.querySelectorAll('.plotly-graph-div').forEach(function(d){Plotly.Plots.resize(d);});"
+                "}});})();")
+_FRONT_STYLE = """:root{--card:#fff;--ink2:#52514e;--line:#e4e3df;--up:#2a78d6;--down:#e34948;--tot:#8a8984;
+--accent:#2a78d6}@media (prefers-color-scheme:dark){:root{--card:#232321;--ink2:#c3c2b7;--line:#383835;
+--up:#3987e5;--down:#e66767;--tot:#8f8e88;--accent:#3987e5}body{background:#1a1a19;color:#fff}
+.badge{background:#2b2b29}}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+padding:16px 18px;margin-top:18px}.card h2{margin:0 0 .6rem;font-size:1.15rem}.summary p{font-size:1.05rem}
+.small{font-size:.9rem;color:var(--ink2)}svg{width:100%;height:auto;display:block}.grid{stroke:var(--line)}
+.base{stroke:var(--ink2)}.tick{fill:var(--ink2);font-size:11px}.val{fill:currentColor;font-size:12px;font-weight:600}
+.lab{fill:var(--ink2);font-size:11.5px}.up{fill:var(--up)}.down{fill:var(--down)}.tot{fill:var(--tot)}
+.flat{fill:var(--ink2)}.series{fill:none;stroke:var(--accent);stroke-width:2}.hit{fill:transparent}
+.dot,.pt-last{fill:var(--accent)}.mark:hover .hit{fill:var(--accent);fill-opacity:.25}.num{white-space:nowrap}
+ul.check{list-style:none;padding-left:0}ul.check li{padding:3px 0 3px 24px;position:relative}
+ul.check li::before{position:absolute;left:0;width:18px;text-align:center;font-weight:700}
+.yes li::before{content:"\\2713";color:var(--up)}.against li::before{content:"\\2193";color:var(--down)}
+.no li::before{content:"\\2715";color:var(--ink2)}.cant li::before{content:"?";color:var(--ink2)}
+.rec{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.scroll{overflow-x:auto}
+#appendix{margin-top:18px}#appendix>summary{cursor:pointer;font-weight:600;padding:8px 0}
+#appendix table{display:block;overflow-x:auto}p,li,td,h1,h2,h3{overflow-wrap:anywhere}th{overflow-wrap:break-word}"""
+
+
 def render_html(report: ReportContract) -> str:
+    """The front section, then today's report in a closed appendix (2.9);
+    a report from before 2.9 as it was rendered then."""
+    with currency_code(report.currency.code if report.currency is not None else None):
+        return _render(report)
+
+
+def _render(report: ReportContract) -> str:
     numbers, charts = report.layer_1_numbers, {c.id: c for c in report.charts}
     provenance, quality = report.provenance, report.data_quality
     models = f" ({esc(', '.join(provenance.models_used))})" if provenance.models_used else ""
+    meta = para(f"File: {report.source_file} - run {report.run_id} - generated "
+                f"{report.generated_at:%Y-%m-%d %H:%M %Z}", "meta")
+    front = report.front
+    if front is None:
+        header, opening, closing = f"<header><h1>Sales report</h1>{meta}</header>", "", ""
+    else:
+        period = numbers.period
+        header = (f"<header><h1>Your sales report</h1>{meta}"
+                  f"{para(f'{month_name(period.current)} compared with {month_name(period.previous)}', 'meta')}"
+                  f"</header>{front_html(report, front)}")
+        opening = ('<details id="appendix"><summary>Technical details (for an analyst)</summary>'
+                   + para("In this appendix, 'revenue' is the same figure as 'sales' above.")
+                   + (para(f"Amounts are in {report.currency.code}. Sentences quoted from the analysis, and the "
+                           "evidence of each check, are shown as written, their amounts without the code.")
+                      if report.currency is not None and report.currency.code else ""))
+        closing = "</details>"
     body = "".join([
-        "<header><h1>Sales report</h1>",
-        para(f"File: {report.source_file} - run {report.run_id} - generated "
-             f"{report.generated_at:%Y-%m-%d %H:%M %Z}", "meta"), "</header>",
+        header, opening,
         '<section id="quality"><h2>The file</h2>',
         para(f"Rows in: {count(quality.rows_in)}. Rows out: {count(quality.rows_out)}. Changes that did "
              f"something: {count(quality.issues_fixed)}. Warnings: {count(quality.warnings)}."), "</section>",
@@ -228,10 +279,11 @@ def render_html(report: ReportContract) -> str:
         # (builder.py), not only words; what holds for every one is that it
         # computes no figure (CLAUDE.md 3.2; the 6E1 review #9).
         f"{models}. Every figure is computed by code from the earlier stages' files; the AI computes none.</p>",
-        "</section>"])
+        "</section>", closing, f"<script>{_APPENDIX_JS}</script>" if front is not None else ""])
+    style = _STYLE + (_FRONT_STYLE if front is not None else "")
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">'
-            f"<title>DataClarity report - {esc(report.source_file)}</title><style>{_STYLE}</style>"
+            f"<title>DataClarity report - {esc(report.source_file)}</title><style>{style}</style>"
             f"<script>{plotly_js()}</script></head><body>{body}</body></html>")
 
 

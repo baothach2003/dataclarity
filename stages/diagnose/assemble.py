@@ -20,6 +20,7 @@ from contracts.diagnosis import (
     NO_YEAR_AGO_PAIR,
     DiagnosisContract,
     Frame,
+    Headline,
     Hypothesis,
     Lever,
     NotTestable,
@@ -49,8 +50,10 @@ from stages.diagnose.trust import evaluate_trust
 # 18.1 (Thach, 2026-10-03): hypotheses_note; 18.2 (2026-10-04): headline.movement.season; 18.3
 # (2026-10-04, (vi)-(vii)): hypotheses[].against_the_change and rule 2's note; 18.4 (the report
 # redesign, step 1, 2026-10-05): tree.lever.bridge, year_ago, headline.hedge - all additive; 18.5
-# (Thach, item 1): bridge_withheld "failed_checks" - a vocabulary grown, additive by his ruling.
-SCHEMA_VERSION = "18.5"
+# (Thach, item 1): bridge_withheld "failed_checks" - a vocabulary grown, additive by his ruling; 18.6
+# (Thach, Q33): headline.named, the hypotheses behind rules 5 and 6; 18.7 (Q39, Q40): trust.checks[].month and
+# headline.offsetting.
+SCHEMA_VERSION = "18.7"
 logger = logging.getLogger(__name__)
 DIAGNOSIS_FILENAME = "diagnosis.json"
 
@@ -74,6 +77,9 @@ def diagnose(data: RunData, now: datetime | None = None) -> DiagnosisContract:
     inputs = Step7Inputs(data, history, frame, trust, calendar, signals, tree, localization)
     hypotheses = evaluate_hypotheses(inputs)
     headline = choose_headline(trust, hypotheses, tree, changes(inputs))
+    # 18.7: every headline says whether it is rule 6's offsetting case (only
+    # that case sets it true). Validated, not copied: a copy runs no validator.
+    headline = Headline.model_validate(headline.model_dump() | {"offsetting": bool(headline.offsetting)})
     fields = dict(
         schema_version=SCHEMA_VERSION,
         generated_at=now or datetime.now(UTC),

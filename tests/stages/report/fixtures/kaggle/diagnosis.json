@@ -1,0 +1,1066 @@
+{
+ "schema_version": "18.6",
+ "generated_at": "2026-10-04T23:45:56Z",
+ "model_used": null,
+ "frame": {
+  "current": "2024-12",
+  "previous": "2024-11",
+  "year_ago_current": "2023-12",
+  "year_ago_previous": "2023-11",
+  "history_months": 24,
+  "previous_leading_days_missing": 0,
+  "history_start": "2022-12",
+  "history_end": "2024-11"
+ },
+ "trust": {
+  "verdict": "trusted",
+  "checks": [
+   {
+    "id": "D1",
+    "status": "ok",
+    "evidence": {
+     "zero_rate_by_weekday": {
+      "0": 0.0,
+      "1": 0.0,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 0.0
+     },
+     "history_months_with_rows": 35,
+     "learned_from_months": 34,
+     "learned_months": [
+      "2022-01",
+      "2022-02",
+      "2022-03",
+      "2022-04",
+      "2022-05",
+      "2022-06",
+      "2022-07",
+      "2022-08",
+      "2022-09",
+      "2022-10",
+      "2022-11",
+      "2022-12",
+      "2023-01",
+      "2023-02",
+      "2023-03",
+      "2023-04",
+      "2023-05",
+      "2023-06",
+      "2023-07",
+      "2023-08",
+      "2023-09",
+      "2023-10",
+      "2023-11",
+      "2023-12",
+      "2024-01",
+      "2024-02",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-06",
+      "2024-07",
+      "2024-08",
+      "2024-09",
+      "2024-10"
+     ],
+     "weekday_months": [
+      "2022-01",
+      "2022-02",
+      "2022-03",
+      "2022-04",
+      "2022-05",
+      "2022-06",
+      "2022-07",
+      "2022-08",
+      "2022-09",
+      "2022-10",
+      "2022-11",
+      "2022-12",
+      "2023-01",
+      "2023-02",
+      "2023-03",
+      "2023-04",
+      "2023-05",
+      "2023-06",
+      "2023-07",
+      "2023-08",
+      "2023-09",
+      "2023-10",
+      "2023-11",
+      "2023-12",
+      "2024-01",
+      "2024-02",
+      "2024-03",
+      "2024-04",
+      "2024-05",
+      "2024-06",
+      "2024-07",
+      "2024-08",
+      "2024-09",
+      "2024-10"
+     ],
+     "empty_history_months": [],
+     "gapped_history_months": [],
+     "caution_min_days": 1.0,
+     "zero_days_cur": 0,
+     "expected_zero_days_cur": 0.0,
+     "excess_zero_days_cur": 0.0,
+     "seasonal_expected_zero_days_cur": 0.0,
+     "unexplained_zero_days_cur": 0.0,
+     "caution_bar_days_cur": 0.0,
+     "zero_days_prev": 0,
+     "expected_zero_days_prev": 0.0,
+     "excess_zero_days_prev": 0.0,
+     "seasonal_expected_zero_days_prev": 0.0,
+     "unexplained_zero_days_prev": 0.0,
+     "caution_bar_days_prev": 0.0,
+     "estimated_revenue_gap": 0.0,
+     "estimated_revenue_gap_prev": 0.0
+    },
+    "message": "Coverage matches this store's normal trading pattern."
+   },
+   {
+    "id": "D2",
+    "status": "ok",
+    "evidence": {
+     "comparable_products": 19,
+     "median_ratio": 1.0,
+     "share_extreme": 0.0,
+     "rule": "small_catalog_order_of_magnitude"
+    },
+    "message": "No order-of-magnitude price shift across the 19 comparable products."
+   },
+   {
+    "id": "D3",
+    "status": "ok",
+    "evidence": {
+     "flag_columns": 0,
+     "uncategorised_revenue_share_cur": 0.0,
+     "uncategorised_revenue_share_prev": 0.0
+    },
+    "message": "Stage 1 flagged no rows in this file."
+   }
+  ],
+  "limitations": [
+   "rows dropped in stage 1 cannot be assigned to a period, so a gap caused by dropped rows is invisible here"
+  ]
+ },
+ "calendar": {
+  "method": "weekday_weights",
+  "expected_cur": 39114.25,
+  "expected_prev": 37945.5,
+  "calendar_effect": 1274.1501792043844,
+  "calendar_adjusted_change": 3650.8498207956154,
+  "evidence": {
+   "weights": {
+    "mon": 1135.0,
+    "tue": 1310.25,
+    "wed": 1215.25,
+    "thu": 1276.0,
+    "fri": 1363.0,
+    "sat": 1226.5,
+    "sun": 1313.0
+   },
+   "weekday_counts_cur": {
+    "mon": 5,
+    "tue": 5,
+    "wed": 4,
+    "thu": 4,
+    "fri": 4,
+    "sat": 4,
+    "sun": 5
+   },
+   "weekday_counts_prev": {
+    "mon": 4,
+    "tue": 4,
+    "wed": 4,
+    "thu": 4,
+    "fri": 5,
+    "sat": 5,
+    "sun": 4
+   },
+   "expected_ratio": 1.030801
+  }
+ },
+ "signals": [
+  {
+   "series": "revenue",
+   "mode": "yoy",
+   "value_cur": 12.782000682161476,
+   "center": 1.653860324792079,
+   "lower": -19.703860688419997,
+   "upper": 23.011581338004152,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "orders",
+   "mode": "yoy",
+   "value_cur": 9.235668789808917,
+   "center": 1.4370995047240682,
+   "lower": -24.947304606825032,
+   "upper": 27.821503616273166,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "active_customers",
+   "mode": "yoy",
+   "value_cur": 0.0,
+   "center": 0.0,
+   "lower": -2.0,
+   "upper": 2.0,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "minimum_spread",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "frequency",
+   "mode": "yoy",
+   "value_cur": 9.235668789808917,
+   "center": 1.4370995047240684,
+   "lower": -24.947304606825032,
+   "upper": 27.821503616273166,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "aov",
+   "mode": "yoy",
+   "value_cur": 3.2464962513081765,
+   "center": 0.37716459582885503,
+   "lower": -17.548973572323593,
+   "upper": 18.303302763981304,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "units_per_order",
+   "mode": "yoy",
+   "value_cur": 6.77590644593263,
+   "center": -0.8379549262171658,
+   "lower": -8.784651991477954,
+   "upper": 7.108742139043623,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "price_per_unit",
+   "mode": "yoy",
+   "value_cur": -3.3054368837520673,
+   "center": 1.2085436092433772,
+   "lower": -13.024208905484205,
+   "upper": 15.441296123970957,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "median_moving_range",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  },
+  {
+   "series": "return_rate",
+   "mode": "level",
+   "value_cur": 0.0,
+   "center": 0.0,
+   "lower": -0.01,
+   "upper": 0.01,
+   "signal": "within",
+   "rule": null,
+   "limits_method": "minimum_spread",
+   "mode_fallback": null,
+   "insufficient_reason": null
+  }
+ ],
+ "tree": {
+  "method": "shapley",
+  "lever": {
+   "level1": {
+    "formula": "customers*frequency*aov",
+    "factors": [
+     {
+      "name": "customers",
+      "value_prev": 25.0,
+      "value_cur": 25.0,
+      "contribution": 0.0
+     },
+     {
+      "name": "frequency",
+      "value_prev": 12.32,
+      "value_cur": 13.72,
+      "contribution": 4712.288381261595
+     },
+     {
+      "name": "aov",
+      "value_prev": 134.31006493506493,
+      "value_cur": 134.96355685131195,
+      "contribution": 212.71161873840538
+     }
+    ]
+   },
+   "level2": {
+    "formula": "units_per_order*price_per_unit",
+    "factors": [
+     {
+      "name": "units_per_order",
+      "value_prev": 5.438311688311688,
+      "value_cur": 5.80466472303207,
+      "contribution": 2858.8431342485997
+     },
+     {
+      "name": "price_per_unit",
+      "value_prev": 24.697014925373136,
+      "value_cur": 23.250878955298845,
+      "contribution": -2646.1315155101943
+     }
+    ]
+   },
+   "gross_to_net": 1.0,
+   "masked_shift_alert": false,
+   "masked_shift_pair": {
+    "formula": "orders*aov",
+    "factors": [
+     {
+      "name": "orders",
+      "value_prev": 308.0,
+      "value_cur": 343.0,
+      "contribution": 4712.288381261595
+     },
+     {
+      "name": "aov",
+      "value_prev": 134.31006493506493,
+      "value_cur": 134.96355685131195,
+      "contribution": 212.71161873840538
+     }
+    ]
+   },
+   "reasons": {},
+   "bridge": {
+    "revenue_previous": 41367.5,
+    "revenue_current": 46292.5,
+    "change": 4925.0,
+    "shown_previous": 41367.5,
+    "shown_current": 46292.5,
+    "shown_change": 4925.0,
+    "bars": [
+     {
+      "factor": "customers",
+      "value_prev": 25.0,
+      "value_cur": 25.0,
+      "contribution": 0.0,
+      "shown": 0.0
+     },
+     {
+      "factor": "frequency",
+      "value_prev": 12.32,
+      "value_cur": 13.72,
+      "contribution": 4712.288381261595,
+      "shown": 4712.29
+     },
+     {
+      "factor": "units_per_order",
+      "value_prev": 5.438311688311688,
+      "value_cur": 5.80466472303207,
+      "contribution": 2858.8431342485997,
+      "shown": 2858.84
+     },
+     {
+      "factor": "price_per_unit",
+      "value_prev": 24.697014925373136,
+      "value_cur": 23.250878955298845,
+      "contribution": -2646.1315155101943,
+      "shown": -2646.13
+     }
+    ],
+    "aov_split": true,
+    "aov_split_withheld": null
+   },
+   "bridge_withheld": null
+  },
+  "customers": {
+   "new": 0.0,
+   "resurrected": 0.0,
+   "expansion": 9498.5,
+   "contraction": -4573.5,
+   "lapsed": -0.0,
+   "unattributed": 0.0,
+   "previous_transition": {
+    "new": 0.0,
+    "resurrected": 0.0,
+    "expansion": 7837.5,
+    "contraction": -7869.5,
+    "lapsed": -0.0,
+    "unattributed": 0.0
+   },
+   "evidence": {
+    "transition": "2024-11 -> 2024-12",
+    "new_customers": 0,
+    "arrivals_with_no_first_purchase_in_the_file": 0,
+    "left_censored": false,
+    "months_since_file_start": 35,
+    "customer_values_merged_by_normalisation": 0,
+    "empty_period": []
+   }
+  },
+  "returns": {
+   "gross_prev": 41367.5,
+   "gross_cur": 46292.5,
+   "returns_prev": 0.0,
+   "returns_cur": 0.0,
+   "deductions_prev": 0.0,
+   "deductions_cur": 0.0,
+   "charges_prev": 0.0,
+   "charges_cur": 0.0
+  },
+  "products": {
+   "volume": 6139.147243449782,
+   "mix": -1479.6472434497755,
+   "price": 0.0,
+   "new_products": 9101.0,
+   "discontinued_products": -8835.5,
+   "unidentified": 0.0
+  }
+ },
+ "localization": {
+  "dimensions": [
+   {
+    "name": "category",
+    "members": [
+     {
+      "name": "Category 07",
+      "rev_prev": 5037.0,
+      "rev_cur": 7599.5,
+      "delta": 2562.5,
+      "share_of_change": 0.5203045685279187,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Category 04",
+      "rev_prev": 6014.0,
+      "rev_cur": 4990.0,
+      "delta": -1024.0,
+      "share_of_change": -0.20791878172588832,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Category 06",
+      "rev_prev": 4915.5,
+      "rev_cur": 5884.5,
+      "delta": 969.0,
+      "share_of_change": 0.196751269035533,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Category 08",
+      "rev_prev": 4856.0,
+      "rev_cur": 5674.5,
+      "delta": 818.5,
+      "share_of_change": 0.16619289340101523,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Category 03",
+      "rev_prev": 5970.0,
+      "rev_cur": 6717.5,
+      "delta": 747.5,
+      "share_of_change": 0.1517766497461929,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     }
+    ],
+    "other": {
+     "name": "Other",
+     "rev_prev": 14575.0,
+     "rev_cur": 15426.5,
+     "delta": 851.5,
+     "share_of_change": 0.17289340101522843,
+     "is_data_gap": false,
+     "is_not_a_product": false
+    },
+    "new_members": [],
+    "removed_members": [],
+    "size_filter_waived": false,
+    "member_count": 8
+   },
+   {
+    "name": "product",
+    "members": [
+     {
+      "name": "Product 057",
+      "rev_prev": 1148.0,
+      "rev_cur": 0.0,
+      "delta": -1148.0,
+      "share_of_change": -0.2330964467005076,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Product 039",
+      "rev_prev": 938.0,
+      "rev_cur": 0.0,
+      "delta": -938.0,
+      "share_of_change": -0.19045685279187818,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Product 036",
+      "rev_prev": 1239.5,
+      "rev_cur": 368.5,
+      "delta": -871.0,
+      "share_of_change": -0.1768527918781726,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Product 015",
+      "rev_prev": 910.0,
+      "rev_cur": 468.0,
+      "delta": -442.0,
+      "share_of_change": -0.08974619289340101,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     },
+     {
+      "name": "Product 058",
+      "rev_prev": 943.0,
+      "rev_cur": 615.0,
+      "delta": -328.0,
+      "share_of_change": -0.06659898477157361,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     }
+    ],
+    "other": {
+     "name": "Other",
+     "rev_prev": 36189.0,
+     "rev_cur": 44841.0,
+     "delta": 8652.0,
+     "share_of_change": 1.756751269035533,
+     "is_data_gap": false,
+     "is_not_a_product": false
+    },
+    "new_members": [
+     "Product 006",
+     "Product 007",
+     "Product 008",
+     "Product 009",
+     "Product 010",
+     "Product 014",
+     "Product 017",
+     "Product 024",
+     "Product 025",
+     "Product 026",
+     "Product 030",
+     "Product 032",
+     "Product 034",
+     "Product 040",
+     "Product 041",
+     "Product 044",
+     "Product 047",
+     "Product 048",
+     "Product 049",
+     "Product 050",
+     "Product 051",
+     "Product 053",
+     "Product 061",
+     "Product 062",
+     "Product 063",
+     "Product 064",
+     "Product 065",
+     "Product 069",
+     "Product 073",
+     "Product 074",
+     "Product 075",
+     "Product 077"
+    ],
+    "removed_members": [
+     "Product 001",
+     "Product 002",
+     "Product 003",
+     "Product 004",
+     "Product 005",
+     "Product 013",
+     "Product 016",
+     "Product 018",
+     "Product 019",
+     "Product 021",
+     "Product 022",
+     "Product 023",
+     "Product 028",
+     "Product 031",
+     "Product 033",
+     "Product 035",
+     "Product 038",
+     "Product 039",
+     "Product 042",
+     "Product 043",
+     "Product 046",
+     "Product 054",
+     "Product 057",
+     "Product 059",
+     "Product 060",
+     "Product 066",
+     "Product 067",
+     "Product 068",
+     "Product 070",
+     "Product 071",
+     "Product 072",
+     "Product 076"
+    ],
+    "size_filter_waived": false,
+    "member_count": 182
+   },
+   {
+    "name": "customer_type",
+    "members": [
+     {
+      "name": "retained",
+      "rev_prev": 41367.5,
+      "rev_cur": 46292.5,
+      "delta": 4925.0,
+      "share_of_change": 1.0,
+      "is_data_gap": false,
+      "is_not_a_product": false
+     }
+    ],
+    "other": null,
+    "new_members": [],
+    "removed_members": [],
+    "size_filter_waived": false,
+    "member_count": 1
+   }
+  ],
+  "mix_rate": {
+   "metric": "price_per_unit",
+   "mix": 0.003272357277067428,
+   "rate": -1.449408327351355
+  },
+  "breadth": {
+   "declining_base_share": 0.29931709675469875,
+   "top_member_share": 0.03407336421231965,
+   "classification": "mixed",
+   "products_share_of_change": 1.0
+  }
+ },
+ "hypotheses": [
+  {
+   "id": "D1",
+   "family": "data_quality",
+   "lens": "data",
+   "statement": "Days with no sales (missing data or a closure) explain the change",
+   "verdict": "ruled_out",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "estimated_revenue_gap": 0.0,
+    "estimated_revenue_gap_prev": 0.0,
+    "d1_status": "ok"
+   },
+   "rule": "excess zero days (current 0.0, previous 0.0) stay under the D1 check's thresholds",
+   "against_the_change": false
+  },
+  {
+   "id": "D2",
+   "family": "data_quality",
+   "lens": "data",
+   "statement": "Prices shifted uniformly (possible unit or currency issue)",
+   "verdict": "ruled_out",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "check_status": "ok",
+    "comparable_products": 19,
+    "median_ratio": 1.0,
+    "share_extreme": 0.0,
+    "rule": "small_catalog_order_of_magnitude"
+   },
+   "rule": "supported when D2 cautions",
+   "against_the_change": false
+  },
+  {
+   "id": "D3",
+   "family": "data_quality",
+   "lens": "data",
+   "statement": "Flagged rows concentrated in the current period",
+   "verdict": "ruled_out",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "check_status": "ok",
+    "flag_columns": 0,
+    "uncategorised_revenue_share_cur": 0.0,
+    "uncategorised_revenue_share_prev": 0.0
+   },
+   "rule": "supported when D3 cautions",
+   "against_the_change": false
+  },
+  {
+   "id": "T1",
+   "family": "time",
+   "lens": "time",
+   "statement": "The calendar explains the change",
+   "verdict": "supported",
+   "contribution": 1274.1501792043844,
+   "share": 0.2587106962851542,
+   "evidence": {
+    "calendar_effect": 1274.1501792043844,
+    "method": "weekday_weights"
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  },
+  {
+   "id": "T2",
+   "family": "time",
+   "lens": "time",
+   "statement": "Last year's change between the same two months explains the change",
+   "verdict": "supported",
+   "contribution": 7284.947134670491,
+   "share": 1.4791770831818256,
+   "evidence": {
+    "ly_prev": 34900.0,
+    "ly_cur": 41046.0,
+    "revenue_prev": 41367.5,
+    "typical_month": 40281.75,
+    "excess_zero_days_year_ago_cur": 0.0,
+    "excess_zero_days_year_ago_prev": 0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  },
+  {
+   "id": "T3",
+   "family": "time",
+   "lens": "time",
+   "statement": "The change is routine variation",
+   "verdict": "inconclusive",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "series_without_verdict": [
+     "revenue",
+     "orders",
+     "active_customers",
+     "frequency",
+     "aov",
+     "units_per_order",
+     "price_per_unit",
+     "return_rate"
+    ]
+   },
+   "rule": "revenue has no year-over-year verdict (ADR-0006, ADR-0007)",
+   "against_the_change": false
+  },
+  {
+   "id": "C1",
+   "family": "customers",
+   "lens": "customers",
+   "statement": "New-customer revenue changed",
+   "verdict": "ruled_out",
+   "contribution": 0.0,
+   "share": 0.0,
+   "evidence": {
+    "new_current": 0.0,
+    "new_previous": 0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  },
+  {
+   "id": "C2",
+   "family": "customers",
+   "lens": "customers",
+   "statement": "Revenue lost to lapsed customers changed",
+   "verdict": "ruled_out",
+   "contribution": 0.0,
+   "share": 0.0,
+   "evidence": {
+    "lapsed_current": -0.0,
+    "lapsed_previous": -0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  },
+  {
+   "id": "C3",
+   "family": "customers",
+   "lens": "customers",
+   "statement": "Returning-customer revenue changed",
+   "verdict": "ruled_out",
+   "contribution": 0.0,
+   "share": 0.0,
+   "evidence": {
+    "resurrected_current": 0.0,
+    "resurrected_previous": 0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  },
+  {
+   "id": "C4",
+   "family": "customers",
+   "lens": "customers",
+   "statement": "Customers moved between segments",
+   "verdict": "inconclusive",
+   "contribution": null,
+   "share": null,
+   "evidence": {},
+   "rule": "stage 2's segment counts are a snapshot at the file's end, not at the end of each compared month (off in v1)",
+   "against_the_change": false
+  },
+  {
+   "id": "B1",
+   "family": "lever",
+   "lens": "lever",
+   "statement": "Customers bought more often",
+   "verdict": "supported",
+   "contribution": 4712.288381261595,
+   "share": 0.9568098236064152,
+   "evidence": {
+    "frequency_prev": 12.32,
+    "frequency_cur": 13.72
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "B2",
+   "family": "lever",
+   "lens": "lever",
+   "statement": "Baskets got bigger",
+   "verdict": "supported",
+   "contribution": 2858.8431342485997,
+   "share": 0.580475763299208,
+   "evidence": {
+    "units_per_order_prev": 5.438311688311688,
+    "units_per_order_cur": 5.80466472303207
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "P1",
+   "family": "product_returns",
+   "lens": "product",
+   "statement": "Like-for-like prices changed",
+   "verdict": "ruled_out",
+   "contribution": 0.0,
+   "share": 0.0,
+   "evidence": {
+    "price_effect": 0.0,
+    "products_in_both_periods": 118
+   },
+   "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "P2",
+   "family": "product_returns",
+   "lens": "product",
+   "statement": "Sales mix shifted towards cheaper products",
+   "verdict": "ruled_out",
+   "contribution": -1479.6472434497755,
+   "share": -0.3004359885177209,
+   "evidence": {
+    "mix_effect": -1479.6472434497755,
+    "products_in_both_periods": 118
+   },
+   "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": true
+  },
+  {
+   "id": "P3",
+   "family": "product_returns",
+   "lens": "returns",
+   "statement": "Returns changed",
+   "verdict": "ruled_out",
+   "contribution": -0.0,
+   "share": -0.0,
+   "evidence": {
+    "returns_prev": 0.0,
+    "returns_cur": 0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "P4",
+   "family": "product_returns",
+   "lens": "returns",
+   "statement": "Discounts and other deductions changed",
+   "verdict": "ruled_out",
+   "contribution": -0.0,
+   "share": -0.0,
+   "evidence": {
+    "deductions_prev": 0.0,
+    "deductions_cur": 0.0
+   },
+   "rule": "share = contribution / D, D = |change in revenue|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "P5",
+   "family": "product_returns",
+   "lens": "returns",
+   "statement": "Charges paid by customers changed",
+   "verdict": "not_testable",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "reason": "no line is classed as a charge in Review"
+   },
+   "rule": "requires lines classed as charges",
+   "against_the_change": false
+  },
+  {
+   "id": "R1",
+   "family": "localization_lifecycle",
+   "lens": "localization",
+   "statement": "The change is concentrated in one product or category",
+   "verdict": "ruled_out",
+   "contribution": null,
+   "share": null,
+   "evidence": {
+    "classification": "mixed",
+    "top_member_share": 0.03407336421231965,
+    "products_share_of_change": 1.0,
+    "top_member": "Product 029",
+    "top_member_delta": 1280.0
+   },
+   "rule": "breadth concentrated - more than half of the change in the products' sales, the concentration over each product's own change - and the top product moving with the total",
+   "against_the_change": false
+  },
+  {
+   "id": "R2",
+   "family": "localization_lifecycle",
+   "lens": "product",
+   "statement": "Products were launched or discontinued",
+   "verdict": "partial",
+   "contribution": 265.5,
+   "share": 0.05390862944162437,
+   "evidence": {
+    "new_products": 9101.0,
+    "discontinued_products": -8835.5
+   },
+   "rule": "share = contribution / D, D = |change in gross sales|; supported if same sign and |share| >= 0.2, partial if >= 0.05",
+   "against_the_change": false
+  },
+  {
+   "id": "R3",
+   "family": "localization_lifecycle",
+   "lens": "product",
+   "statement": "A top product may have run out of stock",
+   "verdict": "ruled_out",
+   "contribution": 0.0,
+   "share": 0.0,
+   "evidence": {
+    "products": [],
+    "wording": "consistent with a stockout, verify on the shelf"
+   },
+   "rule": "share = contribution / D, D = |change in gross sales|; an expectation is supported if same sign and 0.2 <= |share| <= 1.8, partial if 0.05 <= |share| < 0.2",
+   "against_the_change": false
+  }
+ ],
+ "not_testable": [
+  {
+   "id": "X1",
+   "statement": "Marketing and promotions",
+   "reason": "no campaign data; discounts booked as lines are P4, a discount column is not canonical"
+  },
+  {
+   "id": "X2",
+   "statement": "Competitor actions",
+   "reason": "no competitor data"
+  },
+  {
+   "id": "X3",
+   "statement": "Weather and macro events",
+   "reason": "no external data"
+  },
+  {
+   "id": "X4",
+   "statement": "Traffic and conversion",
+   "reason": "no footfall or session data; sales rows record only purchases"
+  },
+  {
+   "id": "X5",
+   "statement": "Margin",
+   "reason": "no cost column"
+  },
+  {
+   "id": "X6",
+   "statement": "Country or region",
+   "reason": "no canonical country field (the 2D finding)"
+  },
+  {
+   "id": "X7",
+   "statement": "Sales channel or payment method",
+   "reason": "no canonical channel or payment field"
+  }
+ ],
+ "headline": {
+  "rule": 6,
+  "hypothesis_id": "B1",
+  "lens": "lever",
+  "message": "Revenue went from 41,367.50 to 46,292.50 (+4,925.00). The best-supported explanation: customers bought more often (lever lens, 96% of the change).",
+  "movement": {
+   "change_pct": 11.905481356137065,
+   "typical_pct": 4.885954856307071,
+   "movements": 23,
+   "factor": 2.0,
+   "singled_out": true,
+   "reason": null,
+   "season": null
+  },
+  "hedge": null,
+  "named": [
+   "B1"
+  ]
+ },
+ "hypotheses_note": null,
+ "year_ago": {
+  "previous": "2023-11",
+  "current": "2023-12",
+  "revenue_previous": 34900.0,
+  "revenue_current": 41046.0
+ },
+ "year_ago_reason": null,
+ "ai_findings": null,
+ "notes": [
+  {
+   "code": "discounts_in_prices",
+   "figures": [
+    "gross_sales",
+    "discounts"
+   ],
+   "text": "Discounts count only lines classed as discounts; a discount already taken off a line's price is not visible, and that line's gross sales are at the reduced price.",
+   "measures": [],
+   "always_on": true
+  }
+ ],
+ "suggested_classes": {}
+}

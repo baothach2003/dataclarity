@@ -7,7 +7,7 @@ from contracts.report import ReportContract
 from stages.report.builder import SCHEMA_VERSION
 from stages.report.html_report import render_html
 from tests.stages.report.html_probe import Page
-from tests.stages.report.report_fixtures import build, metrics_data
+from tests.stages.report.report_fixtures import before_2_9, build, metrics_data
 
 REASON = ("1 line is dated after this file was uploaded - later than 2011-12-20 on any clock - the latest 2042-02-10, so it is "
           "left out of choosing the months compared and the dates the file covers; its revenue (10.00) stays "
@@ -23,7 +23,7 @@ def test_report_json_carries_the_count_and_the_reason() -> None:
     report = build(_after_upload(metrics_data(future_lines=1, future_revenue=10.0, future_lines_reason=REASON)))
     numbers = report.layer_1_numbers
     assert (numbers.future_lines, numbers.future_lines_reason) == (1, REASON)
-    assert SCHEMA_VERSION == "2.8"  # 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7 the headline's hedge; 2.2 in 2E-u6, 2.3 the hypotheses note, 2.4 the season comparison, 2.5 the labels, 2.6 the lens
+    assert SCHEMA_VERSION == "2.9"  # 2.9 the front section, currency, rows left out, part-months (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7 the headline's hedge; 2.2 in 2E-u6, 2.3 the hypotheses note, 2.4 the season comparison, 2.5 the labels, 2.6 the lens
 
 
 def test_the_page_says_it_beside_the_dates_the_file_covers() -> None:
@@ -42,7 +42,7 @@ def test_nothing_is_said_when_no_line_is_after_the_upload() -> None:
 
 
 def test_a_report_written_before_2eu6_still_reads() -> None:
-    payload = build().model_dump(mode="json")
+    payload = before_2_9(build().model_dump(mode="json"))
     payload["schema_version"] = "2.1"
     del payload["layer_1_numbers"]["future_lines"]
     del payload["layer_1_numbers"]["future_lines_reason"]

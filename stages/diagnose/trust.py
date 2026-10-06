@@ -83,7 +83,7 @@ def d1_coverage(data: RunData) -> TrustCheck:
     coverage = previous_coverage_of(data)
     if not coverage.complete:
         return TrustCheck(
-            id="D1", status="blocked",
+            id="D1", status="blocked", month="coverage",
             evidence={"previous_leading_days_missing": coverage.leading_days_missing,
                       "first_sale": (coverage.first_counted.isoformat()
                                      if coverage.first_counted else None),
@@ -184,7 +184,7 @@ def d1_coverage(data: RunData) -> TrustCheck:
     if judged.blocked:
         observed = evidence["zero_days_cur"]
         return TrustCheck(
-            id="D1", status="blocked", evidence=evidence,
+            id="D1", status="blocked", evidence=evidence, month="current",
             message=f"{observed} of {days} days in the current month have no sales at all, "
                     f"about {unexplained['cur']:.0f} more than this store's normal closing "
                     "pattern explains - missing data, or days the shop was closed. Too few "
@@ -194,7 +194,7 @@ def d1_coverage(data: RunData) -> TrustCheck:
         if by_label[label].flagged:
             count, verb = _days(unexplained[label])
             return TrustCheck(
-                id="D1", status="caution", evidence=evidence,
+                id="D1", status="caution", evidence=evidence, month=which,
                 message=f"About {count} in the {which} month {verb} no sales beyond this store's "
                         "normal closing pattern (missing data, or days the shop was closed), worth "
                         f"roughly {unexplained[label] * pace[label]:,.0f} in revenue{tail}")

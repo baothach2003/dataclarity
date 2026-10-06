@@ -46,7 +46,7 @@ def d2_price_level(data: RunData) -> TrustCheck:
         low, high = D2_NEUTRAL_BAND
         if within >= D2_CLUSTER_SHARE and not (low <= median <= high):
             return TrustCheck(
-                id="D2", status="caution", evidence=evidence,
+                id="D2", status="caution", evidence=evidence, month="current",
                 message=f"Prices moved by about the same factor ({median:.2f}x) across "
                         f"{within:.0%} of comparable products. Verify whether this is a unit "
                         "or currency change in the data, or a deliberate repricing.")
@@ -62,7 +62,7 @@ def d2_price_level(data: RunData) -> TrustCheck:
                      "rule": "small_catalog_order_of_magnitude"}
         if extreme >= D2_SMALL_CLUSTER_SHARE:
             return TrustCheck(
-                id="D2", status="caution", evidence=evidence,
+                id="D2", status="caution", evidence=evidence, month="current",
                 message=f"Prices changed by an order of magnitude (about {median:.2f}x) across "
                         f"{extreme:.0%} of the {count} comparable products. That is the "
                         "signature of a unit or currency error rather than repricing; verify "
@@ -135,7 +135,7 @@ def d3_flagged_rows(data: RunData) -> TrustCheck:
                 **uncategorised}
     if shares["cur"] >= D3_RATIO * shares["prev"] and shares["cur"] >= D3_MIN_SHARE:
         return TrustCheck(
-            id="D3", status="caution", evidence=evidence,
+            id="D3", status="caution", evidence=evidence, month="current",
             message=f"{shares['cur']:.1%} of this month's rows carry a data-quality flag, "
                     f"against {shares['prev']:.1%} last month.")
     return TrustCheck(id="D3", status="ok", evidence=evidence,

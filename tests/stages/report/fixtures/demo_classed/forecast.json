@@ -1,0 +1,44 @@
+{
+ "schema_version": "2.0",
+ "generated_at": "2026-10-01T00:00:00Z",
+ "model_used": null,
+ "forecast": {
+  "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3) with a monthly seasonality index",
+  "horizon_periods": 3,
+  "revenue": [
+   {
+    "period": "2011-12",
+    "point": 401224.73014814226,
+    "low": 313360.5206259297,
+    "high": 513725.4806728479,
+    "confidence": 0.8
+   },
+   {
+    "period": "2012-01",
+    "point": 319850.9507150177,
+    "low": 248535.57789775677,
+    "high": 411629.72134068876,
+    "confidence": 0.8
+   },
+   {
+    "period": "2012-02",
+    "point": 257218.15631254922,
+    "low": 205095.2116760702,
+    "high": 322587.6381810549,
+    "confidence": 0.8
+   }
+  ],
+  "insufficient_history": false,
+  "months_used": 24,
+  "history_note": null,
+  "season_years": 2,
+  "season_note": "The season is read from two years of history, the fewest a season can be read from: two years cannot fully tell a one-time change of level between them from the season itself, so the forecast's monthly shape is less certain than more years would make it.",
+  "products_at_stockout_risk": null,
+  "products_at_stockout_risk_reason": "stock figures are not supported in v1: DataClarity v1 analyses sales, not inventory, so no product has a stockout risk"
+ },
+ "recommendations": null,
+ "do_not_do": null,
+ "actions": null,
+ "actions_status": null,
+ "actions_model": null
+}

@@ -62,7 +62,9 @@ def _by_hand(data) -> dict:
     hypotheses = evaluate_hypotheses(inputs)
     return {"frame": inputs.frame, "trust": trust, "calendar": calendar, "signals": signals, "tree": tree,
             "localization": localization, "hypotheses": hypotheses,
-            "headline": choose_headline(trust, hypotheses, tree, changes(inputs)),
+            # 18.7: assemble says whether the headline is rule 6's offsetting case.
+            "headline": choose_headline(trust, hypotheses, tree, changes(inputs)).model_copy(
+                update={"offsetting": bool(choose_headline(trust, hypotheses, tree, changes(inputs)).offsetting)}),
             "suggested_classes": named_suggestions(data, localization, hypotheses)}
 
 

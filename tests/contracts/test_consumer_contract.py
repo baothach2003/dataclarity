@@ -24,13 +24,16 @@ import pytest
 from pydantic import BaseModel
 
 from contracts.diagnosis import DiagnosisContract
+from contracts.forecast import ForecastContract
 from contracts.lines import NOTE_MEASURES
 from contracts.metrics import MetricsContract
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS_MD = ROOT / "docs" / "CONTRACTS.md"
 FROZEN = Path(__file__).with_name("consumer_fields_v1.json")
-MODELS: dict[str, type[BaseModel]] = {"metrics.json": MetricsContract, "diagnosis.json": DiagnosisContract}
+# forecast.json since the report redesign (its structured actions, 2.1; readers 5 and FE).
+MODELS: dict[str, type[BaseModel]] = {"metrics.json": MetricsContract, "diagnosis.json": DiagnosisContract,
+                                      "forecast.json": ForecastContract}
 READERS = {"4A", "4B", "5", "FE"}
 _ROW = re.compile(r"^\| `(?P<path>[^`]+)` \| `(?P<type>(?:[^`\\]|\\.)+)` \| (?P<readers>[^|]+) \|$")
 _VOCABULARY = re.compile(r"^\| `(?P<name>[^`]+)` \| (?P<values>.+) \|$")

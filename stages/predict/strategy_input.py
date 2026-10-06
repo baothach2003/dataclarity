@@ -97,7 +97,7 @@ def _diagnosis(diagnosis: DiagnosisContract) -> dict[str, Any]:
                                                           "contribution", "share", "rule"})
                        for h in diagnosis.hypotheses],
         "not_testable": _dumped(diagnosis.not_testable),
-        "headline": diagnosis.headline.model_dump(mode="json", exclude={"hedge"}),
+        "headline": diagnosis.headline.model_dump(mode="json", exclude={"hedge", "named", "offsetting"}),
         "notes": [_note(n) for n in diagnosis.notes],
         "suggested_classes": dict(diagnosis.suggested_classes),
     }

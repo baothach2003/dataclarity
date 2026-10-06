@@ -1,0 +1,617 @@
+{
+ "schema_version": "16.2",
+ "generated_at": "2026-10-01T00:00:00Z",
+ "period": {
+  "current": "2011-11",
+  "previous": "2011-10",
+  "data_start": "2009-12-01",
+  "data_end": "2011-12-09",
+  "previous_complete": true,
+  "previous_incomplete_reason": null,
+  "month_grain": false,
+  "upload_cutoff": "2026-10-01"
+ },
+ "core": {
+  "revenue_current": 663315.5800000001,
+  "revenue_previous": 521560.17,
+  "revenue_change_pct": 27.1791095550874,
+  "revenue_change_pct_reason": null,
+  "revenue_change": 141755.4100000001,
+  "revenue_change_reason": null,
+  "orders_basis": "order_id",
+  "orders_basis_reason": null,
+  "orders_current": 1234,
+  "orders_previous": 904,
+  "active_customers_current": 779,
+  "active_customers_previous": 634,
+  "buyers_current": 756,
+  "buyers_previous": 609,
+  "aov_current": 537.5328849270666,
+  "aov_current_reason": null,
+  "aov_previous": 576.9470907079645,
+  "aov_previous_reason": null,
+  "return_rate_current": 0.15235008103727715,
+  "return_rate_current_reason": null,
+  "return_rate_previous": 0.16924778761061948,
+  "return_rate_previous_reason": null,
+  "revenue_by_month": [
+   {
+    "period": "2009-12",
+    "revenue": 399423.86
+   },
+   {
+    "period": "2010-01",
+    "revenue": 320269.721
+   },
+   {
+    "period": "2010-02",
+    "revenue": 265439.026
+   },
+   {
+    "period": "2010-03",
+    "revenue": 372520.271
+   },
+   {
+    "period": "2010-04",
+    "revenue": 315234.88
+   },
+   {
+    "period": "2010-05",
+    "revenue": 309534.16
+   },
+   {
+    "period": "2010-06",
+    "revenue": 307474.82
+   },
+   {
+    "period": "2010-07",
+    "revenue": 320908.27
+   },
+   {
+    "period": "2010-08",
+    "revenue": 369418.17
+   },
+   {
+    "period": "2010-09",
+    "revenue": 427785.941
+   },
+   {
+    "period": "2010-10",
+    "revenue": 518318.5
+   },
+   {
+    "period": "2010-11",
+    "revenue": 658764.091
+   },
+   {
+    "period": "2010-12",
+    "revenue": 392681.45
+   },
+   {
+    "period": "2011-01",
+    "revenue": 310912.89
+   },
+   {
+    "period": "2011-02",
+    "revenue": 241961.13
+   },
+   {
+    "period": "2011-03",
+    "revenue": 325953.33
+   },
+   {
+    "period": "2011-04",
+    "revenue": 212370.44
+   },
+   {
+    "period": "2011-05",
+    "revenue": 340116.0
+   },
+   {
+    "period": "2011-06",
+    "revenue": 342546.89
+   },
+   {
+    "period": "2011-07",
+    "revenue": 334255.821
+   },
+   {
+    "period": "2011-08",
+    "revenue": 319578.38
+   },
+   {
+    "period": "2011-09",
+    "revenue": 512913.201
+   },
+   {
+    "period": "2011-10",
+    "revenue": 521560.17
+   },
+   {
+    "period": "2011-11",
+    "revenue": 663315.58
+   },
+   {
+    "period": "2011-12",
+    "revenue": 182218.63
+   }
+  ],
+  "undated_lines": 0,
+  "undated_lines_reason": null,
+  "future_lines": 0,
+  "future_revenue": 0.0,
+  "future_lines_reason": null,
+  "non_product": [
+   {
+    "line_class": "charge",
+    "lines": 1617,
+    "amount": 182641.2,
+    "amount_current": 22564.679999999997,
+    "amount_previous": 11063.98,
+    "reason": "1,617 lines classed in Review as charges paid by the customer stay in revenue, are no order, and are in no product table"
+   },
+   {
+    "line_class": "discount",
+    "lines": 54,
+    "amount": -6835.57,
+    "amount_current": -160.27,
+    "amount_previous": 0.0,
+    "reason": "54 lines classed in Review as discounts stay in revenue as deductions: they are no sale, no return, and in no product table"
+   },
+   {
+    "line_class": "pooled",
+    "lines": 631,
+    "amount": -81860.44,
+    "amount_current": -329.9200000000001,
+    "amount_previous": 258.0400000000005,
+    "reason": "631 lines classed in Review as pooled items (many items under one code) are sales and returns in every figure, but no product table ranks them"
+   },
+   {
+    "line_class": "cost",
+    "lines": 135,
+    "amount": -140866.869,
+    "amount_current": -8788.489999999998,
+    "amount_previous": -6499.639999999999,
+    "reason": "135 lines classed in Review as fees or costs are left out of revenue and of every figure"
+   },
+   {
+    "line_class": "adjustment",
+    "lines": 35,
+    "amount": -38338.770000000004,
+    "amount_current": 0.0,
+    "amount_previous": 0.0,
+    "reason": "35 lines classed in Review as accounting adjustments are left out of revenue and of every figure, and reported here as a reconciling amount"
+   }
+  ],
+  "identity": {
+   "current": {
+    "gross_sales": 654862.46,
+    "returns": 13951.29,
+    "discounts": 160.27,
+    "other_deductions": 0.0,
+    "other_revenue": 22564.679999999997,
+    "net_revenue": 663315.5800000001,
+    "returns_on_suggested_keys": 0.0,
+    "money_moved": 692495.96
+   },
+   "previous": {
+    "gross_sales": 551570.48,
+    "returns": 41074.29,
+    "discounts": 0.0,
+    "other_deductions": 0.0,
+    "other_revenue": 11063.98,
+    "net_revenue": 521560.17,
+    "returns_on_suggested_keys": 0.0,
+    "money_moved": 604322.41
+   }
+  },
+  "outside_revenue": [
+   {
+    "line_class": "cost",
+    "scope": "file",
+    "sign": null,
+    "lines": 135,
+    "amount": -140866.869,
+    "lines_without_amount": 0
+   },
+   {
+    "line_class": "cost",
+    "scope": "current",
+    "sign": null,
+    "lines": 4,
+    "amount": -8788.489999999998,
+    "lines_without_amount": 0
+   },
+   {
+    "line_class": "cost",
+    "scope": "previous",
+    "sign": null,
+    "lines": 7,
+    "amount": -6499.639999999999,
+    "lines_without_amount": 0
+   },
+   {
+    "line_class": "adjustment",
+    "scope": "file",
+    "sign": null,
+    "lines": 35,
+    "amount": -38338.770000000004,
+    "lines_without_amount": 0
+   }
+  ],
+  "unclassified": {
+   "lines": 0,
+   "amount": 0.0,
+   "share_of_money_moved": 0.0
+  },
+  "unmeasurable": [],
+  "notes": [
+   {
+    "code": "same_day_cancellations",
+    "figures": [
+     "gross_sales",
+     "returns",
+     "return_rate",
+     "orders",
+     "aov",
+     "customers",
+     "products",
+     "diagnosis"
+    ],
+    "text": "Returns and the return rate include same-day cancellations, which the data cannot separate: the measures count the return lines rung the day their customer bought the same product, those sale lines, and the return lines no match can check: with no named customer, or on a pooled code.",
+    "measures": [
+     {
+      "name": "returns",
+      "scope": "file",
+      "lines": 1153,
+      "amount": -345072.52,
+      "orders": 486,
+      "keys": null
+     },
+     {
+      "name": "returns",
+      "scope": "current",
+      "lines": 70,
+      "amount": -4313.349999999999,
+      "orders": 28,
+      "keys": null
+     },
+     {
+      "name": "returns",
+      "scope": "previous",
+      "lines": 125,
+      "amount": -24781.120000000003,
+      "orders": 18,
+      "keys": null
+     },
+     {
+      "name": "sales",
+      "scope": "file",
+      "lines": 1346,
+      "amount": 414173.60000000003,
+      "orders": 528,
+      "keys": null
+     },
+     {
+      "name": "sales",
+      "scope": "current",
+      "lines": 92,
+      "amount": 6188.749999999999,
+      "orders": 31,
+      "keys": null
+     },
+     {
+      "name": "sales",
+      "scope": "previous",
+      "lines": 154,
+      "amount": 28443.910000000003,
+      "orders": 24,
+      "keys": null
+     },
+     {
+      "name": "returns_unchecked",
+      "scope": "file",
+      "lines": 414,
+      "amount": -219945.6,
+      "orders": 281,
+      "keys": null
+     },
+     {
+      "name": "returns_unchecked",
+      "scope": "current",
+      "lines": 12,
+      "amount": -1946.8100000000002,
+      "orders": 9,
+      "keys": null
+     },
+     {
+      "name": "returns_unchecked",
+      "scope": "previous",
+      "lines": 28,
+      "amount": -11776.019999999999,
+      "orders": 25,
+      "keys": null
+     }
+    ],
+    "always_on": false
+   },
+   {
+    "code": "unconfirmed_suggestions",
+    "figures": [
+     "revenue",
+     "gross_sales",
+     "returns",
+     "other_deductions",
+     "return_rate",
+     "orders",
+     "aov",
+     "units",
+     "customers",
+     "products",
+     "diagnosis"
+    ],
+    "text": "Some keys the file suggests are costs, charges, discounts, adjustments or gift cards were not confirmed in Review: their lines stay what their signs say, in every figure. The measures count them, their returns, and the orders holding only such lines.",
+    "measures": [
+     {
+      "name": "lines",
+      "scope": "file",
+      "lines": 50,
+      "amount": 963.29,
+      "orders": 0,
+      "keys": 7
+     },
+     {
+      "name": "lines",
+      "scope": "current",
+      "lines": 0,
+      "amount": 0.0,
+      "orders": 0,
+      "keys": 0
+     },
+     {
+      "name": "lines",
+      "scope": "previous",
+      "lines": 0,
+      "amount": 0.0,
+      "orders": 0,
+      "keys": 0
+     },
+     {
+      "name": "returns",
+      "scope": "file",
+      "lines": 0,
+      "amount": 0.0,
+      "orders": 0,
+      "keys": null
+     },
+     {
+      "name": "returns",
+      "scope": "current",
+      "lines": 0,
+      "amount": 0.0,
+      "orders": 0,
+      "keys": null
+     },
+     {
+      "name": "returns",
+      "scope": "previous",
+      "lines": 0,
+      "amount": 0.0,
+      "orders": 0,
+      "keys": null
+     }
+    ],
+    "always_on": false
+   },
+   {
+    "code": "discounts_in_prices",
+    "figures": [
+     "gross_sales",
+     "discounts"
+    ],
+    "text": "Discounts count only lines classed as discounts; a discount already taken off a line's price is not visible, and that line's gross sales are at the reduced price.",
+    "measures": [],
+    "always_on": true
+   }
+  ]
+ },
+ "customers": {
+  "rfm_reference_date": "2011-12-10",
+  "segments": [
+   {
+    "segment": "At-risk",
+    "customers": 339,
+    "revenue_share_pct": 8.390807936122915,
+    "avg_monetary": 1976.3806489675517,
+    "customers_previous": 302
+   },
+   {
+    "segment": "Champions",
+    "customers": 622,
+    "revenue_share_pct": 71.9357614231133,
+    "avg_monetary": 9234.661292604504,
+    "customers_previous": 640
+   },
+   {
+    "segment": "Hibernating",
+    "customers": 711,
+    "revenue_share_pct": 4.005979774149119,
+    "avg_monetary": 449.88929817158925,
+    "customers_previous": 707
+   },
+   {
+    "segment": "Loyal",
+    "customers": 524,
+    "revenue_share_pct": 13.1571091829565,
+    "avg_monetary": 2004.913788167939,
+    "customers_previous": 430
+   },
+   {
+    "segment": "Needs Attention",
+    "customers": 312,
+    "revenue_share_pct": 2.4847156395444903,
+    "avg_monetary": 635.8996858974359,
+    "customers_previous": 274
+   },
+   {
+    "segment": "New",
+    "customers": 116,
+    "revenue_share_pct": 0.49018845234290853,
+    "avg_monetary": 337.42060344827587,
+    "customers_previous": 170
+   },
+   {
+    "segment": "No purchases in file",
+    "customers": 25,
+    "revenue_share_pct": -0.46456240822923434,
+    "avg_monetary": -1483.7836000000002,
+    "customers_previous": 24
+   }
+  ],
+  "new_vs_returning": {
+   "new_customers": 89,
+   "returning_customers": 690,
+   "new_revenue": 44632.28,
+   "returning_revenue": 484425.8899999999
+  },
+  "customers_previous_reason": null,
+  "revenue_share_reason": null,
+  "unfilled_receipt_lines": 0,
+  "unfilled_receipt_lines_reason": null,
+  "placeholder_lines": 0,
+  "placeholder_lines_reason": null,
+  "unconfirmed_placeholders": [],
+  "unconfirmed_placeholders_reason": null
+ },
+ "products": {
+  "pareto": {
+   "products_for_80pct_revenue": 608,
+   "total_products": 2637,
+   "concentration_pct": 23.056503602578687,
+   "concentration_reason": null
+  },
+  "top_products": [
+   {
+    "product": "Product 435",
+    "revenue": 11708.220000000001,
+    "units": 5133
+   },
+   {
+    "product": "Product 615",
+    "revenue": 9251.03,
+    "units": 3132
+   },
+   {
+    "product": "Product 379",
+    "revenue": 7976.79,
+    "units": 2541
+   },
+   {
+    "product": "Product 448",
+    "revenue": 6939.8099999999995,
+    "units": 625
+   },
+   {
+    "product": "Product 126",
+    "revenue": 6548.13,
+    "units": 1227
+   },
+   {
+    "product": "Product 075",
+    "revenue": 5648.33,
+    "units": 1614
+   },
+   {
+    "product": "Product 286",
+    "revenue": 5465.28,
+    "units": 2798
+   },
+   {
+    "product": "Product 380",
+    "revenue": 5437.07,
+    "units": 1906
+   },
+   {
+    "product": "Product 278",
+    "revenue": 4607.61,
+    "units": 909
+   },
+   {
+    "product": "Product 470",
+    "revenue": 4455.55,
+    "units": 1828
+   }
+  ],
+  "biggest_decliners": [
+   {
+    "product": "Product 293",
+    "revenue_change": -3397.63,
+    "revenue_change_pct": -91.88768900824591,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 294",
+    "revenue_change": -3377.4900000000002,
+    "revenue_change_pct": -91.64762705885545,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 295",
+    "revenue_change": -3371.09,
+    "revenue_change_pct": -93.2167348744608,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 292",
+    "revenue_change": -3339.9500000000003,
+    "revenue_change_pct": -90.01832735897366,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 182",
+    "revenue_change": -3280.19,
+    "revenue_change_pct": -57.183625510787564,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 290",
+    "revenue_change": -3214.65,
+    "revenue_change_pct": -94.61810154525386,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 291",
+    "revenue_change": -3061.83,
+    "revenue_change_pct": -81.97012288169624,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 285",
+    "revenue_change": -2512.08,
+    "revenue_change_pct": -61.60274849369891,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 102",
+    "revenue_change": -2216.76,
+    "revenue_change_pct": -76.11559010561881,
+    "revenue_change_pct_reason": null
+   },
+   {
+    "product": "Product 287",
+    "revenue_change": -1907.96,
+    "revenue_change_pct": -78.74793117253506,
+    "revenue_change_pct_reason": null
+   }
+  ],
+  "biggest_decliners_reason": null,
+  "velocity": null,
+  "velocity_reason": "stock figures are not supported in v1: DataClarity v1 analyses sales, not inventory, so no product has a units-a-day or days-to-stockout figure",
+  "suggested_classes": {}
+ },
+ "by_dimension": {
+  "country": [],
+  "category": [],
+  "contribution_reason": null
+ }
+}

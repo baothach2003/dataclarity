@@ -14,7 +14,7 @@ from contracts.report import ReportContract
 from stages.report.builder import SCHEMA_VERSION
 from stages.report.html_report import render_html
 from tests.contracts.test_diagnosis import diagnosis_payload
-from tests.stages.report.report_fixtures import build, metrics_data
+from tests.stages.report.report_fixtures import before_2_9, build, metrics_data
 
 
 def _v1(metrics: dict | None = None):
@@ -33,7 +33,7 @@ def _metrics_16_2() -> dict:
 
 
 def test_the_version_is_2_8() -> None:
-    assert SCHEMA_VERSION == "2.8"  # 2.8: narration_status "not_in_v1" (Q21), the revenue KPI's change (Q22)
+    assert SCHEMA_VERSION == "2.9"  # 2.9: the front section (step 3); 2.8: narration_status "not_in_v1" (Q21), the revenue KPI's change (Q22)
 
 
 def test_with_no_narration_step_the_status_says_not_in_v1() -> None:
@@ -52,7 +52,7 @@ def test_the_page_prints_no_narration_line_for_a_step_v1_does_not_have() -> None
 
 def test_a_report_whose_narration_failed_still_says_so() -> None:
     # A 2.7 report from before Q21: "unavailable" keeps its line.
-    data = _v1().model_dump(mode="json")
+    data = before_2_9(_v1().model_dump(mode="json"))
     data["schema_version"] = "2.7"
     data["layer_2_causes"]["narration_status"] = "unavailable"
     data["layer_1_numbers"]["kpis"][0]["change"] = None
@@ -63,7 +63,7 @@ def test_a_report_whose_narration_failed_still_says_so() -> None:
 
 
 def test_a_report_before_2_8_cannot_say_not_in_v1() -> None:
-    data = _v1().model_dump(mode="json")
+    data = before_2_9(_v1().model_dump(mode="json"))
     data["schema_version"] = "2.7"
     data["layer_1_numbers"]["kpis"][0]["change"] = None
 

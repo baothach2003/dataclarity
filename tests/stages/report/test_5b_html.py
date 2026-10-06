@@ -27,7 +27,8 @@ def test_the_report_is_one_self_contained_page() -> None:
     assert page.named("html") == [{"lang": "en"}]
     assert {"charset": "utf-8"} in page.named("meta")
     # plotly.js once, inline, and one script per chart - nothing fetched.
-    assert len(page.scripts) == 3 and all(not s.get("src") for s in page.named("script"))
+    # (2.9: and the appendix's own script, which opens it to a note and resizes its charts.)
+    assert len(page.scripts) == 4 and all(not s.get("src") for s in page.named("script"))
     assert page.named("link") == []
     assert not [attrs for _, attrs in page.tags if any(
         (value or "").startswith(("http:", "https:", "//")) for key, value in attrs.items() if key in ("src", "href"))]
@@ -36,7 +37,9 @@ def test_the_report_is_one_self_contained_page() -> None:
 
 def test_the_sections_follow_the_three_layers() -> None:
     sections = [attrs["id"] for attrs in _page().named("section")]
-    assert sections == ["quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
+    # 2.9: the front section first; the three layers in the appendix after it (the report redesign, step 3).
+    assert sections == ["summary", "change", "checked", "next-steps", "next-month", "cannot-know",
+                        "quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
 
 
 def test_the_kpis_are_the_reports_figures_formatted() -> None:
@@ -90,8 +93,8 @@ def test_a_files_note_stands_beside_the_figures_it_names_by_its_code() -> None:
     assert "note-same_day_cancellations" in page.ids()
     links = [attrs["href"] for attrs in page.named("a")]
     # Beside orders, customers, AOV and the return rate (not revenue), and
-    # beside the recommendations.
-    assert links.count("#note-same_day_cancellations") == 5
+    # beside the recommendations - and, since 2.9, beside the front's parts of the change and its checks (Q35).
+    assert links.count("#note-same_day_cancellations") == 7
     assert " ".join(NOTE_TEXTS["same_day_cancellations"].split()) in page.section("numbers")
 
 
@@ -126,9 +129,10 @@ def test_too_short_a_history_says_so_and_draws_no_forecast() -> None:
 
 
 def test_the_recommendations_by_their_status() -> None:
+    # Thach, Q42: the file's free-text recommendations are printed nowhere.
     shown = _page().section("actions")
-    assert "win-back email to the 168 At-risk customers with a 14-day offer" in shown
-    assert "Confidence: high" in shown and "discount to Champions" in shown
+    assert "No AI recommendation is available for this run." in shown
+    assert "win-back email" not in shown and "Champions" not in shown
     off = _page(build(include_recommendations=False)).section("actions")
     assert "The AI recommendations are switched off for this report." in off
     assert "win-back email" not in off
@@ -155,7 +159,7 @@ def test_no_narration_in_v1_prints_no_line() -> None:
 
 def test_the_provenance_and_the_files_quality() -> None:
     page = _page()
-    assert "AI answers used: 4 (claude-sonnet-5)" in page.section("provenance")
+    assert "AI answers used: 3 (claude-sonnet-5)" in page.section("provenance")
     assert "Rows in: 152,430. Rows out: 151,988." in page.section("quality")
 
 

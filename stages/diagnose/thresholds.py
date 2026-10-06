@@ -14,9 +14,10 @@ evidence rather than taste.
 # --- Hypothesis verdicts (7.8) ------------------------------------------------
 
 # A cause must explain a fifth of its lens's movement to be called supported,
-# and a twentieth to be worth mentioning at all. Below that it is noise.
-SUPPORTED_MIN_SHARE = 0.20
-PARTIAL_MIN_SHARE = 0.05
+# and a twentieth to be worth mentioning at all. Below that it is noise. The
+# bars live in shared/ since the report redesign (stages 4 and 5 read them
+# too); unchanged, re-exported here for stage 3.
+from shared.share_bars import PARTIAL_MIN_SHARE, SUPPORTED_MIN_SHARE  # noqa: E402, F401
 
 # Headline rules 2 and 5 hand the headline to context (missing data, calendar,
 # seasonality) only when that context explains most of the change.

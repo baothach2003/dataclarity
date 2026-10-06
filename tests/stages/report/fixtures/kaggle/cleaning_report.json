@@ -1,0 +1,167 @@
+{
+ "schema_version": "4.3",
+ "generated_at": "2026-10-04T23:45:56Z",
+ "rows_in": 12575,
+ "rows_out": 11362,
+ "columns_in": 11,
+ "columns_out": 14,
+ "changes": [
+  {
+   "action": "parse_datetime",
+   "column": "Transaction Date",
+   "cells_affected": 12575,
+   "rows_affected": 0,
+   "params": {
+    "format": "%Y-%m-%d"
+   },
+   "detail": "parsed 12575 of 12575 values as %Y-%m-%d"
+  },
+  {
+   "action": "drop_rows_missing",
+   "column": "Item",
+   "cells_affected": 0,
+   "rows_affected": 1213,
+   "params": {},
+   "detail": "dropped 1213 rows with no Item"
+  },
+  {
+   "action": "drop_rows_missing",
+   "column": "Quantity",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {},
+   "detail": "dropped 0 rows with no Quantity"
+  },
+  {
+   "action": "impute_median",
+   "column": "Price Per Unit",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {},
+   "detail": "filled 0 missing cells with 23"
+  },
+  {
+   "action": "impute_median",
+   "column": "Total Spent",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {},
+   "detail": "filled 0 missing cells with 108.5"
+  },
+  {
+   "action": "impute_constant",
+   "column": "Discount Applied",
+   "cells_affected": 3783,
+   "rows_affected": 0,
+   "params": {
+    "value": "Unknown"
+   },
+   "detail": "filled 3783 missing cells with Unknown"
+  },
+  {
+   "action": "flag_duplicate_keys",
+   "column": null,
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "keys": [
+     "Item",
+     "Transaction Date",
+     "Transaction ID"
+    ]
+   },
+   "detail": "marked 0 rows sharing a Item, Transaction Date, Transaction ID key"
+  },
+  {
+   "action": "flag_only",
+   "column": "Transaction ID",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "note": "no action needed"
+   },
+   "detail": "no action needed"
+  },
+  {
+   "action": "flag_only",
+   "column": "Customer ID",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "note": "no action needed"
+   },
+   "detail": "no action needed"
+  },
+  {
+   "action": "flag_only",
+   "column": "Category",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "note": "no action needed"
+   },
+   "detail": "no action needed"
+  },
+  {
+   "action": "flag_only",
+   "column": "Payment Method",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "note": "no action needed"
+   },
+   "detail": "no action needed"
+  },
+  {
+   "action": "flag_only",
+   "column": "Location",
+   "cells_affected": 0,
+   "rows_affected": 0,
+   "params": {
+    "note": "no action needed"
+   },
+   "detail": "no action needed"
+  }
+ ],
+ "warnings": [],
+ "column_mapping": {
+  "Transaction ID": "order_id",
+  "Customer ID": "customer",
+  "Category": "category",
+  "Item": "product_name",
+  "Price Per Unit": "unit_price",
+  "Quantity": "quantity",
+  "Transaction Date": "transaction_date"
+ },
+ "confirmations": {
+  "order_id_is_receipt": null,
+  "customer_on_first_line_only": null,
+  "customer_placeholders": [],
+  "customer_not_placeholders": [],
+  "line_classes": [],
+  "dates_day_first": null,
+  "number_formats": {},
+  "currency": null
+ },
+ "date_order": null,
+ "number_formats": {
+  "Price Per Unit": {
+   "format": "decimal_point",
+   "rewritten": 0,
+   "unreadable": 0,
+   "answered": false
+  },
+  "Quantity": {
+   "format": "decimal_point",
+   "rewritten": 0,
+   "unreadable": 0,
+   "answered": false
+  }
+ },
+ "unconfirmed_placeholders": [],
+ "currency": {
+  "code": null,
+  "source": "not_stated",
+  "evidence": null
+ }
+}

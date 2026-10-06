@@ -125,9 +125,11 @@ def test_the_forecast_and_the_partial_month_it_starts_in() -> None:
 
 
 def test_the_recommendations_are_shown_only_while_the_step_is_on() -> None:
-    # 4C review #4: a file written while the step was on keeps its blocks.
+    # Thach, Q42: the free-text recommendations - the unchecked format v1
+    # switched off because it fabricated numbers - are never shown, even with
+    # the step on and the file holding them.
     shown = build().layer_3_actions
-    assert shown.recommendations_status == "shown" and shown.recommendations is not None
+    assert (shown.recommendations_status, shown.recommendations, shown.do_not_do) == ("unavailable", None, None)
     off = build(include_recommendations=False).layer_3_actions
     assert (off.recommendations_status, off.recommendations, off.do_not_do) == ("switched_off", None, None)
     forecast = forecast_payload()
@@ -163,7 +165,7 @@ def test_the_provenance_counts_the_ai_answers_the_files_hold() -> None:
     # A schema inference, an AI-proposed plan, a narration, recommendations.
     provenance = build().provenance
     assert (provenance.stages_run, provenance.ai_calls, provenance.models_used) == (
-        ["ingest", "analyze", "diagnose", "predict"], 4, ["claude-sonnet-5"])
+        ["ingest", "analyze", "diagnose", "predict"], 3, ["claude-sonnet-5"])  # Q42: the free-text recommendations are never shown, nor counted
     assert build(schema=False, plan_source=None, include_recommendations=False).provenance.ai_calls == 1
 
 
@@ -182,7 +184,7 @@ def test_report_run_writes_report_json_and_a_failed_write_leaves_the_old_one(tmp
     run = run_dir(tmp_path)
     report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
     assert ReportContract.model_validate(json.loads((run / "report.json").read_text(encoding="utf-8"))) == report
-    assert report.provenance.ai_calls == 4
+    assert report.provenance.ai_calls == 3  # Q42: the free-text recommendations are never shown, nor counted
     before = (run / "report.json").read_bytes()
 
     class Refused(Exception):

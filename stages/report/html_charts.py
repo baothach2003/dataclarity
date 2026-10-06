@@ -14,7 +14,7 @@ import plotly.io as pio
 from plotly.offline import get_plotlyjs
 
 from contracts.report import Chart
-from stages.report.html_parts import share
+from stages.report.html_parts import current_code, share
 
 _MONTH = re.compile(r"[0-9]{4}-(0[1-9]|1[0-2])")
 _CONFIG = {"displaylogo": False, "responsive": True}
@@ -26,6 +26,12 @@ def plotly_js() -> str:
     if "</script" in js.lower():
         raise ValueError("the plotly.js bundle closes a <script> tag; it cannot be inlined")
     return js
+
+
+def months_only(chart: Chart) -> None:
+    """Refuses a chart whose x values are not months (the front's SVG chart
+    reads them too)."""
+    _months(chart)
 
 
 def _months(chart: Chart) -> None:
@@ -50,8 +56,11 @@ def _figure(chart: Chart, band: float | None) -> go.Figure:
             go.Scatter(x=point.x, y=point.y, mode="lines+markers", name="Forecast", connectgaps=False),
         ]
     figure = go.Figure(traces)
+    # Both charts are sales, money: coded like every amount (the units rule).
+    code = current_code()
     figure.update_layout(template="none", height=320, margin={"l": 70, "r": 20, "t": 20, "b": 40},
-                         xaxis={"type": "category"}, yaxis={"tickformat": ",.0f"},
+                         xaxis={"type": "category"},
+                         yaxis={"tickformat": ",.0f", **({"tickprefix": f"{code} "} if code else {})},
                          legend={"orientation": "h", "y": -0.2})
     return figure
 

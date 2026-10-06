@@ -1018,6 +1018,109 @@ veto):
 
 **Open:** none from this round.
 
+**Thach, 2026-10-05 (fourth round):** step 2's nine decisions made alone
+(section 12) - all accepted. Steps 3 and 4 approved, in that order, each its
+own commit group.
+
+**Answered by Thach, 2026-10-05 (fifth round):**
+
+32. **Q32** - apply every listed fix, then ONE more review scoped to the
+    fixes only; if it finds a fabrication on a demo file or a common export
+    shape, stop again and report. The stop rule from now on: within a step,
+    a review's findings are fixed and the fixes get one scoped review; a
+    fabrication on a demo file or a common export shape found there stops
+    the step uncommitted. Never further cycles alone.
+33. **Q33** - a new additive diagnosis field, written by stage 3, naming the
+    hypothesis ids behind rule 5 and rule 6's offsetting case; stage 5 words
+    sentence C from it. No generic sentence; no parsing of stage 3's text.
+    Reason: the figures match something named - the reader is owed which.
+34. **Q34** - C3 and P3 worded as money, because their fields are money:
+    "Sales from customers who came back after a break rose: X, up from Y";
+    "Refunds for returned goods fell: X, down from Y". Every other checklist
+    line checked the same way: the words match the field's unit.
+35. **Q35** - yes, required by CLAUDE.md 3.3a: a note's link appears
+    wherever its figure is shown (sections 2, 3 and 5 included).
+36. **Q36** - "Suggested actions are not available for this report."
+    ("switched off" is untrue there).
+37. **Q37** - caution and blocked lines worded by each check's id and status
+    in plain words; stage 3's message as written goes to the appendix
+    (CLAUDE.md 3.7: read by code, never by sentence).
+38. **Q38** - yes, without the word "median" in the front: "In the N earlier
+    years, sales typically rose X% between these months." The median stays
+    in the appendix.
+- **Root cause (Thach's addition):** every figure the report renders carries
+  its unit (money / count / ratio) from its field's contract, never guessed
+  by the formatter; the currency code goes on money alone. A test over the
+  whole front block and the appendix of the three real runs, GBP set: no
+  count or ratio carries a code, every money figure does.
+
+**Open:** none from this round.
+
+**Thach's pattern (2026-10-06):** every fabrication found in step 3 had one
+cause - stage 5 guessed what a stage 3 result means (which month a check is
+about, what a check proves, orders or lines, how many years a season reads).
+The fix is the unit fix's: the meaning is DATA written by stage 3, never
+inferred by stage 5; where wording a result needs meaning the data does not
+carry, the front says less (suppress, never fabricate).
+
+**Answered by Thach, 2026-10-06 (sixth round):**
+
+39. **Q39** - yes: stage 3 writes, for each check that cautions or blocks,
+    which month it is about (`trust.checks[].month`: current / previous /
+    coverage), additive (diagnosis 18.7). Stage 5 words the check from it;
+    a file without it (before 18.7) gets the check without a month, never
+    this month. *Why:* the message said which month, but a message is read
+    by code only (CLAUDE.md 3.7).
+40. **Q40** - yes: stage 3 writes `headline.offsetting`; `named` becomes
+    required for a tie. *Why:* stage 5 inferred the case from signs and read
+    a one-sided case as "the figures match".
+41. **Q41** - drop "no regular pattern" entirely: it is a judgement, and it
+    contradicts sentence B when the season reads several years. T2's line
+    states the fact only: "Last year alone, sales rose X% between these
+    months." (Built with the two amounts instead of X%: `year_ago` holds no
+    percentage, and stage 5 computes none - section 12.)
+42. **Q42** - keep "not available". Never show the old-format (pre-2.1) AI
+    suggestions anywhere, the appendix included. *Why:* that is the
+    unchecked free-text format v1 switched off because it fabricated
+    numbers.
+43. **Q43** - yes: the banned words are enforced only in stage 4's checks
+    (the AI's text is refused and retried there); stage 5 checks only
+    code-written text, in tests. "median" is added to the banned list.
+- **D2:** word what D2 tests ("No sudden price jump across all products."),
+  never "wrong scale".
+- **Orders or lines:** every "orders" in the front section reads
+  `orders_basis` (the existing rule).
+- **D1-D3 in the front:** all three ok - ONE line, "Data checks: no problem
+  found (details in the technical section)"; one cautions or blocks - its
+  line as in Q37; the per-check detail lives in the appendix.
+- **Safety valve (decided now):** if the scoped review of these changes still
+  finds a fabrication on a demo file or a common export shape, do not fix
+  and review again: move the kind of line that fabricates to the appendix
+  only, test that it is absent from the front, and commit.
+
+**Open:** none from this round (decisions made alone: section 12).
+
+**Open (the scoped review's findings left by the safety valve - section 12):**
+
+44. **Q44** - two rare figure-and-word disagreements (neither on a demo
+    file nor a common shape): beside a season, "more than N times" decided
+    on the unprinted difference; and the decimals test reading
+    `round(value * 10**d)` rather than the printed text (one line, introduced
+    in this session). Fix both in the next session with a scoped review?
+45. **Q45** - an annual closure the season explains (D1's check ok, the D1
+    hypothesis matching the change): "Data checks: no problem found" stands
+    beside "days with no sales - missing data, or closed". Word the
+    data-checks line "no problem found in how the data was recorded", or
+    leave it?
+46. **Q46** - T2's subject "Last year's change between the same months" in
+    "checked - not the reason" beside a season of several years: reword it
+    "The change a year earlier between the same months"?
+47. **Q47** - `front_word_problems` is wired in step 4 (stage 4's checks).
+    Confirm that is where it belongs.
+48. **Q48** - the general caution opener left the front (safety valve). Does
+    a caution need a general sentence there at all - and if so, one that
+    names no month ("Some of the data may be missing or wrong")?
+
 ## 11. The build, step by step
 
 1. **Stage 2 `revenue_change`; stage 3 `bridge`, `year_ago`, `hedge`**
@@ -1025,7 +1128,11 @@ veto):
 2. Stage 1 currency (6; Q5-Q9, Q26-Q31 answered) - **approved and DONE
    2026-10-05; as built in section 12.**
 3. Stage 5: the front section, the appendix, the partial month, the rows
-   left out, the currency (failing tests first, one review cycle).
+   left out, the currency (failing tests first, one review cycle) -
+   **approved 2026-10-05; built, reviewed, fixed (Q33-Q38), stopped
+   twice; Thach's pattern applied (Q39-Q43), the scoped review's one
+   fabrication on a common shape moved to the appendix (safety valve):
+   committed (section 12).**
 4. Stage 4 structured actions (full process; a real call only with
    Thach's approval).
 5. The frontend (section 8), including the deploy blocker of Q17.
@@ -1304,3 +1411,170 @@ call): both Online Retail II demo runs, stages 1-5 (peaks 705-737 MB), and
 Thach's Kaggle run, stages 1-5 from its raw file - every file IDENTICAL
 except the new fields (`confirmations.currency` null, `currency` not
 stated) and the 4.2 -> 4.3 stamps; neither file blocked.
+
+### Step 3 - stage 5's front section (2026-10-05) - built, STOPPED, not committed
+
+Built (the working tree; a copy at `C:\Users\Happy\step3-front-wip\`):
+report.json 2.9 (`front`, `currency`, `rows_left_out`,
+`layer_1_numbers.partial_months`, `layer_2_causes.lever_levels`;
+`contracts/report_front.py`), forecast.json 2.1's actions contract (three
+states; `contracts/forecast_actions.py`) with a section 11 table, the front
+builder (`stages/report/front*.py`, `wording.py`), report.html's front with
+inline SVG charts and the old report in one closed appendix
+(`html_front.py`, `html_svg.py`), the share bars moved to
+`shared/share_bars.py` (unchanged). Tests first on the three real runs
+(their contract files as fixtures, product names replaced); mutation 41 of
+41; the old tests updated (versions, the appendix's script, the front's
+note link). Rendered on the three real runs at 390 px and 1440 px: no
+horizontal overflow, closed or open, no console message; the waterfall
+matches the mock.
+
+**The review (one cycle, display code) - findings:**
+- FABRICATES, common shape: a confirmed currency prints counts as money in
+  the appendix ("customers GBP 609.00") - `html_parts.number()` routes floats
+  over 100 through `money()`. Fix: counts and evidence plain; money alone
+  coded.
+- FABRICATES, demo files: C3 "More customers came back after a break" and P3
+  "Fewer returns" read money fields as counts (the design's wording) - Q34.
+- Rule 5 (and rule 6's offsetting case) has no hypothesis id: sentence C
+  prints "several checks match equally" - false - Q33.
+- A forecast before 2.1 with the AI on reads "switched off" - Q36.
+- Stage 3's trust messages and reasons bring banned words and an uncoded
+  amount into the front - Q37.
+- A season of 2+ years called "last year" - Q38.
+- Sentence C's "more/less often" read from the order count, not orders per
+  customer; sentence C garbled for P1/T2 named; shortfall/excess with the
+  size test inside not put first; one-decimal rounding beside stage 3's
+  multiple ("+10.0%" beside "less than twice ... about 5.0%"), "more than"
+  at equality.
+- Notes not beside sections 2, 3 and 5 (Q35); the chart's gap note, the
+  forecast's history and season notes not in the front; the blocked state
+  still draws the chart.
+- The sales chart's top point and its label fall outside the drawing on
+  both demo runs (the axis stops under the maximum); axis ticks carry no
+  currency code; the caution colour's contrast on the dark card; the range
+  sentence wrong when the band uses the history's spread; the banned-word
+  test misses plurals.
+- Stage 4 (step 4) must also keep the front's banned words out of the AI's
+  sentences, and the report must not list actions under rule 7.
+
+Fixes without a question (ready to apply on Q32): the counts' format, the
+direction of B1 from orders per customer, sentence C by its own phrase for
+every id, the order for shortfall/excess inside, stage 3's decimal places
+and "at least" at the bound, the blocked chart, the chart's axis above its
+maximum, coded axis ticks, the contrast, the range sentence's two cases,
+plural-safe banned-word tests, the chart's gap note and the forecast's notes
+in the front.
+
+**Stopped** under Thach's rule (a fabrication on a common shape and on the
+demo files after the step's last review cycle): nothing committed; step 4
+not started (it builds on step 3's actions contract and fact sentences).
+
+**Step 3 - fixes, the scoped review, stopped again (2026-10-06).** Applied
+on Thach's answers: diagnosis.json 18.6 `headline.named` (stage 3, additive;
+its rules and messages unchanged, verified on the three real runs - only
+the new field and the stamp differ); sentence C from it; every line worded
+in its field's unit (C1-C3, P3-P5 as money; section 11 lists
+`tree.customers.previous_transition`); the root-cause unit fix with its test
+over the three real runs (GBP: no count or ratio coded, every money figure
+coded; evidence and quoted sentences marked and named in the appendix);
+notes per section; "not available"; the checks by id and status; the
+season of several years; decimals that agree with stage 3's tests; the
+chart's axis, the blocked chart, gaps and the forecast's notes under the
+chart and next month; the range sentence; the AI's sentences refused when
+they hold a front word. Tests first (22 red); mutation 35 of 35 on the
+fixes; the old tests updated to the decided wording. Re-rendered at 390 and
+1440 px: no overflow, no console message.
+
+The scoped review (Q32) found fabrications again - on common export shapes:
+a D1 block or caution about the previous month (or a file covering only
+part of it) worded as the current month (Q39); D2's caution choosing "the
+wrong scale" where stage 3 cannot tell a unit change from a repricing; B1/B2
+called orders on a file with no order id (lines); the checklist note "last
+year's" beside a season of several years - and on both demo files: the
+summary's figures (sentences B and C come from the diagnosis) without the
+note that names them. Also: a one-sided offsetting case read as a match
+(Q40), a lapsed term worded as a loss when positive, "this diagnosis was
+made before" on an 18.6 tie with no ids, the season gap printed from the
+field beside rounded changes, "+0.0%" for a change that moved, "more than"
+beside equal printed figures, "median" missing from the banned words (Q43),
+T2's line beside a season of several years (Q41), "not available" beside
+the appendix's recommendations (Q42), the P1/P2 sentence C without Q20's
+caveat, the appendix's plotly charts uncoded.
+
+**Stopped** under the stop rule: not committed; step 4 not started (it runs
+only once step 3 is pushed). The work: the working tree, copied to
+`C:\Users\Happy\step3-front-wip\`.
+
+**Step 3 - Thach's pattern applied, the scoped review, the safety valve
+(2026-10-06).** Applied Q39-Q43 and the decisions of section 10's sixth
+round: diagnosis.json 18.7 (`trust.checks[].month`, `headline.offsetting`;
+`named` required for a rule 6 tie) - stage 3's rules and messages
+unchanged, the three real runs re-run: every existing field identical, only
+the two new fields and the stamp differ; the checks worded by id, status and
+month (a file before 18.7: no month, never this month); sentence C from
+`offsetting` (before 18.7, a rule 6 naming no single cause gets no sentence
+C); D2 by what it tests; every "order" by `orders_basis`; a season of
+several years never "last year's"; T2 the fact only; D1-D3 one line
+(`front.data_checks`); the summary's notes include the diagnosis's; no
+free-text recommendation anywhere (Q42), report.html included for an older
+report.json; the banned words a stage 4 check (`front_word_problems`) and
+"median" banned (Q43); the appendix charts coded; "more than" only beside a
+printed figure that is more; a change that moved never prints as zero; a
+positive lapsed term never worded as a loss; Q20's caveat in sentence C.
+Tests first (18 red); mutation 37 of 37 (7 survivors first, each given a
+test - one was a real gap: stage 3 copied the headline without its
+validator, now validated); the full suite green.
+
+Decisions made alone (Thach's pattern applied, none guessing a meaning):
+- T2's line (Q41) prints the two amounts, not "X%": `year_ago` holds no
+  percentage and stage 5 computes none.
+- D2's caution: "A sudden price jump or fall across most products ...: a
+  change in the data's units or currency, or a deliberate repricing (the
+  file cannot tell which)" - "or fall" because D2 flags a factor below its
+  band too; "most" because both of D2's rules need 80 percent of products.
+  "No sudden price jump across all products" (the ok wording) is not shown:
+  the one data-checks line replaced every per-check ok line.
+- D1's block on the previous month's coverage: "the file does not show
+  sales across the whole of <previous month>" - stage 3 blocks a month cut
+  short AND one with no sale at all, and "covers only part" fits one.
+- D1's block on the current month: "at least half the days" (stage 3 blocks
+  at unexplained empty days >= half the month), not "most".
+- A check that could not run (inconclusive, not applicable) and none
+  cautioning: "Data checks: no problem found in the checks this file allows
+  (details in the technical section)".
+- The report fixtures stay diagnosis 18.6: they stand for a file written
+  before 18.7, which stage 5 must still read; 18.7 is tested by setting its
+  fields on them.
+
+**The scoped review (Q32's rule)** found one fabrication on a common export
+shape: with a caution on the PREVIOUS month, the caution box still opened
+"Some of this month's data may be missing or wrong" ("this month" is the
+current one). **Safety valve triggered** (no fix-and-review cycle): that
+kind of line - the general caution opener - left the front section; the
+caution now opens with each check's own line, and the appendix keeps the
+trust verdict ("Data trust: caution") and every check's message as written.
+A test holds it absent from report.json's front and report.html outside the
+appendix. This also settled the review's finding 4 (stage 3 cautions when a
+check is inconclusive: the front showed the opener with nothing after it and
+hid the data-checks line; now the data-checks line says it).
+
+Not fixed (recorded, under Thach's rules - none on a demo file or a common
+export shape; open questions Q44-Q48 in section 10):
+- FABRICATES, neither (Q44): beside a season, "more than N times" is decided
+  on stage 3's unprinted difference while the two changes print at one
+  decimal - near the band edge the printed changes differ by exactly N times
+  the typical difference.
+- FABRICATES, neither, introduced this session (Q44): the decimals test
+  reads `round(value * 10**d)`, which can differ from the printed text when
+  a typical change is exactly x.x5 ("less than twice ... about 4.3%" beside
+  "+8.7%"). The fix is one line (decide on the printed text); not applied
+  without a review, per the safety valve.
+- OTHER (Q45): an annual closure the season explains - D1's check "ok" while
+  the D1 hypothesis matches the change - reads "Data checks: no problem
+  found" beside "days with no sales ... missing data, or closed".
+- OTHER (Q46): T2's subject "Last year's change between the same months"
+  (checked - not the reason, or cannot show) beside a season of several
+  years - true of T2 (one year), but the letter of "never last year's".
+- OTHER (Q47): `front_word_problems` is called by no stage yet - stage 4
+  writes no actions until step 4, which wires it.

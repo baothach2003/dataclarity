@@ -34,8 +34,12 @@ def _hostile() -> ReportContract:
     causes["hypotheses"][0]["evidence_text"] = [f"top_member: </script>{IMG}"]
     causes["headline"]["message"] = f"<iframe src=//x>{SCRIPT}"
     payload["layer_1_numbers"]["trust"]["checks"][0]["message"] = IMG
-    payload["layer_3_actions"]["recommendations"][0]["action"] = SCRIPT
-    payload["layer_3_actions"]["do_not_do"][0]["tempting_action"] = IMG
+    # Recommendations an older stage 5 wrote: never printed at all (Q42).
+    payload["layer_3_actions"] |= {
+        "recommendations_status": "shown",
+        "recommendations": [{"priority": 1, "insight": "i", "cause": "c", "action": f"OLDREC{SCRIPT}",
+                             "expected_impact": "e", "how_to_measure": "h", "confidence_label": "high"}],
+        "do_not_do": [{"tempting_action": f"OLDDND{IMG}", "why_wrong_here": "w"}]}
     return ReportContract.model_validate(payload)
 
 
@@ -44,10 +48,11 @@ def test_every_string_from_the_file_or_the_ai_is_escaped() -> None:
     page = Page(html)
     tags = {name for name, _ in page.tags}
     assert not tags & {"b", "img", "iframe"}
-    assert len(page.scripts) == 3  # plotly.js and the two charts - none of the file's
+    assert len(page.scripts) == 4  # plotly.js, the two charts and the appendix's own (2.9) - none of the file's
     assert "alert(" not in "".join(page.scripts)
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html and "&lt;img src=x onerror=alert(2)&gt;" in html
     assert SCRIPT in page.text and IMG in page.text  # shown as text, as written
+    assert "OLDREC" not in html and "OLDDND" not in html  # Q42: an older file's recommendations, printed nowhere
 
 
 def test_the_charts_carry_only_months_and_numbers() -> None:

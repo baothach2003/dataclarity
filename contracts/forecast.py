@@ -10,7 +10,9 @@ from contracts._base import (
     NonNegativeFloat,
     UnitInterval,
     YearMonth,
+    minor_version,
 )
+from contracts.forecast_actions import ActionsStatus, SuggestedAction, check_actions
 from contracts.lines import refuse_non_finite
 
 # SPECS 7.4: fewer complete months than this and there is no forecast - one
@@ -170,6 +172,12 @@ class ForecastContract(ContractFile):
     forecast: ForecastBlock
     recommendations: list[Recommendation] | None
     do_not_do: list[DoNotDo] | None
+    # 2.1 (the report redesign, D4; contracts/forecast_actions.py): the
+    # structured actions, their state and the model that wrote them. Absent
+    # before 2.1; required from it.
+    actions: list[SuggestedAction] | None = None
+    actions_status: ActionsStatus | None = None
+    actions_model: str | None = None
 
     @model_validator(mode="after")
     def _ai_blocks_all_or_nothing(self) -> Self:
@@ -183,4 +191,5 @@ class ForecastContract(ContractFile):
                 "model_used, recommendations and do_not_do must be "
                 "all null or all filled"
             )
+        check_actions(self.actions, self.actions_status, self.actions_model, minor_version(self.schema_version))
         return self

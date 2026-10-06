@@ -86,7 +86,7 @@ def test_every_free_text_field_the_contract_accepts_markup_in_is_escaped() -> No
     page = Page(html)
     assert marked > 40
     assert "i" not in {name for name, _ in page.tags}
-    assert len(page.scripts) == 3
+    assert len(page.scripts) == 4  # 2.9: the appendix's own script too
     assert html.count("&lt;i&gt;x&lt;/i&gt;") > 40
 
 
@@ -169,7 +169,7 @@ def test_no_empty_chart_and_no_empty_table() -> None:
     metrics = _partial(metrics_data(months=(("2011-11", 490614.86), ("2011-12", 170647.13))))
     metrics["period"]["data_start"] = "2011-11-10"
     page = Page(render_html(build(metrics=metrics)))
-    assert "chart-revenue_trend" not in page.ids() and len(page.scripts) == 2
+    assert "chart-revenue_trend" not in page.ids() and len(page.scripts) == 3  # 2.9: and the appendix's script
     assert "No month of the file is covered whole and holds revenue, so none is drawn." in page.section("numbers")
     assert page.section("numbers").count("Whole month") == 1
 

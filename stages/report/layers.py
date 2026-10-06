@@ -17,6 +17,7 @@ from contracts.diagnosis import DiagnosisContract
 from contracts.forecast import ForecastContract
 from contracts.lines import NOTE_TEXTS, OUTSIDE_REVENUE_TEXTS, FigureNote
 from contracts.metrics import MetricsContract
+from contracts.report_front import LeverLevelView, LeverTerm
 from contracts.report import (
     Actions,
     Causes,
@@ -224,7 +225,20 @@ def causes(diagnosis: DiagnosisContract, orders_basis: str, numbers: Numbers) ->
         # 3F is closed (Thach, Q14, Q21): no narration step in v1, so none failed.
         narration=diagnosis.ai_findings, narration_status="not_in_v1" if diagnosis.ai_findings is None else "shown",
         notes=[view(n) for n in diagnosis.notes if not n.always_on],
-        suggested_classes=dict(diagnosis.suggested_classes))
+        suggested_classes=dict(diagnosis.suggested_classes), lever_levels=_lever_levels(diagnosis))
+
+
+def _lever_levels(diagnosis: DiagnosisContract) -> list[LeverLevelView]:
+    """The change's split as stage 3 wrote it, exact, for the appendix (design
+    1.7): level 1, level 2 and the orders x order value pair."""
+    if diagnosis.tree is None:
+        return []
+    lever = diagnosis.tree.lever
+    levels = (("level1", lever.level1), ("level2", lever.level2), ("pair", lever.masked_shift_pair))
+    # A level name of the Literal: mypy cannot narrow the dict's keys.
+    return [LeverLevelView(level=name, formula=level.formula, factors=[  # type: ignore[arg-type]
+        LeverTerm(name=f.name, value_prev=f.value_prev, value_cur=f.value_cur, contribution=f.contribution)
+        for f in level.factors]) for name, level in levels if level is not None]
 
 
 def confidence_label(confidence: float) -> str:
@@ -245,7 +259,10 @@ def actions(metrics: MetricsContract, diagnosis: DiagnosisContract, forecast: Fo
             include_recommendations: bool) -> Actions:
     block = forecast.forecast
     not_always_on = [n for n in _unique([*metrics.core.notes, *diagnosis.notes]) if not n.always_on]
-    shown = include_recommendations and forecast.recommendations is not None and forecast.do_not_do is not None
+    # The free-text recommendations (stage 4's format before 2.1) are never
+    # shown, the appendix included: the unchecked format v1 switched off
+    # because it fabricated numbers (Thach, Q42).
+    shown = False
     in_file, until = _first_month(metrics, forecast)
     return Actions(
         forecast=ForecastView(

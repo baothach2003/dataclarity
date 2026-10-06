@@ -1535,7 +1535,28 @@ and in a diagnosis.json written before 18.1. **`headline.hedge`** (18.4): which
 of rule 4's two hedges its message ends with - `seasonal` ("This may be
 seasonal.") or `plain` - so a reader words it without parsing the message;
 rule 4 only, required there in an 18.4 file, and the message ends with
-that hedge's sentence (`contracts.diagnosis.HEDGE_SENTENCES`). **`year_ago`** (18.4):
+that hedge's sentence (`contracts.diagnosis.HEDGE_SENTENCES`). **`headline.named`** (18.6;
+the report redesign, Thach Q33): the hypothesis ids behind a rule 5 or rule 6
+headline, in the order its message names them - rule 5's context causes
+(T1, T2), rule 6's best fit or every cause of an exact tie (equal to
+`[hypothesis_id]` when that is set), or the movements rule 6's offsetting
+case names, one each way (null there when none was measured); null under
+every other rule and before 18.6. A reader words the cause from these ids,
+never from the message; required in an 18.6 file under rule 5 and under a
+rule 6 naming one cause; every id is one of the file's hypotheses. Additive:
+the rules, the messages and every other field are as before.
+**`headline.offsetting`** (18.7; Thach Q40): true exactly when rule 6 names
+no cause because the change is what remains of movements in opposite
+directions (`named` lists them), false under every other headline, null
+before 18.7; required in an 18.7 file, where a rule 6 tie (no
+`hypothesis_id`, not offsetting) also requires `named`. A reader never infers
+the case from the hypotheses' signs. **`trust.checks[].month`** (18.7; Q39):
+which month a check that cautions or blocks is about - `current`,
+`previous`, or `coverage` (the file does not show sales across the whole
+previous month: D1's block before any day is judged) - and null for every
+other status and before 18.7; required exactly on those checks in an 18.7
+file. A reader words a check from it, never from its message (Thach's
+pattern, 2026-10-06: the meaning is data stage 3 writes). **`year_ago`** (18.4):
 `{previous, current, revenue_previous, revenue_current}`, the same two
 months a year earlier and their revenue - T2's pair as a fact, whatever
 T2's verdict (its evidence keys are no consumer field); null with
@@ -1753,6 +1774,37 @@ before writing, not by this contract. The AI blocks are null the same way
 when stage 4 does not ask the AI (4B): the diagnosis is blocked, or the
 previous month is not complete - the endpoint's answer says which.
 
+**Structured actions (2.1; the report redesign, D4 - Thach, 2026-10-05;
+`contracts/forecast_actions.py`).** Optional fields, version-gated: absent
+before 2.1, required from it.
+
+```json
+"actions_status": "list",
+"actions": [{"claim": "K1", "hypothesis_id": "B1",
+             "fact": "Customers ordered more often: 343 orders, up from 308 - worth about +4,712.29.",
+             "action": "...", "why": "...",
+             "watch": "Next month, check: orders per customer (13.72 this month; 12.32 the month before)."}],
+"actions_model": "claude-sonnet-5"
+```
+
+`actions_status` is one of three states (Thach): `"list"` - the claims code
+selected (at most 3, K1-K3 in rank order, each on its own hypothesis), each
+with the AI's `action` and `why`; an EMPTY list when no claim is selected
+(headline rules 1-4 and 7, a blocked run, an incomplete previous month: the
+AI is not asked); `"off"` - claims were selected and the AI step is
+switched off; `"suppressed"` - the AI's answer failed its checks twice, or
+the call failed: nothing is listed, never a part. `actions` is a list
+exactly when the status is "list"; `actions_model` names the model exactly
+when actions are listed. `fact` and `watch` are code-written; `action` and
+`why` are the AI's and hold no digit (any script), no percent or currency
+sign, at most 30 words, never empty - held here whoever wrote the file.
+The front section's banned words (`FRONT_BANNED`, "median" included) are
+stage 4's check, not the contract's (Thach, Q43): the AI's text is refused
+and retried there (`contracts.forecast_actions.front_word_problems`), so a
+file holding one still loads and the report is still built. Stage 4's own
+checks are fuller (design section 4.4). Read by stage 5 and the
+page through section 11's forecast.json rows.
+
 ## 9. `report.json` (stage 5 output, data layer)
 
 Defined in session 5A (`contracts/report.py`; `2.0` since 4A-b - section 10).
@@ -1925,10 +1977,12 @@ writes the file):
   forecast month is one the file holds lines of - its revenue so far is
   never compared with the point; `partial_first_month_until` is the day a
   day-grain file ends in it (a month-grain file's month-to-date line has no
-  such day: 2E-o). The recommendations and do-not-do are shown only while
-  stage 4's AI step is on - the backend tells the stage (4C review #4):
-  `recommendations_status` "shown", "switched_off" (whatever the file
-  holds), or "unavailable" (no accepted answer); `notes` beside them: every
+  such day: 2E-o). The free-text recommendations and do-not-do are never
+  shown since 2.9, the appendix included (Thach, Q42: the unchecked format
+  v1 switched off because it fabricated numbers): stage 5 writes
+  `recommendations_status` "switched_off" (the AI step off) or "unavailable"
+  (on), both null, and report.html prints none whoever wrote the file;
+  "shown" stays in the contract for files written before; `notes` beside them: every
   note of either file that is not always-on (section 11). A recommendation's
   `confidence` is replaced by `confidence_label` - "high" from 0.7,
   "medium" from 0.4, "low" below (display cut points, 5A) - never a figure.
@@ -2002,6 +2056,76 @@ leaves null left unsaid), a product whose class nobody confirmed marked
 (SPECS SEC-3, as 5B extended it to the uploaded file's text), and a chart
 carries only months and numbers.
 
+**The front section (2.9; the report redesign, step 3 - Thach, 2026-10-05;
+`contracts/report_front.py`, `docs/REPORT_REDESIGN.md` section 1).**
+Optional fields, version-gated (a 2.9 report carries `front` and
+`currency`; an earlier one none of them, and still loads):
+- `front` - the code-written wording a shop owner reads first, ONE copy for
+  report.html and the page: `state` ("compared", "not_compared" - the
+  previous month incomplete or this month withheld: this month alone, no
+  change, no bar, no checklist - or "blocked": one sentence for sections
+  1-4), `caution` (each cautioning check's line, by id, status and month -
+  the general opener left the front: Thach's safety valve, 2026-10-06; the
+  appendix keeps the trust verdict and each check's message), `summary`
+  (sentences A, B, C in the order stage 3's movement decides: B first when
+  the change is inside the shop's history; A prints the bridge's shown cents,
+  or the exact change where the bridge is withheld - Q22, Q24),
+  `sales_note`, `chart_title`, `chart_note` (the part-months by their dates
+  only, Q13), `waterfall` (the bridge's bars labelled, their shown cents
+  adding up exactly - checked here; `note` when the order value is one bar)
+  or `waterfall_note` (why none is drawn), `checklist` (groups by stage 3's
+  verdicts and the partial bar, `shared/share_bars`; the overlap sentence
+  under the first, Q20; each line worded in its field's unit, Q34; D1-D3
+  left to `data_checks`), `data_checks` (one line when no check cautions or
+  blocks - "no problem found", or "in the checks this file allows" when one
+  could not run - else each caution's line, shown once: by the caution when
+  there is one, else in section 3; empty only when blocked), `next_steps` (forecast.json's `actions_status`; a forecast before 2.1
+  reads "off" with the AI step off and "unavailable" with it on, Q36;
+  actions listed where no cause is named are "unavailable" too),
+  `next_month` (with the forecast's history and season notes in plain
+  words), `cannot_know` and `notes` - `{summary, change, checked,
+  next_month}`, each section's notes that are not always-on and name a
+  figure it shows (Q35; the summary names the diagnosis's notes, since
+  sentences B and C read it). Sentence C reads `headline.named` (Q33) and
+  `headline.offsetting` (Q40) - a file before 18.7 whose rule 6 names no
+  single cause, or any rule 5/6 without `named`, gets no sentence C; the
+  trust checks are worded by id, status and `month` (Q37, Q39) - no month
+  is said where the file names none - stage 3's message staying in the
+  appendix; a season of several years is "in the N earlier years" (Q38) and
+  never "last year's"; every "order" reads `orders_basis`; the decimals
+  agree with stage 3's comparisons and the words beside them ("more than"
+  only where the printed figure is more), and a change that moved never
+  prints as zero. No word of `FRONT_BANNED`
+  (design section 3) is written by code into it; the tests read it over
+  report.html outside the appendix.
+- **Units** (Thach's root-cause fix): every figure the page prints carries
+  its unit from its field's contract - money with the confirmed code, a
+  count whole, a rate or ratio bare; a figure of no known unit (a check's
+  free-form evidence) and a sentence quoted as written from an earlier stage
+  are printed bare and marked (classes `evidence`, `as-written`), the
+  appendix saying so in one line. `tests/stages/report/test_units.py` holds
+  it over the three real runs with GBP.
+- `currency` - `{code, sentence}`: the confirmed ISO code, printed on every
+  amount of the page ("AUD 46,292.50", the code before any sign), or none
+  and "Amounts are in your file's currency." (cleaning_report.json
+  `currency`; not stated in a report before 4.3).
+- `rows_left_out` - one entry per cleaning step that dropped rows
+  (`drop_rows_missing`, `remove_exact_duplicates`, `fix_negative` with
+  strategy "drop"), its sentence worded by the action and column.
+- `layer_1_numbers.partial_months` - the first and last months the file
+  covers only part of, `{period, covers_from, covers_to, position}`, by
+  `shared/periods.complete_months`; none on a month-grain file.
+- `layer_2_causes.lever_levels` - level 1, level 2 and the orders x order
+  value pair as diagnosis.json has them, exact: the appendix's table.
+report.html since 2.9 prints the front section first, then everything it
+printed before inside ONE closed `<details id="appendix">` ("Technical
+details (for an analyst)"; nothing deleted: design 1.7), with the range's
+construction (Q12) and the exact split added. The front's two charts are
+inline SVG (whole months; the waterfall); the appendix keeps today's plotly
+charts and one small inline script that opens it to a note a front link
+names and resizes its charts when opened. A report before 2.9 renders as
+before.
+
 ## 10. Versioning and change policy
 
 - Adding an optional field: minor bump (`1.0` -> `1.1`), readers unaffected.
@@ -2055,6 +2179,30 @@ carries only months and numbers.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-06: **the report redesign, Thach's pattern (Q39-Q43).**
+  `diagnosis.json` 18.7, additive: `trust.checks[].month` and
+  `headline.offsetting` (section 7; rows added in section 11, reader 5;
+  4B's input leaves `offsetting` out). Rules, messages and every other field
+  unchanged (the three real runs re-run). report.json 2.9 (not yet
+  released, so in place): `front.data_checks`; the free-text
+  recommendations never shown (Q42). forecast.json 2.1: the banned words
+  moved from the contract to stage 4's checks (Q43).
+- 2026-10-06: **the report redesign, step 3's fixes (Thach Q33-Q38).**
+  `diagnosis.json` 18.6, additive: `headline.named` (section 7; row added in
+  section 11, readers 5 and FE; 4B's input leaves it out). Section 11 also
+  lists `tree.customers.previous_transition` and its `new`, `resurrected`,
+  `lapsed` (stage 5 words C1-C3 as money from them, Q34). report.json's
+  `front.notes` became one list per section (2.9 not yet released, so in
+  place), and `front.next_steps.status` gained "unavailable".
+- 2026-10-05: **the report redesign, step 3 - the front section (Thach;
+  docs/REPORT_REDESIGN.md sections 1, 6.4, 7).** Optional fields, minor,
+  version-gated: `report.json` 2.9 (`front`, `currency`, `rows_left_out`,
+  `layer_1_numbers.partial_months`, `layer_2_causes.lever_levels`) and
+  `forecast.json` 2.1 (`actions`, `actions_status`, `actions_model`; stage 4
+  writes them in step 4 - a 2.0 file still loads and reads as "off"). Section
+  11 gains a forecast.json table (readers 5, FE), frozen as first written.
+  The share bars a verdict is decided by moved to `shared/share_bars.py`,
+  unchanged (stage 3 re-exports them; stages 4 and 5 read them).
 - 2026-10-05: **the report redesign, step 2 - the file's currency (Thach
   D6, Q5-Q9, Q26-Q30; docs/REPORT_REDESIGN.md sections 6 and 12).**
   Optional fields, minor: the stage 1 contracts `4.3`
@@ -2606,7 +2754,7 @@ How the fields are read:
   (`docs/AI_PIPELINE.md` section 9) and always rendered escaped (SPECS
   SEC-3).
 - **Not in the contract**: `trust.checks[].evidence`, `calendar.evidence`,
-  `tree.customers.evidence` and `.previous_transition`, `tree.lever.reasons`,
+  `tree.customers.evidence`, `tree.lever.reasons`,
   `buyers_*`, the stage 3 frame's history bounds, a
   dimension's filter flags - a consumer that needs one adds its row first.
 
@@ -2782,6 +2930,7 @@ How the fields are read:
 | `trust.checks[].id` | `Literal['D1', 'D2', 'D3']` | 4B, 5, FE |
 | `trust.checks[].status` | `Literal['ok', 'caution', 'blocked', 'inconclusive', 'not_applicable']` | 4B, 5, FE |
 | `trust.checks[].message` | `str` | 4B, 5, FE |
+| `trust.checks[].month` | `Literal['current', 'previous', 'coverage'] \| None` | 5 |
 | `trust.limitations` | `list[str]` | 4B, 5, FE |
 | `calendar` | `object \| None` | 4B, 5, FE |
 | `calendar.method` | `Literal['weekday_weights', 'day_count', 'not_applicable']` | 4B, 5, FE |
@@ -2850,6 +2999,10 @@ How the fields are read:
 | `tree.customers.contraction` | `float` | 4B, 5, FE |
 | `tree.customers.lapsed` | `float` | 4B, 5, FE |
 | `tree.customers.unattributed` | `float` | 4B, 5, FE |
+| `tree.customers.previous_transition` | `object \| None` | 5, FE |
+| `tree.customers.previous_transition.new` | `float` | 5, FE |
+| `tree.customers.previous_transition.resurrected` | `float` | 5, FE |
+| `tree.customers.previous_transition.lapsed` | `float` | 5, FE |
 | `tree.returns` | `object` | 4B, 5, FE |
 | `tree.returns.gross_prev` | `float` | 4B, 5, FE |
 | `tree.returns.gross_cur` | `float` | 4B, 5, FE |
@@ -2932,6 +3085,8 @@ How the fields are read:
 | `headline.movement.season.band` | `Literal['consistent', 'inconclusive', 'shortfall', 'excess']` | 4B, 5, FE |
 | `headline.movement.season.beyond_factor` | `float (gt=0)` | 4B, 5, FE |
 | `headline.hedge` | `Literal['seasonal', 'plain'] \| None` | 5, FE |
+| `headline.named` | `list[str] \| None` | 5, FE |
+| `headline.offsetting` | `bool \| None` | 5 |
 | `hypotheses_note` | `str \| None` | 5, FE |
 | `year_ago` | `object \| None` | 5, FE |
 | `year_ago.previous` | `str (YYYY-MM)` | 5, FE |
@@ -2958,6 +3113,31 @@ How the fields are read:
 | `notes[].measures[].keys` | `int (ge=0) \| None` | 4B, 5, FE |
 | `notes[].always_on` | `bool` | 4B, 5, FE |
 | `suggested_classes` | `dict[str, Literal['charge', 'discount', 'pooled', 'cost', 'adjustment', 'gift_card']]` | 4B, 5, FE |
+
+#### forecast.json
+
+Since forecast.json 2.1 (the report redesign, D4; Thach, 2026-10-05): the
+structured actions stage 5 and the page read. `actions_status` says which of
+three states to show - "list" (the claims code selected, each with the AI's
+action and why; empty when no claim is selected: headline rules 1-4 and 7, a
+blocked run, an incomplete previous month), "off" (claims selected, the AI
+step switched off), "suppressed" (the AI's answer failed its checks twice, or
+the call failed: nothing is shown) - and a file before 2.1 carries none (read
+as "off"). `fact` and `watch` are code-written; `action` and `why` are the
+AI's, never holding a digit, a percent or currency sign, or more than 30
+words (contracts/forecast_actions.py). Shown as written, escaped.
+
+| Field | Type | Read by |
+|---|---|---|
+| `actions` | `list[object] \| None` | 5, FE |
+| `actions[].claim` | `Literal['K1', 'K2', 'K3']` | 5, FE |
+| `actions[].hypothesis_id` | `str (min_length=1)` | 5, FE |
+| `actions[].fact` | `str (min_length=1)` | 5, FE |
+| `actions[].action` | `str` | 5, FE |
+| `actions[].why` | `str` | 5, FE |
+| `actions[].watch` | `str (min_length=1)` | 5, FE |
+| `actions_status` | `Literal['off', 'suppressed', 'list'] \| None` | 5, FE |
+| `actions_model` | `str \| None` | 5, FE |
 
 #### Vocabularies
 

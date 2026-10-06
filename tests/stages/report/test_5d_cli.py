@@ -62,7 +62,9 @@ def test_the_uploaded_files_name_is_the_callers_or_the_backends(tmp_path: Path,
     assert _report(run).source_file == "b\u00e1o c\u00e1o.csv"
 
 
-@pytest.mark.parametrize("switch,status", [("true", "shown"), ("FALSE", "switched_off"), (None, "switched_off")])
+# Q42: on, the free-text recommendations are still never shown - "unavailable".
+@pytest.mark.parametrize("switch,status", [("true", "unavailable"), ("FALSE", "switched_off"),
+                                           (None, "switched_off")])
 def test_the_recommendations_follow_the_backends_switch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                                         switch: str | None, status: str) -> None:
     # 5D review #4: STRATEGY_AI_ENABLED, as the backend reads it; unset is off.
@@ -111,7 +113,7 @@ def test_the_runs_root_comes_from_the_backends_sources(tmp_path: Path, monkeypat
                       encoding="utf-8")
     monkeypatch.setattr(cli, "DOTENV", dotenv)
     assert main(source) == 0
-    assert _report(run).layer_3_actions.recommendations_status == "shown"
+    assert _report(run).layer_3_actions.recommendations_status == "unavailable"  # on (Q42: never shown)
     monkeypatch.setenv("STRATEGY_AI_ENABLED", "false")  # the environment before .env
     assert main(source) == 0
     assert _report(run).layer_3_actions.recommendations_status == "switched_off"

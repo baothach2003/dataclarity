@@ -44,7 +44,7 @@ def test_report_writes_report_json_and_the_page(make_api: MakeApi) -> None:
     assert body["html_url"] == f"/api/runs/{run_id}/download/report.html"
     report = ReportContract.model_validate(body["report"])
     assert report == ReportContract.model_validate(api.read_json(run_id, "report.json"))
-    assert (report.run_id, report.source_file, report.schema_version) == (run_id, "sales.csv", "2.8")  # 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7 the headline's hedge; 2.6: each hypothesis's lens; 2.5: the labels, evidence text and outside reasons; 2.4: the season
+    assert (report.run_id, report.source_file, report.schema_version) == (run_id, "sales.csv", "2.9")  # 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7 the headline's hedge; 2.6: each hypothesis's lens; 2.5: the labels, evidence text and outside reasons; 2.4: the season
     # v1's default: the AI step is off - the page says so, whatever the file holds.
     assert report.layer_3_actions.recommendations_status == "switched_off"
     assert "<title>DataClarity report - sales.csv</title>" in api.file(run_id, "report.html").read_text(
@@ -53,14 +53,16 @@ def test_report_writes_report_json_and_the_page(make_api: MakeApi) -> None:
     assert api.status(run_id) is RunStatus.ANALYZED
 
 
-def test_the_recommendations_are_shown_while_the_step_is_on(make_api: MakeApi) -> None:
+def test_the_recommendations_are_never_shown_even_while_the_step_is_on(make_api: MakeApi) -> None:
+    # Thach, Q42: the free-text format v1 switched off because it fabricated
+    # numbers is shown nowhere, the appendix included.
     api, run_id = _predicted(make_api, FakeResponse(json.dumps(ANSWER)), strategy_ai_enabled=True)
 
     report = ReportContract.model_validate(api.post(run_id, "report").json()["report"])
 
-    assert report.layer_3_actions.recommendations_status == "shown"
-    assert report.layer_3_actions.recommendations is not None and len(report.layer_3_actions.recommendations) == 3
-    assert report.provenance.models_used == ["served-model"]
+    assert report.layer_3_actions.recommendations_status == "unavailable"
+    assert report.layer_3_actions.recommendations is None and report.layer_3_actions.do_not_do is None
+    assert report.provenance.models_used == []
 
 
 def test_report_again_replaces_both_files(make_api: MakeApi) -> None:

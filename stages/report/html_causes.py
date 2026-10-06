@@ -4,8 +4,11 @@ the AI's reading or "unavailable", every hypothesis tested, what the data
 cannot test, where the month sits (a description, never a verdict), the
 diagnosis's notes and the suggested classes."""
 
-from contracts.report import Causes, Numbers, SignalView
+from contracts.report import Causes, HypothesisView, Numbers, SignalView
+from contracts.report_views import against_label
 from stages.report.html_parts import (
+    count,
+    current_code,
     esc,
     evidence_value,
     items,
@@ -56,9 +59,33 @@ def _signals(causes: Causes) -> str:
             + table(["Series", "Chart", "This month", "Centre", "Lower limit", "Upper limit", "Where"], rows))
 
 
+# Each factor's unit, from the lever's own definition (CONTRACTS 7): the
+# order value and the price per item are money; the customers and orders
+# counts; orders per customer and items per order rates.
+_MONEY_FACTORS, _COUNT_FACTORS = ("aov", "price_per_unit"), ("customers", "orders")
+
+
+def _factor(name: str, value: float) -> str:
+    if name in _MONEY_FACTORS:
+        return money(value)
+    return count(value) if name in _COUNT_FACTORS else _signless_number(value)
+
+
+def _signless_number(value: float) -> str:
+    return f"{value:,.4f}".rstrip("0").rstrip(".") if value else "0"
+
+
+def _label(hypothesis: HypothesisView) -> str:
+    """The verdict as report.json words it - "moved against the change" by
+    the one function that wrote it, its amount with the currency's code."""
+    if hypothesis.moved_against and hypothesis.contribution is not None:
+        return against_label(hypothesis.contribution, hypothesis.lens, current_code())
+    return hypothesis.verdict_label or hypothesis.verdict.replace("_", " ")
+
+
 def causes_html(causes: Causes, numbers: Numbers) -> str:
     whole = numbers.period.previous_complete
-    parts = ["<h2>Why it happened</h2>", para(causes.headline.message, "headline")]
+    parts = ["<h2>Why it happened</h2>", para(causes.headline.message, "headline as-written")]
     story = causes.narration
     if story is None:
         # "not_in_v1" (Thach, Q21): the step was removed by design, nothing to say.
@@ -70,10 +97,13 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
                      + para(story.not_tested_note))
     # report.json's own label and evidence text - one copy, the page prints the same (Thach, 2026-10-04,
     # decisions (vii) and (viii)); a 2.4 report carries neither, so its words are made here as before.
-    rows = [[esc(h.id), esc(h.statement), esc(h.verdict_label or h.verdict.replace("_", " ")),
+    rows = [[esc(h.id), esc(h.statement), esc(_label(h)),
              "" if h.contribution is None else money(h.contribution), "" if h.share is None else share(h.share),
-             esc(h.rule), items(esc(line) for line in h.evidence_text) if h.evidence_text else
-             items(f"{esc(k)}: {esc(evidence_value(v, causes.suggested_classes))}" for k, v in h.evidence.items())]
+             f'<span class="as-written">{esc(h.rule)}</span>',
+             f'<div class="evidence">{items(esc(line) for line in h.evidence_text)}</div>' if h.evidence_text else
+             f'<div class="evidence">'
+             f'{items(f"{esc(k)}: {esc(evidence_value(v, causes.suggested_classes))}" for k, v in h.evidence.items())}'
+             f"</div>"]
             for h in causes.hypotheses]
     if causes.hypotheses_note:
         # Above the table it qualifies, as stage 3 words it (decision 4): the
@@ -83,6 +113,13 @@ def causes_html(causes: Causes, numbers: Numbers) -> str:
         parts.append(para(causes.hypotheses_note, "reason"))
     parts.append(table(["ID", "Hypothesis", "Verdict", "Contribution", "Share", "Rule", "Evidence"], rows,
                        "Every hypothesis tested, the ruled-out ones included"))
+    if causes.lever_levels:
+        # The change's split, exact (design 1.7): the front's chart draws these
+        # terms to the cent, or withholds the split B2 refuses - visible here.
+        parts.append(table(["Level", "Formula", "Factor", "Before", "After", "Contribution"], [
+            [esc(level.level), esc(level.formula), esc(f.name), _factor(f.name, f.value_prev),
+             _factor(f.name, f.value_cur), money(f.contribution)]
+            for level in causes.lever_levels for f in level.factors], "The split of the change, exact"))
     if causes.not_testable:
         parts.append("<h3>What this data cannot test</h3>"
                      + items(f"{esc(n.statement)}: {esc(n.reason)}" for n in causes.not_testable))

@@ -12,7 +12,7 @@ refused (5A reviews 1 #14 and 2 #7).
 from datetime import date
 from typing import ClassVar, Literal, Self
 
-from pydantic import NonNegativeInt, model_validator
+from pydantic import Field, NonNegativeInt, model_validator
 
 from contracts._base import ContractFile, ContractModel
 from contracts.diagnosis import AiFindings, Headline, NotTestable
@@ -20,6 +20,7 @@ from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint, check_
 from contracts.lines import NoteCode, UnmeasurableLines
 from contracts.metrics import NonProductLines
 from contracts.profile import LineClass
+from contracts.report_front import Front, LeverLevelView, PartialMonth, ReportCurrency, RowsLeftOut
 from contracts.report_views import (
     KPI_IDS,
     Chart,
@@ -39,10 +40,10 @@ from contracts.report_views import (
     month_after,
 )
 
-__all__ = ["Actions", "Causes", "Chart", "ChartSeries", "DataQuality", "ForecastView", "HypothesisView", "Kpi",
-           "MonthRevenue", "NoteView", "Numbers", "OutsideRevenueView", "Provenance", "RecommendationView",
-           "ReportContract",
-           "ReportPeriod", "SignalView", "TrustBadge", "TrustCheckView"]
+__all__ = ["Actions", "Causes", "Chart", "ChartSeries", "DataQuality", "ForecastView", "Front", "HypothesisView", "Kpi",
+           "MonthRevenue", "NoteView", "Numbers", "OutsideRevenueView", "PartialMonth", "Provenance",
+           "RecommendationView", "ReportContract", "ReportCurrency", "ReportPeriod", "RowsLeftOut", "SignalView",
+           "TrustBadge", "TrustCheckView"]
 
 _ALWAYS_ON_ONCE = "an always-on note is shown once, in how_to_read, and only there"
 
@@ -80,6 +81,8 @@ class Numbers(ContractModel):
     # adjustment 1); the file's own notes beside the figures they name.
     how_to_read: list[NoteView]
     notes: list[NoteView]
+    # 2.9 (D7): the months the file covers only part of, by their dates.
+    partial_months: list[PartialMonth] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _as_stage_5_shows_them(self) -> Self:
@@ -130,6 +133,9 @@ class Causes(ContractModel):
     narration_status: Literal["shown", "unavailable", "not_in_v1"]
     notes: list[NoteView]
     suggested_classes: dict[str, LineClass]
+    # 2.9 (design 1.7): the change's split, its exact terms - level 1, level
+    # 2, the orders x average order value pair - for the appendix.
+    lever_levels: list[LeverLevelView] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _narration_as_its_status(self) -> Self:
@@ -223,6 +229,12 @@ class ReportContract(ContractFile):
     layer_3_actions: Actions
     charts: list[Chart]
     provenance: Provenance
+    # 2.9 (the report redesign, step 3): the currency (D6, Q8), the rows the
+    # cleaning left out (1.6), and the front section - one copy of its
+    # wording for report.html and the page. Absent before 2.9.
+    currency: ReportCurrency | None = None
+    rows_left_out: list[RowsLeftOut] = Field(default_factory=list)
+    front: Front | None = None
 
     @model_validator(mode="after")
     def _causes_as_2_5_shows_them(self) -> Self:
@@ -245,6 +257,12 @@ class ReportContract(ContractFile):
             raise ValueError("a KPI's change exists from 2.8")
         if any(h.moved_against for h in hypotheses) and not compared_month_shown(numbers):
             raise ValueError("moved against the change is shown only beside a comparison the report shows")
+        redesigned = (self.front, self.currency)
+        if version >= (2, 9) and None in redesigned:
+            raise ValueError("a 2.9 report carries its front section and its currency")
+        if version < (2, 9) and (redesigned != (None, None) or self.rows_left_out or numbers.partial_months
+                                 or self.layer_2_causes.lever_levels):
+            raise ValueError("the front section, the currency, the rows left out and the part-months exist from 2.9")
         return self
 
     @model_validator(mode="after")
@@ -255,7 +273,9 @@ class ReportContract(ContractFile):
         numbers, actions = self.layer_1_numbers, self.layer_3_actions
         shown = {note.code for note in [*numbers.notes, *self.layer_2_causes.notes]}
         lists = [*(kpi.notes for kpi in numbers.kpis), actions.notes, actions.forecast.notes,
-                 *(chart.notes for chart in self.charts)]
+                 *(chart.notes for chart in self.charts),
+                 *((n.summary, n.change, n.checked, n.next_month) if (n := self.front.notes if self.front else None)
+                   else ())]
         named = {code for codes in lists for code in codes}
         if not named <= shown:
             raise ValueError(f"notes named beside a figure but not shown: {sorted(named - shown)}; {_ALWAYS_ON_ONCE}")

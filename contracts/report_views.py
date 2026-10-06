@@ -193,14 +193,17 @@ class MonthRevenue(ContractModel):
 AGAINST = "moved against the change"
 
 
-def against_label(contribution: float, lens: str | None) -> str:
+def against_label(contribution: float, lens: str | None, code: str | None = None) -> str:
     """The verdict label of a hypothesis ruled out for moving against the
     change: its contribution, signed, to the cent - the one copy stage 5
     writes and this contract checks (Thach, 2026-10-04, (vii)). The product
     lens names its total, gross sales, which the report shows nowhere else
     (2026-10-05, Q2); a 2.5 row has no lens and keeps the bare label."""
     total = " in gross sales" if measured_on_gross_sales(lens) else ""
-    return f"{AGAINST}{total} ({'+' if contribution > 0 else '-'}{abs(contribution):,.2f})"
+    # The page prints the amount with the confirmed currency's code (Q8); the
+    # file's label carries none (`code` None), as before.
+    coded = f"{code} " if code else ""
+    return f"{AGAINST}{total} ({coded}{'+' if contribution > 0 else '-'}{abs(contribution):,.2f})"
 
 
 def prints_as_zero(value: float) -> bool:

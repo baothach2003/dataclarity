@@ -14,6 +14,11 @@ class Page(HTMLParser):
         self._in_script = False
         self._section: str | None = None
         self._text: list[str] = []
+        # The appendix (the report redesign, step 3): text inside a <details>
+        # is the analyst's; the rest is the front a shop owner reads.
+        self._details = 0
+        self._head = False
+        self.front: list[str] = []
         self.feed(html)
         self.close()
 
@@ -26,24 +31,39 @@ class Page(HTMLParser):
         if tag == "section":
             self._section = found.get("id") or ""
             self.sections[self._section] = ""
+        if tag == "details":
+            self._details += 1
+        if tag == "head":
+            self._head = True
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "script":
             self._in_script = False
         if tag == "section":
             self._section = None
+        if tag == "details":
+            self._details -= 1
+        if tag == "head":
+            self._head = False
 
     def handle_data(self, data: str) -> None:
         if self._in_script:
             self.scripts[-1] += data
             return
         self._text.append(data)
+        if not self._details and not self._head:
+            self.front.append(data)
         if self._section is not None:
             self.sections[self._section] += " " + data  # each cell and element is its own run of text
 
     @property
     def text(self) -> str:
         return " ".join(" ".join(self._text).split())
+
+    @property
+    def front_text(self) -> str:
+        """Every word outside the appendix and the head."""
+        return " ".join(" ".join(self.front).split())
 
     def section(self, section_id: str) -> str:
         return " ".join(self.sections[section_id].split())

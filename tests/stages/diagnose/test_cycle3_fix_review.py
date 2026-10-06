@@ -135,6 +135,10 @@ def test_an_18_3_file_carrying_any_one_new_field_is_refused(field: str) -> None:
     found["schema_version"] = "18.3"
     found["year_ago"] = None
     found["tree"]["lever"]["bridge"] = None
+    found["headline"]["named"] = None  # 18.6's field, not the one under test
+    found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
+    for check in found["trust"]["checks"]:
+        check["month"] = None
     if field == "hedge":
         found["headline"] = {"rule": 4, "hypothesis_id": None, "lens": None, "movement": None, "hedge": "plain",
                              "message": "x " + HEDGE_SENTENCES["plain"]}

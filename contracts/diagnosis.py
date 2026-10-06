@@ -61,6 +61,12 @@ class TrustCheck(ContractModel):
     status: Literal["ok", "caution", "blocked", "inconclusive", "not_applicable"]
     evidence: dict[str, Any]
     message: str
+    # 18.7 (the report redesign, Thach Q39): which month a caution or a block
+    # is about - the current month, the previous month, or the previous
+    # month's coverage (a file that covers only part of it) - so a reader
+    # words the check without parsing the message. Null for every other
+    # status, and before 18.7.
+    month: Literal["current", "previous", "coverage"] | None = None
 
 
 class Trust(ContractModel):
@@ -832,11 +838,29 @@ class Headline(ContractModel):
     # message ends with - "seasonal" (This may be seasonal.) or "plain" - so a
     # reader words it without parsing the message. Rule 4 only; null before.
     hedge: Literal["seasonal", "plain"] | None = None
+    # 18.6 (the report redesign, Thach Q33): the hypotheses behind a rule 5 or
+    # rule 6 headline, in the order its message names them - the context
+    # causes of rule 5 (T1, T2), rule 6's best fit or exact tie, or the
+    # movements its offsetting case names (one each way, a tie all of it) -
+    # so a reader words the cause without parsing the message. Rules 5 and 6
+    # only; null before 18.6.
+    named: list[str] | None = None
+    # 18.7 (Thach, Q40): true exactly when rule 6 names no cause because the
+    # change is what remains of movements in opposite directions (`named`
+    # lists them); false for every other headline; null before 18.7.
+    offsetting: bool | None = None
 
     @model_validator(mode="after")
     def _hedge_only_under_rule_4(self) -> Self:
         if self.hedge is not None and self.rule != 4:
             raise ValueError("a hedge belongs to headline rule 4 only")
+        if self.named is not None and (self.rule not in (5, 6) or not self.named
+                                       or len(set(self.named)) != len(self.named)):
+            raise ValueError("named lists the hypotheses behind rule 5 or 6, each once")
+        if self.named is not None and self.hypothesis_id is not None and self.named != [self.hypothesis_id]:
+            raise ValueError("a headline naming one hypothesis names it in named too")
+        if self.offsetting and (self.rule != 6 or self.hypothesis_id is not None):
+            raise ValueError("offsetting is rule 6 naming no single cause")
         if self.hedge is not None and not self.message.endswith(HEDGE_SENTENCES[self.hedge]):
             raise ValueError(f"a {self.hedge} hedge: the message ends with its sentence")
         return self
@@ -1014,6 +1038,30 @@ class DiagnosisContract(ContractFile):
         if lever is not None and lever.bridge_withheld == "failed_checks" and minor_version(
                 self.schema_version) < (18, 5):
             raise ValueError("bridge_withheld 'failed_checks' exists from 18.5")
+        headline, version = self.headline, minor_version(self.schema_version)
+        months = [check.month for check in self.trust.checks]
+        if version < (18, 7):
+            if headline.offsetting is not None or any(month is not None for month in months):
+                raise ValueError("headline.offsetting and trust.checks[].month exist from 18.7")
+        else:
+            if headline.offsetting is None:
+                raise ValueError("an 18.7 headline says whether it is the offsetting case (headline.offsetting)")
+            if any((check.month is not None) != (check.status in ("caution", "blocked"))
+                   for check in self.trust.checks):
+                raise ValueError("an 18.7 caution or block says which month it is about (month), no other check does")
+            if (headline.rule == 6 and headline.hypothesis_id is None and not headline.offsetting
+                    and headline.named is None):
+                raise ValueError("an 18.7 rule 6 tie names its hypotheses (headline.named)")
+        named = self.headline.named
+        if minor_version(self.schema_version) < (18, 6):
+            if named is not None:
+                raise ValueError("headline.named exists from 18.6")
+        elif named is None and (self.headline.rule == 5 or self.headline.hypothesis_id is not None):
+            # Rule 6's offsetting case names a movement each way when one was
+            # measured; with none it names nothing, and named stays null.
+            raise ValueError("an 18.6 rule 5 or 6 headline names its hypotheses (headline.named)")
+        elif named is not None and not set(named) <= {h.id for h in self.hypotheses}:
+            raise ValueError("headline.named names hypotheses of this file")
         if minor_version(self.schema_version) < (18, 4):
             if (self.year_ago, self.year_ago_reason, self.headline.hedge) != (None, None, None) or (
                     lever is not None and (lever.bridge, lever.bridge_withheld) != (None, None)):

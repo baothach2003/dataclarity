@@ -64,19 +64,18 @@ def test_confidence_is_a_label(confidence: float, label: str) -> None:
 
 
 def test_a_recommendation_shows_its_confidence_as_a_label_never_a_figure() -> None:
-    # Review 1 #6: the fixture's 0.7 is "high"; no figure is carried.
-    report = build()
-    recommendations = report.layer_3_actions.recommendations
-    assert recommendations is not None and [r.confidence_label for r in recommendations] == ["high"]
-    dumped = json.loads(report.model_dump_json())["layer_3_actions"]["recommendations"][0]
-    assert "confidence" not in dumped
-    assert dumped["action"] == forecast_payload()["recommendations"][0]["action"]
+    # Thach, Q42: the file's free-text recommendations are carried no more -
+    # neither their text nor their confidence.
+    dumped = json.loads(build().model_dump_json())["layer_3_actions"]
+    assert (dumped["recommendations"], dumped["do_not_do"]) == (None, None)
+    assert forecast_payload()["recommendations"][0]["action"] not in build().model_dump_json()
 
 
 def test_the_models_named_are_those_of_the_answers_shown() -> None:
     # Hidden recommendations name no model.
     forecast = forecast_payload() | {"model_used": "claude-haiku-4-5"}
-    assert build(forecast=forecast).provenance.models_used == ["claude-haiku-4-5", "claude-sonnet-5"]
+    # Q42: the recommendations are never shown, so their model is never named.
+    assert build(forecast=forecast).provenance.models_used == ["claude-sonnet-5"]
     assert build(forecast=forecast, include_recommendations=False).provenance.models_used == ["claude-sonnet-5"]
     assert build(forecast=forecast, schema=False, include_recommendations=False,
                  diagnosis=diagnosis_payload() | {"ai_findings": None, "model_used": None}).provenance.models_used == []
@@ -108,7 +107,7 @@ def test_report_run_without_stage_1s_ai_answers(tmp_path: Path) -> None:
     # Stage 1's AI gave no answer: only the narration and recommendations.
     run_dir(tmp_path, optional=False)
     report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
-    assert (report.provenance.ai_calls, report.provenance.models_used) == (2, ["claude-sonnet-5"])
+    assert (report.provenance.ai_calls, report.provenance.models_used) == (1, ["claude-sonnet-5"])  # Q42
 
 
 def test_report_run_reads_a_stage_1_answer_of_another_major_as_absent(tmp_path: Path) -> None:
@@ -118,5 +117,5 @@ def test_report_run_reads_a_stage_1_answer_of_another_major_as_absent(tmp_path: 
         raw = json.loads((run / name).read_text(encoding="utf-8"))
         (run / name).write_text(json.dumps(raw | {"schema_version": "0.9"}), encoding="utf-8")
     report = report_run(tmp_path, RUN, source_file="sales_2011.csv", include_recommendations=True, now=NOW)
-    assert report.provenance.ai_calls == 2
+    assert report.provenance.ai_calls == 1  # Q42: the recommendations are not counted
     assert ReportContract.model_validate_json((run / "report.json").read_text(encoding="utf-8")) == report

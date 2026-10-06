@@ -352,5 +352,16 @@
    "New",
    "No purchases in file"
   ]
+ },
+ "forecast.json": {
+  "actions": "list[object] | None",
+  "actions[].claim": "Literal['K1', 'K2', 'K3']",
+  "actions[].hypothesis_id": "str (min_length=1)",
+  "actions[].fact": "str (min_length=1)",
+  "actions[].action": "str",
+  "actions[].why": "str",
+  "actions[].watch": "str (min_length=1)",
+  "actions_status": "Literal['off', 'suppressed', 'list'] | None",
+  "actions_model": "str | None"
  }
 }

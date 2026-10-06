@@ -9,13 +9,37 @@ for display (CONTRACTS 9, "stage 5 performs no analysis").
 
 import json
 import re
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
+from contextlib import contextmanager
+from contextvars import ContextVar
 from html import escape
 
 from contracts.lines import NoteMeasure
 from contracts.report import NoteView
 
 _ZERO = re.compile(r"[-+][0.,]+%?")
+# The confirmed currency's ISO code, on every amount of the page while it is
+# rendered (Thach, Q8: "AUD 46,292.50" everywhere); none when not stated.
+_CURRENCY: ContextVar[str | None] = ContextVar("currency", default=None)
+
+
+@contextmanager
+def currency_code(code: str | None) -> Iterator[None]:
+    token = _CURRENCY.set(code)
+    try:
+        yield
+    finally:
+        _CURRENCY.reset(token)
+
+
+def current_code() -> str | None:
+    """The currency code the page is being rendered with, or None."""
+    return _CURRENCY.get()
+
+
+def _coded(text: str) -> str:
+    code = _CURRENCY.get()
+    return f"{code} {text}" if code else text
 
 
 def esc(value: object) -> str:
@@ -29,11 +53,11 @@ def _signless(text: str) -> str:
 
 
 def money(value: float) -> str:
-    return _signless(f"{value:,.2f}")
+    return _coded(_signless(f"{value:,.2f}"))
 
 
 def signed_money(value: float) -> str:
-    return _signless(f"{value:+,.2f}")
+    return _coded(_signless(f"{value:+,.2f}"))
 
 
 def count(value: float) -> str:
@@ -59,8 +83,10 @@ def share(value: float) -> str:
 
 def number(value: float) -> str:
     """A figure of no fixed unit (a hypothesis's evidence): two decimals from
-    100 up, four significant digits below."""
-    return money(value) if abs(value) >= 100 else _signless(f"{value:.4g}")
+    100 up, four significant digits below - never a currency code, which only
+    a field the contract types as money carries (Thach's root-cause fix: the
+    review found counts printed "GBP 609.00")."""
+    return _signless(f"{value:,.2f}") if abs(value) >= 100 else _signless(f"{value:.4g}")
 
 
 FORMATS: dict[str, Callable[[float], str]] = {"money": money, "count": count, "ratio": ratio}

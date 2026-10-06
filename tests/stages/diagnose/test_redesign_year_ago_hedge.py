@@ -123,7 +123,7 @@ def test_a_hedge_off_rule_4_is_refused() -> None:
 
 def test_an_18_4_rule_4_without_its_hedge_is_refused() -> None:
     found = diagnose(run_data(daily_months(FOURTEEN)), NOW).model_dump()
-    found["headline"] = Headline(rule=4, hypothesis_id=None, lens=None, message="m").model_dump()
+    found["headline"] = Headline(rule=4, hypothesis_id=None, lens=None, message="m", offsetting=False).model_dump()
 
     with pytest.raises(ValidationError, match="hedge"):
         DiagnosisContract.model_validate(found)
@@ -148,6 +148,10 @@ def test_an_18_4_file_needs_a_bridge_or_its_withholding() -> None:
 def test_an_18_3_file_carrying_a_new_field_is_refused() -> None:
     found = diagnose(run_data(daily_months(FOURTEEN)), NOW).model_dump()
     found["schema_version"] = "18.3"
+    found["headline"]["named"] = None  # 18.6's field, not the one under test
+    found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
+    for check in found["trust"]["checks"]:
+        check["month"] = None
 
     with pytest.raises(ValidationError, match="before 18.4"):
         DiagnosisContract.model_validate(found)
@@ -214,6 +218,10 @@ def test_a_split_drawn_beside_b2s_refund_refusal_is_refused() -> None:
 def test_an_18_3_file_without_the_new_fields_still_loads() -> None:
     found = diagnose(run_data(daily_months(FOURTEEN)), NOW).model_dump()
     found["schema_version"] = "18.3"
+    found["headline"]["named"] = None  # 18.6's field, not the one under test
+    found["headline"]["offsetting"] = None  # 18.7's fields, not the ones under test
+    for check in found["trust"]["checks"]:
+        check["month"] = None
     del found["year_ago"], found["year_ago_reason"], found["headline"]["hedge"]
     del found["tree"]["lever"]["bridge"], found["tree"]["lever"]["bridge_withheld"]
 
@@ -223,12 +231,12 @@ def test_an_18_3_file_without_the_new_fields_still_loads() -> None:
 
 
 def test_the_version_is_18_5() -> None:
-    assert SCHEMA_VERSION == "18.5"  # 18.5: "failed_checks" (item 1); 18.4: bridge, year_ago, hedge (step 1)
+    assert SCHEMA_VERSION == "18.7"  # 18.7: trust.checks[].month, headline.offsetting (Q39, Q40); 18.6: headline.named (Q33); 18.5: "failed_checks" (item 1); 18.4: bridge, year_ago, hedge (step 1)
 
 
 def test_report_json_carries_the_headlines_hedge() -> None:
     from contracts.report import ReportContract
     from stages.report.builder import SCHEMA_VERSION as REPORT_VERSION
 
-    assert REPORT_VERSION == "2.8"  # 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7: the headline's hedge (report.json carries the Headline model)
+    assert REPORT_VERSION == "2.9"  # 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7: the headline's hedge (report.json carries the Headline model)
     assert "hedge" in ReportContract.model_fields["layer_2_causes"].annotation.model_fields["headline"].annotation.model_fields

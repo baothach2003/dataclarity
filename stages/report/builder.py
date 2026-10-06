@@ -35,6 +35,9 @@ from shared import later_outputs
 from shared.contract_files import write_atomically
 from shared.periods import shift_month
 from shared.run_registry import run_file
+from stages.report.front import build_front
+from stages.report.front_rest import currency as report_currency
+from stages.report.front_rest import partial_months, rows_left_out
 from stages.report.html_report import REPORT_HTML, html_run
 from stages.report.layers import actions, causes, numbers, revenue_notes
 
@@ -43,8 +46,9 @@ from stages.report.layers import actions, causes, numbers, revenue_notes
 # headline's season comparison; 2.5: each hypothesis's label and evidence text, each line outside
 # revenue's reason; 2.6: each hypothesis's lens, so the label names its total; 2.7: the headline's hedge
 # (the report redesign, step 1 - report.json carries the Headline model); 2.8: narration_status
-# "not_in_v1" (Q21) and the revenue KPI's exact change (Q22) (CONTRACTS 10).
-SCHEMA_VERSION = "2.8"
+# "not_in_v1" (Q21) and the revenue KPI's exact change (Q22); 2.9: the front section, the currency, the rows
+# left out and the part-months (the report redesign, step 3) (CONTRACTS 10).
+SCHEMA_VERSION = "2.9"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 
@@ -140,17 +144,26 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
                  now: datetime | None = None) -> ReportContract:
     """report.json from the run's files. Pure: writes nothing."""
     _same_months(metrics, diagnosis, forecast)
-    layer_1 = numbers(metrics, diagnosis, has_customers="customer" in cleaning.column_mapping.values())
+    partial = partial_months(metrics)
+    layer_1 = numbers(metrics, diagnosis, has_customers="customer" in cleaning.column_mapping.values()).model_copy(
+        update={"partial_months": partial})
+    layer_2 = causes(diagnosis, metrics.core.orders_basis, layer_1)
     layer_3 = actions(metrics, diagnosis, forecast, include_recommendations)
+    shown = report_currency(cleaning)
+    left_out = rows_left_out(cleaning)
+    charts = _charts(metrics, layer_1, layer_3)
     return ReportContract(
         schema_version=SCHEMA_VERSION, generated_at=now or datetime.now(UTC), run_id=run_id, source_file=source_file,
         data_quality=DataQuality(rows_in=cleaning.rows_in, rows_out=cleaning.rows_out,
                                  issues_fixed=sum(1 for c in cleaning.changes
                                                   if c.cells_affected > 0 or c.rows_affected > 0),
                                  warnings=len(cleaning.warnings)),
-        layer_1_numbers=layer_1, layer_2_causes=causes(diagnosis, metrics.core.orders_basis, layer_1), layer_3_actions=layer_3,
-        charts=_charts(metrics, layer_1, layer_3),
-        provenance=_provenance(schema, plan_source, diagnosis, layer_3, forecast))
+        layer_1_numbers=layer_1, layer_2_causes=layer_2, layer_3_actions=layer_3,
+        charts=charts, provenance=_provenance(schema, plan_source, diagnosis, layer_3, forecast),
+        currency=shown, rows_left_out=left_out,
+        front=build_front(metrics=metrics, diagnosis=diagnosis, forecast=forecast, cleaning=cleaning, numbers=layer_1,
+                          causes=layer_2, actions=layer_3, charts=charts, partial=partial, left_out=left_out,
+                          code=shown.code, ai_on=include_recommendations))
 
 
 def _read[T: (MetricsContract, DiagnosisContract, ForecastContract, CleaningReportContract)](

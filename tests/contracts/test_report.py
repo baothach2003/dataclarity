@@ -20,7 +20,7 @@ def test_accepts_a_report_as_stage_5_builds_it() -> None:
 
     assert report.data_quality.rows_in - report.data_quality.rows_out == 442
     assert report.charts[0].series[0].y == [1000000.0, 1290000.0, 1150000.0]
-    assert report.provenance.ai_calls == 4
+    assert report.provenance.ai_calls == 3  # Q42: the free-text recommendations are never shown, nor counted
 
 
 def test_the_layers_are_typed_since_5a() -> None:
@@ -42,8 +42,11 @@ def test_a_narration_and_its_status_agree() -> None:
 
 @pytest.mark.parametrize("status", ["switched_off", "unavailable"])
 def test_recommendations_are_shown_exactly_when_their_status_says_so(status: str) -> None:
+    # Stage 5 never shows them (Q42); the contract's rule holds for any writer.
     payload = report_payload()
-    payload["layer_3_actions"]["recommendations_status"] = status
+    payload["layer_3_actions"] |= {"recommendations_status": status, "do_not_do": [], "recommendations": [{
+        "priority": 1, "insight": "i", "cause": "c", "action": "a", "expected_impact": "e", "how_to_measure": "h",
+        "confidence_label": "high"}]}
 
     with pytest.raises(ValidationError, match="shown together"):
         ReportContract.model_validate(payload)

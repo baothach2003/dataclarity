@@ -1,0 +1,44 @@
+{
+ "schema_version": "2.0",
+ "generated_at": "2026-10-04T23:45:56Z",
+ "model_used": null,
+ "forecast": {
+  "method": "weighted moving average of the last 3 complete months (weights 1, 2, 3), no seasonality claimed",
+  "horizon_periods": 3,
+  "revenue": [
+   {
+    "period": "2025-01",
+    "point": 43835.33333333333,
+    "low": 38893.13949234326,
+    "high": 49405.537159650725,
+    "confidence": 0.8
+   },
+   {
+    "period": "2025-02",
+    "point": 43835.33333333333,
+    "low": 38969.26800830175,
+    "high": 49309.02084265716,
+    "confidence": 0.8
+   },
+   {
+    "period": "2025-03",
+    "point": 43835.33333333333,
+    "low": 38914.7309379888,
+    "high": 49378.12499607001,
+    "confidence": 0.8
+   }
+  ],
+  "insufficient_history": false,
+  "months_used": 36,
+  "history_note": null,
+  "season_years": null,
+  "season_note": null,
+  "products_at_stockout_risk": null,
+  "products_at_stockout_risk_reason": "stock figures are not supported in v1: DataClarity v1 analyses sales, not inventory, so no product has a stockout risk"
+ },
+ "recommendations": null,
+ "do_not_do": null,
+ "actions": null,
+ "actions_status": null,
+ "actions_model": null
+}

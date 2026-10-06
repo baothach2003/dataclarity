@@ -135,9 +135,9 @@ def _explanation(named: list[Hypothesis], moved: Changes, change: str) -> Headli
         return f"{_statement(h)} ({h.lens} lens{size})"
     if len(named) == 1:
         best = named[0]
-        return Headline(rule=6, hypothesis_id=best.id, lens=best.lens,
+        return Headline(rule=6, hypothesis_id=best.id, lens=best.lens, named=[best.id],
                         message=f"{change} The best-supported explanation: {one(best)}.")
-    return Headline(rule=6, hypothesis_id=None, lens=None,
+    return Headline(rule=6, hypothesis_id=None, lens=None, named=[h.id for h in named],
                     message=f"{change} Equally well supported: " + "; ".join(one(h) for h in named) + ".")
 
 
@@ -160,7 +160,7 @@ def _measured(hypothesis: Hypothesis) -> bool:
     return BY_ID[hypothesis.id].kind == "term" or hypothesis.verdict == "supported"
 
 
-def _opposing(hypotheses: list[Hypothesis], moved: Changes) -> str:
+def _opposing(hypotheses: list[Hypothesis], moved: Changes) -> tuple[str, list[str]]:
     """No cause rule 6 may name fits the change (Thach, 2E-n) - each lands
     at least |net| from it - so the change is what remains of movements that
     offset each other. One movement each way is named, in money - a
@@ -185,13 +185,15 @@ def _opposing(hypotheses: list[Hypothesis], moved: Changes) -> str:
     named = ["{}, {}".format(way, " and ".join(f"{_statement(h)} ({h.lens} lens, {h.contribution:+,.2f})"
                                                for h in _largest(causes, moved)))
              for way, causes in ways if causes]
+    # The same movements, by id, in the order named (18.6, Thach Q33).
+    ids = [h.id for _, causes in ways if causes for h in _largest(causes, moved)]
     # No claim that no cause fits: a ruled-out cause can (Online Retail II
     # 2011-07 unanswered: T1 at 1.84x fits 0.16; review cycle 1), and so can
     # one the product-lens gate held back (cycle 2). "Among them": the two
     # named are not the whole change - on Online Retail II 2011-07 they added
     # to +5,763.46 beside a -9,823.01 change (2E-o Q5 #1).
     return ("The change is what remains of movements in opposite directions, among them: "
-            + "; ".join(named) + ".")
+            + "; ".join(named) + "."), ids
 
 
 def choose_headline(trust: Trust, hypotheses: list[Hypothesis], tree: Tree | None,
@@ -391,7 +393,7 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
             what = f"{CONTEXT[named[0].id]}: {_size(named[0], moved)}"
         else:
             what = "; and equally with ".join(f"{CONTEXT[h.id]}: {_size(h, moved)}" for h in named)
-        return Headline(rule=5, hypothesis_id=None, lens=None,
+        return Headline(rule=5, hypothesis_id=None, lens=None, named=[h.id for h in named],
                         message=f"{change} The change is consistent with {what}."), _ids(named)
 
     # 6. The best-fitting supported cause, closest to the net change (a tie
@@ -405,8 +407,9 @@ def _ranked(hypotheses: list[Hypothesis], by_id: dict[str, Hypothesis], moved: C
     if directional:
         return _explanation(directional, moved, change), _ids(directional)
     if shares:
-        return Headline(rule=6, hypothesis_id=None, lens=None,
-                        message=f"{change} {_opposing(hypotheses, moved)}"), frozenset()
+        sentence, ids = _opposing(hypotheses, moved)
+        return Headline(rule=6, hypothesis_id=None, lens=None, named=ids or None, offsetting=True,
+                        message=f"{change} {sentence}"), frozenset()
 
     # 7. Nothing supported - the engine does not invent a cause.
     partial = [h for h in hypotheses if h.verdict == "partial"]

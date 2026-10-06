@@ -18,7 +18,7 @@ from stages.report.builder import SCHEMA_VERSION
 from stages.report.html_report import render_html
 from tests.contracts.test_diagnosis import diagnosis_payload
 from tests.stages.report.html_probe import Page
-from tests.stages.report.report_fixtures import build
+from tests.stages.report.report_fixtures import before_2_9, build
 
 # The fixture compares 2011-11 (1,150,000) with 2011-10 (1,290,000): revenue FELL; gross sales fell too
 # (1,338,000 -> 1,198,000, tree.returns).
@@ -54,7 +54,7 @@ P1_UP = {"id": "P1", "lens": "product", "statement": "Like-for-like prices chang
 
 def test_the_version_is_2_6() -> None:
     # 2.5: the hypotheses' labels and evidence text, the outside lines' reasons; 2.6: each row's lens (Q2).
-    assert SCHEMA_VERSION == "2.8"
+    assert SCHEMA_VERSION == "2.9"  # 2.9 the front section (the report redesign, step 3)
 
 
 # (vii) One label, from stage 3's own sign test as diagnosis.json states it.
@@ -235,7 +235,7 @@ def test_a_2_6_report_names_every_rows_lens() -> None:
     lensless["layer_2_causes"]["hypotheses"][0]["lens"] = None
     with pytest.raises(ValidationError, match="2.6"):
         ReportContract.model_validate(lensless)
-    ReportContract.model_validate(lensless | {"schema_version": "2.5"})  # written before: as it was
+    ReportContract.model_validate(before_2_9(lensless) | {"schema_version": "2.5"})  # written before: as it was
 
 
 def test_a_2_5_report_labels_every_row_and_words_every_outside_line() -> None:
@@ -249,7 +249,7 @@ def test_a_2_5_report_labels_every_row_and_words_every_outside_line() -> None:
     for incomplete_2_5 in (unlabelled, unworded):
         with pytest.raises(ValidationError, match="2.5"):
             ReportContract.model_validate(incomplete_2_5)
-        ReportContract.model_validate(incomplete_2_5 | {"schema_version": "2.4"})  # written before: as it was
+        ReportContract.model_validate(before_2_9(incomplete_2_5) | {"schema_version": "2.4"})  # written before: as it was
 
 
 def test_every_class_outside_revenue_has_its_reason() -> None:
