@@ -192,8 +192,8 @@ def test_a_blocked_run_says_which_check_in_plain_words_and_draws_no_chart() -> N
     report = build(diagnosis=diagnosis)
 
     # A file before 18.7 names no month: the front says less (Q39).
-    assert report.front.summary == ["The data cannot support conclusions: the data checks did not pass - the "
-                                    "technical section says which, and why."]
+    assert report.front.summary == ["The data cannot support conclusions: the data checks did not pass - see "
+                                    "Technical details for which, and why."]
     page = Page(render_html(report))
     assert 'class="sales"' not in render_html(report) and _banned(page.front_text) == []
 

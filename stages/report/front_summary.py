@@ -26,9 +26,10 @@ HEDGES = {"seasonal": "This may be seasonal: treat it as a pointer, not a findin
 # found either, said as such.
 # Thach, Q45: "passed" - "no problem found" stood beside days with no sales a
 # season explains (D1's check ok, its hypothesis matching the change).
-CHECKS_OK = "Data checks passed (details in the technical section)."
+# Thach, Q70: the technical part named as the page and report.html name it.
+CHECKS_OK = "Data checks passed (see Technical details)."
 # Thach, Q59: with the count of the checks that could run.
-CHECKS_PARTLY = "Data checks passed ({ran} of {total} could run on this file; details in the technical section)."
+CHECKS_PARTLY = "Data checks passed ({ran} of {total} could run on this file; see Technical details)."
 # The trust checks by id, status and the month stage 3 says they are about
 # (Thach, Q37, Q39); stage 3's own message stays in the appendix, as written.
 # `{when}` is " in <month>", or nothing where the file names no month (before
@@ -43,7 +44,7 @@ CHECK_WORDS = {
                        "currency, or a deliberate repricing (the file cannot tell which).",
     ("D3", "caution"): "Many rows{when} were flagged during cleaning."}
 COVERAGE_BLOCKED = "the file does not show sales across the whole of {month}, so the two months cannot be compared."
-UNNAMED_BLOCK = "the data checks did not pass - the technical section says which, and why."
+UNNAMED_BLOCK = "the data checks did not pass - see Technical details for which, and why."  # Q70
 _LABELS = {"customers": "Customers who placed an order", "frequency": "Orders per customer", "orders": "Orders",
            "aov": "Average order value", "units_per_order": "Items per order",
            "price_per_unit": "Average price per item"}

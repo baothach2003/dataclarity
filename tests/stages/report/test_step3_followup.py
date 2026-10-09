@@ -76,7 +76,7 @@ def test_the_decimals_are_decided_on_the_text_printed() -> None:
 
 
 def test_the_data_checks_line_says_they_passed() -> None:
-    assert build_real("kaggle").front.data_checks == ["Data checks passed (details in the technical section)."]
+    assert build_real("kaggle").front.data_checks == ["Data checks passed (see Technical details)."]
 
 
 def test_t2s_subject_is_the_change_a_year_earlier() -> None:

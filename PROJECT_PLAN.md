@@ -5986,6 +5986,11 @@ dataclarity/
       (the cache's load lock, then the heavy slot), a failing concurrency
       test first, every lock path listed (docs/REPORT_REDESIGN.md section
       12), one review cycle, its findings fixed. Open: Q69-Q70.
+      **Thach (2026-10-09, the eleventh round):** Q69 the unused
+      diagnosisView.ts, its test and diagnosisFixture.ts deleted; Q70 the
+      four sentences that said "the technical section" name "Technical
+      details" (the data-checks line and its N-of-3 form, the blocked line,
+      R1/R3's row), tests first. No open question.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6185,6 +6190,14 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**Report redesign - Q69-Q70 (2026-10-09, later)**: Q69 the unused
+diagnosisView.ts, its test and diagnosisFixture.ts deleted; Q70 "Data
+checks passed (see Technical details)." and its N-of-3 form, the blocked
+line "see Technical details for which, and why", and R1/R3's 'the row
+"<label>" in Technical details' - one name for the technical part in
+report.html and on the page. Failing tests first. No open question. No
+deploy step started.
 
 **Report redesign - Q63-Q68 (2026-10-09)**: Q68, a deploy blocker, fixed
 first - the line summary took the heavy slot before the frame cache's load

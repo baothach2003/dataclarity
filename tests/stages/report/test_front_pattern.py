@@ -105,7 +105,7 @@ def test_a_caution_from_a_check_that_could_not_run_shows_the_data_checks_line() 
     report = build_real("kaggle", diagnosis=diagnosis)
 
     assert report.front.caution == []
-    assert ("Data checks passed (2 of 3 could run on this file; details in the technical section)."  # Q59
+    assert ("Data checks passed (2 of 3 could run on this file; see Technical details)."  # Q59
             in Page(render_html(report)).section("checked"))
 
 
@@ -144,21 +144,21 @@ def test_a_check_that_could_not_run_is_no_problem_found_said_as_such() -> None:
     lines = [line for group in front.checklist for line in group.lines]
 
     assert front.data_checks == [  # Q59
-        "Data checks passed (2 of 3 could run on this file; details in the technical section)."]
+        "Data checks passed (2 of 3 could run on this file; see Technical details)."]
     assert not any("price jump" in line or "wrong scale" in line for line in lines)  # D2: the one line only
 
 
 def test_the_data_checks_line_is_printed_in_section_3() -> None:
     page = Page(render_html(build_real("kaggle")))
 
-    assert "Data checks passed (details in the technical section)." in page.section("checked")
+    assert "Data checks passed (see Technical details)." in page.section("checked")
 
 
 def test_all_three_data_checks_ok_is_one_line() -> None:
     front = build_real("kaggle").front
     lines = [line for group in front.checklist for line in group.lines]
 
-    assert front.data_checks == ["Data checks passed (details in the technical section)."]
+    assert front.data_checks == ["Data checks passed (see Technical details)."]
     assert not any("days without sales" in line or "wrong scale" in line or "flagged" in line for line in lines)
 
 

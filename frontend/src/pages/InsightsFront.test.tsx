@@ -266,6 +266,19 @@ describe('the review of step 5', () => {
     expect(document.body.textContent).not.toContain('(see below)')
   })
 
+  // Thach, Q70: the data-checks line names the toggle as the toggle names itself, as report.html does.
+  it('points the data-checks line at "Technical details" (kaggle)', () => {
+    show('kaggle')
+
+    expect(screen.getByText('Data checks passed (see Technical details).')).toBeDefined()
+  })
+
+  it.each(Object.keys(RUNS))('never says "the technical section" outside the toggle (%s)', (run) => {
+    show(run)
+
+    expect(outsideTheToggle()).not.toContain('technical section')
+  })
+
   it('puts the code on a moved-against label, as report.html does (kaggle confirmed as GBP)', () => {
     show('kaggle_gbp')
 

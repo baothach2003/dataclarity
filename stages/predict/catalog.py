@@ -21,8 +21,8 @@ Direction = Literal["up", "down"]
 # entry, worded with stage 3's own words (Thach, Q54).
 # R1 names stage 3's top member (`hypotheses[].member`, 18.8; Thach Q62) -
 # `{member}`, or its row where a file before 18.8 names none; R3 names the
-# technical section's own label for its row (Q61) - `{row}`, the row's id and
-# stage 3's statement as the appendix prints them. Filled by claims.py.
+# appendix's own label for its row (Q61) - `{row}`, stage 3's statement as the
+# appendix prints it, placed "in Technical details" (Q70). Filled by claims.py.
 _R1 = ("Look at {member} and see what changed there.",
        "The change was concentrated in one product, so that is where to look first.")
 _R3 = ("Check the shelf and the stock records for the products in {row}.",

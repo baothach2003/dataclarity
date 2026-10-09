@@ -29,9 +29,9 @@ def test_r3_names_the_technical_sections_row() -> None:
     label = next(h for h in files("kaggle")["diagnosis.json"]["hypotheses"] if h["id"] == "R3")["statement"]
 
     # By its label alone: "R3" is a digit no action may hold (the scoped review, stop rule).
-    assert claim.action == ("Check the shelf and the stock records for the products in the technical section's "
-                            f'row "{label}".')
-    assert claim.watch == f'Next month, check: whether the products in the technical section\'s row "{label}" sell ' \
+    assert claim.action == ("Check the shelf and the stock records for the products in the row "
+                            f'"{label}" in Technical details.')
+    assert claim.watch == f'Next month, check: whether the products in the row "{label}" in Technical details sell ' \
                           "again."
     assert "stockout check" not in claim.action + claim.watch
 
@@ -48,5 +48,5 @@ def test_r1_without_a_member_points_to_its_row() -> None:
     # A diagnosis before 18.8: the front says less - the row, never a guessed name.
     claim = next(c for c in _named("R1") if c.hypothesis_id == "R1")
 
-    assert claim.action == ('Look at the product named in the technical section\'s row "The change is concentrated '
-                            'in one product or category" and see what changed there.')
+    assert claim.action == ('Look at the product named in the row "The change is concentrated in one product or '
+                            'category" in Technical details and see what changed there.')

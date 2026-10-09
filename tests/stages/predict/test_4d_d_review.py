@@ -71,8 +71,8 @@ def test_r3s_fact_line_says_at_least_one() -> None:
     claim = next(c for c in claims if c.hypothesis_id == "R3")
 
     assert claim.fact.startswith("At least one best-selling product stopped selling")
-    assert claim.watch == ('Next month, check: whether the products in the technical section\'s row "A top product '
-                           'may have run out of stock" sell again.')  # Q61, by its label
+    assert claim.watch == ('Next month, check: whether the products in the row "A top product may have run out of '
+                           'stock" in Technical details sell again.')  # Q61, by its label
 
 
 # --- 6: R1 as stage 3 writes it (no amount) is a claim ---------------------------------------------------------------
@@ -91,8 +91,8 @@ def test_r1_as_stage_3_writes_it_is_a_claim_in_the_changes_direction() -> None:
     assert claims[0].hypothesis_id == "R1" and claims[0].direction == "up"  # Kaggle's sales rose
     # The Kaggle fixture is 18.6: no member, so the row is named (Q62).
     assert claims[0].action == ACTIONS[("R1", "up")][0].format(
-        member='the product named in the technical section\'s row "The change is concentrated in one product or '
-               'category"')
+        member='the product named in the row "The change is concentrated in one product or category" in '
+               'Technical details')
 
 
 # --- 7: the excluded kinds are never candidates (not only absent from the catalog) ---------------------------------

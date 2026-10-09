@@ -1631,7 +1631,7 @@
     }
    ],
    "data_checks": [
-    "Data checks passed (details in the technical section)."
+    "Data checks passed (see Technical details)."
    ],
    "next_steps": {
     "status": "list",

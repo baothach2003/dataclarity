@@ -116,7 +116,7 @@ def test_a_check_that_could_not_run_is_counted() -> None:
     diagnosis["trust"]["checks"][1] |= {"status": "inconclusive", "message": "m"}
 
     assert build_real("kaggle", diagnosis=diagnosis).front.data_checks == [
-        "Data checks passed (2 of 3 could run on this file; details in the technical section)."]
+        "Data checks passed (2 of 3 could run on this file; see Technical details)."]
 
 
 # --- Q60: not shown (the scoped review of the fixes still found it false on a common shape; the stop rule) -----

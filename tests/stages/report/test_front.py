@@ -166,7 +166,7 @@ def test_kaggles_checked_and_cannot_show() -> None:
     front = _front()
 
     # D1-D3: the one data-checks line, before the groups (Thach, 2026-10-06).
-    assert front.data_checks == ["Data checks passed (details in the technical section)."]
+    assert front.data_checks == ["Data checks passed (see Technical details)."]
     assert _group(front, "not_reason").lines == [
         "Customers: no new customers, none stopped buying, none came back after a break - the same customers "
         "placed orders in both months.",
@@ -387,8 +387,8 @@ def test_a_blocked_run_replaces_sections_1_to_4_with_one_sentence() -> None:
 
     assert front.state == "blocked"
     # A file before 18.7 names no month: the front says less, never this month (Q39).
-    assert front.summary == ["The data cannot support conclusions: the data checks did not pass - the technical "
-                             "section says which, and why."]
+    assert front.summary == ["The data cannot support conclusions: the data checks did not pass - see Technical "
+                             "details for which, and why."]
     assert (front.waterfall, front.checklist, front.next_steps, front.caution) == (None, [], None, [])
 
 

@@ -122,8 +122,9 @@ def _filled(action: str, hypothesis: Hypothesis, suggested: set[str]) -> dict[st
 
 def _row(hypothesis: Hypothesis) -> str:
     """A check's row named as the appendix labels it - by its statement, not
-    its id (Thach, Q61; no digit in an action)."""
-    return f'the technical section\'s row "{hypothesis.statement}"'
+    its id (Thach, Q61; no digit in an action), in the technical part named
+    as the page and report.html name it (Q70)."""
+    return f'the row "{hypothesis.statement}" in Technical details'
 
 
 def _moves(hypothesis: Hypothesis) -> bool:

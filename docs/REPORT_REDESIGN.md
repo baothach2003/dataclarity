@@ -661,6 +661,12 @@ rule), or a movement word against its direction.
 | R1 down | Look at the product or category named in the technical section and see what changed there. | The change was concentrated in one product or category, so that is where to look first. |
 | R3 down | Check the shelf and the stock records for the products listed under the stockout check in the technical section. | Their sales stopped in a way consistent with a stockout - verify on the shelf. |
 
+R1's and R3's actions as built (Q61, Q62, Q65, Q70; section 12): R1 'Look
+at "<member>" and see what changed there.', or, with no member it can
+print, 'Look at the product named in the row "<label>" in Technical details
+and see what changed there.'; R3 'Check the shelf and the stock records for
+the products in the row "<label>" in Technical details.'
+
 R3's fact, the checklist's line, is worded with stage 3's own words (Q54):
 "At least one best-selling product stopped selling - consistent with a
 stockout, verify on the shelf - worth about ..." (stage 3 may find more than
@@ -1284,6 +1290,19 @@ file or a common shape):**
     Q62), and the blocked line "the technical section says which, and
     why". Reword them to "Technical details" (e.g. "Data checks passed (see
     Technical details).")?
+
+**Answered by Thach, 2026-10-09 (eleventh round - Q69-Q70):**
+
+69. **Q69** - yes: delete `diagnosisView.ts`, its test and
+    `diagnosisFixture.ts`. *Why:* nothing uses them.
+70. **Q70** - yes: all four sentences name "Technical details" - "Data
+    checks passed (see Technical details)." and "Data checks passed (N of 3
+    could run on this file; see Technical details)."; the same wording in
+    report.html and on the page. *Why:* one name for the technical part
+    (Q67). The other two sentences, worded in the same pattern (a decision
+    made alone, section 12): the blocked line "... the data checks did not
+    pass - see Technical details for which, and why."; R1/R3's row "the
+    row "<label>" in Technical details".
 
 68. **Q68** - the server's heavy slot (step 5's scoped review): Review's
     currency reading (10-16 s on a large file) runs OUTSIDE the slot, as
@@ -2191,3 +2210,33 @@ the same); the rows-left-out sentence ends "- they are listed in Technical
 details." Stage 5 still says "the technical section" in sentences Thach
 approved word for word (Q59's data-checks line, the R1/R3 actions, the
 blocked line) - not reworded unasked (Q70).
+
+### Q69-Q70 (2026-10-09)
+
+Thach's eleventh round (section 10). Failing tests first, then the code.
+
+**Q69**: `frontend/src/domain/diagnosisView.ts`, its test and
+`pages/diagnosisFixture.ts` deleted (nothing imported them; checked by
+search before the deletion).
+
+**Q70**: the four sentences that said "the technical section" name it
+"Technical details", at their one copy each:
+- stage 5 (`front_summary.py`): "Data checks passed (see Technical
+  details)."; "Data checks passed (N of 3 could run on this file; see
+  Technical details)." (Thach's wording); the blocked line "... the data
+  checks did not pass - see Technical details for which, and why."
+- stage 4 (`claims.py`, `_row`): 'the row "<label>" in Technical details' -
+  R1's action with no printable member, R3's action and R3's watch line.
+- Decisions made alone: the blocked line and the row follow Thach's "see
+  Technical details" / "Technical details" pattern; R3's watch line
+  changes with the row, since it is built from the same words.
+- Tests first: `tests/stages/report/test_q70_technical_details.py`,
+  `tests/stages/predict/test_q70_row_name.py` (6 failed on the old code),
+  and two Vitest tests in `InsightsFront.test.tsx` (the kaggle page shows
+  "Data checks passed (see Technical details)."; no run's page says "the
+  technical section" outside the toggle - 5 failed on the old fixtures).
+  The existing assertions that pinned the old wording now pin the new one
+  (same checks, new expected strings: test_front, test_front_fixes,
+  test_front_pattern, test_front_q56, test_step3_followup, test_4d_d_review,
+  test_4d_followup, test_q56_valve). Front fixtures regenerated.
+- forecast.json stays 2.2: the action text changes, not its shape.

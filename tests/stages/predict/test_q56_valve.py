@@ -50,8 +50,8 @@ def test_a_name_the_contract_cannot_carry_is_not_printed_and_predict_never_fails
     r1 = next(a for a in _actions(diagnosis) if a.hypothesis_id == "R1")
 
     assert member not in r1.action and r1.name is None
-    assert r1.action == ('Look at the product named in the technical section\'s row "The change is concentrated in '
-                         'one product or category" and see what changed there.')
+    assert r1.action == ('Look at the product named in the row "The change is concentrated in one product or '
+                         'category" in Technical details and see what changed there.')
 
 
 def test_a_plain_name_is_printed() -> None:
@@ -74,5 +74,5 @@ def test_r3s_row_is_named_by_its_label_and_predict_never_fails() -> None:
     diagnosis = _diagnosis("R3", contribution=-900.0, share=0.5)
     r3 = next(a for a in _actions(diagnosis) if a.hypothesis_id == "R3")
 
-    assert r3.action == ('Check the shelf and the stock records for the products in the technical section\'s row '
-                         '"A top product may have run out of stock".')
+    assert r3.action == ('Check the shelf and the stock records for the products in the row "A top product may '
+                         'have run out of stock" in Technical details.')
