@@ -116,9 +116,9 @@ def test_kaggles_waterfall_draws_every_part_and_adds_up() -> None:
     assert round(sum(b.shown for b in waterfall.bars) * 100) == round(waterfall.shown_change * 100) == 492500
     assert waterfall.note is None
     assert waterfall.caption == (
-        "Read left to right: November's sales, then what each part added or took away, ending at December's "
-        "sales. The bars add up exactly to the change. 'Worth' amounts split the effect of things that moved "
-        "together, so read them as sizes, not exact causes.")
+        "Read from the first bar to the last: November's sales, then what each part added or took away, ending at "
+        "December's sales. The bars add up exactly to the change. 'Worth' amounts split the effect of things that "
+        "moved together, so read them as sizes, not exact causes.")
 
 
 def test_where_the_split_is_refused_the_order_value_is_one_bar_q1() -> None:

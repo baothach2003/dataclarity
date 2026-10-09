@@ -17,7 +17,7 @@ reads the order of the two figures it rests on, never a new figure."""
 from dataclasses import dataclass
 
 from contracts.diagnosis import DiagnosisContract, Hypothesis
-from contracts.forecast_actions import CLAIM_IDS, MAX_ACTIONS, ai_text_problems, front_word_problems
+from contracts.forecast_actions import CLAIM_IDS, MAX_ACTIONS, front_word_problems, named_action_problems
 from contracts.metrics import MetricsContract
 from shared.claim_lines import Context, money_terms, moved_line
 from shared.share_bars import SUPPORTED_MIN_SHARE
@@ -49,6 +49,8 @@ class Claim:
     watch: str
     action: str  # the catalog's, by kind and direction
     why: str
+    # The product name the action quotes, verbatim from stage 3's field (Q65); else None.
+    name: str | None = None
 
 
 def not_asked(metrics: MetricsContract, diagnosis: DiagnosisContract) -> str | None:
@@ -93,27 +95,29 @@ def select_claims(metrics: MetricsContract, diagnosis: DiagnosisContract, code: 
         if direction is not None and entry is not None:
             found.append((hypothesis, direction, entry))
     return [Claim(id=claim_id, hypothesis_id=h.id, fact=moved_line(h, ctx), direction=direction,
-                  subject=_lower(ctx.subject(h.id)), watch=watch(h, ctx),
-                  action=_filled(action, h, set(diagnosis.suggested_classes)), why=why)
+                  subject=_lower(ctx.subject(h.id)), watch=watch(h, ctx), why=why,
+                  **_filled(action, h, set(diagnosis.suggested_classes)))
             for claim_id, (h, direction, (action, why)) in zip(CLAIM_IDS, found[:MAX_ACTIONS], strict=False)]
 
 
-def _filled(action: str, hypothesis: Hypothesis, suggested: set[str]) -> str:
+def _filled(action: str, hypothesis: Hypothesis, suggested: set[str]) -> dict[str, str | None]:
     """The catalog's placeholders from stage 3's fields, never its evidence:
-    R1's member, R3's row as the appendix labels it (Thach, Q61, Q62). The
-    row is named by its label alone: an action holds no digit (the actions
-    contract), so not "R3". A member is printed only where the sentence
-    stays one the contract carries and the front allows (a code like
-    SKU-1042 does not: Q56-Q62's scoped review) and Review did not only
-    suggest it is no product (CLAUDE.md 3.3a: the appendix marks it
+    R1's member, R3's row as the appendix labels it (Thach, Q61, Q62); the
+    action and the name it quotes. The row is named by its label alone: no
+    digit outside a name copied from the field (the actions contract), so
+    not "R3". A member is printed verbatim, in quotes - its digits allowed,
+    as data (Thach, Q65) - where the sentence stays one the contract carries
+    and the front allows (a sign in the name does not) and Review did not
+    only suggest it is no product (CLAUDE.md 3.3a: the appendix marks it
     "suggested ... not confirmed", the action would call it a product);
     else, and before 18.8, the action points to its row."""
     row = _row(hypothesis)
-    named = action.format(member=hypothesis.member, row=row)
-    if (hypothesis.member is None or hypothesis.member in suggested or ai_text_problems(named)
-            or front_word_problems(named)):
-        return action.format(member=f"the product named in {row}", row=row)
-    return named
+    member = hypothesis.member
+    if member is not None and "{member}" in action and member not in suggested:
+        named = action.format(member=f'"{member}"', row=row)
+        if not named_action_problems(named, member) and not front_word_problems(named):
+            return {"action": named, "name": member}
+    return {"action": action.format(member=f"the product named in {row}", row=row), "name": None}
 
 
 def _row(hypothesis: Hypothesis) -> str:

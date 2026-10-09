@@ -178,7 +178,9 @@ def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContrac
     else:
         text = f"{count(read)} rows were read and {count(used)} used."
     if numbers.outside_revenue:
-        text += " Some lines are left out of sales by the class you gave them in Review - the appendix lists them."
+        # Thach, Q67: one name for the technical part, in report.html and on the page.
+        text += (" Some lines are left out of sales by the class you gave them in Review - they are listed in "
+                 "Technical details.")
     found.append(CannotKnow(title="Rows left out", text=text))
     return found
 

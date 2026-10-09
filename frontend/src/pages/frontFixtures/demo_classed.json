@@ -1574,7 +1574,7 @@
       "worth": "-41,990.99"
      }
     ],
-    "caption": "Read left to right: October's sales, then what each part added or took away, ending at November's sales. The bars add up exactly to the change. 'Worth' amounts split the effect of things that moved together, so read them as sizes, not exact causes.",
+    "caption": "Read from the first bar to the last: October's sales, then what each part added or took away, ending at November's sales. The bars add up exactly to the change. 'Worth' amounts split the effect of things that moved together, so read them as sizes, not exact causes.",
     "note": "Average order value is shown as one bar: returns in these months make the split into items per order and price per item unreliable, so it is not drawn."
    },
    "waterfall_note": null,
@@ -1658,7 +1658,7 @@
     },
     {
      "title": "Rows left out",
-     "text": "460,859 rows were read and used; no row was left out. Some lines are left out of sales by the class you gave them in Review - the appendix lists them."
+     "text": "460,859 rows were read and used; no row was left out. Some lines are left out of sales by the class you gave them in Review - they are listed in Technical details."
     }
    ],
    "notes": {

@@ -1249,6 +1249,42 @@ file or a common shape):**
     Do you sign off these four changed assertions, and may the unrendered
     DecompositionCard / RecommendationsSection (and their tests) be deleted
     later?
+**Answered by Thach, 2026-10-09 (tenth round - Q63-Q68):**
+
+63. **Q63** - (i): Q60's line stays hidden; 8D. *Why:* it failed twice;
+    another wording reopens the loop.
+64. **Q64** - 8D: staged values only.
+65. **Q65** - allow digits in a product name in R1's action, ONLY when the
+    name is inserted verbatim from stage 3's field, in quotes. *Why:* the
+    digit ban exists against invented numbers; a name copied from the
+    contract is data, not an invented figure. "SKU-1042" from the field
+    passes; a digit anywhere else in a catalog sentence still fails.
+66. **Q66** - the four changed assertions in InsightsPage.test.tsx are
+    approved (they follow the content's new place and add absence checks).
+    DecompositionCard and RecommendationsSection are deleted with their
+    tests: no longer rendered, their tests guard nothing.
+67. **Q67** - fix in stage 5 (one copy for both readers): "Read from the
+    first bar to the last" (the bars are horizontal on a phone), and one
+    name, "Technical details", in report.html and on the page.
+68. **Q68** - FIX BEFORE DEPLOY (a deploy blocker): a deadlock hangs the
+    server for every user, silently, until a restart, and deploy runs with
+    MAX_CONCURRENT_HEAVY_STEPS=1. Every path takes its locks in one order;
+    a failing test first (two concurrent requests with a timeout); every
+    other path that takes both locks checked and listed; one review cycle.
+
+**Open (from Q63-Q68's work):**
+
+69. **Q69** - `frontend/src/domain/diagnosisView.ts` (and its test, and
+    `pages/diagnosisFixture.ts`) is read by nothing since DecompositionCard
+    went (Q66 named the two cards only). Delete it with its test too?
+70. **Q70** - "one name, Technical details" (Q67): stage 5 still says "the
+    technical section" in four sentences you approved word for word -
+    "Data checks passed (details in the technical section)." and its
+    "N of 3" form (Q59), R1/R3's "the technical section's row ..." (Q61,
+    Q62), and the blocked line "the technical section says which, and
+    why". Reword them to "Technical details" (e.g. "Data checks passed (see
+    Technical details).")?
+
 68. **Q68** - the server's heavy slot (step 5's scoped review): Review's
     currency reading (10-16 s on a large file) runs OUTSIDE the slot, as
     the reviewed shape had it - putting it inside (the first fix) inverted
@@ -2062,3 +2098,96 @@ sentence reads with stage 1's real evidence ("The sign in your file (from
 the $ in column price) is used by several currencies; ..."), the test data
 use stage 1's real wording, an axis widened, a docstring corrected, Q66's
 list completed. No fabrication found; nothing hidden.
+
+### Q63-Q68 (2026-10-09)
+
+**Q68, the lock order (a deploy blocker), fixed first.** Two locks guard the
+whole-file work: L, the frame cache's per-run load lock
+(`FrameCache.get_or_load`), and H, the heavy-step slot (`RunWork.heavy`).
+The preview and the currency question took L then H (the parse inside the
+load); the line summary took H then L - with one slot, a summary and a
+preview (or a currency question) could each hold what the other waited
+for, for good. The failing test (`tests/backend/test_lock_order.py`) drives
+two real requests at once behind a third heavy step holding the slot: on
+the code before the fix "line-summary + preview" and "line-summary +
+currency" hung (both threads alive after 10 s); "currency + preview" and
+"preview + line-summary" did not - those two already took L then H. The
+fix: `frame_of_run` is the one way to the frame (L, then H for the parse);
+the line summary and the currency question get the frame first, then do
+their work in a slot of their own (the currency reading is back inside a
+slot - step 5's limit closed); `RunWork.heavy` refuses a heavy step inside
+a heavy step in the same thread, and `frame_of_run` refuses to run inside
+one - a future inversion fails at once instead of hanging.
+
+The review (one cycle, fresh context): no blocker; the core claim held (no
+path holds the slot while waiting for the load lock; the hanging pairs
+re-proved on the old code; a mutation back to the slot-around-the-load
+shape caught). Its findings, all fixed:
+- identical currency asks of one run (each money-column change, React
+  StrictMode, a browser abort that never stops the server) each queued a
+  10-16 s reading ahead of Confirm: now one reading per run and money
+  columns at a time, the later asks waiting for its answer without holding
+  any lock (`RunWork.shared`; tested: three asks, one reading);
+- the lock test's 0.5 s sleep could let it pass on broken code on a slow
+  machine: it now waits on state (the second request queued for the slot,
+  or waiting on the load lock);
+- metrics and diagnosis held a database read transaction while waiting
+  for the slot and through the stage, while the profiling step inside the
+  slot needs a connection - the same shape between the slot and the pool
+  (bounded by the pool's timeout, a 500): both now commit before the slot,
+  as predict and report do (tested: no connection checked out on entering
+  the slot);
+- only `frame_of_run` asks the cache for a frame (tested by reading
+  backend/app), so the guard cannot be bypassed;
+- the summary's docstring no longer says Confirm never waits (with one
+  slot an execute waits for the summary's parse or its adding up);
+- the step-5 heavy tests model the production path (`frame_of_run`).
+Accepted: a cold-cache summary takes the slot twice (the parse, then the
+adding up), so another run's heavy step may run in between - the price of
+one lock order.
+
+**Every lock path checked** (L = the cache's per-run load lock, C = its
+short global lock, H = the heavy slot, S = `work.summary`, E =
+`work.execution` / `ai_step`, W = RunWork's own lock, DB = a connection):
+- preview: DB commit; L, then H for the parse, released; the preview
+  itself outside the slot;
+- currency question: DB commit; shared per run and money columns; L, then
+  H for the parse, released; H for the reading;
+- line summary: DB commit; S (refuses, never waits); L, then H for the
+  parse, released; H for the adding up;
+- execute: DB claim committed; E; H for `execute_run` (no cache); then the
+  settling DB and C to evict;
+- analyze-schema: E (`ai_step`); DB commit; H for profiling (which writes
+  the DB inside the slot - the only path taking DB inside H; no path now
+  holds DB while waiting for H);
+- analyze (metrics) and diagnose: DB commit (new); E; H for the stage;
+  then DB;
+- propose plan, predict, report, downloads, profile, upload, recovery: no
+  H and no L;
+- FrameCache: C is a leaf (taken alone or inside L); evict takes C only;
+  RetryBudgets' lock and the AI-client factory's are leaves;
+- stages/, shared/, contracts/: no locks; no startup or background thread;
+  retention cleanup not built yet.
+
+**Q65**: forecast.json 2.2 (additive): `actions[].name`, the product name
+R1's action quotes, verbatim from `hypotheses[].member`. The contract
+(`named_action_problems`) exempts exactly that quoted span from the digit
+ban, once; the rest of the sentence is held as ever, the name still to no
+sign. "SKU-1042" from the field passes ('Look at "SKU-1042" and see what
+changed there.'); a digit elsewhere, the name unquoted or quoted twice, a
+sign in the name, a name on another check or before 2.2 are refused.
+Mutation 9 of 10 killed (the survivor equivalent: a blank name is refused by
+the empty-text check too).
+
+**Q66**: DecompositionCard and RecommendationsSection deleted with their
+tests. `diagnosisView.ts` (with its test and `diagnosisFixture.ts`) is now
+read by nothing either - kept: its deletion was not part of the answer
+(Q69).
+
+**Q67**: the caption reads "Read from the first bar to the last: ...";
+report.html's toggle is "Technical details", its opener "In Technical
+details, 'revenue' is the same figure as 'sales' above." (the page says
+the same); the rows-left-out sentence ends "- they are listed in Technical
+details." Stage 5 still says "the technical section" in sentences Thach
+approved word for word (Q59's data-checks line, the R1/R3 actions, the
+blocked line) - not reworded unasked (Q70).

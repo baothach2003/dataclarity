@@ -206,6 +206,15 @@ class RetryBudgets:
             return list(self._budgets)
 
 
+@dataclass
+class _Shared:
+    """A whole-file reading in progress, its answer for every ask that waits on it."""
+
+    done: threading.Event = field(default_factory=threading.Event)
+    value: object = None
+    error: BaseException | None = None
+
+
 class RunWork:
     """Which runs this process is working on, and the AI attempts each step has used.
 
@@ -230,16 +239,60 @@ class RunWork:
         self._heavy = threading.BoundedSemaphore(heavy_steps)
         self._active: set[str] = set()
         self._summaries: set[str] = set()
+        self._readings: dict[tuple[str, ...], _Shared] = {}
         self._attempts: dict[tuple[str, str], int] = {}
         self._lock = threading.Lock()
+        # Whether the current thread holds a slot (Q68: a slot is never held
+        # while waiting for another lock of the same work).
+        self._held = threading.local()
 
     @contextmanager
     def heavy(self) -> Iterator[None]:
         """One of the process's heavy-step slots for the time of the step - a
         step reading a whole file (Thach, 2026-10-02: one at a time by
-        default; each needs about 0.5-0.7 GB on a 50 MB file)."""
+        default; each needs about 0.5-0.7 GB on a 50 MB file). A thread that
+        holds one never asks for another: with one slot it would wait for
+        itself, silently, for good (Q68) - refused at once instead."""
+        if self.holds_heavy():
+            raise RuntimeError("a heavy step inside a heavy step would wait for its own slot")
         with self._heavy:
-            yield
+            self._held.value = True
+            try:
+                yield
+            finally:
+                self._held.value = False
+
+    def holds_heavy(self) -> bool:
+        """Whether the calling thread is inside a heavy step."""
+        return bool(getattr(self._held, "value", False))
+
+    def shared[T](self, key: tuple[str, ...], read: Callable[[], T]) -> T:
+        """One whole-file reading per `key` at a time: an ask that arrives while
+        the same reading runs waits for its answer instead of queuing another
+        (Q68's review: Review's currency question took the slot 10-16 s per
+        ask on a large file, the browser's abort never stopping the server, and
+        Confirm waited behind them all). The waiters hold no lock while they
+        wait - only the reader takes the cache's load lock and the slot."""
+        with self._lock:
+            reading = self._readings.get(key)
+            first = reading is None
+            if reading is None:
+                reading = self._readings[key] = _Shared()
+        if not first:
+            reading.done.wait()
+            if reading.error is not None:
+                raise reading.error
+            return reading.value  # type: ignore[no-any-return]  # set by the reader before `done`
+        try:
+            reading.value = read()
+            return reading.value
+        except BaseException as error:
+            reading.error = error
+            raise
+        finally:
+            with self._lock:
+                del self._readings[key]
+            reading.done.set()
 
     @contextmanager
     def ai_step(self, run_id: str, step: str) -> Iterator[None]:
@@ -276,8 +329,8 @@ class RunWork:
         """One whole-file line summary at a time per run (2E-t3 review 1 #1):
         a summary reads the whole file for seconds and nothing stops it once
         started, so a second one would only pile the work up. It does not
-        hold off an execution: Confirm is never kept waiting by Review's
-        figures."""
+        refuse an execution - but with one heavy slot, an execute asked while
+        the summary parses or adds up waits for that slot (Q68's review)."""
         with self._lock:
             if run_id in self._summaries:
                 raise ApiError(

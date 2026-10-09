@@ -17,9 +17,9 @@ out of contracts/forecast.py for file size.
 
 import re
 import unicodedata
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from contracts._base import ContractModel
 from contracts.report_front import FRONT_BANNED
@@ -49,6 +49,28 @@ def ai_text_problems(text: str) -> list[str]:
     return found
 
 
+# What a named product stands for inside the action while the rest of it is
+# held to no number (Thach, Q65).
+_NAMED = '"the product"'
+
+
+def named_action_problems(action: str, name: str | None) -> list[str]:
+    """Thach, Q65: an action may quote ONE product name copied verbatim from
+    stage 3's field (diagnosis.json hypotheses[].member), and that name may
+    hold digits - it is data, not an invented number. Everything else is
+    held as ever: the rest of the sentence to no digit and no sign, the name
+    to no sign (digits only were allowed), quoted once, no quote mark in it."""
+    if name is None:
+        return ai_text_problems(action)
+    if not name.strip() or '"' in name:
+        return ["the named product is no name"]
+    quoted = f'"{name}"'
+    if action.count(quoted) != 1:
+        return ["the named product stands once, in quotes, in the action"]
+    in_name = [problem for problem in ai_text_problems(name) if problem != "it holds a digit"]
+    return [f"the named product: {problem}" for problem in in_name] + ai_text_problems(action.replace(quoted, _NAMED))
+
+
 def front_word_problems(text: str) -> list[str]:
     """The front section's banned words in an AI sentence. Stage 4's checks
     refuse and retry on them (Thach, Q43); the contract does not, so a file
@@ -67,14 +89,27 @@ class SuggestedAction(ContractModel):
     action: str  # the catalog's, by kind and direction (stages/predict/catalog.py)
     why: str  # the catalog's
     watch: str = Field(min_length=1)  # what to check next month
+    # 2.2 (Thach, Q65): the product name R1's action quotes, copied verbatim
+    # from diagnosis.json hypotheses[].member - its digits are data. Null for
+    # every other action, and when R1's action points to its row instead.
+    name: str | None = None
 
-    @field_validator("action", "why")
+    @field_validator("why")
     @classmethod
     def _no_number_from_the_ai(cls, value: str) -> str:
         problems = ai_text_problems(value)
         if problems:
             raise ValueError(f"the AI's sentence is refused: {'; '.join(problems)}")
         return value
+
+    @model_validator(mode="after")
+    def _no_number_but_the_named_product(self) -> Self:
+        if self.name is not None and self.hypothesis_id != "R1":
+            raise ValueError("only R1's action names a product (actions[].name)")
+        problems = named_action_problems(self.action, self.name)
+        if problems:
+            raise ValueError(f"the action is refused: {'; '.join(problems)}")
+        return self
 
 
 def check_actions(actions: list[SuggestedAction] | None, status: ActionsStatus | None, model: str | None,
@@ -100,3 +135,5 @@ def check_actions(actions: list[SuggestedAction] | None, status: ActionsStatus |
         raise ValueError("the claims are K1, K2, K3 in their rank order, each once")
     if len({a.hypothesis_id for a in actions}) != len(actions):
         raise ValueError("each claim rests on a different hypothesis")
+    if version < (2, 2) and any(a.name is not None for a in actions):
+        raise ValueError("actions[].name exists from forecast.json 2.2")

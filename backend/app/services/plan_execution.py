@@ -55,9 +55,8 @@ def preview_plan(
     try:
         _require_raw(settings.runs_dir, run_id)
         # Parsing the whole file on a cache miss is a heavy step (Thach,
-        # 2026-10-02); a hit costs nothing. Review's summary holds its slot
-        # around its own load - never a second one (one slot would deadlock).
-        frame = cache.get_or_load(run_id, lambda: _read_frame_heavy(work, settings.runs_dir, run_id))
+        # 2026-10-02); a hit costs nothing.
+        frame = frame_of_run(work, cache, settings.runs_dir, run_id)
         # `preview_frame` trusts its plan (it is for the already-checked case), so the
         # check `preview_run` makes on a plan is made here, on the cached frame.
         validate_final_plan(plan, [str(name) for name in frame.columns], for_execution=False)
@@ -104,14 +103,18 @@ def ask_currency(
 def currency_question_for(
     work: RunWork, cache: FrameCache, runs_dir: Path, run_id: str, plan: CleaningPlanContract
 ) -> CurrencyQuestion:
-    """The raw frame as the preview loads it - the whole-file load in a heavy
-    slot, taken INSIDE the cache's lock, the preview's order - then stage 1's
-    reading. Holding the slot around the cache instead (step 5's first fix:
-    the reading inside the slot too) inverted the lock order against the
-    preview and deadlocked the server (its scoped review): the reading runs
-    outside the slot, a known limit (docs/REPORT_REDESIGN.md, Q68)."""
-    frame = cache.get_or_load(run_id, lambda: _read_frame_heavy(work, runs_dir, run_id))
-    return currency_question(plan_currency(frame, plan))
+    """The raw frame, then stage 1's reading of it in a slot of its own (it
+    takes 10-16 s on a large file) - after the frame is in hand, never
+    around the cache's load (Q68). Asks of one run about the same money
+    columns share one reading (Q68's review)."""
+    money = tuple(action.source_name for action in plan.column_actions if action.canonical_field == "unit_price")
+
+    def read() -> CurrencyQuestion:
+        frame = frame_of_run(work, cache, runs_dir, run_id)
+        with work.heavy():
+            return currency_question(plan_currency(frame, plan))
+
+    return work.shared(("currency", run_id, *money), read)
 
 
 def summarise_lines(
@@ -133,9 +136,14 @@ def summarise_lines(
     session.commit()  # the read transaction ends here: the whole file takes seconds
     try:
         _require_raw(settings.runs_dir, run_id)
-        with work.summary(run_id), work.heavy():
-            frame = cache.get_or_load(run_id, lambda: _read_frame(settings.runs_dir, run_id))
-            found = line_summary(frame, plan)
+        with work.summary(run_id):
+            # The frame first, then the summary in a slot of its own - never the
+            # slot around the cache's load, which inverted the lock order against
+            # the preview and the currency question and could hang the server
+            # for good (Q68, a deploy blocker).
+            frame = frame_of_run(work, cache, settings.runs_dir, run_id)
+            with work.heavy():
+                found = line_summary(frame, plan)
     except InvalidPlanError as error:
         raise stage_errors.invalid_plan(error) from error
     except CleaningError as error:
@@ -254,6 +262,17 @@ def _require_raw(runs_root: Path, run_id: str) -> None:
     inside a stage (a bad deployment) is not mistaken for it."""
     if not run_file(runs_root, run_id, RAW_FILENAME).exists():
         raise stage_errors.files_gone()
+
+
+def frame_of_run(work: RunWork, cache: FrameCache, runs_root: Path, run_id: str) -> pd.DataFrame:
+    """The run's parsed raw file - the one way every path gets it (Q68): the
+    cache's per-run load lock first, the heavy slot inside it for the parse.
+    Asked from inside a slot, the slot would be held while waiting for the
+    load lock - the order the preview takes the other way round - so that is
+    refused at once, never left to hang."""
+    if work.holds_heavy():
+        raise RuntimeError("the frame is loaded with the load lock first: never asked for inside a heavy step")
+    return cache.get_or_load(run_id, lambda: _read_frame_heavy(work, runs_root, run_id))
 
 
 def _read_frame_heavy(work: RunWork, runs_root: Path, run_id: str) -> pd.DataFrame:

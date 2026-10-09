@@ -91,7 +91,7 @@ def test_the_previews_whole_file_load_waits_for_a_slot(tmp_path) -> None:  # typ
 def _currency_and_preview(holder_reads: bool, cache_bytes: int, tmp_path) -> dict[str, object]:  # type: ignore[no-untyped-def]  # pytest's tmp_path
     """Review open, as it happens: a step holds the one slot, the currency question is asked at once, the
     preview 400 ms later; then the slot is released. What finished within 5 s."""
-    from app.services.plan_execution import _read_frame, _read_frame_heavy, currency_question_for
+    from app.services.plan_execution import currency_question_for, frame_of_run
     from app.services.run_memory import FrameCache
     from shared.run_registry import create_run
     from tests.stages.ingest.test_currency import plan
@@ -104,9 +104,9 @@ def _currency_and_preview(holder_reads: bool, cache_bytes: int, tmp_path) -> dic
     release = threading.Event()
 
     def hold() -> None:
+        if holder_reads:  # the line summary's shape since Q68: the frame first, then its own slot
+            frame_of_run(work, cache, tmp_path, run.run_id)
         with work.heavy():
-            if holder_reads:  # the line summary's own shape: the load inside its slot
-                cache.get_or_load(run.run_id, lambda: _read_frame(tmp_path, run.run_id))
             release.wait()
 
     def currency() -> None:
@@ -114,7 +114,7 @@ def _currency_and_preview(holder_reads: bool, cache_bytes: int, tmp_path) -> dic
             work, cache, tmp_path, run.run_id, plan(["sku", "name", "qty", "price", "day"])).finding.kind
 
     def preview() -> None:
-        done["preview"] = len(cache.get_or_load(run.run_id, lambda: _read_frame_heavy(work, tmp_path, run.run_id)))
+        done["preview"] = len(frame_of_run(work, cache, tmp_path, run.run_id))  # the preview's own path
 
     threads = [threading.Thread(target=step, daemon=True) for step in (hold, currency, preview)]
     for thread in threads:

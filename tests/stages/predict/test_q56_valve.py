@@ -33,12 +33,23 @@ def _actions(diagnosis: dict, metrics: dict | None = None) -> list:
     return contract.actions or []
 
 
-@pytest.mark.parametrize("member", ["SKU-1042", "SET OF 3 MUGS", "Mug 50%", "Mug £5"])
-def test_a_name_the_contract_cannot_carry_is_not_printed_and_predict_never_fails(member: str) -> None:
+@pytest.mark.parametrize("member", ["SKU-1042", "SET OF 3 MUGS"])
+def test_a_name_with_digits_is_printed_in_quotes_from_the_field(member: str) -> None:
+    # Thach, Q65: the name copied verbatim from stage 3's field is data, not an invented number.
     diagnosis = _diagnosis("R1", member=member)
     r1 = next(a for a in _actions(diagnosis) if a.hypothesis_id == "R1")
 
-    assert member not in r1.action
+    assert r1.action == f'Look at "{member}" and see what changed there.'
+    assert r1.name == member
+
+
+@pytest.mark.parametrize("member", ["Mug 50%", "Mug £5"])
+def test_a_name_the_contract_cannot_carry_is_not_printed_and_predict_never_fails(member: str) -> None:
+    # Q65 allows digits only: a sign in the name still points the action to the row.
+    diagnosis = _diagnosis("R1", member=member)
+    r1 = next(a for a in _actions(diagnosis) if a.hypothesis_id == "R1")
+
+    assert member not in r1.action and r1.name is None
     assert r1.action == ('Look at the product named in the technical section\'s row "The change is concentrated in '
                          'one product or category" and see what changed there.')
 
@@ -46,7 +57,8 @@ def test_a_name_the_contract_cannot_carry_is_not_printed_and_predict_never_fails
 def test_a_plain_name_is_printed() -> None:
     r1 = next(a for a in _actions(_diagnosis("R1", member="Blue Mug")) if a.hypothesis_id == "R1")
 
-    assert r1.action == "Look at Blue Mug and see what changed there."
+    assert r1.action == 'Look at "Blue Mug" and see what changed there.'  # Q65: the name in quotes
+    assert r1.name == "Blue Mug"
 
 
 def test_a_name_review_only_suggested_is_not_printed() -> None:
@@ -55,7 +67,7 @@ def test_a_name_review_only_suggested_is_not_printed() -> None:
     diagnosis["suggested_classes"] = {"Postage": "charge"}
     r1 = next(a for a in _actions(diagnosis) if a.hypothesis_id == "R1")
 
-    assert "Postage" not in r1.action
+    assert "Postage" not in r1.action and r1.name is None
 
 
 def test_r3s_row_is_named_by_its_label_and_predict_never_fails() -> None:

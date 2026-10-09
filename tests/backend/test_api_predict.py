@@ -49,7 +49,8 @@ def test_predict_writes_the_forecast_and_the_code_written_actions(make_api: Make
     assert (body["run_id"], body["status"], codes(body)) == (run_id, "analyzed", [])
     forecast = ForecastContract.model_validate(body["forecast"])
     assert forecast == ForecastContract.model_validate(api.read_json(run_id, "forecast.json"))
-    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("2.1", None, None)
+    # 2.2: actions[].name (Q65)
+    assert (forecast.schema_version, forecast.model_used, forecast.recommendations) == ("2.2", None, None)
     assert (forecast.actions_status, forecast.actions_model) == ("list", None)
     (action,) = forecast.actions
     assert (action.claim, action.hypothesis_id) == ("K1", "P1")

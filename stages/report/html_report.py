@@ -263,8 +263,9 @@ def _render(report: ReportContract) -> str:
         header = (f"<header><h1>Your sales report</h1>{meta}"
                   f"{para(f'{month_name(period.current)} compared with {month_name(period.previous)}', 'meta')}"
                   f"</header>{front_html(report, front)}")
-        opening = ('<details id="appendix"><summary>Technical details (for an analyst)</summary>'
-                   + para("In this appendix, 'revenue' is the same figure as 'sales' above.")
+        # Thach, Q67: one name, "Technical details", here and on the page.
+        opening = ('<details id="appendix"><summary>Technical details</summary>'
+                   + para("In Technical details, 'revenue' is the same figure as 'sales' above.")
                    + (para(f"Amounts are in {report.currency.code}. Sentences quoted from the analysis, and the "
                            "evidence of each check, are shown as written, their amounts without the code.")
                       if report.currency is not None and report.currency.code else ""))

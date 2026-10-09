@@ -44,6 +44,7 @@ def diagnose(session: Session, run_id: str, *, settings: Settings, work: RunWork
     run = run_state.load_run(session, run_id)
     run_state.require_status(run, *DIAGNOSABLE_STATUSES, step="diagnose")
     _require_run_files(runs_root, run_id)
+    session.commit()  # no read transaction held through the wait for the slot (Q68's review)
 
     with work.execution(run_id), work.heavy():
         try:

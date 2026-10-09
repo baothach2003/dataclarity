@@ -36,7 +36,7 @@ from stages.predict.forecast import forecast
 
 # 2.1 (the report redesign, step 4): the suggested actions and their state
 # (CONTRACTS 10); 2 since 4A-b: the season reading noted.
-SCHEMA_VERSION = "2.1"
+SCHEMA_VERSION = "2.2"
 METRICS_FILENAME = "metrics.json"
 DIAGNOSIS_FILENAME = "diagnosis.json"
 FORECAST_FILENAME = "forecast.json"
@@ -62,7 +62,7 @@ def _actions(metrics: MetricsContract, diagnosis: DiagnosisContract,
     claims = select_claims(metrics, diagnosis, code)
     if claims:
         return "list", [SuggestedAction(claim=c.id, hypothesis_id=c.hypothesis_id, fact=c.fact, action=c.action,
-                                        why=c.why, watch=c.watch) for c in claims], None
+                                        why=c.why, watch=c.watch, name=c.name) for c in claims], None
     if candidates(metrics, diagnosis):
         return "suppressed", [], NOTHING_TO_ACT_ON
     return "list", [], not_asked(metrics, diagnosis) or NO_CAUSE

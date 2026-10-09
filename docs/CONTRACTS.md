@@ -1797,7 +1797,12 @@ none has a catalog entry for the way its figure moved: nothing to act on;
 writes it no more). `actions` is a list exactly when the status is "list";
 `actions_model` is null (Q53: code writes the actions). `action` and `why`
 hold no digit (any script), no percent or currency sign, at most 30 words,
-never empty - held here whoever wrote the file; no catalog sentence holds a
+never empty - held here whoever wrote the file - except, from 2.2 (Thach,
+Q65), the one product name R1's action may quote: `actions[].name`, copied
+verbatim from diagnosis.json `hypotheses[].member`, standing once in the
+action in double quotes; its digits are data (a sign in it is still
+refused), and the rest of the sentence is held as ever. `name` is null on
+every other action and when R1's action points to its row; no catalog sentence holds a
 word of `FRONT_BANNED` (tested in stage 4). Read by stage 5 and the page
 through section 11's forecast.json rows.
 
@@ -2177,6 +2182,9 @@ before.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-09: **the report redesign, Q65.** `forecast.json` 2.2,
+  additive: `actions[].name` - the product name R1's action quotes,
+  verbatim from `hypotheses[].member` (section 8); read by no consumer.
 - 2026-10-06: **the report redesign, Q56-Q62.** `diagnosis.json` 18.8,
   additive: `hypotheses[].member` - the one product a check points to, R1's
   top member (the same value as its evidence), so a reader names it without

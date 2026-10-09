@@ -39,7 +39,8 @@ def test_r3_names_the_technical_sections_row() -> None:
 def test_r1_names_stage_3s_top_member() -> None:
     claim = next(c for c in _named("R1", member="Blue Mug") if c.hypothesis_id == "R1")
 
-    assert claim.action == "Look at Blue Mug and see what changed there."
+    assert claim.action == 'Look at "Blue Mug" and see what changed there.'  # Q65: the name in quotes
+    assert claim.name == "Blue Mug"
     assert claim.why == "The change was concentrated in one product, so that is where to look first."
 
 

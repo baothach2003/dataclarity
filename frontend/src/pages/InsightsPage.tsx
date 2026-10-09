@@ -152,7 +152,7 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
             <summary className="technical__summary">Technical details</summary>
             <div className="technical__body">
               {front !== null && (
-                <p className="insights-reason">In this section, &apos;revenue&apos; is the same figure as &apos;sales&apos; above.</p>
+                <p className="insights-reason">In Technical details, &apos;revenue&apos; is the same figure as &apos;sales&apos; above.</p>
               )}
               {code !== null && (
                 <p className="insights-reason">

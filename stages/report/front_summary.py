@@ -310,8 +310,9 @@ def waterfall(bridge: LeverBridge, metrics: MetricsContract, code: str | None) -
         bars=[FrontBar(factor=bar.factor, label=labels[bar.factor], was=shown(bar.factor, bar.value_prev),
                        now=shown(bar.factor, bar.value_cur), shown=bar.shown, worth=signed(bar.shown, code))
               for bar in bridge.bars],
-        caption=(f"Read left to right: {month_only(period.previous)}'s sales, then what each part added or took "
-                 f"away, ending at {month_only(period.current)}'s sales. The bars add up exactly to the change. "
-                 "'Worth' amounts split the effect of things that moved together, so read them as sizes, not exact "
-                 "causes."),
+        # Thach, Q67: "from the first bar to the last" - a phone draws the bars across.
+        caption=(f"Read from the first bar to the last: {month_only(period.previous)}'s sales, then what each part "
+                 f"added or took away, ending at {month_only(period.current)}'s sales. The bars add up exactly to the "
+                 "change. 'Worth' amounts split the effect of things that moved together, so read them as sizes, not "
+                 "exact causes."),
         note=note)

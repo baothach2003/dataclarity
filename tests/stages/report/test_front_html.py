@@ -41,11 +41,11 @@ def test_the_front_comes_first_and_the_old_report_is_one_closed_appendix() -> No
     start, end = html.index('<details id="appendix">'), html.rindex("</details>")
     for section in APPENDIX_SECTIONS:
         assert start < html.index(f'<section id="{section}">') < end
-    assert "Technical details (for an analyst)" in html
+    assert "<summary>Technical details</summary>" in html  # Q67: one name
 
 
 def test_the_appendix_says_revenue_is_sales() -> None:
-    assert "In this appendix, 'revenue' is the same figure as 'sales' above." in _page().text
+    assert "In Technical details, 'revenue' is the same figure as 'sales' above." in _page().text  # Q67
 
 
 def test_the_appendix_keeps_every_hypothesis_the_limits_table_and_its_method() -> None:

@@ -5398,6 +5398,11 @@ dataclarity/
         ("Presentment Currency") is not read; two values alike in their
         first 40 characters are listed alike. `docs/REPORT_REDESIGN.md`
         section 12, step 2.
+      - Q60's line before the actions (Thach, 2026-10-09, Q63 (i)):
+        hidden for good - it failed two reviews; another wording would
+        reopen the loop.
+      - the said-less season sentence printing equal changes beside
+        "differs from" (Q64): staged values only.
       - the front's figure-and-word agreement with staged values only
         (Thach, 2026-10-06, Q55): a near-zero change printed with more
         decimals than checked, no precision up to 4 agreeing, a typical
@@ -5973,6 +5978,14 @@ dataclarity/
       (recorded in docs/FIGMA_DESIGN_NOTES.md section 3). Checked in the
       real app on the three runs at 390 and 1440 px, console clean; one
       review cycle, its fixes and their scoped review. Open: Q66-Q67.
+      **Thach (2026-10-09, the tenth round):** Q63 (i) and Q64 to 8D; Q65
+      digits allowed in R1's quoted name copied from stage 3 (forecast.json
+      2.2 `actions[].name`); Q66 the two retired cards deleted; Q67 one
+      name, "Technical details", and "Read from the first bar to the
+      last"; **Q68 (deploy blocker) fixed**: one lock order for every path
+      (the cache's load lock, then the heavy slot), a failing concurrency
+      test first, every lock path listed (docs/REPORT_REDESIGN.md section
+      12), one review cycle, its findings fixed. Open: Q69-Q70.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6172,6 +6185,16 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**Report redesign - Q63-Q68 (2026-10-09)**: Q68, a deploy blocker, fixed
+first - the line summary took the heavy slot before the frame cache's load
+lock (the preview the other way round): two concurrent requests could hang
+the server for good. Now one order everywhere, guarded at runtime; the
+failing test hung on the old code and passes; every lock path listed; one
+review cycle, its findings fixed (shared currency readings, no DB
+connection held while waiting for the slot). Q65 digits in R1's quoted
+name (forecast.json 2.2); Q66 the two retired cards deleted; Q67 one name,
+"Technical details"; Q63, Q64 to 8D. Open: Q69-Q70. No deploy step started.
 
 **Report redesign - step 5, the frontend (2026-10-06, later)**: Insights
 opens with the front section; the waterfall draws the bridge (Q17 closed);

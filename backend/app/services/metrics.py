@@ -50,6 +50,11 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             notice.details if notice else None,
         )
     _require_cleaned_files(runs_root, run_id)
+    uploaded_at = run.created_at
+    # No read transaction held through the wait for the slot and the work: a
+    # connection kept while waiting, while a step inside the slot needs one,
+    # is the slot-against-pool shape of Q68 (its review).
+    session.commit()
 
     with work.execution(run_id), work.heavy():
         try:
@@ -59,7 +64,7 @@ def analyze(session: Session, run_id: str, *, settings: Settings, work: RunWork)
             # The upload is the reference for lines dated after it (2E-u6):
             # the same answer however late the run is analysed.
             metrics = analyze_run(runs_root, run_id, around_write=lambda: later_outputs.set_aside(
-                runs_root, run_id, after_stage=2), uploaded_at=run.created_at)
+                runs_root, run_id, after_stage=2), uploaded_at=uploaded_at)
         except RequiredColumnMissingError as error:
             raise stage_errors.analysis_failed(
                 str(error), {"canonical_field": error.canonical_field}

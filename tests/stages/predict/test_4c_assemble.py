@@ -43,7 +43,8 @@ def test_the_forecast_and_the_code_written_actions_make_the_file() -> None:
     prediction = predict(*_real("kaggle"), NOW)
     contract = prediction.contract
 
-    assert (contract.schema_version, SCHEMA_VERSION, contract.generated_at) == ("2.1", "2.1", NOW)
+    # 2.2: actions[].name (Q65)
+    assert (contract.schema_version, SCHEMA_VERSION, contract.generated_at) == ("2.2", "2.2", NOW)
     assert (contract.actions_status, contract.actions_model, prediction.why_none) == ("list", None, None)
     # B1 and B2 moved out of the claims (step 4's scoped review): P2 remains.
     assert [(a.claim, a.hypothesis_id) for a in contract.actions] == [("K1", "P2")]
