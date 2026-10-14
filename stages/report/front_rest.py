@@ -32,7 +32,8 @@ _NONE_WHY = {2: "the change matches days with no sales, a matter of the data rat
              5: "the change matches the calendar or the time of year, which no action in the shop changes",
              6: "no figure above is one an action in the shop works on"}
 _NO_REASON = "no single reason stands out in these figures"
-NEXT_MONTH = " Next month, compare sales with the estimate in section 5."
+# The part by its name: the dashboard's order moves it (D3).
+NEXT_MONTH = ' Next month, compare sales with the estimate under "Next month".'
 
 
 def none_selected(rule: int) -> str:
@@ -153,7 +154,7 @@ def rows_left_out(cleaning: CleaningReportContract) -> list[RowsLeftOut]:
 
 
 def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContract, numbers: Numbers,
-                left_out: list[RowsLeftOut]) -> list[CannotKnow]:
+                left_out: list[RowsLeftOut], splits: list[str] | None = None) -> list[CannotKnow]:
     """Section 6 in plain words: the not-testable list by id (its code reasons
     stay in the appendix), stock, and the rows left out."""
     ids = {item.id for item in not_testable}
@@ -166,8 +167,12 @@ def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContrac
         found.append(CannotKnow(title="How many people visited or browsed", text="The file records only purchases."))
     found.append(CannotKnow(title="Stock", text="This version analyses sales, not stock levels."))
     if ids & {"X6", "X7"}:
-        found.append(CannotKnow(title="Sales by channel, payment method or country",
-                                text="This version does not split sales that way."))
+        # With a breakdown drawn (the dashboard, D4), "does not split" would be
+        # false beside it: the columns that split sales are named instead.
+        text = ("This version does not split sales that way." if not splits else
+                f"Sales are split only by {_names(splits)}, kept in Review; no other channel, payment or country "
+                "column of the file is read.")
+        found.append(CannotKnow(title="Sales by channel, payment method or country", text=text))
     read, used = cleaning.rows_in, cleaning.rows_out
     if left_out:
         text = (f"{count(read)} rows were read and {count(used)} used: {'; '.join(r.sentence for r in left_out)} "
@@ -183,6 +188,11 @@ def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContrac
                  "Technical details.")
     found.append(CannotKnow(title="Rows left out", text=text))
     return found
+
+
+def _names(columns: list[str]) -> str:
+    quoted = [f'"{column}"' for column in columns]
+    return quoted[0] if len(quoted) == 1 else f"{', '.join(quoted[:-1])} and {quoted[-1]}"
 
 
 def currency(cleaning: CleaningReportContract) -> ReportCurrency:

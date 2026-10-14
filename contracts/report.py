@@ -20,6 +20,7 @@ from contracts.forecast import MIN_HISTORY_MONTHS, DoNotDo, RevenuePoint, check_
 from contracts.lines import NoteCode, UnmeasurableLines
 from contracts.metrics import NonProductLines
 from contracts.profile import LineClass
+from contracts.report_dashboard import Dashboard
 from contracts.report_front import Front, LeverLevelView, PartialMonth, ReportCurrency, RowsLeftOut
 from contracts.report_views import (
     KPI_IDS,
@@ -235,6 +236,10 @@ class ReportContract(ContractFile):
     currency: ReportCurrency | None = None
     rows_left_out: list[RowsLeftOut] = Field(default_factory=list)
     front: Front | None = None
+    # 2.10 (the dashboard, 2026-10-14): the KPI tiles and the widgets in the
+    # order code decides - the one copy report.html and the page draw
+    # (contracts/report_dashboard.py). Absent before 2.10.
+    dashboard: Dashboard | None = None
 
     @model_validator(mode="after")
     def _causes_as_2_5_shows_them(self) -> Self:
@@ -263,7 +268,42 @@ class ReportContract(ContractFile):
         if version < (2, 9) and (redesigned != (None, None) or self.rows_left_out or numbers.partial_months
                                  or self.layer_2_causes.lever_levels):
             raise ValueError("the front section, the currency, the rows left out and the part-months exist from 2.9")
+        if (version >= (2, 10)) != (self.dashboard is not None):
+            raise ValueError("a 2.10 report carries its dashboard, and only from 2.10")
         return self
+
+    def _dashboard_of_this_report(self) -> None:
+        """The tiles print layer 1's own figures, and the dashboard's state is
+        the front's (one reading of compared / not compared / blocked)."""
+        dashboard, front = self.dashboard, self.front
+        if dashboard is None or front is None or dashboard.state != front.state:
+            raise ValueError("the dashboard's state is the front section's")
+        if dashboard.caution != front.caution:
+            raise ValueError("the dashboard's caution lines are the front section's")
+        kpis = {kpi.id: kpi for kpi in self.layer_1_numbers.kpis}
+        source = {"orders": "orders", "aov": "aov", "return_rate": "return_rate"}
+        notes_of = {"sales": "revenue", "orders": "orders", "aov": "aov", "return_rate": "return_rate",
+                    "customers": "active_customers"}
+        for tile in dashboard.tiles:
+            kpi = kpis.get(source.get(tile.id, ""))
+            if kpi is not None and (tile.now_value != kpi.current or tile.was_value not in (None, kpi.previous)):
+                raise ValueError(f"the {tile.id} tile prints other figures than layer 1 holds")
+            if tile.notes != kpis[notes_of[tile.id]].notes:
+                raise ValueError(f"the {tile.id} tile carries its figure's notes (CLAUDE.md 3.3a)")
+        if dashboard.tiles[0].now_value is None and kpis["revenue"].current is not None:
+            raise ValueError("the sales tile withholds a figure layer 1 shows")
+        widgets = {widget.id: widget for widget in dashboard.widgets}
+        named = [widget.id for widget in dashboard.widgets if widget.placed_by == "named"]
+        if named and self.layer_2_causes.headline.rule not in (4, 5, 6):
+            raise ValueError("a widget is tied to a named cause only under headline rules 4, 5 and 6")
+        waterfall = front.waterfall
+        if "waterfall" in widgets and (waterfall is None or widgets["waterfall"].size != max(
+                abs(bar.shown) for bar in waterfall.bars)):
+            raise ValueError("the waterfall's size is its largest bar")
+        trend = widgets.get("trend")
+        if trend is not None and trend.size is not None and waterfall is not None \
+                and trend.size != abs(waterfall.shown_change):
+            raise ValueError("the trend's size is the change the waterfall shows")
 
     @model_validator(mode="after")
     def _figures_and_notes_agree(self) -> Self:
@@ -300,6 +340,14 @@ class ReportContract(ContractFile):
                             raise ValueError(f"the revenue chart plots {x} as revenue_by_month has it, whole or not")
                     elif chart.id == "forecast" and (x not in points or y != getattr(points[x], series.name, None)):
                         raise ValueError(f"the forecast chart plots the forecast's own {series.name} for {x}")
+        return self
+
+    @model_validator(mode="after")
+    def _the_dashboard(self) -> Self:
+        """2.10: the dashboard prints this report's own figures - checked after
+        the notes and the charts, so a note out of place is told as such."""
+        if self.dashboard is not None:
+            self._dashboard_of_this_report()
         return self
 
     def _forecast_of_these_months(self) -> None:

@@ -59,8 +59,8 @@ def test_no_cause_on_the_demo_and_nothing_to_act_on() -> None:
     suppressed = build_real("kaggle", forecast=with_actions("kaggle", "suppressed")).front.next_steps
 
     assert (none.status, none.sentence) == ("list", "No action is suggested: no single reason stands out in these "
-                                                    "figures. Next month, compare sales with the estimate in "
-                                                    "section 5.")
+                                                    "figures. Next month, compare sales with the estimate under "
+                                                    "\"Next month\".")
     assert (suppressed.status, suppressed.sentence) == (
         "suppressed", "No action is suggested: the figures above that moved have no action this report can suggest.")
 
@@ -82,9 +82,9 @@ def test_the_appendix_points_to_the_actions_and_never_mentions_an_ai_switch() ->
     none = Page(render_html(build_real("demo_classed", forecast=_forecast("demo_classed"))))
 
     assert "Show a pricier alternative" in page.section("next-steps")
-    assert "The suggested actions are in section 4 (What to do next)." in page.section("actions")
+    assert "The suggested actions are under \"What to do next\"." in page.section("actions")
     assert ("No AI writes recommendations in this version: suggested actions, when there are any, are written by "
-            "code in section 4." in none.section("actions"))
+            "code under \"What to do next\"." in none.section("actions"))
     assert "switched off" not in page.text + none.text
 
 

@@ -149,7 +149,7 @@ def test_kaggles_checklist_groups_and_lines() -> None:
         "Products sold in only one of the two months: sales of products sold in December but not in November "
         "(+9,101.00) and the other way round (-8,835.50) - together worth about +265.50 (a small part)."]
     assert matches.after == ("These amounts are measured in different ways and overlap, so they do not add up to "
-                             "the change (4,925.00). The chart in section 2 is the one that adds up.")
+                             "the change (4,925.00). The chart \"Where the change came from\" is the one that adds up.")
 
 
 def test_p2_is_worded_inside_the_charts_price_bar_q20() -> None:
@@ -242,7 +242,7 @@ def test_no_claim_selected_says_no_action_is_suggested() -> None:
 
     assert (steps.status, steps.items) == ("list", [])
     assert steps.sentence == ("No action is suggested: no single reason stands out in these figures. Next month, "
-                              "compare sales with the estimate in section 5.")
+                              "compare sales with the estimate under \"Next month\".")
 
 
 def test_listed_actions_show_the_fact_the_action_the_why_and_the_watch_line() -> None:
@@ -367,7 +367,7 @@ def test_no_front_word_is_jargon_or_a_verdict() -> None:
 def test_the_report_is_2_9_and_carries_its_front() -> None:
     report = build_real("kaggle")
 
-    assert report.schema_version == "2.9" and report.front is not None and report.currency is not None
+    assert report.schema_version == "2.10" and report.front is not None and report.currency is not None
 
 
 # --- the blocked and not-compared states, on the hand-built files of 5A -----------------------------------------

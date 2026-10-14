@@ -122,7 +122,7 @@ def test_the_wordings_of_the_page_as_written() -> None:
     assert '"name":"80% band"' in next(s for s in page.scripts if '"chart-forecast"' in s)
     forecast = forecast_payload() | {"model_used": None, "recommendations": None, "do_not_do": None}
     assert ("No AI writes recommendations in this version: suggested actions, when there are any, are written by "
-            "code in section 4." in Page(render_html(build(forecast=forecast))).section("actions"))
+            "code under \"What to do next\"." in Page(render_html(build(forecast=forecast))).section("actions"))
     notes = metrics_payload()["core"]["notes"] + [SAME_DAY]
     assert "returns file 10 -345.50 5" in Page(render_html(build(metrics=metrics_data(notes=notes)))).section(
         "numbers")

@@ -98,7 +98,7 @@ an EXISTING money contribution, never a figure computed for it.
 | **Sales by month** (`trend`) | at least two whole months drawn (`charts[revenue_trend]` with 2+ non-null points) | line (time series) - today's front chart, its part-month and gap sentences under it | `charts[revenue_trend]`, `front.chart_title`, `front.chart_note` | the shown change, `bridge.shown_change` (exact `core.revenue_change` without a bridge): what the line moves between the compared months | T2 |
 | **Where the change came from** (`waterfall`) | `front.waterfall` not null | the bridge waterfall (today's; across on a phone) | `front.waterfall` | largest `|bars[].shown|` | B1, B2, P1, P2; rule 4 |
 | **Customers: new, back, stopped buying** (`customers`) | a customer column, `tree.customers` and its `previous_transition`, and at least one of the three groups not 0.00 as printed in either month | horizontal bars, this month and last month per group (3 groups: very few, but each group is NOT a part of a whole - they overlap the rest of the shop - so bars, not parts) | `shared.claim_lines.money_terms` for C1, C2, C3 - the checklist's own subjects and figures (Q34); C2 only where both lapsed terms are a loss, as the checklist | largest `|hypotheses[C1..C3].contribution|` | C1, C2, C3 |
-| **Products whose sales moved most** (`products`) | `localization.dimensions[product]` with 2+ named members that are products (`is_not_a_product` false) | diverging horizontal bars of each member's change, sorted by its size; the caption prints `other.delta` as "All other products together: +8,652.00" | `localization.dimensions[product].members[]` (name, delta, is_data_gap), `.other.delta` | largest `|delta|` of the drawn members | R1, R2, R3 |
+| **Products with the most sales this month** (`products`) - as built after step 3's review | `products.top_products` (stage 2) with 2+ products | sorted horizontal bars of this month's sales | `products.top_products[]` (product, revenue) | none (it shows no movement) | - (no product cause is tied) |
 | **Sales by category** (`category`) | a column mapped to `category` with 2+ categories in `by_dimension.category` | sorted horizontal bars (this month; last month as a marker); a part-of-whole bar only with 2-3 categories all above 0 in both months (D6) | `by_dimension.category[]` (stage 2: name, revenue_current, revenue_previous) | largest `|delta|` of `localization.dimensions[category]` members (stage 3) | - |
 | **Sales by <column>** (`breakdown_1`, `breakdown_2`) | the column chosen in Review (section 5) AND stage 2 wrote its figures (`withheld_reason` null) | as category | **NEW** `by_dimension.breakdowns[]` (stage 2, section 7) | largest `|members[].change|` (**NEW**, stage 2) | - |
 | **Returns** (`returns`) | the file has returns (as the return-rate tile) | two horizontal bars: refunds last month, this month | `money_terms("P3")` (the checklist's "Refunds for returned goods") | `|hypotheses[P3].contribution|` | P3 |
@@ -183,13 +183,13 @@ Worked examples (the draft rule on the real files; all six in section 6):
 
 - **Kaggle** (rule 6, B1 named): waterfall [named, 4,712.29] > Sales by
   Location [7,765.50] > trend [4,925.00] > category [2,562.50] > Sales by
-  Payment Method [2,424.50] > products [1,148.00] > summary > checklist >
+  Payment Method [2,424.50] > summary > products > checklist >
   next steps > next month > cannot know. (The two breakdowns are the
   illustrative AI choice, section 5; their figures computed by section 7's
   definition.)
 - **Online Retail II, classed** (rule 7, nothing tied): trend [141,755.41] >
   waterfall [127,578.73] > customers [36,744.87] > returns [27,123.00] >
-  products [7,037.08] > summary > ... (no category column; Country is not
+  summary > products > ... (no category column; Country is not
   eligible - 38 values, section 5).
 - **S4, lapsed customers** (rule 6, C2 named): customers [named, 12,180.85] >
   waterfall [12,777.13] > trend [11,872.60] > category > products > returns >
@@ -489,6 +489,47 @@ logic producing conclusions - method first, tests first, mutation, doubt
 review (step 2, step 4); stage 5's assembly and the page are display -
 failing tests first, one review cycle, mutation on the order rule and the
 tile rules (steps 3, 5).
+
+**As built (step 3, 2026-10-14).** `contracts/report_dashboard.py` (the
+order rule `order_widgets`, the tile and widget rules - one copy for stage 5
+and the contract), `stages/report/dashboard.py` (tiles, the tie, the order),
+`dashboard_widgets.py` (each chart widget's condition, size and bars),
+`html_dashboard.py` and `html_bars.py` (report.html); report.json 2.10
+(CONTRACTS 9, 10). The sales tile prints sentence A's own figures
+(`front_summary.sales_change`, one copy with sentence A). The front's
+number pointers became names ("the chart "Where the change came from"",
+"the estimate under "Next month"", the appendix's "under "What to do next""),
+and "What this report cannot know" names the columns sales are split by when
+a breakdown is drawn. report.html keeps the front's section ids for its parts
+(`summary`, `change`, `checked`, ...). Step 3's review (one cycle) found the products widget false on the Kaggle demo
+file - stage 3's members are the LARGER products only (2% of the previous
+month or 30 orders), so "Products whose sales moved most" left out bigger
+moves (Item_19_MILK +1,280) - and six more: a negative value drawn like a sale,
+a blocked report naming a split, the category chart as parts of a whole (its
+blank lines are out), the sales figure cut at 390 px with a currency, SVG
+charts unreadable on a phone and silent to a screen reader, and a loose
+contract. Fixed: the products widget is now stage 2's own list,
+`products.top_products` ("Products with the most sales in <month>", no
+movement, no size, no tie - no product cause is tied); ties read what a widget
+draws; the bar charts are HTML on one scale holding zero; the category chart
+is always bars; a blocked report names no split; a withheld breakdown says why
+under the tiles; the contract holds every printed figure to its value, the
+arrow to the printed pair, tile notes, the sizes and the tie's rules.
+**Hidden by the stop rule:** the scoped review of those fixes found the new
+products widget (stage 2's top products) naming DOTCOM POSTAGE - a suggested
+charge, unanswered - as Online Retail II's top product without its
+"(suggested: charge, not confirmed)" mark (LINE_TAXONOMY 4.5): a fabrication
+on a demo file, so the products widget is not shown at all (a test proves it
+absent on the three runs); the appendix keeps the product tables. Recorded,
+not fixed (no further cycle): a blocked report's split line ("This version
+does not split sales that way" while a split was chosen); the customers line
+when no split is drawn; the link colour rule's scope; contract checks still
+open (bars and sizes against their sources, the customers and sales tiles
+against the bridge and sentence A, widget notes). Tests
+first (19 symptom tests red before
+the block existed); 23 older stage 5 assertions moved to the new layout or
+wording, none removed (the list is in the overnight report, for Thach's F2
+sign-off); the frontend fixtures regenerated.
 
 ## 9. Decisions made alone and open questions
 

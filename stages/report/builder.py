@@ -35,6 +35,7 @@ from shared import later_outputs
 from shared.contract_files import write_atomically
 from shared.periods import shift_month
 from shared.run_registry import run_file
+from stages.report.dashboard import build_dashboard
 from stages.report.front import build_front
 from stages.report.front_rest import currency as report_currency
 from stages.report.front_rest import partial_months, rows_left_out
@@ -47,8 +48,8 @@ from stages.report.layers import actions, causes, numbers, revenue_notes
 # revenue's reason; 2.6: each hypothesis's lens, so the label names its total; 2.7: the headline's hedge
 # (the report redesign, step 1 - report.json carries the Headline model); 2.8: narration_status
 # "not_in_v1" (Q21) and the revenue KPI's exact change (Q22); 2.9: the front section, the currency, the rows
-# left out and the part-months (the report redesign, step 3) (CONTRACTS 10).
-SCHEMA_VERSION = "2.9"
+# left out and the part-months (the report redesign, step 3); 2.10: the dashboard block (2026-10-14) (CONTRACTS 10).
+SCHEMA_VERSION = "2.10"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 
@@ -157,6 +158,8 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
     front = build_front(metrics=metrics, diagnosis=diagnosis, forecast=forecast, cleaning=cleaning, numbers=layer_1,
                         causes=layer_2, actions=layer_3, charts=charts, partial=partial, left_out=left_out,
                         code=shown.code)
+    dashboard = build_dashboard(metrics=metrics, diagnosis=diagnosis, cleaning=cleaning, numbers=layer_1, front=front,
+                                charts=charts, notes=[*layer_1.notes, *layer_2.notes], code=shown.code)
     return ReportContract(
         schema_version=SCHEMA_VERSION, generated_at=now or datetime.now(UTC), run_id=run_id, source_file=source_file,
         data_quality=DataQuality(rows_in=cleaning.rows_in, rows_out=cleaning.rows_out,
@@ -165,7 +168,7 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
                                  warnings=len(cleaning.warnings)),
         layer_1_numbers=layer_1, layer_2_causes=layer_2, layer_3_actions=layer_3,
         charts=charts, provenance=_provenance(schema, plan_source, diagnosis, layer_3, forecast),
-        currency=shown, rows_left_out=left_out, front=front)
+        currency=shown, rows_left_out=left_out, front=front, dashboard=dashboard)
 
 
 def _read[T: (MetricsContract, DiagnosisContract, ForecastContract, CleaningReportContract)](

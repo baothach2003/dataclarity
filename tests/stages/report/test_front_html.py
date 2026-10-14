@@ -15,7 +15,11 @@ from stages.report.html_report import render_html
 from tests.stages.report.html_probe import Page
 from tests.stages.report.real_runs import RUNS, build_real, files, with_actions
 
-FRONT_SECTIONS = ["summary", "change", "checked", "next-steps", "next-month", "cannot-know"]
+# 2.10 (the dashboard): the tiles, then the widgets in report.json's order - Kaggle's change split first (B1
+# named), the months and the category by size, then the unsized in the fixed order: the summary, this month's
+# best sellers (step 3's review), the front's other text parts.
+FRONT_SECTIONS = ["tiles", "change", "sales-by-month", "category", "summary", "checked", "next-steps",
+                  "next-month", "cannot-know"]
 APPENDIX_SECTIONS = ["quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
 
 
@@ -110,12 +114,13 @@ def test_inside_the_season_b_comes_first_on_the_page() -> None:
 
 def test_the_chart_draws_whole_months_only_and_the_part_month_by_its_dates() -> None:
     page = _page()
-    summary = page.section("summary")
+    # 2.10: the chart is its own widget, its part-month sentence under it (D7's place: directly under the chart).
+    months = page.section("sales-by-month")
     chart = re.search(r'<svg[^>]*class="sales".*?</svg>', _html(), re.S).group(0)
 
     assert "December 2024: 46,292.50" in chart and "January 2025" not in chart
     assert ("January 2025 is not in the chart: the file covers only 1 to 18 January 2025. Comparing part of a month "
-            "with full months would mislead, so it is left out.") in summary
+            "with full months would mislead, so it is left out.") in months
 
 
 def test_no_part_month_figure_anywhere_in_the_front_q13() -> None:
@@ -161,7 +166,7 @@ def test_the_checklist_prints_its_groups_and_the_overlap_sentence() -> None:
     for title in ("Matches the figures", "Pulled the other way", "Checked - not the reason", "This file cannot show it"):
         assert title in checked
     assert ("These amounts are measured in different ways and overlap, so they do not add up to the change "
-            "(4,925.00). The chart in section 2 is the one that adds up.") in checked
+            "(4,925.00). The chart \"Where the change came from\" is the one that adds up.") in checked
     assert "Inside the chart's average price per item (-2,646.13)" in checked
     assert "Last year alone, sales rose" in checked and "regular pattern" not in checked  # Q41
     assert "launched" not in checked and "discontinued" not in checked
@@ -240,10 +245,11 @@ def test_a_caution_opens_the_summary() -> None:
     diagnosis["trust"]["verdict"] = "caution"
     diagnosis["trust"]["checks"][0] |= {"status": "caution", "month": "current",
                                         "message": "About 5 days in December have no sales."}
-    summary = _page(diagnosis=diagnosis).section("summary")
+    # 2.10: the caution stands under the tiles, beside the figures it cautions (CLAUDE.md 3.3a), before any widget.
+    tiles = _page(diagnosis=diagnosis).section("tiles")
 
-    assert summary.startswith("In 30 seconds Some days in December 2024")  # the opener left the front (safety valve)
-    assert "Some days in December 2024 have no sales at all" in summary  # Q37: by the check's id and status
+    assert tiles.index("Sales") < tiles.index("Some days in December 2024")  # the opener left the front (safety valve)
+    assert "Some days in December 2024 have no sales at all" in tiles  # Q37: by the check's id and status
 
 
 def test_the_page_is_still_one_self_contained_file() -> None:

@@ -6270,8 +6270,14 @@ alone D-1..D-12 and Q1-Q5 in the design's section 9. Step 2 DONE - stage 2's
 breakdown figures (metrics.json 16.3 `by_dimension.breakdowns`), full process:
 method first, tests first, mutation, one review (two crashes reachable from
 step 4, fixed) and its scoped review (one fix); the three real runs: every
-existing field identical (the design's section 7, as built). Next: step 3
-(stage 5's dashboard block and report.html). No push this run: three untracked files of
+existing field identical (the design's section 7, as built). Step 3 DONE -
+report.json 2.10's dashboard block and report.html (tiles, the caution under
+them, widgets in the order rule's order; HTML bar charts), tests first,
+mutation 31 of 31, one review (a fabrication on the Kaggle demo, six more -
+all fixed) and its scoped review, which found the fixed products widget
+naming DOTCOM POSTAGE (a suggested charge) as Online Retail II's top product
+without its mark: under the stop rule the products widget is NOT shown (a
+test proves it absent). Next: step 4 (the AI's column choice, faked). No push this run: three untracked files of
 Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
 Report: `C:\Users\Happy\overnight-report.txt`.
 

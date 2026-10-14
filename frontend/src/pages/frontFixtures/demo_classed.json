@@ -1,6 +1,6 @@
 {
  "report": {
-  "schema_version": "2.9",
+  "schema_version": "2.10",
   "generated_at": "2026-09-29T00:00:00Z",
   "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
   "source_file": "demo_classed.csv",
@@ -1592,7 +1592,7 @@
       "The calendar: November's length and mix of weekdays - worth about +12,069.22 (a small part).",
       "Postage and other charges paid by customers rose: 22,564.68, up from 11,063.98 (a small part)."
      ],
-     "after": "These amounts are measured in different ways and overlap, so they do not add up to the change (141,755.41). The chart in section 2 is the one that adds up."
+     "after": "These amounts are measured in different ways and overlap, so they do not add up to the change (141,755.41). The chart \"Where the change came from\" is the one that adds up."
     },
     {
      "kind": "not_reason",
@@ -1623,7 +1623,7 @@
    ],
    "next_steps": {
     "status": "list",
-    "sentence": "No action is suggested: no single reason stands out in these figures. Next month, compare sales with the estimate in section 5.",
+    "sentence": "No action is suggested: no single reason stands out in these figures. Next month, compare sales with the estimate under \"Next month\".",
     "items": []
    },
    "next_month": [
@@ -1679,6 +1679,249 @@
     ],
     "next_steps": []
    }
+  },
+  "dashboard": {
+   "state": "compared",
+   "tiles": [
+    {
+     "id": "sales",
+     "label": "Sales",
+     "unit": "money",
+     "now": "663,315.58",
+     "now_value": 663315.58,
+     "was": null,
+     "was_value": null,
+     "change": "+141,755.41 (+27.2%) on October 2011",
+     "direction": "up",
+     "reason": null,
+     "notes": [
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "orders",
+     "label": "Orders",
+     "unit": "count",
+     "now": "1,234",
+     "now_value": 1234.0,
+     "was": "904",
+     "was_value": 904.0,
+     "change": null,
+     "direction": "up",
+     "reason": null,
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "aov",
+     "label": "Average order value",
+     "unit": "money",
+     "now": "537.53",
+     "now_value": 537.5328849270666,
+     "was": "576.95",
+     "was_value": 576.9470907079645,
+     "change": null,
+     "direction": "down",
+     "reason": null,
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "customers",
+     "label": "Customers who placed an order",
+     "unit": "count",
+     "now": "756",
+     "now_value": 756.0,
+     "was": "609",
+     "was_value": 609.0,
+     "change": null,
+     "direction": "up",
+     "reason": null,
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "return_rate",
+     "label": "Orders with a return, per order sold",
+     "unit": "ratio",
+     "now": "0.152",
+     "now_value": 0.15235008103727715,
+     "was": "0.169",
+     "was_value": 0.16924778761061948,
+     "change": null,
+     "direction": "down",
+     "reason": null,
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    }
+   ],
+   "not_shown": [],
+   "caution": [],
+   "widgets": [
+    {
+     "id": "trend",
+     "kind": "chart",
+     "chart": "line",
+     "placed_by": "size",
+     "size": 141755.41,
+     "title": "Sales by month (before any costs)",
+     "column": null,
+     "bars": [],
+     "caption": [
+      "December 2011 is not in the chart: the file covers only 1 to 9 December 2011. Comparing part of a month with full months would mislead, so it is left out."
+     ],
+     "notes": [
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "waterfall",
+     "kind": "chart",
+     "chart": "waterfall",
+     "placed_by": "size",
+     "size": 127578.73,
+     "title": "Where the change came from",
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "customers",
+     "kind": "chart",
+     "chart": "bars",
+     "placed_by": "size",
+     "size": 36744.869999999995,
+     "title": "Customers: new, back after a break, stopped buying",
+     "column": null,
+     "bars": [
+      {
+       "label": "Sales from new customers",
+       "now": 44632.28,
+       "was": 43378.65,
+       "now_text": "44,632.28",
+       "was_text": "43,378.65",
+       "is_blank": false
+      },
+      {
+       "label": "Sales from customers who came back after a break",
+       "now": 191810.45,
+       "was": 155065.58000000002,
+       "now_text": "191,810.45",
+       "was_text": "155,065.58",
+       "is_blank": false
+      },
+      {
+       "label": "Sales lost to customers who stopped buying",
+       "now": 143470.98,
+       "was": 142612.081,
+       "now_text": "143,470.98",
+       "was_text": "142,612.08",
+       "is_blank": false
+      }
+     ],
+     "caption": [],
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "returns",
+     "kind": "chart",
+     "chart": "bars",
+     "placed_by": "size",
+     "size": 27123.0,
+     "title": "Refunds for returned goods",
+     "column": null,
+     "bars": [
+      {
+       "label": "Refunds for returned goods",
+       "now": 13951.29,
+       "was": 41074.29,
+       "now_text": "13,951.29",
+       "was_text": "41,074.29",
+       "is_blank": false
+      }
+     ],
+     "caption": [],
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions"
+     ]
+    },
+    {
+     "id": "summary",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "checklist",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "next_steps",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "next_month",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "cannot_know",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    }
+   ]
   }
  },
  "bridge": {

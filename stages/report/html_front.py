@@ -3,7 +3,8 @@
 waterfall, the checklist, what to do next, next month, what this report
 cannot know (docs/REPORT_REDESIGN.md section 1). The wording is report.json's
 one copy (the page will print the same); this module only lays it out.
-Every string is escaped (SPECS SEC-3)."""
+Every string is escaped (SPECS SEC-3). Each part's body is also drawn by the
+dashboard (html_dashboard.py, 2.10), in the order report.json gives."""
 
 from contracts.report import ReportContract
 from contracts.report_front import Front, Waterfall
@@ -21,7 +22,7 @@ def _summary(report: ReportContract, front: Front) -> str:
     if front.state == "not_compared" and not front.caution:
         parts += [para(line, "small") for line in front.data_checks]
     parts.append(para(front.sales_note, "small"))
-    parts.append(_read_with(front.notes.summary))
+    parts.append(read_with(front.notes.summary))
     trend = next((c for c in report.charts if c.id == "revenue_trend"), None)
     # A blocked report is one sentence: no chart (the review).
     if front.state != "blocked" and trend is not None and trend.series and trend.series[0].x:
@@ -31,7 +32,7 @@ def _summary(report: ReportContract, front: Front) -> str:
     return "".join(parts)
 
 
-def _read_with(codes: list[str]) -> str:
+def read_with(codes: list[str]) -> str:
     """The notes beside a section's figures (Q35), each a link to its
     sentence in the appendix."""
     return f'<p class="small">Read these figures with: {links(codes)}</p>' if codes else ""
@@ -47,19 +48,16 @@ def _waterfall(waterfall: Waterfall, code: str | None) -> str:
             + (para(waterfall.note, "small") if waterfall.note else ""))
 
 
-def _change(front: Front, code: str | None) -> str:
+def change_html(front: Front, code: str | None) -> str:
     body = _waterfall(front.waterfall, code) if front.waterfall is not None else para(front.waterfall_note or "")
-    return (f'<section id="change" class="card"><h2>Where the change came from</h2>{body}'
-            f"{_read_with(front.notes.change)}</section>")
+    return body + read_with(front.notes.change)
 
 
 _MARKS = {"matches": "yes", "moved": "yes", "against": "against", "not_reason": "no", "cannot_show": "cant"}
 
 
-def _checked(front: Front) -> str:
-    parts = ['<section id="checked" class="card"><h2>What was checked</h2>']
-    if not front.caution:
-        parts += [para(line) for line in front.data_checks]
+def checked_html(front: Front) -> str:
+    parts = [] if front.caution else [para(line) for line in front.data_checks]
     for group in front.checklist:
         parts.append(f"<h3>{esc(group.title)}</h3>")
         if group.note:
@@ -69,41 +67,43 @@ def _checked(front: Front) -> str:
                      + "</ul>")
         if group.after:
             parts.append(para(group.after, "small"))
-    parts.append(_read_with(front.notes.checked))
-    parts.append("</section>")
+    parts.append(read_with(front.notes.checked))
     return "".join(parts)
 
 
-def _next_steps(front: Front) -> str:
+def next_steps_html(front: Front) -> str:
     steps = front.next_steps
-    parts = ['<section id="next-steps" class="card"><h2>What to do next</h2>']
+    parts = []
     if steps is not None and steps.sentence:
         parts.append(para(steps.sentence))
     for item in steps.items if steps is not None else []:
         parts.append(f'<div class="rec">{para("Rests on: " + item.rests_on, "small")}'
                      f"<p><strong>Action:</strong> {esc(item.action)}</p><p><strong>Why:</strong> {esc(item.why)}</p>"
                      f"{para(item.watch, 'small')}</div>")
-    parts.append(_read_with(front.notes.next_steps))
-    parts.append("</section>")
+    parts.append(read_with(front.notes.next_steps))
     return "".join(parts)
 
 
-def _next_month(front: Front) -> str:
-    return (f'<section id="next-month" class="card"><h2>Next month</h2>'
-            f'{"".join(para(line) for line in front.next_month)}{_read_with(front.notes.next_month)}</section>')
+def next_month_html(front: Front) -> str:
+    return f'{"".join(para(line) for line in front.next_month)}{read_with(front.notes.next_month)}'
 
 
-def _cannot_know(front: Front) -> str:
-    rows = (f"<strong>{esc(item.title)}.</strong> {esc(item.text)}" for item in front.cannot_know)
-    return f'<section id="cannot-know" class="card"><h2>What this report cannot know</h2>{items(rows)}</section>'
+def cannot_know_html(front: Front) -> str:
+    return items(f"<strong>{esc(item.title)}.</strong> {esc(item.text)}" for item in front.cannot_know)
 
 
 def front_html(report: ReportContract, front: Front) -> str:
-    """Sections 1 to 6. A blocked report keeps section 1's one sentence; a
-    month not compared shows section 1 alone of the first four (CONTRACTS 11)."""
+    """Sections 1 to 6 (a report before 2.10). A blocked report keeps section
+    1's one sentence; a month not compared shows section 1 alone of the first
+    four (CONTRACTS 11)."""
     parts = [_summary(report, front)]
     code = report.currency.code if report.currency is not None else None
     if front.state == "compared":
-        parts += [_change(front, code), _checked(front), _next_steps(front)]
-    parts += [_next_month(front), _cannot_know(front)]
+        parts += [f'<section id="change" class="card"><h2>Where the change came from</h2>{change_html(front, code)}'
+                  "</section>",
+                  f'<section id="checked" class="card"><h2>What was checked</h2>{checked_html(front)}</section>',
+                  f'<section id="next-steps" class="card"><h2>What to do next</h2>{next_steps_html(front)}</section>']
+    parts += [f'<section id="next-month" class="card"><h2>Next month</h2>{next_month_html(front)}</section>',
+              f'<section id="cannot-know" class="card"><h2>What this report cannot know</h2>'
+              f"{cannot_know_html(front)}</section>"]
     return "".join(parts)

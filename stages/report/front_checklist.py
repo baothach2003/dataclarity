@@ -66,7 +66,8 @@ def checklist(diagnosis: DiagnosisContract, views: list[HypothesisView], ctx: Co
             after = (f"These amounts are measured in different ways and overlap, so they do not add up to the change "
                      f"({amount(change, ctx.code)}).")
             if ctx.bridge is not None:
-                after += " The chart in section 2 is the one that adds up."
+                # The part by its name: the dashboard's order moves it (D3).
+                after += ' The chart "Where the change came from" is the one that adds up.'
         groups.append(ChecklistGroup(
             kind="matches" if named else "moved", title="Matches the figures" if named else MOVED,
             note=None if named else _note(diagnosis),

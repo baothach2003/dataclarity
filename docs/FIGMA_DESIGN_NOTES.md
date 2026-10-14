@@ -73,6 +73,15 @@ the currency question on the Notice component (`1:271`) with a Dropdown
 line (five labelled columns do not fit at 390 px) - a decision made alone,
 recorded in docs/REPORT_REDESIGN.md section 12, step 5.
 
+**The dashboard (Thach, 2026-10-14, item 9D), the same exception:** the KPI
+tiles, the caution lines under them and the widgets in the order report.json
+gives (docs/DASHBOARD_DESIGN.md) have NO Figma frame either. They follow the
+mocks Thach was sent (`C:\Users\Happy\dashboard-mock-*.html`) in this file's
+tokens only: tiles on the KPI card's metric type, cards as today, the bars in
+the accent and the total's grey, the parts of a whole in the accent, the grey
+and a light accent - no new hue. On a phone every widget is one column and
+every bar's label has its own line.
+
 Link format: `https://www.figma.com/design/DYhLQp7bxoa5HqfvIFNTej?node-id=<id with - instead of :>`
 (e.g. Review = `node-id=3-2`).
 

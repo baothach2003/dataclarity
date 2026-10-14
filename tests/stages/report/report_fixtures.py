@@ -69,8 +69,10 @@ def build(metrics: dict | None = None, diagnosis: dict | None = None, forecast: 
 
 def before_2_9(payload: dict[str, Any]) -> dict[str, Any]:
     """A report dump as a stage 5 before 2.9 wrote it: no front section, no
-    currency, no rows left out, no part-months (the report redesign, step 3)."""
-    payload = {key: value for key, value in payload.items() if key not in ("front", "currency", "rows_left_out")}
+    currency, no rows left out, no part-months (the report redesign, step 3) -
+    and so no dashboard (2.10)."""
+    payload = {key: value for key, value in payload.items()
+               if key not in ("front", "currency", "rows_left_out", "dashboard")}
     payload["layer_1_numbers"] = {key: value for key, value in payload["layer_1_numbers"].items()
                                   if key != "partial_months"}
     payload["layer_2_causes"] = {key: value for key, value in payload["layer_2_causes"].items()

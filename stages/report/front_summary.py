@@ -227,15 +227,39 @@ def sentence_b(movement: HeadlineMovement | None) -> tuple[str | None, bool, int
             f"{_pct(movement.typical_pct, decimals, False)}).", inside, decimals)
 
 
+def _sales_figures(metrics: MetricsContract, bridge: LeverBridge | None) -> tuple[float, float, float | None]:
+    """This month's and last month's sales and the change, as the front
+    prints them: the bridge's shown cents (Q22), or the exact change where no
+    chart is drawn (Q24) - one copy for sentence A and the dashboard's tile."""
+    core = metrics.core
+    if bridge is not None:
+        return bridge.shown_current, bridge.shown_previous, bridge.shown_change
+    return core.revenue_current, core.revenue_previous, core.revenue_change
+
+
+def sales_change(metrics: MetricsContract, bridge: LeverBridge | None, code: str | None,
+                 movement: HeadlineMovement | None) -> tuple[str, float, str | None, float | None]:
+    """The dashboard's sales tile (docs/DASHBOARD_DESIGN.md section 2): this
+    month and the change, printed exactly as sentence A prints them (Q56: one
+    change printed one way) - its percentage at sentence B's decimals."""
+    now, _, change = _sales_figures(metrics, bridge)
+    decimals = sentence_b(movement)[2]
+    previous = month_name(metrics.period.previous)
+    if change is None:
+        return amount(now, code), now, None, None
+    if prints_as_zero(change):
+        return amount(now, code), now, f"the same as in {previous}", change
+    pct = metrics.core.revenue_change_pct
+    percent = "" if pct is None else f" ({_pct(pct, decimals)})"
+    return amount(now, code), now, f"{signed(change, code)}{percent} on {previous}", change
+
+
 def sentence_a(metrics: MetricsContract, bridge: LeverBridge | None, code: str | None, decimals: int = 1) -> str:
     """This month's sales and the change: the bridge's shown cents (Q22), or
     the exact change where no chart is drawn (Q24)."""
     core, period = metrics.core, metrics.period
     current, previous = month_name(period.current), month_name(period.previous)
-    if bridge is not None:
-        now, was, change = bridge.shown_current, bridge.shown_previous, bridge.shown_change
-    else:
-        now, was, change = core.revenue_current, core.revenue_previous, core.revenue_change
+    now, was, change = _sales_figures(metrics, bridge)
     percent = "" if core.revenue_change_pct is None else f" ({_pct(core.revenue_change_pct, decimals)})"
     if change is None:
         return f"Sales in {current} were {amount(now, code)}, against {amount(was, code)} in {previous}{percent}."

@@ -2186,6 +2186,34 @@ charts and one small inline script that opens it to a note a front link
 names and resizes its charts when opened. A report before 2.9 renders as
 before.
 
+**The dashboard (2.10; Thach's D2, D3, D6, D7, 2026-10-14;
+`docs/DASHBOARD_DESIGN.md`).** Optional, version-gated: a 2.10 report
+carries `dashboard`, an earlier one none (and still renders its front as
+before). `contracts/report_dashboard.py`:
+- `state` - the front's (`compared`, `not_compared`, `blocked`).
+- `tiles` - D2's KPI tiles in their order, sales always first: `{id, label,
+  unit, now, now_value, was, change, direction, reason, notes}`. `now` is the
+  figure as printed (layer 1's own value - the contract checks it); `was`
+  last month's value as printed beside it (no difference is computed:
+  CONTRACTS 11); `change` only on sales, sentence A's own printing of the
+  shown change and its percentage; `direction` from the two printed figures
+  (equal printed = `same`), drawn in the neutral colour. A tile with no
+  figure is not shown - only sales stands with its `reason`. Customers who
+  placed an order come from the bridge's count (Q4), the return rate is a
+  ratio at three decimals, never a percentage. `not_shown` says why a tile
+  the file's fields call for is absent.
+- `caution` - the front's caution lines, drawn under the tiles (3.3a).
+- `widgets` - in the order rule's order (`order_widgets`: the widget tied to
+  the headline's named cause, then by `size` - an existing money
+  contribution - then the fixed fallback order; refused otherwise). A chart
+  widget carries its `bars` (labels and the printed values of earlier files)
+  or draws report.json's own chart (`trend`: `charts[revenue_trend]`;
+  `waterfall`: `front.waterfall`); a text widget points at the front's own
+  sentences. Blocked: summary, next month, cannot know only; not compared:
+  nothing that shows the two months' difference, no size, no last-month bar.
+report.html 2.10 draws the tiles, then the widgets in that order (each part
+of the front under its old section id), then the appendix.
+
 ## 10. Versioning and change policy
 
 - Adding an optional field: minor bump (`1.0` -> `1.1`), readers unaffected.
@@ -2239,6 +2267,13 @@ before.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-14: **the dashboard, step 3.** `report.json` 2.10, additive:
+  `dashboard` (section 9). Stage 5 reads metrics.json's new
+  `by_dimension.breakdowns` (reader 5 already listed). The front's pointers
+  by number ("the chart in section 2", "the estimate in section 5", the
+  appendix's "section 4") now name the part, which the dashboard's order
+  moves; "What this report cannot know" names the columns sales are split by
+  when a breakdown is drawn. No field renamed or removed.
 - 2026-10-14: **the dashboard, step 2 (Thach's D5).** `metrics.json` 16.3,
   additive: `by_dimension.breakdowns` (section 6) - the only reopening of the
   scope freeze for the dashboard; no existing field or definition changes

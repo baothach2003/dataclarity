@@ -158,7 +158,7 @@ def test_no_action_under_rule_2_says_why_without_contradicting_it() -> None:
     steps = _front(diagnosis=diagnosis, forecast=with_actions("kaggle", "list", [])).next_steps
 
     assert steps.sentence == ("No action is suggested: the change matches days with no sales, a matter of the data "
-                              "rather than of the shop. Next month, compare sales with the estimate in section 5.")
+                              "rather than of the shop. Next month, compare sales with the estimate under \"Next month\".")
 
 
 # --- Q37: the checks in plain words ------------------------------------------------------------------------------

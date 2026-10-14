@@ -23,6 +23,7 @@ from shared.run_registry import run_file
 from shared.wording import month_name
 from stages.report.html_causes import causes_html
 from stages.report.html_charts import chart_html, plotly_js
+from stages.report.html_dashboard import DASHBOARD_STYLE, dashboard_html
 from stages.report.html_front import front_html
 from stages.report.html_parts import (
     FORMATS,
@@ -205,12 +206,12 @@ def _actions(actions: Actions, charts: dict[str, Chart], front: Front | None) ->
     steps = front.next_steps if front is not None else None
     if steps is not None and steps.status == "list" and steps.items:
         # Stage 4's suggested actions stand in the front, never repeated here.
-        parts.append(para("The suggested actions are in section 4 (What to do next)."))
+        parts.append(para('The suggested actions are under "What to do next".'))
     else:
         # No AI writes a recommendation in v1 (Q50 (d)), whatever an older
         # report.json says; its free text is printed nowhere (Q42).
         parts.append(para("No AI writes recommendations in this version: suggested actions, when there are any, are "
-                          "written by code in section 4." if front is not None
+                          'written by code under "What to do next".' if front is not None
                           else "No AI writes recommendations in this version."))
     return "".join(parts)
 
@@ -260,9 +261,12 @@ def _render(report: ReportContract) -> str:
         header, opening, closing = f"<header><h1>Sales report</h1>{meta}</header>", "", ""
     else:
         period = numbers.period
+        # 2.10: the dashboard - the tiles, then the widgets in report.json's order (D3, D7).
+        body_front = (dashboard_html(report, report.dashboard, front, month_name(period.previous))
+                      if report.dashboard is not None else front_html(report, front))
         header = (f"<header><h1>Your sales report</h1>{meta}"
                   f"{para(f'{month_name(period.current)} compared with {month_name(period.previous)}', 'meta')}"
-                  f"</header>{front_html(report, front)}")
+                  f"</header>{body_front}")
         # Thach, Q67: one name, "Technical details", here and on the page.
         opening = ('<details id="appendix"><summary>Technical details</summary>'
                    + para("In Technical details, 'revenue' is the same figure as 'sales' above.")
@@ -288,7 +292,7 @@ def _render(report: ReportContract) -> str:
         # computes no figure (CLAUDE.md 3.2; the 6E1 review #9).
         f"{models}. Every figure is computed by code from the earlier stages' files; the AI computes none.</p>",
         "</section>", closing, f"<script>{_APPENDIX_JS}</script>" if front is not None else ""])
-    style = _STYLE + (_FRONT_STYLE if front is not None else "")
+    style = _STYLE + (_FRONT_STYLE if front is not None else "") + (DASHBOARD_STYLE if report.dashboard else "")
     return (f'<!doctype html><html lang="en"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width, initial-scale=1">'
             f"<title>DataClarity report - {esc(report.source_file)}</title><style>{style}</style>"

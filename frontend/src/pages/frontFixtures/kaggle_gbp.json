@@ -1,6 +1,6 @@
 {
  "report": {
-  "schema_version": "2.9",
+  "schema_version": "2.10",
   "generated_at": "2026-09-29T00:00:00Z",
   "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
   "source_file": "kaggle.csv",
@@ -1284,7 +1284,7 @@
       "The calendar: December's length and mix of weekdays - worth about GBP +1,274.15.",
       "Products sold in only one of the two months: sales of products sold in December but not in November (GBP +9,101.00) and the other way round (GBP -8,835.50) - together worth about GBP +265.50 (a small part)."
      ],
-     "after": "These amounts are measured in different ways and overlap, so they do not add up to the change (GBP 4,925.00). The chart in section 2 is the one that adds up."
+     "after": "These amounts are measured in different ways and overlap, so they do not add up to the change (GBP 4,925.00). The chart \"Where the change came from\" is the one that adds up."
     },
     {
      "kind": "against",
@@ -1376,6 +1376,232 @@
     "next_month": [],
     "next_steps": []
    }
+  },
+  "dashboard": {
+   "state": "compared",
+   "tiles": [
+    {
+     "id": "sales",
+     "label": "Sales",
+     "unit": "money",
+     "now": "GBP 46,292.50",
+     "now_value": 46292.5,
+     "was": null,
+     "was_value": null,
+     "change": "GBP +4,925.00 (+11.9%) on November 2024",
+     "direction": "up",
+     "reason": null,
+     "notes": []
+    },
+    {
+     "id": "orders",
+     "label": "Orders",
+     "unit": "count",
+     "now": "343",
+     "now_value": 343.0,
+     "was": "308",
+     "was_value": 308.0,
+     "change": null,
+     "direction": "up",
+     "reason": null,
+     "notes": []
+    },
+    {
+     "id": "aov",
+     "label": "Average order value",
+     "unit": "money",
+     "now": "GBP 134.96",
+     "now_value": 134.96355685131195,
+     "was": "GBP 134.31",
+     "was_value": 134.31006493506493,
+     "change": null,
+     "direction": "up",
+     "reason": null,
+     "notes": []
+    },
+    {
+     "id": "customers",
+     "label": "Customers who placed an order",
+     "unit": "count",
+     "now": "25",
+     "now_value": 25.0,
+     "was": "25",
+     "was_value": 25.0,
+     "change": null,
+     "direction": "same",
+     "reason": null,
+     "notes": []
+    }
+   ],
+   "not_shown": [],
+   "caution": [],
+   "widgets": [
+    {
+     "id": "waterfall",
+     "kind": "chart",
+     "chart": "waterfall",
+     "placed_by": "named",
+     "size": 4712.29,
+     "title": "Where the change came from",
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "trend",
+     "kind": "chart",
+     "chart": "line",
+     "placed_by": "size",
+     "size": 4925.0,
+     "title": "Sales by month (before any costs)",
+     "column": null,
+     "bars": [],
+     "caption": [
+      "January 2025 is not in the chart: the file covers only 1 to 18 January 2025. Comparing part of a month with full months would mislead, so it is left out."
+     ],
+     "notes": []
+    },
+    {
+     "id": "category",
+     "kind": "chart",
+     "chart": "bars",
+     "placed_by": "size",
+     "size": 2562.5,
+     "title": "Sales by category",
+     "column": null,
+     "bars": [
+      {
+       "label": "Category 07",
+       "now": 7599.5,
+       "was": 5037.0,
+       "now_text": "GBP 7,599.50",
+       "was_text": "GBP 5,037.00",
+       "is_blank": false
+      },
+      {
+       "label": "Category 03",
+       "now": 6717.5,
+       "was": 5970.0,
+       "now_text": "GBP 6,717.50",
+       "was_text": "GBP 5,970.00",
+       "is_blank": false
+      },
+      {
+       "label": "Category 06",
+       "now": 5884.5,
+       "was": 4915.5,
+       "now_text": "GBP 5,884.50",
+       "was_text": "GBP 4,915.50",
+       "is_blank": false
+      },
+      {
+       "label": "Category 01",
+       "now": 5721.5,
+       "was": 5343.5,
+       "now_text": "GBP 5,721.50",
+       "was_text": "GBP 5,343.50",
+       "is_blank": false
+      },
+      {
+       "label": "Category 08",
+       "now": 5674.5,
+       "was": 4856.0,
+       "now_text": "GBP 5,674.50",
+       "was_text": "GBP 4,856.00",
+       "is_blank": false
+      },
+      {
+       "label": "Category 05",
+       "now": 5333.0,
+       "was": 5550.0,
+       "now_text": "GBP 5,333.00",
+       "was_text": "GBP 5,550.00",
+       "is_blank": false
+      },
+      {
+       "label": "Category 04",
+       "now": 4990.0,
+       "was": 6014.0,
+       "now_text": "GBP 4,990.00",
+       "was_text": "GBP 6,014.00",
+       "is_blank": false
+      },
+      {
+       "label": "Category 02",
+       "now": 4372.0,
+       "was": 3681.5,
+       "now_text": "GBP 4,372.00",
+       "was_text": "GBP 3,681.50",
+       "is_blank": false
+      }
+     ],
+     "caption": [
+      "Each bar is one category's sales; lines with no category are not in this chart."
+     ],
+     "notes": []
+    },
+    {
+     "id": "summary",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "checklist",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "next_steps",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "next_month",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    },
+    {
+     "id": "cannot_know",
+     "kind": "text",
+     "chart": null,
+     "placed_by": "fallback",
+     "size": null,
+     "title": null,
+     "column": null,
+     "bars": [],
+     "caption": [],
+     "notes": []
+    }
+   ]
   }
  },
  "bridge": {

@@ -242,5 +242,5 @@ def test_report_json_carries_the_headlines_hedge() -> None:
     from contracts.report import ReportContract
     from stages.report.builder import SCHEMA_VERSION as REPORT_VERSION
 
-    assert REPORT_VERSION == "2.9"  # 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7: the headline's hedge (report.json carries the Headline model)
+    assert REPORT_VERSION == "2.10"  # 2.10 the dashboard; 2.9 the front section (step 3); 2.8 not_in_v1 and the revenue KPI's change (Q21, Q22); 2.7: the headline's hedge (report.json carries the Headline model)
     assert "hedge" in ReportContract.model_fields["layer_2_causes"].annotation.model_fields["headline"].annotation.model_fields

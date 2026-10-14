@@ -38,8 +38,10 @@ def test_the_report_is_one_self_contained_page() -> None:
 def test_the_sections_follow_the_three_layers() -> None:
     sections = [attrs["id"] for attrs in _page().named("section")]
     # 2.9: the front section first; the three layers in the appendix after it (the report redesign, step 3).
-    assert sections == ["summary", "change", "checked", "next-steps", "next-month", "cannot-know",
-                        "quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
+    # 2.10: the dashboard's tiles, then its widgets in report.json's order (this hand-built file draws no split of
+    # the change: the returns, sized, before the text parts; the months unsized among them), then the appendix.
+    assert sections == ["tiles", "returns", "summary", "sales-by-month", "checked", "next-steps", "next-month",
+                        "cannot-know", "quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
 
 
 def test_the_kpis_are_the_reports_figures_formatted() -> None:
@@ -94,7 +96,9 @@ def test_a_files_note_stands_beside_the_figures_it_names_by_its_code() -> None:
     links = [attrs["href"] for attrs in page.named("a")]
     # Beside orders, customers, AOV and the return rate (not revenue), and
     # beside the recommendations - and, since 2.9, beside the front's parts of the change and its checks (Q35).
-    assert links.count("#note-same_day_cancellations") == 7
+    # 2.10: beside the tiles of orders, order value and return rate (3) and the returns widget (1); this file
+    # draws no split of the change, so no part of it stands - and no note beside it (7 - 1 + 4).
+    assert links.count("#note-same_day_cancellations") == 10
     assert " ".join(NOTE_TEXTS["same_day_cancellations"].split()) in page.section("numbers")
 
 
@@ -133,7 +137,7 @@ def test_the_recommendations_by_their_status() -> None:
     # And no AI writes any in v1 (Q50 (d)): the appendix says so, never "switched off".
     shown = _page().section("actions")
     assert ("No AI writes recommendations in this version: suggested actions, when there are any, are written by "
-            "code in section 4." in shown)
+            "code under \"What to do next\"." in shown)
     assert "win-back email" not in shown and "Champions" not in shown and "switched off" not in shown
 
 
