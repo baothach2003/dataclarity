@@ -80,7 +80,11 @@ mocks Thach was sent (`C:\Users\Happy\dashboard-mock-*.html`) in this file's
 tokens only: tiles on the KPI card's metric type, cards as today, the bars in
 the accent and the total's grey, the parts of a whole in the accent, the grey
 and a light accent - no new hue. On a phone every widget is one column and
-every bar's label has its own line.
+every bar's label has its own line. On the Insights page a tile's figure is on
+the metric type in a tile at least 200 px wide, and on the h2 type under
+640 px, where two tiles share a row: a sales figure such as 663,315.58 broke
+inside the number on a narrower tile (the dashboard's step 5 review and its
+scoped review).
 
 Link format: `https://www.figma.com/design/DYhLQp7bxoa5HqfvIFNTej?node-id=<id with - instead of :>`
 (e.g. Review = `node-id=3-2`).

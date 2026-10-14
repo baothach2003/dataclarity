@@ -19,6 +19,9 @@ vi.mock('../api/analysis.ts', () => ({ downloadReportHtml: vi.fn() }))
 
 afterEach(() => {
   cleanup()
+  // Recharts measures tick text in a hidden span it appends to <body> and never removes: the last test's
+  // "GBP 0" tick must not be read as this test's page text.
+  document.getElementById('recharts_measurement_span')?.remove()
 })
 
 interface FrontFixture {

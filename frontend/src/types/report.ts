@@ -2,6 +2,7 @@
 // section 9), as the Insights page reads it. Stage 5 computes nothing and neither does this page: every
 // figure is shown as the file has it, a null with its reason (CONTRACTS 11).
 
+import type { Dashboard } from './reportDashboard.ts'
 import type { Front, LeverLevelView, ReportCurrency, RowsLeftOut } from './reportFront.ts'
 
 export type NoteCode =
@@ -290,4 +291,6 @@ export interface ReportContract {
   currency?: ReportCurrency | null
   rows_left_out?: RowsLeftOut[]
   front?: Front | null
+  // 2.10 (the dashboard): the tiles and the widgets in stage 5's order - the block this page draws first.
+  dashboard?: Dashboard | null
 }

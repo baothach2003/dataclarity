@@ -1,7 +1,8 @@
 // The Insights page (docs/SPECS.md section 4.4; docs/FIGMA_DESIGN_NOTES.md frame `Insights`, node 4:1489, and
 // the report redesign's step 5 - docs/REPORT_REDESIGN.md section 8, a deliberate exception to the Figma frame
-// recorded in FIGMA_DESIGN_NOTES). It opens with report.json's front section - one copy of the wording, as
-// report.html prints it - and keeps today's cards behind "Technical details", as report.html keeps its
+// recorded in FIGMA_DESIGN_NOTES). It opens with report.json's dashboard (2.10: the tiles, then the widgets in
+// stage 5's order; before 2.10 the front section) - one copy of the wording, as report.html prints it - and
+// keeps today's cards behind "Technical details", as report.html keeps its
 // appendix. It computes nothing and words no figure: every figure is the file's, a null shown with its
 // reason (CLAUDE.md 3.2; CONTRACTS 9 and 11). The change is drawn only as the bridge (Q17): the old lever
 // card, which drew a split stage 3 refuses, is gone.
@@ -9,6 +10,7 @@
 import { useState } from 'react'
 import { downloadReportHtml } from '../api/analysis.ts'
 import { CausesSection } from '../components/CausesSection.tsx'
+import { DashboardSection } from '../components/DashboardSection.tsx'
 import { ForecastCard } from '../components/ForecastCard.tsx'
 import { FrontSection } from '../components/FrontSection.tsx'
 import { KpiCard } from '../components/KpiCard.tsx'
@@ -139,7 +141,19 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
             </p>
           </div>
 
-          {front !== null && <FrontSection front={front} salesChart={revenueChart} onOpenNote={openNote} />}
+          {/* 2.10: the dashboard - the tiles, then the widgets in report.json's order (D7: report.html draws the
+              same); a report before 2.10, its front section as before. */}
+          {front !== null && report.dashboard ? (
+            <DashboardSection
+              dashboard={report.dashboard}
+              front={front}
+              salesChart={revenueChart}
+              previousMonth={monthLabel(period.previous)}
+              onOpenNote={openNote}
+            />
+          ) : (
+            front !== null && <FrontSection front={front} salesChart={revenueChart} onOpenNote={openNote} />
+          )}
 
           <details
             className="technical"

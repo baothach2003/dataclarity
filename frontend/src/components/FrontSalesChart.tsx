@@ -13,9 +13,11 @@ interface FrontSalesChartProps {
   chart: Chart | undefined
   title: string
   notes: string[]
+  // The dashboard's trend widget prints the same title as its card's heading: not printed twice.
+  showTitle?: boolean
 }
 
-export function FrontSalesChart({ chart, title, notes }: FrontSalesChartProps) {
+export function FrontSalesChart({ chart, title, notes, showTitle = true }: FrontSalesChartProps) {
   const code = useCurrencyCode()
   const rows = chart ? revenueRows(chart) : []
   if (rows.length === 0) {
@@ -23,7 +25,7 @@ export function FrontSalesChart({ chart, title, notes }: FrontSalesChartProps) {
   }
   return (
     <>
-      <h3 className="front__chart-title">{title}</h3>
+      {showTitle && <h3 className="front__chart-title">{title}</h3>}
       <div className="chart-frame" role="img" aria-label={`${title}, drawn as a line: the technical details give every month's figure`}>
         <LineChart
           responsive

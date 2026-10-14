@@ -6286,8 +6286,15 @@ suggestion, a race to a second call - all fixed with tests that fail on the
 old lines; the scoped review approved (nothing fabricates on the demo files)
 and its cheap findings were fixed ("Marketplace" no longer read as a month;
 "30.000 đ", "R$ 4,90" read as amounts). No real AI call: the smoke-test plan
-waits for Thach (C:/Users/Happy/dashboard-smoke-test-plan.txt). Next: step 5
-(Insights draws the dashboard block). No push this run: three untracked files of
+waits for Thach (C:/Users/Happy/dashboard-smoke-test-plan.txt). Step 5 DONE -
+the Insights page draws report.json's dashboard block (DashboardSection,
+DashboardBars; the front section's parts reused, its pre-2.10 output
+unchanged): mutation 15 of 15; one review - nothing fabricates (the page's
+text matched report.html's on the four fixtures and three states), the sales
+figure broke inside the number at 390 px on both Online Retail II demos
+(fixed: the metric type, the h2 type on a phone) and untested branches (11
+tests added, 11 of 11 mutants killed); its scoped review. Next: step 6 (the
+real-app check, the AI faked). No push this run: three untracked files of
 Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
 Report: `C:\Users\Happy\overnight-report.txt`.
 

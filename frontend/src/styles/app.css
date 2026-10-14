@@ -1347,3 +1347,155 @@ table.hypotheses details summary {
   gap: var(--space-5);
   margin-top: var(--space-3);
 }
+
+/* The dashboard (report.json 2.10; docs/DASHBOARD_DESIGN.md): the KPI tiles in a row that wraps, the widgets in
+   a grid of one column on a phone - report.html's layout in the design tokens only (FIGMA_DESIGN_NOTES section 3,
+   the dashboard's exception). Bars in the accent, last month's marker grey, a fall in the high severity colour. */
+.dashboard-tiles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: var(--space-3);
+}
+.tile {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-3) var(--space-4);
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.tile__label,
+.tile__change {
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+}
+.tile__value {
+  font-size: var(--type-metric-size);
+  line-height: var(--type-metric-line);
+  font-weight: var(--type-metric-weight);
+  overflow-wrap: anywhere;
+}
+/* A tile is at least 200 px wide above a phone, so a figure such as 663,315.58 on the metric type stays on one
+   line (five tiles share a row from about 1,120 px); on a phone two tiles share a row of about 130 px and the h2
+   type holds it (the step 5 review and its scoped review). */
+@media (min-width: 641px) {
+  .tiles {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .tile__value {
+    font-size: var(--type-h2-size);
+    line-height: var(--type-h2-line);
+  }
+}
+.tile__arrow {
+  font-size: var(--type-caption-size);
+}
+.dashboard-widgets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+.dashboard-widget {
+  min-width: 0;
+}
+.hbars,
+.hparts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hb-row,
+.hp-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-3);
+  padding: var(--space-1) 0;
+}
+.hb-label {
+  font-size: var(--type-label-size);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.hb-val {
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  text-align: right;
+}
+.hb-was {
+  font-weight: var(--type-body-weight);
+  color: var(--text-secondary);
+}
+.hb-track,
+.hp-track {
+  grid-column: 1 / -1;
+  position: relative;
+  display: block;
+  height: 12px;
+}
+.hp-track {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+}
+.hb-bar {
+  position: absolute;
+  top: 0;
+  height: 9px;
+  border-radius: var(--radius-badge);
+}
+.hb-marker {
+  top: 10px;
+  height: 3px;
+}
+.hb-zero {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--text-secondary);
+}
+.hb-bar--now,
+.hb-bar--up {
+  background: var(--accent);
+}
+.hb-bar--down {
+  background: var(--severity-high);
+}
+.hb-bar--was,
+.hb-bar--flat {
+  background: var(--severity-low);
+}
+.hp-part {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-badge);
+}
+.hp-part--0 {
+  background: var(--accent);
+}
+.hp-part--1 {
+  background: var(--severity-low);
+}
+.hp-part--2 {
+  background: var(--accent);
+  opacity: 0.45;
+}
+.hp-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-badge);
+  margin-right: var(--space-2);
+}
