@@ -5417,6 +5417,28 @@ dataclarity/
         on Online Retail II when one is asked for (none otherwise).
       - a breakdown value is lower-cased, not case-folded ("Straße" and
         "STRASSE" two values), as the category block.
+      From the dashboard's steps 3-6 (2026-10-14/15; none fabricates on a
+      demo file):
+      - the products widget is not shown (step 3's stop rule: it named a
+        suggested charge, DOTCOM POSTAGE, unmarked); the appendix keeps the
+        product tables.
+      - step 3's scoped review, not fixed: a blocked report's split line
+        ("This version does not split sales that way" while a split was
+        chosen); the customers line when no split is drawn; the link colour
+        rule's scope; contract checks still open (bars and sizes against their
+        sources, the customers and sales tiles against the bridge and sentence
+        A, widget notes).
+      - step 4's known misses (doubtful = not offered): "POS 1", "VIP 1",
+        sizes "2XL", "3D", codes "W1"/"H1"; the number and date rules read the
+        profile's 10 commonest values only.
+      - step 5: bar rows' label and figure are adjacent spans (a screen reader
+        may run them together - unverified, the same in report.html); the
+        text-widget titles and arrow words are a second copy of stage 5's
+        (they agree today); "GBP" may sit on its own line above a tile figure.
+      - step 6: the waterfall chart's x-axis labels overlap at 1440 px (the
+        chart is unchanged since the report redesign); Review did not ask
+        about "CRUK" on the classed demo in the app run, so that one line
+        answer was not given.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -6293,8 +6315,15 @@ unchanged): mutation 15 of 15; one review - nothing fabricates (the page's
 text matched report.html's on the four fixtures and three states), the sales
 figure broke inside the number at 390 px on both Online Retail II demos
 (fixed: the metric type, the h2 type on a phone) and untested branches (11
-tests added, 11 of 11 mutants killed); its scoped review. Next: step 6 (the
-real-app check, the AI faked). No push this run: three untracked files of
+tests added, 11 of 11 mutants killed); its scoped review (the figure still
+broke at 641-1100 px: a tile at least 200 px wide above a phone; re-measured
+at eight widths). Step 6 DONE - the real app (backend + Vite, the AI a local
+stand-in: no real call) on Kaggle, both Online Retail II demos, a
+WooCommerce-shaped file and the minimal file, each uploaded, reviewed,
+cleaned and analysed: no page overflow at 390 or 1440 px, no console error
+or warning; backend peaks 897 / 860 MB on the demos; screenshots sent to
+Thach (a private page). All six steps done; the smoke test (real AI calls)
+and any deploy step wait for Thach. No push this run: three untracked files of
 Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
 Report: `C:\Users\Happy\overnight-report.txt`.
 
