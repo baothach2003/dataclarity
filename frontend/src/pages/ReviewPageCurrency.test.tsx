@@ -15,6 +15,7 @@ vi.mock('../api/runs.ts', () => ({
   executePlan: vi.fn(),
   proposePlan: vi.fn(),
   lineSummary: vi.fn(() => new Promise(() => undefined)),
+  breakdownQuestion: vi.fn(() => new Promise(() => undefined)),
   currencyQuestion: vi.fn(),
 }))
 

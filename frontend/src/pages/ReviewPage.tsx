@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { executePlan, previewPlan, proposePlan } from '../api/runs.ts'
 import { ActionBar } from '../components/ActionBar.tsx'
 import { ColumnsTable } from '../components/ColumnsTable.tsx'
+import { BreakdownNotice } from '../components/BreakdownNotice.tsx'
 import { CurrencyNotice } from '../components/CurrencyNotice.tsx'
 import { DateOrderNotice } from '../components/DateOrderNotice.tsx'
 import { NumberFormatNotice } from '../components/NumberFormatNotice.tsx'
@@ -24,6 +25,7 @@ import { describeError } from '../domain/errorCopy.ts'
 import { mappingConflict, missingRequiredFields } from '../domain/planRules.ts'
 import { buildManualPlan, reconcileAction, withMappingDisabled } from '../domain/reviewPlan.ts'
 import { defaultParams } from '../domain/transformParams.ts'
+import { useBreakdowns, withBreakdowns } from './useBreakdowns.ts'
 import { useCurrencyQuestion, withCurrency } from './useCurrencyQuestion.ts'
 import { useLineSummary } from './useLineSummary.ts'
 import { useOrderAnswers } from './useOrderAnswers.ts'
@@ -107,6 +109,8 @@ export function ReviewPage({
   const lineSummary = useLineSummary(baseUrl, runId, planToPreview, !isNotInventory)
   // The file's currency, always asked for a file the analysis reads (the report redesign, step 5).
   const currency = useCurrencyQuestion(baseUrl, runId, planToPreview, !isNotInventory)
+  // The columns to split sales by on the dashboard (D4): the AI's suggestion, the user's to change.
+  const breakdowns = useBreakdowns(baseUrl, runId, planToPreview, !isNotInventory)
 
   // Preview refreshes 400ms after the last edit (SPECS 4.2 C), cancelling a
   // request superseded by a newer edit before it answers.
@@ -214,7 +218,12 @@ export function ReviewPage({
     setExecuteError(null)
     try {
       const answered = isNotInventory ? null : currency.answer
-      const result = await executePlan(baseUrl, runId, withCurrency(orderAnswers.confirmed(planToSubmit), answered))
+      const split = isNotInventory ? [] : breakdowns.selected
+      const result = await executePlan(
+        baseUrl,
+        runId,
+        withBreakdowns(withCurrency(orderAnswers.confirmed(planToSubmit), answered), split),
+      )
       onCleaned({ report: result.report, notices: result.notices })
     } catch (error) {
       setExecuteError(error)
@@ -339,6 +348,7 @@ export function ReviewPage({
             />
             <LineSummaryNotice state={lineSummary} />
             <CurrencyNotice state={currency} />
+            <BreakdownNotice state={breakdowns} />
             <DateOrderNotice
               plan={plan}
               profile={profile}

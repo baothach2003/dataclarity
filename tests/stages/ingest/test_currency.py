@@ -465,7 +465,7 @@ def test_a_hint_and_unreadable_cells_never_stand_beside_a_block() -> None:
 def test_the_versions() -> None:
     from stages.ingest import ai_plan, ai_schema, cleaning, profiling
 
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.3", "4.3", "4.3")
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.4", "4.4", "4.4")
     assert profiling.SCHEMA_VERSION == "1.2"  # the profile carries no currency (Q26: read at execute)
 
 

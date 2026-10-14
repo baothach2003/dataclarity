@@ -166,6 +166,11 @@ class CleaningPlanContract(ContractFile):
     # 2.1 (2E-e2): optional, the user's own answers; the AI's proposal never
     # carries one (stage 1 builds it field by field).
     confirmations: OrderConfirmations = Field(default_factory=OrderConfirmations)
+    # 4.4 (the dashboard; Thach's D4): the columns the user kept in Review to
+    # split sales by, as written in the file - not a cleaning decision (the
+    # plan's source ignores it), checked again at execute. The AI's proposal
+    # never carries one; not written while empty.
+    breakdowns: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
 
     @field_validator("confirmations", mode="before")
     @classmethod

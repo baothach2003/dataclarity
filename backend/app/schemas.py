@@ -13,6 +13,7 @@ from contracts import (
     ReportContract,
     SchemaInferenceContract,
 )
+from contracts.breakdowns import BreakdownQuestion
 from contracts.currency import CurrencyQuestion
 from contracts.lines import LineSummary, ReservedRename
 from stages.ingest.preview import PreviewResult
@@ -59,6 +60,15 @@ class CurrencyResponse(BaseModel):
 
     run_id: str
     question: CurrencyQuestion
+
+
+class BreakdownResponse(BaseModel):
+    """Review's sales breakdowns (the dashboard, D4): the columns that can
+    split sales for the plan as it stands, the AI's suggestion among them, and
+    where it came from - worded by stage 1."""
+
+    run_id: str
+    question: BreakdownQuestion
 
 
 class LineSummaryResponse(BaseModel):

@@ -17,6 +17,7 @@ from app.dependencies import (
 from app.schemas import (
     AnalyzeResponse,
     AnalyzeSchemaResponse,
+    BreakdownResponse,
     CurrencyResponse,
     DiagnoseResponse,
     ExecuteResponse,
@@ -26,7 +27,7 @@ from app.schemas import (
     PreviewResponse,
     ReportResponse,
 )
-from app.services import analysis, diagnosis, downloads, metrics, plan_execution, prediction, reporting
+from app.services import analysis, breakdowns, diagnosis, downloads, metrics, plan_execution, prediction, reporting
 from app.services.analysis import AiClientFactory
 from app.services.run_memory import FrameCache, RetryBudgets, RunWork
 from app.services.runs import create_run_from_upload
@@ -147,6 +148,18 @@ def ask_currency(
     work: WorkDep,
 ) -> CurrencyResponse:
     return plan_execution.ask_currency(session, run_id, body, settings=settings, cache=cache, work=work)
+
+
+@router.post("/{run_id}/breakdowns")
+def ask_breakdowns(
+    run_id: str,
+    body: PlanBody,
+    settings: SettingsDep,
+    session: SessionDep,
+    make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
+    work: WorkDep,
+) -> BreakdownResponse:
+    return breakdowns.ask_breakdowns(session, run_id, body, settings=settings, make_client=make_client, work=work)
 
 
 @router.post("/{run_id}/line-summary")

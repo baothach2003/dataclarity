@@ -11,6 +11,7 @@ import type {
   ProfileContract,
   RunCreated,
 } from '../types/contracts.ts'
+import type { BreakdownResponse } from '../types/breakdowns.ts'
 import type { CurrencyResponse } from '../types/currency.ts'
 import type { LineSummaryResponse } from '../types/lineSummary.ts'
 import { errorFromBody, throwApiError, UnreachableError } from './errors.ts'
@@ -122,6 +123,17 @@ export function currencyQuestion(
 /** GET /api/runs/{id}/download/cleaned.csv, as a Blob the caller turns into a
  * download (there is no `<a href>` target: the request needs no body, but the
  * response is binary and errors still come back as the JSON envelope). */
+// Review's sales breakdowns (the dashboard, D4): the columns that can split sales for the plan as it stands,
+// and the AI's suggestion among them - asked of the AI once per run, by the server.
+export function breakdownQuestion(
+  baseUrl: string,
+  runId: string,
+  plan: CleaningPlan,
+  signal?: AbortSignal,
+): Promise<BreakdownResponse> {
+  return postJson<BreakdownResponse>(baseUrl, `/api/runs/${runId}/breakdowns`, plan, signal)
+}
+
 export async function downloadCleanedCsv(baseUrl: string, runId: string): Promise<Blob> {
   const response = await fetch(`${trimSlash(baseUrl)}/api/runs/${runId}/download/cleaned.csv`)
   if (!response.ok) {

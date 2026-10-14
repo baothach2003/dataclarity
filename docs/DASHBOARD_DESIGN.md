@@ -208,16 +208,48 @@ eligible, Thach's detector principle):
 3. its header is not empty and is not pandas' placeholder ("Unnamed: 3");
 4. `unique_count` between 2 and 12 (D4's "2 to about 12");
 5. `null_pct` at most 10% ("few blanks");
-6. not numbers: profile's `dtype` is not numeric and its top values do not
-   all read as numbers (an amount, a store number, a code - doubtful);
-7. not dates: no `date_order` measure and the top values do not all read as a
-   date (`shared.dates`);
-8. its schema type is not `identifier` or `datetime` (the schema answer the
-   user may have edited, `column_actions[].semantic_type`).
+6. not numbers: profile's `dtype` is not numeric, it has no `number_format`
+   measure, and NO top value reads as a number however it is dressed - a
+   sign, a currency sign or code, brackets, separators, a percent or a short
+   unit ("$4.50", "4,50 EUR", "(1.00)", "10%", "1kg"): an amount, a store
+   number, a code - doubtful;
+7. not dates: no `date_order` measure, no top value a date by
+   `shared.dates.as_dates`, and no top value a period written as text (a
+   quarter, a half, a week, a month's name) - two compared months split by a
+   period are no split;
+8. its schema type is `categorical_nominal`, `categorical_ordinal`, `boolean`
+   or `text` (the schema answer the user may have edited,
+   `column_actions[].semantic_type`) - never an identifier, a date or a number.
+
+**As built (the step 4 review):** rules 6 and 7 were first "ALL values read as
+a number / a date"; the review found Square's "$0.00" amounts, "10%" and
+"0, 1, 2, none" offered under a manual plan (every column typed "text"), so
+one such value now suffices; its scoped review added "30.000 đ", "R$ 4,90",
+"US$4.90", "Rs. 49" and a Unicode minus (any digit beside a currency sign
+reads as a number) and narrowed the period test to whole month names (it had
+refused "Marketplace", "Declined", "Married"). Weekday names stay eligible (a
+weekday split is not a period). Known misses, by "doubtful = not offered":
+"POS 1", "VIP 1" (a capital code before a number reads as a currency),
+sizes "2XL", "3D", and "W1"/"H1" codes (read as weeks and halves); the
+number and date rules read the profile's 10 commonest values, so an 11th or
+12th value is not checked. Each eligible column's values are cut as AI_PIPELINE section 1
+cuts them (100 characters), and the AI sees the first 12 eligible columns in
+the file's order: the input is at most 12 x 10 values x 100 characters.
 
 **Decision made alone (D-3):** 10% for "few blanks", and "no value reading as
 a number" (store numbers 1-5 are excluded; a false find would chart an
 amount as a category - the costly error).
+
+**The ask (as built, the step 4 review):** the call is counted per run but
+never exclusive with execute or the plan's "try again" - Confirm is never
+held for it. One ask per run at a time: a second ask (another tab, a column
+retyped) waits for the first's answer and its stored file, so the AI is
+asked at most once per run. Nothing is stored while no column is eligible, so
+an edit that makes one eligible still asks. A stored file this version cannot
+read is no suggestion, never a second call. While the question loads,
+Review says that confirming now splits sales by no column. The AI's answer
+must be exactly `{"breakdowns": [...]}`: any other key makes it no answer.
+Generic cleaning refuses a plan that still names breakdowns.
 
 ### 5.2 Where the call happens - (2) a separate call (decision made alone, D-4)
 

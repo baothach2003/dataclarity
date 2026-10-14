@@ -23,6 +23,7 @@ vi.mock('../api/runs.ts', () => ({
   // other parts of it, so the answer never comes.
   lineSummary: vi.fn(() => new Promise(() => undefined)),
   // Review's currency question (step 5): pending, so the page reads as before.
+  breakdownQuestion: vi.fn(() => new Promise(() => undefined)),
   currencyQuestion: vi.fn(() => new Promise(() => undefined)),
 }))
 

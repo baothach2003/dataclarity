@@ -16,6 +16,7 @@ runs/<run_id>/
 ├── schema_inference.json   # stage 1 output B: AI semantic types + mapping
 ├── plan_proposed.json      # stage 1 output C: AI cleaning plan
 ├── plan_final.json         # stage 1 output D: the plan the USER approved
+├── breakdown_suggestion.json  # stage 1: the AI's choice of columns to split sales by (the dashboard; once per run)
 ├── cleaned.csv             # stage 1 output E: clean data
 ├── cleaning_report.json    # stage 1 output F: what actually changed
 ├── metrics.json            # stage 2 output
@@ -443,9 +444,8 @@ Rules for the values (no field changed):
   `null`. `null` for generic cleaning, and absent from an earlier report.
   Stage 5 reads it (step 3: the code on every amount, Q8); stages 2, 3 and 4
   do not (amounts are amounts).
-- `breakdowns` (the dashboard, D4; the field read since stage 2's 16.3,
-  written by stage 1 from the dashboard's step 4, which moves stage 1's
-  contracts to 4.4): the columns the user kept in Review to split sales by,
+- `breakdowns` (`4.4`, the dashboard, D4; read by stage 2 since its 16.3):
+  the columns the user kept in Review to split sales by,
   as named in cleaned.csv (a reserved rename followed), at most 2, each once.
   Not written while empty (read as `[]`), so a report without one is exactly
   as before. Stage 2 reads it (section 6's
@@ -2267,6 +2267,15 @@ of the front under its old section id), then the appendix.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-14: **the dashboard, step 4 (Thach's D4).** The stage 1 contracts
+  `4.4` (schema_inference.json kept in step), additive: `plan_final.json`
+  `breakdowns` (the user's answer in Review) and `cleaning_report.json`
+  `breakdowns` (the names in cleaned.csv), both not written while empty; a
+  plan naming a column that cannot split sales is refused at execute
+  (INVALID_PLAN, the column and why). NEW stage 1 file
+  `breakdown_suggestion.json` (`contracts/breakdowns.py`, its own `1.0`): the
+  eligible columns, the AI's choice among them and its status - written once
+  per run, read by no later stage. No existing field changed.
 - 2026-10-14: **the dashboard, step 3.** `report.json` 2.10, additive:
   `dashboard` (section 9). Stage 5 reads metrics.json's new
   `by_dimension.breakdowns` (reader 5 already listed). The front's pointers

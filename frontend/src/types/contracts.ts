@@ -293,6 +293,8 @@ export interface CleaningPlan {
   column_actions: ColumnAction[]
   // 2.1 (2E-e2); absent from a 2.0 plan, which reads as nothing confirmed.
   confirmations?: OrderConfirmations
+  // 4.4 (the dashboard, D4): the columns the user kept to split sales by; absent when none.
+  breakdowns?: string[]
 }
 
 // --- cleaning_report.json -----------------------------------------------------

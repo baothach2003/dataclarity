@@ -31,9 +31,12 @@ Data schemas between stages: `docs/CONTRACTS.md`.
 | 2 | ingest | cleaning plan | `prompts/cleaning_plan.md` | `claude-sonnet-5` | profile + schema inference | `plan_proposed.json` |
 | 3 | diagnose | narration | `prompts/root_cause.md` | `claude-sonnet-5` | the engine's own steps 1-7 output, with the notes and the suggested classes (2E-t2) | `diagnosis.ai_findings` |
 | 4 | predict | strategy - **removed in v1** (section 8): the suggested actions are code-written | - | - | - | - |
+| 5 | ingest | sales breakdowns (the dashboard, Thach's D4): choose up to 2 columns from a list code builds - names only, no text, no number; one attempt, NO retry; any failure = no suggestion | `prompts/breakdowns.md` | `claude-sonnet-5` | the eligible columns' headers and profile top values (at most 12 x 10) | `breakdown_suggestion.json` (docs/DASHBOARD_DESIGN.md section 5) |
 
+Step 5 asks once per run and takes no retry, so a run's calls stay within
+four (1, 2 and 5; stage 3's narration and stage 4's strategy are not built).
 Shared retry budget: 1 per run - every AI call of the run shares it (stage
-1's, stage 3's narration once built): the backend keeps it when
+1's, stage 3's narration once built), step 5 excepted: the backend keeps it when
 the plan runs (4C); a process restart gives a run a fresh one. Max tokens 3000 per call. JSON only; the
 client strips markdown fences defensively. No sampling parameters:
 `claude-sonnet-5` rejects `temperature` with a 400 (1C, 2026-09-19; this line

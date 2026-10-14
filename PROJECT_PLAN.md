@@ -6277,7 +6277,17 @@ mutation 31 of 31, one review (a fabrication on the Kaggle demo, six more -
 all fixed) and its scoped review, which found the fixed products widget
 naming DOTCOM POSTAGE (a suggested charge) as Online Retail II's top product
 without its mark: under the stop rule the products widget is NOT shown (a
-test proves it absent). Next: step 4 (the AI's column choice, faked). No push this run: three untracked files of
+test proves it absent). Step 4 DONE - the AI's column choice, faked (stage 1
+4.4; breakdown_suggestion.json; POST /breakdowns; Review's "Split sales by"):
+mutation 24 of 26 (2 equivalent); its doubt review found the AI's input
+unbounded, Confirm refused (409) while the call ran, amounts written "$0.00",
+"10%", "4,50 EUR" offered as categories under a manual plan, a frozen
+suggestion, a race to a second call - all fixed with tests that fail on the
+old lines; the scoped review approved (nothing fabricates on the demo files)
+and its cheap findings were fixed ("Marketplace" no longer read as a month;
+"30.000 đ", "R$ 4,90" read as amounts). No real AI call: the smoke-test plan
+waits for Thach (C:/Users/Happy/dashboard-smoke-test-plan.txt). Next: step 5
+(Insights draws the dashboard block). No push this run: three untracked files of
 Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
 Report: `C:\Users\Happy\overnight-report.txt`.
 

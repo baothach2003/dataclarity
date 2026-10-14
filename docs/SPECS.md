@@ -73,6 +73,7 @@ How the steps move through it (stage 1 in 1G; stages 2-5 in 2D, 3G-lite, 4C and 
 | `POST /preview` | `profiled`, `planned` | no change |
 | `POST /line-summary` | `profiled`, `planned` | no change |
 | `POST /currency` | `profiled`, `planned` | no change |
+| `POST /breakdowns` | `profiled`, `planned` | no change (writes breakdown_suggestion.json once per run) |
 | `POST /execute` | `profiled`, `planned` | `cleaning` while it runs, then `cleaned` |
 | `POST /analyze` | `cleaned`, `analyzed` | `analyzed` |
 | `POST /diagnose` | `analyzed` | stays `analyzed` (3G-lite: stages 2-4 all live in it; which of their files exist says how far the run went - a stage run again removes the later stages' outputs) |
@@ -350,6 +351,12 @@ again. This is why the product can claim AI assistance without AI opacity.
   column deltas (sample execution, max 500 rows)
 - `POST /api/runs/{id}/line-summary` (body: final plan, answers included) ->
   Review's whole-file view of the line taxonomy (2E-t3): nothing written
+- `POST /api/runs/{id}/breakdowns` (body: the plan as edited) -> Review's
+  sales breakdowns (the dashboard, Thach's D4): the columns that can split
+  sales for that plan and the AI's choice among them, asked once per run with
+  no retry (docs/DASHBOARD_DESIGN.md section 5); writes
+  `breakdown_suggestion.json` the first time, nothing else. Answer `{run_id,
+  question: {eligible: [{column, values}], suggested, status, message}}`
 - `POST /api/runs/{id}/currency` (body: the plan as edited) -> Review's
   currency question (the report redesign's step 5, design 6.2 and 6.3):
   nothing written
