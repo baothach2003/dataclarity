@@ -5407,6 +5407,16 @@ dataclarity/
         (Thach, 2026-10-06, Q55): a near-zero change printed with more
         decimals than checked, no precision up to 4 agreeing, a typical
         printed "0.0" - none on a demo file or a common shape.
+      From the dashboard's step 2 (2026-10-14, its review and scoped review;
+      none fabricates, none on a demo file):
+      - a value that only looks like the empty cells' "(blank)" - wrapped in
+        direction isolates, full-width "（blank）", "( blank )" - is drawn as
+        its own member beside the real "(blank)" (the exact spelling, any
+        case, withholds the breakdown).
+      - a breakdown re-reads cleaned.csv's lines (`parse_transactions`): +4.6 s
+        on Online Retail II when one is asked for (none otherwise).
+      - a breakdown value is lower-cased, not case-folded ("Straße" and
+        "STRASSE" two values), as the category block.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -6256,8 +6266,12 @@ currency files, the test plan); three mocks outside the repo
 Findings: a date+amount-only file cannot be analysed in v1 (required fields;
 Q2); Online Retail II's Country has 38 values, so the demo gets no breakdown
 (Q3); the caution lines must stand under the tiles (S10). Decisions made
-alone D-1..D-12 and Q1-Q5 in the design's section 9. Next: step 2 (stage 2's
-breakdown figures, full process). No push this run: three untracked files of
+alone D-1..D-12 and Q1-Q5 in the design's section 9. Step 2 DONE - stage 2's
+breakdown figures (metrics.json 16.3 `by_dimension.breakdowns`), full process:
+method first, tests first, mutation, one review (two crashes reachable from
+step 4, fixed) and its scoped review (one fix); the three real runs: every
+existing field identical (the design's section 7, as built). Next: step 3
+(stage 5's dashboard block and report.html). No push this run: three untracked files of
 Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
 Report: `C:\Users\Happy\overnight-report.txt`.
 

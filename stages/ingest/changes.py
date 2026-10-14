@@ -12,14 +12,13 @@ from typing import Any
 
 import pandas as pd
 
-from contracts.cleaning import ChangeLogEntry, TransformAction
+from contracts.cleaning import FLAG_PREFIX, ChangeLogEntry, TransformAction
 
 Params = Mapping[str, Any]
 Result = tuple[pd.DataFrame, ChangeLogEntry]
 
-# Flag columns carry a prefix so `cleaning.py` and the frontend can tell them
-# from the file's own columns, whatever the file calls its columns.
-FLAG_PREFIX = "__flag_"
+# Flag columns carry a prefix (FLAG_PREFIX, contracts/cleaning.py) so `cleaning.py` and the frontend can
+# tell them from the file's own columns, whatever the file calls its columns.
 
 
 def flag_column_name(kind: str, column: str | None = None) -> str:

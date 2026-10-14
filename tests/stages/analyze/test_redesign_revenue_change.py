@@ -61,8 +61,8 @@ def test_an_incomplete_previous_month_has_no_change_and_says_why() -> None:
     assert metrics.core.revenue_change_reason == metrics.period.previous_incomplete_reason
 
 
-def test_the_version_is_16_2() -> None:
-    assert SCHEMA_VERSION == "16.2"  # 16.2: core.revenue_change (the report redesign, step 1); 16.1 in 2E-u6
+def test_the_version_is_16_3() -> None:
+    assert SCHEMA_VERSION == "16.3"  # 16.3: the dashboard's breakdowns; 16.2: core.revenue_change (the report redesign, step 1); 16.1 in 2E-u6
 
 
 def _dump(**core: object) -> dict:

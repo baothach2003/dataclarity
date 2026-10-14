@@ -372,16 +372,73 @@ class DimensionChange(ContractModel):
     contribution_pct: float | None
 
 
+# The dashboard's breakdowns (16.3; Thach's D4/D5, 2026-10-14): a split is
+# drawn for this many values at most - one copy for stage 1's eligibility and
+# stage 2's figures.
+MAX_BREAKDOWN_VALUES = 12
+MAX_BREAKDOWNS = 2
+# The reserved member holding a column's blank cells (stage 3's visible-bucket
+# rule): the members are then the whole of each month.
+BLANK_LABEL = "(blank)"
+
+
+class BreakdownMember(ContractModel):
+    name: str = Field(min_length=1)
+    is_blank: bool
+    revenue_current: float
+    revenue_previous: float
+    # Exactly revenue_current - revenue_previous; null with the breakdown's
+    # change_reason when the previous month is incomplete.
+    change: float | None
+
+
+class Breakdown(ContractModel):
+    """Sales by one column's values for the two compared months (16.3;
+    docs/CONTRACTS.md section 6)."""
+
+    column: str
+    members: list[BreakdownMember]
+    change_reason: str | None
+    # Set exactly when nothing is drawn: why (the column missing, no line in
+    # the two months, fewer than 2 or more than MAX_BREAKDOWN_VALUES values).
+    withheld_reason: str | None
+
+    @model_validator(mode="after")
+    def _a_split_or_why_not(self) -> Self:
+        if (self.withheld_reason is None) != bool(self.members):
+            raise ValueError(f"{self.column!r}: a breakdown has members, or is withheld with its reason - never both")
+        _paired_list([m.change is None for m in self.members], self.change_reason, "change")
+        for member in self.members:
+            if member.change is not None and member.change != member.revenue_current - member.revenue_previous:
+                raise ValueError(f"{self.column!r}/{member.name!r}: change is not revenue_current - revenue_previous")
+            if member.is_blank != (member.name == BLANK_LABEL):
+                raise ValueError(f"{self.column!r}: the blank member, and only it, is named {BLANK_LABEL!r}")
+        if sum(1 for m in self.members if m.is_blank) > 1:
+            raise ValueError(f"{self.column!r}: one blank member at most")
+        names = [m.name for m in self.members]
+        if len(names) != len(set(names)):
+            raise ValueError(f"{self.column!r}: each value is listed once")
+        if sum(1 for m in self.members if not m.is_blank) > MAX_BREAKDOWN_VALUES:
+            raise ValueError(f"{self.column!r}: a split is drawn for {MAX_BREAKDOWN_VALUES} values at most")
+        return self
+
+
 class DimensionBreakdown(ContractModel):
     country: list[DimensionChange]
     category: list[DimensionChange]
     contribution_reason: str | None
+    # 16.3 (the dashboard, step 2): the user's columns' splits; [] when none
+    # and in an earlier file.
+    breakdowns: list[Breakdown] = Field(default_factory=list, max_length=MAX_BREAKDOWNS)
 
     @model_validator(mode="after")
     def _reason_when_null(self) -> Self:
         _paired_list([member.contribution_pct is None
                       for member in self.country + self.category],
                      self.contribution_reason, "contribution_pct")
+        columns = [b.column for b in self.breakdowns]
+        if len(columns) != len(set(columns)):
+            raise ValueError("each breakdown column is listed once")
         return self
 
 
@@ -496,6 +553,14 @@ class MetricsContract(ContractFile):
         return self
 
     @model_validator(mode="after")
+    def _breakdowns_from_16_3(self) -> Self:
+        """16.3 (the dashboard, step 2): a breakdown in an earlier file is one
+        no stage 2 of that version wrote."""
+        if self.by_dimension.breakdowns and minor_version(self.schema_version) < (16, 3):
+            raise ValueError("by_dimension.breakdowns exists from metrics.json 16.3")
+        return self
+
+    @model_validator(mode="after")
     def _no_comparison_against_an_incomplete_month(self) -> Self:
         """Every field whose only purpose is to compare the two months is
         null when the previous month is incomplete (2E doubt-review F8: the
@@ -511,6 +576,7 @@ class MetricsContract(ContractFile):
                              "a reason")
         compared = [self.core.revenue_change_pct, self.core.revenue_change, self.products.biggest_decliners]
         compared += [m.contribution_pct for m in self.by_dimension.country + self.by_dimension.category]
+        compared += [m.change for b in self.by_dimension.breakdowns for m in b.members]
         compared += [s.customers_previous for s in self.customers.segments]
         if any(value is not None for value in compared):
             raise ValueError("the previous month is incomplete, so every comparison with it "

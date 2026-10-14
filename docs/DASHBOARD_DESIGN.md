@@ -413,6 +413,30 @@ scenarios; the three real runs re-run with no breakdown: every existing
 field identical (step 2's regression); consumer-contract rows (readers 5,
 FE).
 
+**As built (step 2, 2026-10-14).** `stages/analyze/metrics_breakdowns.py`;
+metrics.json 16.3 (CONTRACTS 6, 10, 11); `cleaning_report.json` `breakdowns`
+read by stage 2 (written by stage 1 from step 4; not written while empty, so
+stage 1's file is unchanged until then). Method:
+`C:\Users\Happy\dashboard-step2-method.txt`. Tests first (all red on the old
+code); hand mutation 32 of 34 killed (6 of them after tests were added), 1
+equivalent (the empty-list early return), 1 redundant check removed. The review (one cycle, fresh context)
+found two crashes reachable once step 4 writes the field - a value written
+"(blank)" (an Excel pivot's label) and a column listed twice - and two
+risks: a stage 1 column (`line_class`, `__flag_*`) split as the user's, and
+float residue in a change. All fixed, tests first, mutated (5 of 6 killed,
+the survivor an equivalent `.strip()`, removed); its scoped review found the empty field written into
+every cleaning report under 4.3 - now not written while empty. Further
+look-alike spellings of "(blank)" and the +4.6 s re-read on Online Retail II
+are recorded in 8D. Regression: Thach's Kaggle run and both Online Retail II
+demo runs, stages 2-5 on HEAD and on step 2: diagnosis, forecast, report.json
+and report.html identical; metrics.json differs only by its version and the
+empty list.
+
+Decisions made alone in step 2: a breakdown with fewer than 2 non-blank
+values is withheld (it splits nothing); a value written "(blank)" withholds
+the whole breakdown (rather than renaming either bucket); a column stage 1
+added is never split.
+
 ## 8. The dashboard block (D7) and the test plan
 
 report.json 2.10, additive: `dashboard`:

@@ -443,6 +443,13 @@ Rules for the values (no field changed):
   `null`. `null` for generic cleaning, and absent from an earlier report.
   Stage 5 reads it (step 3: the code on every amount, Q8); stages 2, 3 and 4
   do not (amounts are amounts).
+- `breakdowns` (the dashboard, D4; the field read since stage 2's 16.3,
+  written by stage 1 from the dashboard's step 4, which moves stage 1's
+  contracts to 4.4): the columns the user kept in Review to split sales by,
+  as named in cleaned.csv (a reserved rename followed), at most 2, each once.
+  Not written while empty (read as `[]`), so a report without one is exactly
+  as before. Stage 2 reads it (section 6's
+  `by_dimension.breakdowns`).
 - `date_order` (`3.1`, 2E-j) is the order the transaction_date column's
   day-month-year cells were read in: the user's answer, else what the RAW
   file proved (decided before any action runs, so a plan dropping the rows
@@ -1038,6 +1045,56 @@ as a visible `(uncategorised)` member, because that block answers "where did
 the change happen" and has to account for the whole change. The divergence is
 deliberate, the two blocks have different jobs, and **neither should be
 changed to match the other** - see the note in section 7.
+
+**`by_dimension.breakdowns`** (16.3, the dashboard - Thach's D5, 2026-10-14;
+`docs/DASHBOARD_DESIGN.md` section 7): "sales by <column>" for the two
+compared months, one entry per column the user kept in Review
+(`cleaning_report.json` `breakdowns`, at most 2, in that order; `[]` when
+none, and in a file before 16.3).
+
+```json
+"breakdowns": [
+  {"column": "Location",
+   "members": [
+     {"name": "In-store", "is_blank": false, "revenue_current": 25469.5,
+      "revenue_previous": 17704.0, "change": 7765.5},
+     {"name": "Online", "is_blank": false, "revenue_current": 20823.0,
+      "revenue_previous": 23663.5, "change": -2840.5}],
+   "change_reason": null, "withheld_reason": null}
+]
+```
+
+- The lines are the ones counted in revenue in each month (the masks of
+  `core.revenue_*` and the category block); the money their net amounts (a
+  return line's negative amount counts in the value on its own row, so a
+  member can be negative).
+- A value is read as the category block reads one (`shared.text.
+  category_key`: lower-cased, not case-folded - "STRASSE" and "Strasse" are
+  one value, "Straße" another, as in the category block), named by its first
+  spelling. **Unlike the category block, a
+  blank cell is a member** - `"(blank)"`, `is_blank` true, listed last - so the
+  members are the whole of each month (their sum is `core.revenue_*`, up to
+  float order): the split stands beside the sales tile on the dashboard.
+- A value in one month only has 0.0 in the other. `change` = `revenue_current
+  - revenue_previous`, exactly; null for every member with `change_reason` =
+  the period's reason when the previous month is incomplete (the previous
+  totals are kept, as the category block keeps them).
+- **Withheld** (`members` empty, `withheld_reason` set; the dashboard draws
+  nothing for it): the column is not in cleaned.csv; it is one stage 1 added
+  (the line-class columns, a `__flag_` column); no line counted in revenue in
+  the two months; fewer than 2 non-blank values there; more than
+  `MAX_BREAKDOWN_VALUES` (12) non-blank values there; a value written
+  `"(blank)"` (any case - an Excel pivot's label), which could not be told
+  from the empty cells' member.
+- A change can be float residue (`0.1 + 0.2` against `0.3`: -5.55e-17): a
+  reader decides up, down or the same from the printed cents, never from the
+  raw sign.
+- Refused by the model: withheld with members or not withheld without; a
+  change other than the difference; a change null without the reason or set
+  beside it (and any change beside an incomplete previous month); a blank
+  member not named `"(blank)"` or a value named so; a name twice; more than 12
+  non-blank members; more than 2 breakdowns or a column twice; a non-empty
+  list in a file before 16.3.
 
 ## 7. `diagnosis.json` (stage 3 output)
 
@@ -2182,6 +2239,13 @@ before.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-14: **the dashboard, step 2 (Thach's D5).** `metrics.json` 16.3,
+  additive: `by_dimension.breakdowns` (section 6) - the only reopening of the
+  scope freeze for the dashboard; no existing field or definition changes
+  (the three real runs re-run: every existing field identical). Stage 2
+  reads the columns from `cleaning_report.json` `breakdowns` (stage 1's,
+  optional, `[]` when absent - written from the dashboard's step 4). Section
+  11 rows added (readers 5, FE).
 - 2026-10-09: **the report redesign, Q65.** `forecast.json` 2.2,
   additive: `actions[].name` - the product name R1's action quotes,
   verbatim from `hypotheses[].member` (section 8); read by no consumer.
@@ -2932,6 +2996,16 @@ How the fields are read:
 | `by_dimension.category[].revenue_previous` | `float` | 5, FE |
 | `by_dimension.category[].contribution_pct` | `float \| None` | 5, FE |
 | `by_dimension.contribution_reason` | `str \| None` | 5, FE |
+| `by_dimension.breakdowns` | `list[object] (max_length=2)` | 5, FE |
+| `by_dimension.breakdowns[].column` | `str` | 5, FE |
+| `by_dimension.breakdowns[].members` | `list[object]` | 5, FE |
+| `by_dimension.breakdowns[].members[].name` | `str (min_length=1)` | 5, FE |
+| `by_dimension.breakdowns[].members[].is_blank` | `bool` | 5, FE |
+| `by_dimension.breakdowns[].members[].revenue_current` | `float` | 5, FE |
+| `by_dimension.breakdowns[].members[].revenue_previous` | `float` | 5, FE |
+| `by_dimension.breakdowns[].members[].change` | `float \| None` | 5, FE |
+| `by_dimension.breakdowns[].change_reason` | `str \| None` | 5, FE |
+| `by_dimension.breakdowns[].withheld_reason` | `str \| None` | 5, FE |
 
 #### diagnosis.json
 

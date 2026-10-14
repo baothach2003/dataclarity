@@ -51,6 +51,10 @@ LINE_CLASS_COLUMN = "line_class"
 CLASS_SOURCE_COLUMN = "class_source"
 SUGGESTED_CLASS_COLUMN = "suggested_class"
 TAXONOMY_COLUMNS = (LINE_CLASS_COLUMN, CLASS_SOURCE_COLUMN, SUGGESTED_CLASS_COLUMN)
+# The prefix of the flag columns a plan's actions add to cleaned.csv
+# (stages/ingest/changes.py; one copy since the dashboard: stage 2 never
+# splits sales by a column the cleaning added).
+FLAG_PREFIX = "__flag_"
 
 
 class LineClassAnswer(ContractModel):
@@ -243,6 +247,21 @@ class CleaningReportContract(ContractFile):
     # file's, or the user's answer, or not stated - and what the file said
     # (contracts/currency.py). Null in an earlier report.
     currency: AppliedCurrency | None = None
+    # 4.4 (the dashboard; Thach's D4): the columns the user kept in Review to
+    # split sales by, as named in cleaned.csv, at most 2 - stage 2 computes
+    # their figures. Written by stage 1 from the dashboard's step 4; empty in
+    # an earlier report. Not written while empty (the scoped review, G1): a
+    # report stage 1 writes before step 4 stays exactly as it was.
+    breakdowns: list[str] = Field(default_factory=list, max_length=2, exclude_if=lambda value: not value)
+
+    @field_validator("breakdowns")
+    @classmethod
+    def _each_column_once(cls, value: list[str]) -> list[str]:
+        # Stage 2's contract refuses a repeated column (review 1 F2): refused
+        # here, where stage 1 records it, never as a failure of stage 2.
+        if len(value) != len(set(value)):
+            raise ValueError("each breakdown column is listed once")
+        return value
 
     @field_validator("confirmations", mode="before")
     @classmethod
