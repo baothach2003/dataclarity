@@ -5991,6 +5991,61 @@ dataclarity/
       four sentences that said "the technical section" name "Technical
       details" (the data-checks line and its N-of-3 form, the blocked line,
       R1/R3's row), tests first. No open question.
+- [ ] **9D The dashboard (Thach, 2026-10-14) - Phase 9's deploy waits for
+      it.** Manual testing showed the redesigned page still does not let a
+      reader SEE the result at a glance. Thach wants a dashboard, built before
+      deploy, that works for ANY sales file, not shaped on the Kaggle file.
+      His decisions, with their reasons:
+      **D1** The whole dashboard before deploy, the AI part included; any real
+      AI call still needs his approval. Why: deploy shows the product; a page
+      that cannot be read at a glance is not ready.
+      **D2** KPI tiles are ALWAYS the first row. Which tiles depends on the
+      fields the file has (sales always; orders and average order value with
+      an order id, "lines" wording without; customers with a customer field;
+      return rate only when the file has returns). Every tile shows this
+      month and its change on the previous whole month, from existing fields.
+      With an incomplete previous month: no change shown, the existing reason
+      instead. Never an empty or zero tile shown only to fill the row. Why: the
+      first thing a reader needs is the month's numbers; a tile the file
+      cannot fill would state a figure that does not exist.
+      **D3** Below the KPIs, the widgets depend on the data AND on what the
+      analysis found. Order rule, code-decided: the widget tied to stage 3's
+      named cause first, then by the size of what each widget shows moving
+      (from existing contributions), then a fixed fallback order. A widget
+      whose data the file lacks is not shown. The existing front section
+      (summary, waterfall, checklist, next steps, forecast) stays, placed by
+      the same rule; Technical details stays last. Why: the page should lead
+      with what explains this month, for any file, decided by code that can
+      be tested.
+      **D4** Option A: code decides the layout and the order; the AI's only
+      job is to choose up to 2 category columns to break sales down by
+      (payment method, store, location, channel, product category...), from a
+      list code builds of eligible columns. The AI writes no text and no
+      number: its answer is column names from that list, validated. Code
+      checks eligibility on the data (2 to about 12 values, few blanks, not
+      an id, date, amount or already-mapped field). Column names are shown as
+      written in the file. The user is the final authority (CLAUDE.md 3.3):
+      Review shows the chosen breakdowns and lets the user change or remove
+      them. If the AI fails or answers wrongly: no breakdown (suppress, never
+      fabricate). Why: which columns matter differs per file and is a
+      judgement, not a computation; a choice from a closed list cannot
+      fabricate a figure.
+      **D5** Scope freeze reopened for exactly one thing: stage 2 computes
+      "sales by <category column>" for the compared months (additive fields).
+      No existing definition changes. Why: no consumer computes a figure
+      (CONTRACTS 11), so a breakdown's figures must be stage 2's.
+      **D6** Chart type chosen by code from the data's shape, not copied from
+      any template: time series as a line, categories as sorted horizontal
+      bars (readable on a phone), parts of a whole only when there are very
+      few parts. Follow the repo's chart conventions.
+      **D7** One copy: report.json carries the dashboard block; report.html
+      and the Insights page draw the same thing. The page computes and words
+      no figure. Why: two copies drift (the report redesign's rule).
+      Design: `docs/DASHBOARD_DESIGN.md` (step 1 of the fourteenth-of-October
+      overnight run). Steps: 1 design; 2 stage 2's breakdown figures (full
+      process); 3 stage 5's dashboard block and report.html; 4 the AI column
+      choice with the AI faked, and the smoke-test plan for Thach's approval;
+      5 the Insights page; 6 the real-app check.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -5999,7 +6054,8 @@ dataclarity/
       link, the changes made - on the page, not only in the README)
       README: problem, architecture diagram, stage contracts, AI design
       decisions, local setup, demo link, screenshots
-- [ ] 9D "What I learned" section for interviews
+- [ ] 9E "What I learned" section for interviews (9D until 2026-10-14, when
+      Thach's dashboard took 9D - renumbered, a decision made alone)
 - **DoD:** public demo link works; README understandable in 2 minutes
 
 ### Backlog (never start without explicit approval)
@@ -6190,6 +6246,20 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**The dashboard, item 9D - overnight run of 2026-10-14 (Thach away)**:
+step 1 DONE - `docs/DASHBOARD_DESIGN.md` (tiles, widget catalog, order
+rule, the AI column choice as a separate call, stage 2's breakdown figures,
+the diversity check over the real runs, S0-S13, four export shapes and the
+currency files, the test plan); three mocks outside the repo
+(`C:\Users\Happy\dashboard-mock-*.html`, published privately to Thach).
+Findings: a date+amount-only file cannot be analysed in v1 (required fields;
+Q2); Online Retail II's Country has 38 values, so the demo gets no breakdown
+(Q3); the caution lines must stand under the tiles (S10). Decisions made
+alone D-1..D-12 and Q1-Q5 in the design's section 9. Next: step 2 (stage 2's
+breakdown figures, full process). No push this run: three untracked files of
+Thach's (.agents/, .codex/, AGENTS.md) fail the push rule's clean-tree check.
+Report: `C:\Users\Happy\overnight-report.txt`.
 
 **Report redesign - Q69-Q70 (2026-10-09, later)**: Q69 the unused
 diagnosisView.ts, its test and diagnosisFixture.ts deleted; Q70 "Data
