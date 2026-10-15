@@ -5,6 +5,7 @@
 // table - which a screen reader can read and the chart cannot give, and which stays when the report draws
 // no chart (as report.html keeps its month table).
 
+import { TOOLTIP_LABEL, TOOLTIP_STYLE } from '../domain/chartTheme.ts'
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { cautionsToSay, revenueRows } from '../domain/chartData.ts'
 import { useCurrencyCode } from '../domain/currencyCode.ts'
@@ -42,9 +43,9 @@ export function RevenueChartCard({ chart, numbers, notes }: RevenueChartCardProp
             margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
           >
             <CartesianGrid stroke="var(--divider)" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12 }} width={88} />
-            <Tooltip formatter={(value) => (typeof value === 'number' ? money(value, code) : String(value))} />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} width={88} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL} formatter={(value) => (typeof value === 'number' ? money(value, code) : String(value))} />
             {/* A null month is a gap: never joined across (CONTRACTS 11). */}
             <Line type="linear" dataKey="revenue" stroke="var(--accent)" strokeWidth={2} connectNulls={false} isAnimationActive={false} />
           </LineChart>

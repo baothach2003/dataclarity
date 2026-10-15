@@ -6,24 +6,52 @@ checked chips, the next step. A note stands where its figure is, as a marker
 that opens its sentence (CLAUDE.md 3.3a as amended): a `details` element, so
 it opens by keyboard and needs no script. Every long text is printed whole
 in Technical details ("The dashboard in words": `words_html`). This module
-only lays it out; every string is escaped (SPECS SEC-3)."""
+only lays it out; every string is escaped (SPECS SEC-3).
+
+Thach's visual style (2026-10-15; design section 11): the main KPI row (each
+tile a small neutral icon, its figure, the change under it), the chart
+cards, then a strip of secondary KPIs (`STRIP_TILES`, by tile id - the page's
+`dashboardIcons.ts` holds the same, pinned by a test); the dataviz skill's
+validated palette, dark mode selected (its own steps); green and red only
+for change, always with the arrow."""
 
 from contracts.report import ReportContract
-from contracts.report_dashboard import Chip, Dashboard, NextMonthBand, Tile, Widget
+from contracts.report_dashboard import Chip, Dashboard, NextMonthBand, Tile, TileId, Widget
 from contracts.report_front import Front
 from stages.report.html_front import cannot_know_html, checked_html, next_month_html, next_steps_html, read_with
 from stages.report.html_parts import esc, para, table
 from stages.report.html_bars import bar_chart, parts_chart
 from stages.report.html_svg import sales_chart, waterfall_chart
 
-# The dashboard's layout in the report's own tokens (_FRONT_STYLE's): tiles in
-# a row that wraps, the chart cards in a grid of one column on a phone, the
-# bands full width at every size; the parts' colours the accent, the total's
-# grey and a light accent (no new hue).
+# The tiles a strip under the chart cards holds (the "OPERATIONAL DASHBOARD"
+# reference's secondary KPIs): figures that need no chart. Layout by tile id -
+# report.json keeps one list of tiles in D2's order.
+STRIP_TILES: tuple[TileId, ...] = ("customers", "return_rate")
+# One small neutral icon per tile id (24 x 24, stroke 2), decorative.
+TILE_ICONS: dict[TileId, tuple[str, ...]] = {
+    "sales": ("M4 20V10", "M10 20V4", "M16 20v-6", "M3 20h18"),
+    "orders": ("M6 7h12l1 13H5L6 7Z", "M9 7V6a3 3 0 0 1 6 0v1"),
+    "aov": ("M6 3h12v18l-3-2-3 2-3-2-3 2V3Z", "M9 8h6", "M9 12h6"),
+    "customers": ("M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M3 20a6 6 0 0 1 12 0", "M16 5a3 3 0 0 1 0 6",
+                  "M18 20a6 6 0 0 0-2.5-4.9"),
+    "return_rate": ("M9 14 4 9l5-5", "M4 9h11a5 5 0 0 1 0 10h-3"),
+}
+
+# The dashboard's layout in the report's own tokens (_FRONT_STYLE's - the
+# dataviz palette): tiles in a row that wraps, each its icon beside its
+# words; the chart cards in a grid of one column on a phone; the strip and
+# the bands full width at every size. Series colours (--s1..--s3) only in
+# the line and the bar charts; change colours (--up, --down) only on an
+# arrow and a waterfall bar - never one chart with both (red is too near
+# orange).
 DASHBOARD_STYLE = """.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px;
 margin-top:18px}.tile:has(details.mk[open]){grid-column:1/-1}.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
-min-width:0}.tl{font-size:.85rem;color:var(--ink2)}.tv{font-size:1.45rem;font-weight:600;line-height:1.3;
+min-width:0;display:flex;flex-direction:column}.tl{display:flex;align-items:flex-start;gap:8px;flex:1 0 auto}.ticon{width:18px;height:18px;flex:none;
+color:var(--ink2);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.kpi-strip .tiles{margin-top:14px}
+.tl{font-size:.85rem;color:var(--ink2)}.tv{font-size:1.45rem;font-weight:600;line-height:1.3;
 overflow-wrap:anywhere}.tile .num{white-space:normal}.tc{font-size:.8rem;color:var(--ink2)}.arrow{font-size:.7rem}
+.arrow.up{color:var(--up)}.arrow.down{color:var(--down)}.arrow.same{color:var(--ink2)}
 .headline{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 8px;margin:16px 0 4px;font-size:1.05rem;
 font-weight:600}.headline>span{min-width:0;overflow-wrap:anywhere}
 .widgets{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:0 18px;
@@ -47,10 +75,16 @@ gap:2px 10px;padding:5px 0}.hb-label{font-size:.85rem;overflow-wrap:anywhere;min
 font-weight:600;text-align:right;white-space:nowrap}.hb-was{font-weight:400;color:var(--ink2)}
 .hb-track,.hp-track{grid-column:1/-1;position:relative;height:12px;display:block}.hp-track{display:flex;height:20px;
 gap:2px}.hb-bar{position:absolute;top:0;height:9px;border-radius:3px}.hb-marker{top:10px;height:3px}
-.hb-zero{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink2)}.hb-bar.now,.hb-bar.up{background:var(--up)}
-.hb-bar.down{background:var(--down)}.hb-bar.was{background:var(--tot)}.hb-bar.flat{background:var(--ink2)}
-.hp-part{display:block;height:100%;border-radius:3px}.p0{background:var(--up)}.p1{background:var(--tot)}
-.p2{background:var(--up);opacity:.45}.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.hb-zero{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--ink2)}
+.hb-bar.now{background:var(--s1)}.hb-bar.was{background:var(--s2)}
+.hb-bar.up{background:var(--up)}.hb-bar.down{background:var(--down)}.hb-bar.flat{background:var(--ink2)}
+.hb-track.end{display:flex;align-items:center;gap:6px;height:auto}.hb-fill{display:block;height:9px;
+border-radius:3px;background:var(--s1);min-width:2px;width:calc((100% - 9em) * var(--w))}
+.hb-row.end .hb-val{text-align:left}
+.hp-part{display:block;height:100%;border-radius:3px}.p0{background:var(--s1)}.p1{background:var(--s2)}
+.p2{background:var(--s3)}.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px}
+.sw.s1{background:var(--s1)}.sw.s2{background:var(--s2)}.legend2{display:flex;flex-wrap:wrap;gap:4px 14px;
+list-style:none;margin:6px 0 0;padding:0}.legend2 li{font-size:.8rem;color:var(--ink2)}
 .legend li{font-size:.85rem}#dashboard-words h3{margin-top:14px}
 @media (max-width:420px){.hb-val{white-space:normal}.chip{white-space:normal}}"""
 _ARROWS = {"up": "&#9650;", "down": "&#9660;", "same": "&#9679;"}
@@ -72,12 +106,19 @@ def marker(about: str, codes: list[str], asides: list[str], texts: dict[str, str
             f'i</summary><div class="mk-panel">{body}</div></details>')
 
 
+def _icon(tile_id: TileId) -> str:
+    paths = "".join(f'<path d="{d}"/>' for d in TILE_ICONS[tile_id])
+    return f'<svg class="ticon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths}</svg>'
+
+
 def _tile(tile: Tile, texts: dict[str, str]) -> str:
-    parts = [f'<div class="tile"><div class="tl">{esc(tile.label)}</div>']
+    # The icon in the label's row (the display review's R6): the figure keeps the tile's whole width.
+    parts = [f'<div class="tile" data-tile="{tile.id}"><div class="tl">{_icon(tile.id)}{esc(tile.label)}</div>']
     # A figure, or the two words "not shown": its reason stands behind the marker.
     parts.append(f'<div class="tv num">{esc(tile.now)}</div>' if tile.now is not None else '<div class="tv">not shown</div>')
-    arrow = (f'<span class="arrow" role="img" aria-label="{_DIRECTION_WORDS[tile.direction]} last month">'
-             f"{_ARROWS[tile.direction]}</span> ") if tile.direction else ""
+    # Green and red for change only, always with the arrow - the arrow alone coloured (design section 11).
+    arrow = (f'<span class="arrow {tile.direction}" role="img" aria-label="{_DIRECTION_WORDS[tile.direction]} last '
+             f'month">{_ARROWS[tile.direction]}</span> ') if tile.direction else ""
     if tile.change is not None:
         parts.append(f'<div class="tc">{arrow}{esc(tile.change)}</div>')
     elif tile.was is not None:
@@ -178,10 +219,13 @@ def note_texts(report: ReportContract) -> dict[str, str]:
 def dashboard_html(report: ReportContract, dashboard: Dashboard, front: Front) -> str:
     code = report.currency.code if report.currency is not None else None
     texts = note_texts(report)
-    tiles = "".join(_tile(tile, texts) for tile in dashboard.tiles)
+    tiles = "".join(_tile(tile, texts) for tile in dashboard.tiles if tile.id not in STRIP_TILES)
+    more = "".join(_tile(tile, texts) for tile in dashboard.tiles if tile.id in STRIP_TILES)
+    strip = (f'<section id="kpi-strip" class="kpi-strip" aria-label="More figures"><div class="tiles">{more}</div>'
+             "</section>") if more else ""
     cards = "".join(_card(report, front, widget, code, texts) for widget in dashboard.widgets if widget.kind == "chart")
     return (f'<section id="tiles" class="tiles-row"><div class="tiles">{tiles}</div></section>'
-            f'{_headline(dashboard, texts)}<div class="widgets">{cards}</div>'
+            f'{_headline(dashboard, texts)}<div class="widgets">{cards}</div>{strip}'
             f"{_next_month(dashboard.next_month, texts)}{_checked(dashboard, texts)}{_next_steps(dashboard, texts)}")
 
 
@@ -212,4 +256,5 @@ def words_html(report: ReportContract, dashboard: Dashboard, front: Front) -> st
     return f'<div id="dashboard-words" class="card"><h2>The dashboard in words</h2>{"".join(parts)}</div>'
 
 
-__all__ = ["DASHBOARD_STYLE", "SECTION_IDS", "dashboard_html", "marker", "note_texts", "words_html"]
+__all__ = ["DASHBOARD_STYLE", "SECTION_IDS", "STRIP_TILES", "TILE_ICONS", "dashboard_html", "marker", "note_texts",
+           "words_html"]

@@ -413,9 +413,10 @@ def test_a_negative_value_is_drawn_left_of_zero_never_like_a_sale() -> None:
     widget = next(w for w in report.dashboard.widgets if w.id == "breakdown_1")
     assert widget.chart == "bars"  # a negative part is no part of a whole
     page = render_html(report)
-    row = re.search(r'<li class="hb-row"><span class="hb-label">Returns desk</span>.*?</li>', page).group(0)
-    assert 'class="hb-bar down"' in row and "-2,000.00" in row
-    left = float(re.search(r'hb-bar down" style="left:([0-9.]+)%', row).group(1))
+    row = re.search(r'<li class="hb-row"[^>]*><span class="hb-label">Returns desk</span>.*?</li>', page).group(0)
+    # In the series colour since Thach's visual style (red is for change only): its place says it is negative.
+    assert 'class="hb-bar now"' in row and "-2,000.00" in row
+    left = float(re.search(r'hb-bar now" style="left:([0-9.]+)%', row).group(1))
     zero = float(re.search(r'hb-zero" style="left:([0-9.]+)%', row).group(1))
     assert left < zero  # it runs left of the zero line
 

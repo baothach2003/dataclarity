@@ -10,6 +10,7 @@ import type { Chart, NoteCode } from '../types/report.ts'
 import type { Chip, Dashboard, NextMonthBand, Tile, Widget } from '../types/reportDashboard.ts'
 import type { Front } from '../types/reportFront.ts'
 import { DashboardBars, DashboardParts } from './DashboardBars.tsx'
+import { STRIP_TILES, TILE_ICONS } from './dashboardIcons.ts'
 import { FrontSalesChart } from './FrontSalesChart.tsx'
 import { FrontWaterfall } from './FrontWaterfall.tsx'
 import { NoteMarker } from './NoteMarker.tsx'
@@ -40,15 +41,23 @@ interface DashboardSectionProps {
 }
 
 function TileCard({ tile, noteTexts }: { tile: Tile; noteTexts: ReadonlyMap<NoteCode, string> }) {
+  // Green and red for change only, always with the arrow - the arrow alone coloured (design section 11).
   const arrow = tile.direction !== null && (
-    <span className="tile__arrow" role="img" aria-label={ARROW_WORDS[tile.direction]}>
+    <span className={`tile__arrow tile__arrow--${tile.direction}`} role="img" aria-label={ARROW_WORDS[tile.direction]}>
       {ARROWS[tile.direction]}
     </span>
   )
   const change = tile.change ?? (tile.was !== null ? `was ${tile.was}` : null)
   return (
     <div className="tile" data-testid={`tile-${tile.id}`}>
-      <div className="tile__label">{tile.label}</div>
+      <div className="tile__label">
+        <svg className="tile__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          {TILE_ICONS[tile.id].map((d) => (
+            <path key={d} d={d} />
+          ))}
+        </svg>
+        {tile.label}
+      </div>
       {/* A figure, or the two words "not shown": its reason stands behind the marker. */}
       <div className="tile__value">{tile.now ?? 'not shown'}</div>
       {change !== null && (
@@ -163,12 +172,17 @@ function NextSteps({ steps, notes, noteTexts }: { steps: string[]; notes: NoteCo
 export function DashboardSection({ dashboard, front, salesChart, noteTexts }: DashboardSectionProps) {
   const checked = dashboard.checked ?? []
   const steps = dashboard.next_steps ?? []
+  // The main row, then - under the chart cards - the strip of secondary KPIs (the reference's layout); one list of
+  // tiles in report.json, placed by id as report.html places them.
+  const strip = dashboard.tiles.filter((tile) => STRIP_TILES.includes(tile.id))
   return (
     <div className="dashboard" data-testid="dashboard">
-      <div className="tiles">
-        {dashboard.tiles.map((tile) => (
-          <TileCard key={tile.id} tile={tile} noteTexts={noteTexts} />
-        ))}
+      <div className="tiles" data-testid="kpi-main">
+        {dashboard.tiles
+          .filter((tile) => !STRIP_TILES.includes(tile.id))
+          .map((tile) => (
+            <TileCard key={tile.id} tile={tile} noteTexts={noteTexts} />
+          ))}
       </div>
       {dashboard.headline && (
         <div className="dashboard-headline" data-testid="dashboard-headline">
@@ -183,6 +197,13 @@ export function DashboardSection({ dashboard, front, salesChart, noteTexts }: Da
             <ChartCard key={widget.id} widget={widget} front={front} salesChart={salesChart} noteTexts={noteTexts} />
           ))}
       </div>
+      {strip.length > 0 && (
+        <section className="tiles kpi-strip" data-testid="kpi-strip" aria-label="More figures">
+          {strip.map((tile) => (
+            <TileCard key={tile.id} tile={tile} noteTexts={noteTexts} />
+          ))}
+        </section>
+      )}
       {dashboard.next_month && <NextMonth band={dashboard.next_month} noteTexts={noteTexts} />}
       {checked.length > 0 && <Checked chips={checked} notes={dashboard.checked_notes ?? []} noteTexts={noteTexts} />}
       {steps.length > 0 && <NextSteps steps={steps} notes={dashboard.next_steps_notes ?? []} noteTexts={noteTexts} />}

@@ -72,6 +72,92 @@
 
   --shadow-card: 0 2px 8px rgb(0 0 0 / 6%);
   --shadow-popover: 0 8px 24px rgb(0 0 0 / 12%);
+
+  /* The dashboard's palette (Thach's visual style, 2026-10-15; docs/DASHBOARD_DESIGN.md section 11): the dataviz
+     skill's validated reference palette, by role - a design exception recorded in FIGMA_DESIGN_NOTES section 3.
+     Series colours for identity (the sales line, this month's bars, last month's marker, parts of a whole); change
+     colours only on an arrow or a waterfall bar, always with the arrow; never both in one chart. report.html
+     holds the same values (stages/report/html_report.py), pinned by a test. */
+  --chart-surface: #fcfcfb;
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --change-up: #0ca30c;
+  --change-down: #d03b3b;
+  --change-total: #898781;
+  color-scheme: light;
+}
+
+/* Dark mode is SELECTED, not flipped (Thach, 2026-10-15): its own steps - the reference palette's dark column, its
+   chrome (page plane, surface, inks, hairlines) and its status steps - by the reader's setting; a data-theme stamp
+   wins both ways. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --bg-page: #0d0d0d;
+  --bg-surface: #1a1a19;
+  --bg-subtle: #232321;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --accent: #3987e5;
+  --accent-pressed: #6da7ec;
+  --accent-subtle: rgb(57 135 229 / 16%);
+  --text-on-accent: #0b0b0b;
+  --severity-low: #898781;
+  --severity-medium: #fab219;
+  --severity-high: #e66767;
+  --status-healthy: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --diff-changed: rgb(250 178 25 / 18%);
+  --diff-removed: rgb(208 59 59 / 22%);
+  --diff-added: rgb(12 163 12 / 20%);
+  --low-confidence-row-bg: rgb(250 178 25 / 10%);
+  --border: #383835;
+  --divider: #2c2c2a;
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 40%);
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 60%);
+  --chart-surface: #1a1a19;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --change-up: #0ca30c;
+  --change-down: #d03b3b;
+  --change-total: #898781;
+  color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg-page: #0d0d0d;
+  --bg-surface: #1a1a19;
+  --bg-subtle: #232321;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --accent: #3987e5;
+  --accent-pressed: #6da7ec;
+  --accent-subtle: rgb(57 135 229 / 16%);
+  --text-on-accent: #0b0b0b;
+  --severity-low: #898781;
+  --severity-medium: #fab219;
+  --severity-high: #e66767;
+  --status-healthy: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --diff-changed: rgb(250 178 25 / 18%);
+  --diff-removed: rgb(208 59 59 / 22%);
+  --diff-added: rgb(12 163 12 / 20%);
+  --low-confidence-row-bg: rgb(250 178 25 / 10%);
+  --border: #383835;
+  --divider: #2c2c2a;
+  --shadow-card: 0 2px 8px rgb(0 0 0 / 40%);
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 60%);
+  --chart-surface: #1a1a19;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --change-up: #0ca30c;
+  --change-down: #d03b3b;
+  --change-total: #898781;
+  color-scheme: dark;
 }
 
 * {

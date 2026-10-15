@@ -6088,6 +6088,29 @@ dataclarity/
       figures: tiles, one short line, chart cards, full-width bands, every long
       text in Technical details, a note as a marker where its figure is
       (CLAUDE.md 3.3a amended). Then the smoke test (at most 4 real calls).
+      **Thach's answers (2026-10-16), with his reasons:** the line under the
+      tiles states facts only - "in line with last year" only when the two
+      printed changes are equal at the printed precision, else "same months
+      last year +39.14%", the judgement and its yardstick behind the marker
+      ("in line" beside 27% and 39% read as false); **Q6 NO** - a column whose
+      values differ inside an order (Vendor, a category, a size) is a line
+      attribute, each line's sales to its own value, blanks per line, Q4's
+      per-order rule only for order-level columns ("sales by category" is the
+      most useful split for a shop owner and must not be ruled out on every
+      file with an order id); **Q7** never fill alone - Review asks, once per
+      first-line column, "<column> is only on each order's first line: does
+      it apply to the whole order?", yes fills per order, no or unanswered is
+      not offered (CLAUDE.md 3.3a); **Q8** never offer a column naming or
+      locating a person, removed before the AI's input is built (personal
+      data on a shareable report, no use to a shop owner); **the visual
+      style** - the "OPERATIONAL DASHBOARD" reference's layout (a KPI row
+      with a small icon per tile, a grid of chart cards, a strip of secondary
+      KPIs), the "STRATEGIC DASHBOARD" one's tile (the figure, its change
+      underneath), the dataviz skill's validated palette in light and dark,
+      green/red with an arrow for change only, one y-axis, a pie only for 2
+      or 3 parts, top products by sales with the value at the bar's end
+      (`docs/DASHBOARD_DESIGN.md` section 11; the reference images are
+      local only, never committed).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6288,6 +6311,35 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**The dashboard, item 9D - third run, 2026-10-16 (Thach's answers to Q6-Q8,
+the line, the visual style)**: `design/dashboard/` in .git/info/exclude
+(his reference images, local only). **The line states facts only**: "same
+months last year +39.14%", "in line with" only when the two printed changes
+are equal AND stage 3 calls the season consistent (the display review's R1).
+**Q6-Q8 DONE** (full process; method `C:\Users\Happy\dashboard-q678-method.txt`;
+tests first, red on the previous code in a worktree; mutation; one doubt
+review, its scoped review): a line attribute (Vendor, a category) split line
+by line; a first-line column offered only once the user answers Review's
+question "<column> is only on each order's first line: does it apply to the
+whole order?" (stage 1 contracts 4.5: `breakdown_whole_order`,
+`breakdowns_whole_order`; metrics.json stays 16.4); no column naming or
+locating a person offered, so never in the breakdown call's input (its
+shape unchanged; the smoke test not re-run). **The visual style DONE**
+(display: failing tests first, one review cycle, its scoped review;
+mutation on the logic): the main KPI row with a small icon per tile, the
+chart cards, a strip of secondary KPIs (customers, the return rate); the
+dataviz skill's validated palette, light and dark (selected; validator
+output `C:\Users\Happy\dashboard-palette-check.txt`); green and red only on
+an arrow or a waterfall bar; a legend where two months are compared; top
+products by sales with the value at the bar's end. Found and fixed: the
+frontend's `npm run build` failed on HEAD (two test files' types). The check
+in the real app (AI faked): six files, Insights and report.html in light and
+dark and Review, at 390 and 1440 px - no sideways scroll, console clean,
+backend peak 880 MB; screenshots published privately. Open:
+Q9 (returning customers' share - no field holds it), Q10 (the return rate's
+arrow colour), Q11 (the schema/plan calls' sample still holds personal
+columns) - DASHBOARD_DESIGN section 9. No deploy step started.
 
 **The dashboard, item 9D - second run, 2026-10-15 (Thach's answers)**: the
 six commits pushed (his one-time authorisation; his Codex paths in

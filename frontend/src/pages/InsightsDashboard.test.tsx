@@ -124,7 +124,8 @@ describe('Insights draws the dashboard block', () => {
     const card = screen.getByTestId('widget-breakdown_1')
     expect(card.textContent).toContain('-2,000.00')
     expect(card.textContent).toContain('was 41,867.50')
-    const negative = card.querySelector('.hb-bar--down')
+    // In the series colour since Thach's visual style (red is for change only): its place says it is negative.
+    const negative = card.querySelectorAll('.hb-bar--now')[1]
     const zero = card.querySelectorAll('.hb-zero')[1]
     if (!(negative instanceof HTMLElement) || !(zero instanceof HTMLElement)) {
       throw new Error('the negative bar and its zero line are drawn')
@@ -144,11 +145,10 @@ describe('Insights draws the dashboard block', () => {
     show('kaggle', (report) => {
       dashboardOf(report).widgets.splice(1, 0, breakdown)
     })
-    const bars = [...screen.getByTestId('widget-breakdown_1').querySelectorAll<HTMLElement>('.hb-bar--now')]
-    expect(bars.map((bar) => [parseFloat(bar.style.left), parseFloat(bar.style.width)])).toEqual([
-      [0, 100],
-      [0, 75],
-    ])
+    // One series of no negative value: each value at its bar's end (Thach's visual style), every bar from the
+    // track's start, the longest the scale's whole.
+    const bars = [...screen.getByTestId('widget-breakdown_1').querySelectorAll<HTMLElement>('.hb-fill')]
+    expect(bars.map((bar) => parseFloat(bar.style.getPropertyValue('--w')))).toEqual([1, 0.75])
   })
 
   it('parts of a whole: a row per month and each part\'s figures in the legend', () => {

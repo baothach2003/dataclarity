@@ -42,8 +42,10 @@ def test_the_sections_follow_the_three_layers() -> None:
     # 2.10: the dashboard's tiles, then its widgets in report.json's order (this hand-built file draws no split of
     # the change: the returns, sized, before the text parts; the months unsized among them), then the appendix.
     # 2.11 (Thach's layout): the tiles, the chart cards, the bands; the front's text parts lead Technical details
-    # ("The dashboard in words") before the three layers.
-    assert sections == ["tiles", "returns", "sales-by-month", "band-next-month", "band-checked", "summary",
+    # ("The dashboard in words") before the three layers. Thach's visual style: the strip of secondary KPIs
+    # after the chart cards.
+    assert sections == ["tiles", "returns", "sales-by-month", "kpi-strip", "band-next-month", "band-checked",
+                        "summary",
                         "chart-notes", "checked", "next-steps", "next-month", "cannot-know", "quality", "numbers",
                         "how-to-read", "causes", "actions", "provenance"]
 

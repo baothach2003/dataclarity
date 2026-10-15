@@ -5,6 +5,7 @@
 // forecast's own notes once, a month the file already holds never compared with the point, the chart
 // drawn from its own series, the cautions and the notes naming revenue.
 
+import { TOOLTIP_LABEL, TOOLTIP_STYLE } from '../domain/chartTheme.ts'
 import { Area, CartesianGrid, ComposedChart, Legend, Line, Tooltip, XAxis, YAxis } from 'recharts'
 import { cautionsToSay, forecastRows } from '../domain/chartData.ts'
 import { useCurrencyCode } from '../domain/currencyCode.ts'
@@ -94,9 +95,9 @@ export function ForecastCard({ forecast, chart, notes, period }: ForecastCardPro
             margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
           >
             <CartesianGrid stroke="var(--divider)" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12 }} width={88} />
-            <Tooltip formatter={(value) => tooltipValue(value, code)} />
+            <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
+            <YAxis tickFormatter={(value: number) => axisAmount(value, code)} allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} width={88} />
+            <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL} formatter={(value) => tooltipValue(value, code)} />
             <Legend />
             {/* The band, low to high, as one range area. */}
             <Area dataKey="band" name={band} stroke="none" fill="var(--accent)" fillOpacity={0.15} isAnimationActive={false} />

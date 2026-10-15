@@ -7,7 +7,7 @@
 import { Bar, BarChart, CartesianGrid, LabelList, Rectangle, ReferenceLine, XAxis, YAxis } from 'recharts'
 import type { BarShapeProps } from 'recharts'
 import { useCurrencyCode } from '../domain/currencyCode.ts'
-import { waterfallRows } from '../domain/frontView.ts'
+import { printedSign, waterfallRows } from '../domain/frontView.ts'
 import type { WaterfallRow } from '../domain/frontView.ts'
 import { count } from '../domain/reportFormat.ts'
 import { useNarrow } from '../domain/useNarrow.ts'
@@ -17,9 +17,10 @@ const TITLE = 'Where the change came from'
 
 function fill(row: WaterfallRow | undefined): string {
   if (row === undefined || row.factor === null) {
-    return 'var(--text-secondary)'
+    return 'var(--change-total)'
   }
-  return row.shown >= 0 ? 'var(--accent)' : 'var(--severity-high)'
+  const sign = printedSign(row.worth)
+  return sign > 0 ? 'var(--change-up)' : sign < 0 ? 'var(--change-down)' : 'var(--text-secondary)'
 }
 
 /** An axis tick: geometry, signed and whole, the currency's code on it as report.html's axis has. */
@@ -64,19 +65,19 @@ export function FrontWaterfall({ waterfall, inCard = false }: { waterfall: Water
           data={rows}
           layout={narrow ? 'vertical' : 'horizontal'}
           style={{ width: '100%', height: narrow ? 64 + rows.length * 44 : 280 }}
-          margin={narrow ? { top: 8, right: 72, bottom: 0, left: 0 } : { top: 24, right: 8, bottom: 0, left: 8 }}
+          margin={narrow ? { top: 8, right: 104, bottom: 0, left: 0 } : { top: 24, right: 8, bottom: 0, left: 8 }}
         >
           <CartesianGrid stroke="var(--divider)" vertical={narrow} horizontal={!narrow} />
           {narrow ? (
             <>
-              <XAxis type="number" tickFormatter={(value: number) => tick(value, code)} tick={{ fontSize: 10 }} tickCount={3} />
-              <YAxis type="category" dataKey="label" interval={0} tick={{ fontSize: 11 }} width={112} />
+              <XAxis type="number" tickFormatter={(value: number) => tick(value, code)} tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} tickCount={3} />
+              <YAxis type="category" dataKey="label" interval={0} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} width={112} />
               <ReferenceLine x={0} stroke="var(--text-secondary)" />
             </>
           ) : (
             <>
-              <XAxis dataKey="label" interval={0} tick={{ fontSize: 11 }} height={44} />
-              <YAxis tickFormatter={(value: number) => tick(value, code)} tick={{ fontSize: 11 }} width={88} />
+              <XAxis dataKey="label" interval={0} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} height={44} />
+              <YAxis tickFormatter={(value: number) => tick(value, code)} tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} width={88} />
               <ReferenceLine y={0} stroke="var(--text-secondary)" />
             </>
           )}
@@ -88,7 +89,7 @@ export function FrontWaterfall({ waterfall, inCard = false }: { waterfall: Water
             shape={(props: BarShapeProps) => <Rectangle {...props} fill={fill(rows[props.index])} />}
           >
             <LabelList
-              dataKey="worth"
+              dataKey="printed"
               position={narrow ? 'right' : 'top'}
               style={{ fontSize: narrow ? 11 : 12, fontWeight: 600, fill: 'var(--text-primary)' }}
             />

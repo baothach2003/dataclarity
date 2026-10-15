@@ -250,6 +250,7 @@ value shared with stage 2 (`shared/split_values.py`). Method:
   id the per-line rule stands (profile `null_pct`). So Shopify's
   first-line-only Payment Method and Source are offered; a line-level column
   (Vendor, a product group) is not, whenever orders hold several lines.
+  (Changed by Thach's Q6 and Q7, 2026-10-16 - below.)
 - **Q3** the profile's upper bound (12) goes; a column of more than 9 values is
   ruled out when its values are more than half its units (orders with an
   order id, else lines): "nearly every line its own value" (decision made
@@ -311,6 +312,87 @@ RangeIndex today).
 first:** a time of day ("08:13", "5:05 PM") was offered - Square's "Time"
 under a manual plan that types every column text; it reads as a period now
 (rule 7).
+
+**Thach's Q6-Q8 (2026-10-16), as built.** Method
+`C:\Users\Happy\dashboard-q678-method.txt`; tests first (red on the
+previous code, run in a worktree of it), on the Shopify, WooCommerce,
+Online Retail II and Kaggle shapes; mutation 36 of 37 + 32 of 33 + 6 of 6
+(the survivors equivalent).
+- **Q6 - a line attribute is split line by line.** A column whose values
+  differ between the lines of one order (a vendor, a product category, a
+  size) is a LINE attribute: each line's sales go to its own value, its
+  blanks are counted per line (the profile's share and the counted lines'
+  share, each at most 10%). Two values in one order no longer rule a column
+  out, and stage 2 no longer withholds such a split. Q4's per-order rule
+  applies to an order-level column only. Why (Thach): "sales by category" is
+  the most useful split for a shop owner and must not be ruled out on every
+  file with an order id. Shopify's Vendor, WooCommerce's item category and
+  a product group in Online Retail II's shape (an invoice of two groups) are
+  offered.
+- **Q7 - never filled alone; Review asks.** With a trusted order id, a
+  column written on each order's first line only - every value on its
+  order's first counted line, and some order with a blank line under its
+  value (so not a file of one-line orders) - cannot be told by the data from
+  a line attribute written on the first line only. Review asks once per such
+  column, in stage 1's words: "<column> is only on each order's first line:
+  does it apply to the whole order?" Yes: its blank counted lines take their
+  order's value, its blanks are counted per order; no, or no answer: not
+  offered, and execute refuses it. A column refused anyway (one value, a
+  person, too many orders blank even filled) is never asked about. Why
+  (Thach): CLAUDE.md 3.3a, never guess. The answers: `plan_final.json`
+  `breakdown_whole_order`; the kept columns answered yes: `cleaning_report`
+  `breakdowns_whole_order` (4.5), which stage 2 reads to fill.
+  Values repeated on every line of an order (WooCommerce) or one-line orders
+  (Kaggle) ask nothing. A first-line column is measured as it would be drawn
+  once answered yes (filled), so a sale-or-return column written on the
+  first line is still refused (Q5). An answer changes what is offered, not
+  the lines: the server reuses the run's last measure for it (no second
+  whole-file read, and it never waits for the heavy slot).
+- **Q8 - never a person.** Rule 0, before every other: a column naming or
+  locating a person is never offered (`stages/ingest/personal_columns.py`) -
+  by its header (e-mail; phone, telephone, mobile, fax; address, street;
+  postcode, postal code, zip; the header "Name", a person word before
+  "name" - Billing Name, Staff Name - and a header that IS a person word -
+  Customer, Cashier, Sold By) or by the profile's commonest values (an
+  e-mail; a phone - a "+" or a separator and at least 7 digits, never a
+  date's shape; a UK, Canadian or Dutch postcode, or digits-dash-digits).
+  The mapped customer column was already out (mapped). Removed before the
+  AI's input is built: the breakdown call sees only eligible columns, so
+  their values never reach it; the input's shape is unchanged (fewer
+  columns at most), so the smoke test is not re-run. Why (Thach): personal
+  data on a shareable report, and no use to a shop owner. **Decisions made
+  alone:** only Thach's list - a city, a province, a country (Online Retail
+  II's Country) or a company is not refused; a person word beside another
+  word ("Customer Type", "Customer Segment") and "Device Name", "Store
+  Name", "Location Name" are not names; a person's NAME cannot be told by
+  its value - by its header only.
+- **Its doubt review (one cycle, fresh context)**: Q6 and Q7 held on every
+  probe (stage 2's sums by hand, the fill never invented, the memo never
+  stale); no fabrication. Fixed, tests first: **F1** the name rule was
+  anchored, so WooCommerce's "First Name (Billing)", "billing_first_name",
+  eBay's "Buyer Username" and "Sales Person" went through - the billing
+  names reached the AI's input on a WooCommerce shape; now a person word
+  before "name" anywhere in the header, and a few words (username, seller,
+  salesperson, contact person, account holder) wherever they stand;
+  **F2** the digits-dash-digits postcode read price bands and seasons
+  ("500-1000", "2023-2024") as a person: only 90210-1234 and 01310-100 now,
+  and a phone needs a "+", brackets or two separators (decision made alone:
+  Japan's 100-0001 cannot be told by value from a range - its header says
+  it). **F3** (the answer shown for a moment after "Change") did not
+  reproduce on the page; its test stays as a guard.
+- **Its scoped review**: no personal-data miss on Shopify, WooCommerce
+  (both header styles), Square, Etsy, eBay, Amazon, Lightspeed, Vend,
+  PrestaShop or Magento; no fabrication. Fixed, tests first, each
+  narrowing: a spaced range ("500 - 1000", "10.00 - 20.00", "0900 - 1200")
+  is never a phone; "Best Seller" is offered (a header that IS "Seller" is
+  not); a camelCase header is read as its words ("BillingFirstName",
+  "PostalCode"). Mutation 4 of 4. Recorded, not fixed (no further cycle):
+  off-platform staff words standing alone ("Waiter", "Clerk", "Assigned
+  To"), "Card Name", "Payer Name", "Bill To", plurals ("Emails"); one
+  separator phones and Japan/Portugal/Poland postcodes by value (their
+  headers say them); some device or channel headers refused ("Mobile App",
+  "Phone Order", "Email Campaign" - the cheap side); a few product codes
+  read as a UK postcode or a phone.
 
 **Decision made alone (D-3):** 10% for "few blanks", and "no value reading as
 a number" (store numbers 1-5 are excluded; a false find would chart an
@@ -684,14 +766,21 @@ copy - D7 - report.html and the page draw the same block):
    shows the two words "not shown".
 2. **One full-width line** (`dashboard.headline`): the summary as a short
    code template from existing fields, at most about 20 words - "Sales +27.2%
-   vs October 2011 · in line with last year (+27.1%)". This replaces Q1: the
+   vs October 2011 · same months last year +27.1%". This replaces Q1: the
    long summary moves to Technical details. Templates:
    - compared: "Sales <change> vs <previous month>" - the percentage at
      sentence B's decimals (one change printed one way, Q56), the amount when
      no percentage exists, "the same as <previous month>" at zero - then, with
-     a season band, " · in line with" / " · differs from" + "last year" or
-     "earlier years" + " (<the season's expected change>)", the front's own
-     verbs at sentence B's decimals;
+     a season band, the season's expected change at sentence B's decimals as
+     a FACT (Thach, 2026-10-16: the line states facts only - "in line with"
+     beside 27.08% and 39.14% read as false): " · same months last year
+     <change>" (" · same months in earlier years typically <change>"), and
+     " · in line with last year (<change>)" (or "earlier years") only when the
+     two printed changes are equal at the printed precision - something the
+     reader can check on the line itself. The judgement ("is in line with",
+     "differs from") and its yardstick stay behind the line's marker (the
+     front's summary sentences). Sentence B prints as many decimals as the
+     gap needs (Q56), so two different changes never print equal;
    - not compared: "Sales <this month's figure> in <month> · not compared:
      <previous month> is not covered whole" (or "no sale in <previous month>
      can be counted");
@@ -792,6 +881,134 @@ rule). Recorded: nothing ties the line's text to the tile or the chips to
 the checklist in the contract (the tests do); report.html's waterfall SVG
 text is small in a 440 px card.
 
+## 11. Thach's visual style (2026-10-15)
+
+Thach's decision: the dashboard takes its LAYOUT from three reference images
+(`design/dashboard/d1-d3.jpg`, local only - excluded by `.git/info/exclude`,
+never committed: someone else's work, AI-generated, with errors; no source
+of truth for any chart choice). By the title printed on each: d1 "OPERATIONAL
+DASHBOARD" is the main layout reference - a KPI row with a small icon per
+tile, a grid of chart cards, a strip of secondary KPIs; from d3 "STRATEGIC
+DASHBOARD" only the tile: the figure with its change underneath; d2
+"ANALYTICAL DASHBOARD" is ignored (it needs data v1 does not have). Layout
+only: none of their figures, colours, many-slice donuts or two-axis charts.
+
+**The page, top to bottom** (report.html and the Insights page alike, D7):
+1. the main KPI row - Sales, Orders (Lines), Average order (line) value -
+   each tile a small neutral icon, its label, its figure and, underneath,
+   the arrow and the change ("was ..." for a count);
+2. the one short line (section 10);
+3. the grid of chart cards (section 4's order);
+4. **the secondary KPI strip** (full width, one row on a wide screen): the
+   figures that need no chart - Customers who placed an order, the return
+   rate - when the file supports them, under D2's rules (shown with a
+   figure or not at all). The tiles keep D2's order and report.json keeps
+   one list (`dashboard.tiles`); which tile stands in the strip is layout,
+   by its id - customers and return_rate - one constant in each renderer,
+   pinned equal by a test (decision made alone: no report.json field and no
+   version bump for a placement). **Returning customers' share of sales is
+   not shown**: no field of metrics.json or diagnosis.json holds it, and a
+   consumer computes no figure (CONTRACTS 11; CLAUDE.md 3.2) - Q9 in
+   section 9;
+5. the full-width bands (next month, checked, next step), then Technical
+   details.
+
+**Colours** - the dataviz skill's validated reference palette, by role;
+`C:\Users\Happy\dashboard-palette-check.txt`
+holds the validator's output (light against `#fcfcfb`, dark against
+`#1a1a19`):
+
+| Role | Light | Dark | Where |
+|---|---|---|---|
+| Chart surface (cards, tiles) | `#fcfcfb` | `#1a1a19` | every card |
+| Main series | `#2a78d6` | `#3987e5` | the sales line; this month's bars; part 1 |
+| Second series | `#eb6834` | `#d95926` | last month's marker, only where two months are compared; part 2 |
+| Third part | `#1baf7a` | `#199e70` | part 3 of a parts-of-a-whole bar (2 or 3 parts only) |
+| Up (change) | `#0ca30c` | `#0ca30c` | the ▲ arrow, a waterfall bar that adds |
+| Down (change) | `#d03b3b` | `#d03b3b` | the ▼ arrow, a waterfall bar that takes away |
+| Totals | `#898781` | `#898781` | the waterfall's whole change |
+| Text | `#0b0b0b` / `#52514e` | `#ffffff` / `#c3c2b7` | every figure, label and value - never a series colour |
+
+Validator results: blue and orange pass every check in both modes (CVD
+ΔE 24.7 light, 26.8 dark); blue, orange and aqua pass all pairs (aqua's
+light contrast 2.74:1 is a WARN - relieved by the legend that prints each
+part's figure). **Green and red FAIL the colour-blind check** (deutan ΔE 4.1):
+the arrow (▲/▼, its shape) carries up and down - never the colour alone - as
+Thach's "always with the arrow" requires; and red sits too close to orange
+(ΔE 10.8 light, 6.8 dark), so **no chart draws a change colour beside the
+second series**: change colours only in the tiles' arrows and the waterfall;
+series colours only in the line and the bar charts. Up and down are
+changes, never a series; red is never a main or brand colour.
+
+**Decisions made alone:** only the arrow is coloured - the change's text
+stays in the neutral ink (green on `#fcfcfb` is 3.27:1, too faint for 13 px
+text; a mark beside a value carries the meaning, the dataviz rule "text
+wears text tokens"); the colours follow the DIRECTION of the printed pair
+on every tile, as Thach wrote it - the return rate falling shows a red ▼
+(Q10 in section 9); this replaces D-10 (neutral arrows).
+
+**Charts** - one y-axis each (the line and the waterfall; the bars have
+none); a parts-of-a-whole bar only for 2 or 3 parts (D6, unchanged - never a
+donut of more); everything else sorted horizontal bars. **Top products** -
+by SALES (money), sorted, each value printed at its bar's end, no quantity
+on the card (quantity stays in the appendix's table). A single-series bar
+chart with no negative value (products; a category or a split when not
+compared) prints each value at its bar's end; a chart comparing two months
+keeps the value above the bar with "was ..." and gains a legend ("This
+month", "Last month"), since two series need one (decision made alone). A
+hover title on each bar row and waterfall bar (report.html: `title`; the
+page: the same text).
+
+**Icons** - small (18 px), neutral (the secondary ink), decorative
+(`aria-hidden`), inline SVG, one per tile id; the same path data in
+report.html (`html_dashboard`) and the page (`dashboardIcons.ts`), pinned
+equal by a test.
+
+**Dark mode is selected**, not flipped: its own validated steps (the table's
+dark column), applied by the reader's setting (`prefers-color-scheme`, and a
+`data-theme` stamp wins both ways) - in report.html and, through the page's
+tokens, on every page of the app (decision made alone: the tokens are the
+app's, so the app follows; no component has its own colour).
+
+**Process**: display - failing tests first, one review cycle, one scoped
+review of its fixes; the check at 390 and 1440 px, light and dark.
+
+**As built (2026-10-16).** Failing tests first (tests/stages/report/
+test_dashboard_visual.py, frontend InsightsVisual.test.tsx - red before the
+code); mutation on the logic (the strip, the value-at-end and two-month
+conditions, the arrow by sign) all killed. The frontend's build was broken
+on HEAD by two test files' types - fixed (D-21). **The review (one cycle,
+fresh context)**: the real fixtures right - the line, products by sales,
+the legends, the arrows, the icons hidden, one axis, no pie of more than 3.
+Fixed, tests first: **R1 (a fabrication the contract allows, on no real
+file)** "in line with" when the two changes print equal but stage 3 calls
+the season beyond its band (a typical gap too small to show makes sentence B
+fall back to 1 decimal) - now only when stage 3 says consistent too; R2 the
+page's checklist marks were red and blue where report.html's were grey and
+the series blue (one copy); R3 the page's chart axes (#666) and tooltips
+(white, the label in the page's ink) unreadable in dark - the tokens now
+(`domain/chartTheme.ts`); R4 dark error text 3.6:1 - the reference's dark red
+step `#e66767` (5.0:1); R5 report.html's own inks (.meta, .reason, the
+caution, the note's border) and `color-scheme` follow the theme, a stamp
+included; R6 the icon beside the figure squeezed a seven-digit figure into
+two lines - the icon now stands in the label's row; the waterfall's arrow
+from the PRINTED figure in both renderers (-0.005 drew a red arrow on one
+and none on the other). Recorded, not fixed: the page keeps the app's own
+Figma inks in light (#1a1d21, #6b7280), report.html the palette's (#0b0b0b,
+#52514e) - dark is the same on both (D-22, decision made alone: the app's
+tokens are Figma's); the appendix's Plotly charts stay on a white template
+in dark; the unused "diverging" bar style has no arrows (never produced).
+**Its scoped review approved** (no fabrication, no D7 or dark hole; the
+line on the real runs as above, the waterfall's arrows alike in both
+renderers on every printed form). Fixed, each narrowing: a row of tiles
+lines its figures up whatever its labels' lengths (the label grows; R6 had
+made "Orders with a return, per order sold" three lines beside two); the
+label row's gap is the same on both (8 px); the page's waterfall labels get
+room for an arrow and a currency code. Recorded: with the season consistent
+but the money change printing as zero ("Sales the same as ..."), the line
+says no season (nothing printed to compare); `#e66767` on the dark removed
+tint is 4.42:1.
+
 ## 9. Decisions made alone and open questions
 
 Decisions made alone (each open to Thach's veto):
@@ -818,13 +1035,66 @@ columns a file needs, and the README lists it; Q3 the top 8 and "Other";
 Q4 blanks per order, two values in an order rule the column out; Q5 a
 sale-or-return column is ruled out. F2 approved.
 
-Open questions from the answers (and section 5.1's review: Q7, Q8):
-- **Q6** Q4 as written rules out every line-level column (Vendor, a product
-  group, a size) in a file with an order id whenever an order holds lines of
-  two values - in the scenario store an invoice holds several categories, so
-  even a Category column would be refused. The rule is applied as written
-  (conservative); reading such a column per line when no line of the order is
-  blank would bring them back. Keep as built?
+Decisions made alone (2026-10-16, each open to Thach's veto):
+- **D-13** the line's season when the two printed changes differ: "same
+  months last year +X" (one year) or "same months in earlier years typically
+  +X" (several - the season's figure is a typical change).
+- **D-14** Q8 only on Thach's list: a city, a province, a country or a company
+  is not refused; a person word beside another word is not a name; names by
+  header only; Japan's postcode shape not read from values.
+- **D-15** Q7: a first-line column is asked about only when the fill would
+  change something (an order with a blank line under its value) and the
+  column would be offered once answered yes; an order-level column written
+  on every line (WooCommerce) is read per line, as before.
+- **D-16** metrics.json stays 16.4: no field changed (a line attribute split
+  instead of withheld, a fill only on the user's answer).
+- **D-17** the strip's tiles by id in each renderer (no report.json field,
+  no version bump); returning customers' share not shown (no field holds it).
+- **D-18** only the arrow coloured, the change's text in the neutral ink;
+  replaces D-10.
+- **D-19** a single-series bar chart with no negative value prints each value
+  at its bar's end; a two-month chart keeps its value above the bar and
+  gains a legend.
+- **D-20** dark mode on every page of the app (the tokens are the app's);
+  the diff highlights' dark steps are the status colours at a low alpha.
+- **D-22** the page keeps the app's Figma inks in light; report.html the
+  palette's (dark identical on both).
+- **D-21** fixed in passing: the frontend's `npm run build` failed on HEAD -
+  two test files did not type-check (`tsc -b` reads `src`, tests included);
+  their types fixed, no assertion weakened.
+
+Open questions (2026-10-16):
+- **Q9** Returning customers' share of sales (Thach's strip): no field of
+  metrics.json or diagnosis.json holds it, and a consumer computes no figure.
+  Add it to stage 2 (additive: the returning customers' sales over the
+  attributed sales, both months - and which denominator: all sales, or the
+  sales with a customer?), or leave it out?
+- **Q10** The tiles' arrows follow the direction, as written: the return
+  rate FALLING shows a red ▼ (Online Retail II: 0.169 -> 0.152), rising a
+  green ▲ - while for that figure up is bad. Keep the direction's colour on
+  every tile, or the return rate's arrow neutral (or reversed)?
+- **Q11** Q8 covers the breakdown call only. The schema and plan calls' bounded
+  sample (AI_PIPELINE 1: at most 30 rows) still holds every column, names
+  and e-mails included, as before. Leave it, or drop personal columns' values
+  from that sample too (it changes the validated prompts' input)?
+
+Thach's answers (2026-10-16), with his reasons (section 5.1 as built):
+- **Q6 NO**: a column whose values differ between the lines of one order is a
+  line attribute - each line's sales to its own value, blanks per line; Q4's
+  per-order rule only for order-level columns. "Sales by category" is the
+  most useful split for a shop owner and must not be ruled out on every file
+  with an order id.
+- **Q7 never fill alone**: Review asks, once per first-line column, "<column>
+  is only on each order's first line: does it apply to the whole order?" -
+  yes fills per order; no or unanswered, not offered. Code-written. CLAUDE.md
+  3.3a, never guess.
+- **Q8 never a person**: no column naming or locating a person is offered;
+  removed before the AI's input is built. Personal data on a shareable
+  report, and no use to a shop owner.
+- **The line under the tiles states facts only** (2026-10-16): "in line with
+  last year" only when the two printed changes are equal at the printed
+  precision; otherwise "same months last year +39.14%" - the judgement and
+  its yardstick behind the line's marker (section 10).
 
 Earlier open questions (answered above):
 - **Q1** keep the summary where the rule puts it (after the charts), or pin it

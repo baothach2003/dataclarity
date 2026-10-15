@@ -14,6 +14,19 @@ export interface WaterfallRow {
   range: [number, number]
   shown: number
   worth: string
+  // The label drawn on the bar: a part's worth after its arrow (green and red always with the arrow, design
+  // section 11); the whole change as printed.
+  printed: string
+}
+
+/** The arrow from the figure printed (its last token), as report.html decides it: "0.00" has none. */
+export function printedSign(worth: string): number {
+  return Math.sign(Number((worth.split(' ').at(-1) ?? '').replace(/[,+]/g, '')) || 0)
+}
+
+function arrowed(worth: string): string {
+  const sign = printedSign(worth)
+  return sign > 0 ? `▲ ${worth}` : sign < 0 ? `▼ ${worth}` : worth
 }
 
 function span(from: number, to: number): [number, number] {
@@ -24,7 +37,14 @@ export function waterfallRows(waterfall: Waterfall): WaterfallRow[] {
   const rows: WaterfallRow[] = []
   let level = 0
   for (const bar of waterfall.bars) {
-    rows.push({ factor: bar.factor, label: bar.label, range: span(level, level + bar.shown), shown: bar.shown, worth: bar.worth })
+    rows.push({
+      factor: bar.factor,
+      label: bar.label,
+      range: span(level, level + bar.shown),
+      shown: bar.shown,
+      worth: bar.worth,
+      printed: arrowed(bar.worth),
+    })
     level += bar.shown
   }
   const current = waterfall.current_label.split(' ').slice(0, -2).join(' ')
@@ -34,6 +54,7 @@ export function waterfallRows(waterfall: Waterfall): WaterfallRow[] {
     range: span(0, waterfall.shown_change),
     shown: waterfall.shown_change,
     worth: waterfall.change_text,
+    printed: waterfall.change_text,
   })
   return rows
 }

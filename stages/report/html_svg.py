@@ -6,6 +6,7 @@ geometry is the page's, no figure is computed. Every label is escaped; a
 point's own words are in its <title> (hover, and read by screen readers)."""
 
 from contracts.report import Chart
+from contracts.report_dashboard import printed_figure
 from contracts.report_front import Waterfall
 from shared.wording import amount, count, month_name
 from stages.report.html_charts import months_only
@@ -121,12 +122,16 @@ def waterfall_chart(waterfall: Waterfall, code: str | None = None) -> str:
         width = slot * 0.7
         top, bottom = min(y(start), y(end)), max(y(start), y(end))
         last = i == len(steps) - 1
-        kind = "tot" if last else "flat" if bottom - top < 1.5 else "up" if shown > 0 else "down"
+        # A part's colour and arrow from its sign - green and red for change, always with the arrow (design
+        # section 11); the whole change in the totals' grey.
+        printed = printed_figure(worth)  # the arrow from the figure printed, as the page decides it
+        kind = "tot" if last else "flat" if printed == 0 else "up" if printed > 0 else "down"
+        arrow = {"up": "&#9650; ", "down": "&#9660; "}.get(kind, "")
         parts.append(f'<g class="mark"><title>{esc(label)}: {esc(worth)}</title>'
                      f'<rect x="{x:.1f}" y="{top:.1f}" width="{width:.1f}" height="{max(bottom - top, 1.5):.1f}" '
                      f'rx="3" class="{kind}"/>'
                      f'<text x="{x + width / 2:.1f}" y="{top - 6:.1f}" class="val" text-anchor="middle">'
-                     f"{esc(worth)}</text></g>")
+                     f"{arrow}{esc(worth)}</text></g>")
         first, second = _two_lines(label)
         parts.append(f'<text x="{x + width / 2:.1f}" y="{HEIGHT + 2}" class="lab" text-anchor="middle">{esc(first)}'
                      f'</text><text x="{x + width / 2:.1f}" y="{HEIGHT + 16}" class="lab" text-anchor="middle">'

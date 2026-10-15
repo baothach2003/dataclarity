@@ -3,6 +3,7 @@
 // zero and never joined across (CONTRACTS 11) - under the front block's own title, with its part-month
 // sentences. The months table stays in "Technical details".
 
+import { TOOLTIP_LABEL, TOOLTIP_STYLE } from '../domain/chartTheme.ts'
 import { CartesianGrid, Line, LineChart, Tooltip, XAxis, YAxis } from 'recharts'
 import { revenueRows } from '../domain/chartData.ts'
 import { useCurrencyCode } from '../domain/currencyCode.ts'
@@ -35,15 +36,15 @@ export function FrontSalesChart({ chart, title, notes, showTitle = true }: Front
           margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
         >
           <CartesianGrid stroke="var(--divider)" vertical={false} />
-          <XAxis dataKey="month" tick={{ fontSize: 11 }} minTickGap={16} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} minTickGap={16} />
           <YAxis
             tickFormatter={(value: number) => axisAmount(value, code)}
             allowDecimals={false}
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: 'var(--text-secondary)' }}
             width={88}
           />
-          <Tooltip formatter={(value) => (typeof value === 'number' ? money(value, code) : String(value))} />
-          <Line type="linear" dataKey="revenue" name="Sales" stroke="var(--accent)" strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+          <Tooltip contentStyle={TOOLTIP_STYLE} labelStyle={TOOLTIP_LABEL} formatter={(value) => (typeof value === 'number' ? money(value, code) : String(value))} />
+          <Line type="linear" dataKey="revenue" name="Sales" stroke="var(--series-1)" strokeWidth={2} connectNulls={false} isAnimationActive={false} />
         </LineChart>
       </div>
       {notes.map((line) => (

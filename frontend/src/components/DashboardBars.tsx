@@ -3,6 +3,9 @@
 // phone and read by a screen reader - and the bar under them on one scale holding zero, a negative value left of
 // the zero line, last month's value a thin marker. Parts of a whole: one bar per month cut into its parts, the
 // legend printing each part's figure. The widths are layout; every figure printed is report.json's text.
+// Thach's visual style (2026-10-15; design section 11): one series of no negative value (the top products) prints
+// each value at its bar's end; two months compared keep the value above the bar and gain a legend; each row has a
+// hover title.
 
 import type { CSSProperties } from 'react'
 import type { Bar } from '../types/reportDashboard.ts'
@@ -20,30 +23,71 @@ function barStyle(value: number, low: number, span: number): CSSProperties {
   return { left: `${String(((start - low) / span) * 100)}%`, width: `${String(Math.max(((end - start) / span) * 100, 0.4))}%` }
 }
 
+function hover(bar: Bar): string {
+  return `${bar.label}: ${bar.now_text}${bar.was_text !== null ? ` (was ${bar.was_text})` : ''}`
+}
+
+/** One series of no negative value: each value right after its bar, the longest bar the scale's whole. */
+function AtEnd({ bars, title }: { bars: Bar[]; title: string }) {
+  const high = Math.max(...bars.map((b) => b.now)) || 1
+  return (
+    <ul className="hbars" aria-label={title}>
+      {bars.map((bar, index) => (
+        <li className="hb-row hb-row--end" key={index} title={hover(bar)}>
+          <span className="hb-label">{bar.label}</span>
+          <span className="hb-track hb-track--end">
+            <span className="hb-fill" style={{ '--w': (bar.now / high).toFixed(4) } as CSSProperties} />
+            <span className="hb-val">{bar.now_text}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function DashboardBars({ bars, title, diverging }: { bars: Bar[]; title: string; diverging: boolean }) {
+  const twoMonths = bars.some((b) => b.was !== null)
+  if (!diverging && !twoMonths && bars.length > 0 && bars.every((b) => b.now >= 0)) {
+    return <AtEnd bars={bars} title={title} />
+  }
   const { low, span } = scale(bars)
   const zero = { left: `${String(((0 - low) / span) * 100)}%` }
   return (
-    <ul className="hbars" aria-label={title}>
-      {bars.map((bar, index) => {
-        const kind = diverging ? (bar.now > 0 ? 'up' : bar.now < 0 ? 'down' : 'flat') : bar.now < 0 ? 'down' : 'now'
-        return (
-          // Two bars may share a label (none does in report.json); their place is their identity.
-          <li className="hb-row" key={index}>
-            <span className="hb-label">{bar.label}</span>
-            <span className="hb-val">
-              {bar.now_text}
-              {bar.was_text !== null && <span className="hb-was">{` was ${bar.was_text}`}</span>}
-            </span>
-            <span className="hb-track" aria-hidden="true">
-              <span className={`hb-bar hb-bar--${kind}`} style={barStyle(bar.now, low, span)} />
-              {bar.was !== null && <span className="hb-bar hb-bar--was hb-marker" style={barStyle(bar.was, low, span)} />}
-              <span className="hb-zero" style={zero} />
-            </span>
+    <>
+      <ul className="hbars" aria-label={title}>
+        {bars.map((bar, index) => {
+          // A negative value runs left of zero in the series colour: a value, not a change.
+          const kind = diverging ? (bar.now > 0 ? 'up' : bar.now < 0 ? 'down' : 'flat') : 'now'
+          return (
+            // Two bars may share a label (none does in report.json); their place is their identity.
+            <li className="hb-row" key={index} title={hover(bar)}>
+              <span className="hb-label">{bar.label}</span>
+              <span className="hb-val">
+                {bar.now_text}
+                {bar.was_text !== null && <span className="hb-was">{` was ${bar.was_text}`}</span>}
+              </span>
+              <span className="hb-track" aria-hidden="true">
+                <span className={`hb-bar hb-bar--${kind}`} style={barStyle(bar.now, low, span)} />
+                {bar.was !== null && <span className="hb-bar hb-bar--was hb-marker" style={barStyle(bar.was, low, span)} />}
+                <span className="hb-zero" style={zero} />
+              </span>
+            </li>
+          )
+        })}
+      </ul>
+      {twoMonths && !diverging && (
+        <ul className="legend2">
+          <li>
+            <span className="legend2__swatch legend2__swatch--s1" aria-hidden="true" />
+            This month
           </li>
-        )
-      })}
-    </ul>
+          <li>
+            <span className="legend2__swatch legend2__swatch--s2" aria-hidden="true" />
+            Last month
+          </li>
+        </ul>
+      )}
+    </>
   )
 }
 

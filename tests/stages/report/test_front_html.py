@@ -20,7 +20,9 @@ from tests.stages.report.real_runs import RUNS, build_real, files, with_actions
 # named), the months and the category by size, then the unsized in the fixed order: the summary, this month's
 # best sellers (step 3's review), the front's other text parts.
 # 2.11 (Thach's layout): the tiles, the chart cards, the bands; the front's text parts lead Technical details.
-FRONT_SECTIONS = ["tiles", "change", "sales-by-month", "category", "products", "band-next-month", "band-checked"]
+# Thach's visual style (2026-10-15): the strip of secondary KPIs after the chart cards.
+FRONT_SECTIONS = ["tiles", "change", "sales-by-month", "category", "products", "kpi-strip", "band-next-month",
+                  "band-checked"]
 APPENDIX_SECTIONS = ["summary", "chart-notes", "checked", "next-steps", "next-month", "cannot-know", "quality",
                      "numbers", "how-to-read", "causes", "actions", "provenance"]
 

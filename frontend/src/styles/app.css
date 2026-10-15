@@ -1298,13 +1298,14 @@ table.hypotheses details summary {
   text-align: center;
   font-weight: var(--type-h3-weight);
 }
+/* report.html's marks (the display review's R2): red is for change only. */
 .front-check--yes li::before {
   content: '\2713';
-  color: var(--accent);
+  color: var(--series-1);
 }
 .front-check--against li::before {
   content: '\2193';
-  color: var(--severity-high);
+  color: var(--text-secondary);
 }
 .front-check--no li::before {
   content: '\2715';
@@ -1362,7 +1363,7 @@ table.hypotheses details summary {
   gap: var(--space-3);
 }
 .tile {
-  background: var(--bg-surface);
+  background: var(--chart-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   box-shadow: var(--shadow-card);
@@ -1371,6 +1372,34 @@ table.hypotheses details summary {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+/* The reference's tile (Thach's visual style): a small icon in the label's row - never beside the figure, which
+   keeps the tile's whole width (the display review's R6). */
+/* The label grows, so each figure sits at its tile's foot: a row of tiles lines its figures up whatever its labels'
+   lengths (the scoped review's S1). */
+.tile__label {
+  display: flex;
+  flex: 1 0 auto;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.tile__icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--text-secondary);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.kpi-strip {
+  margin-top: var(--space-1);
+}
+.dashboard .card,
+.dashboard .band {
+  background: var(--chart-surface);
 }
 .tile__label,
 .tile__change {
@@ -1400,6 +1429,17 @@ table.hypotheses details summary {
 }
 .tile__arrow {
   font-size: var(--type-caption-size);
+}
+/* Green and red for change only, always with the arrow - the arrow alone coloured; the change's text stays in the
+   secondary ink (design section 11). */
+.tile__arrow--up {
+  color: var(--change-up);
+}
+.tile__arrow--down {
+  color: var(--change-down);
+}
+.tile__arrow--same {
+  color: var(--text-secondary);
 }
 .dashboard-widgets {
   display: grid;
@@ -1466,16 +1506,62 @@ table.hypotheses details summary {
   width: 1px;
   background: var(--text-secondary);
 }
-.hb-bar--now,
+/* Series colours for values, change colours for changes - never both in one chart (red is too near orange). */
+.hb-bar--now {
+  background: var(--series-1);
+}
+.hb-bar--was {
+  background: var(--series-2);
+}
 .hb-bar--up {
-  background: var(--accent);
+  background: var(--change-up);
 }
 .hb-bar--down {
-  background: var(--severity-high);
+  background: var(--change-down);
 }
-.hb-bar--was,
 .hb-bar--flat {
-  background: var(--severity-low);
+  background: var(--text-secondary);
+}
+/* One series of no negative value: each value right after its bar, on one scale (the longest bar --w 1). */
+.hb-track--end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: auto;
+}
+.hb-fill {
+  display: block;
+  height: 9px;
+  min-width: 2px;
+  border-radius: var(--radius-badge);
+  background: var(--series-1);
+  width: calc((100% - 9em) * var(--w));
+}
+.hb-row--end .hb-val {
+  text-align: left;
+}
+.legend2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  list-style: none;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: var(--type-caption-size);
+}
+.legend2__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: var(--space-2);
+}
+.legend2__swatch--s1 {
+  background: var(--series-1);
+}
+.legend2__swatch--s2 {
+  background: var(--series-2);
 }
 .hp-part {
   display: block;
@@ -1483,14 +1569,13 @@ table.hypotheses details summary {
   border-radius: var(--radius-badge);
 }
 .hp-part--0 {
-  background: var(--accent);
+  background: var(--series-1);
 }
 .hp-part--1 {
-  background: var(--severity-low);
+  background: var(--series-2);
 }
 .hp-part--2 {
-  background: var(--accent);
-  opacity: 0.45;
+  background: var(--series-3);
 }
 .hp-swatch {
   display: inline-block;

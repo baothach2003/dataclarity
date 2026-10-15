@@ -224,23 +224,35 @@ _APPENDIX_JS = ("(function(){var a=document.getElementById('appendix');if(!a)ret
                 "a.addEventListener('toggle',function(){if(a.open&&window.Plotly){"
                 "document.querySelectorAll('.plotly-graph-div').forEach(function(d){Plotly.Plots.resize(d);});"
                 "}});})();")
-_FRONT_STYLE = """:root{--card:#fff;--ink2:#52514e;--line:#e4e3df;--up:#2a78d6;--down:#e34948;--tot:#8a8984;
---accent:#2a78d6}@media (prefers-color-scheme:dark){:root{--card:#232321;--ink2:#c3c2b7;--line:#383835;
---up:#3987e5;--down:#e66767;--tot:#8f8e88;--accent:#3987e5}body{background:#1a1a19;color:#fff}
-.badge{background:#2b2b29}}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+# The dataviz skill's validated palette (docs/DASHBOARD_DESIGN.md section 11;
+# C:/Users/Happy/dashboard-palette-check.txt): surfaces, inks, series 1-3
+# (identity), up and down (change only, always with an arrow), the totals'
+# grey. Dark is SELECTED - its own validated steps - by the reader's setting,
+# and a data-theme stamp wins both ways.
+_LIGHT = ("--surface:#fcfcfb;--card:#fcfcfb;--page:#f9f9f7;--ink:#0b0b0b;--ink2:#52514e;--line:#e1e0d9;"
+          "--base:#c3c2b7;--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--up:#0ca30c;--down:#d03b3b;--tot:#898781;"
+          "--accent:#2a78d6;--badge:#f5f6f8;--caution:#7a5200;color-scheme:light")
+_DARK = ("--surface:#1a1a19;--card:#1a1a19;--page:#0d0d0d;--ink:#ffffff;--ink2:#c3c2b7;--line:#2c2c2a;"
+         "--base:#383835;--s1:#3987e5;--s2:#d95926;--s3:#199e70;--up:#0ca30c;--down:#d03b3b;--tot:#898781;"
+         "--accent:#3987e5;--badge:#2b2b29;--caution:#f0c060;color-scheme:dark")
+_FRONT_STYLE = (":root{" + _LIGHT + "}@media (prefers-color-scheme:dark){:root:not([data-theme=\"light\"]){" + _DARK
+                + "}}:root[data-theme=\"dark\"]{" + _DARK + "}" + """body{background:var(--page);color:var(--ink)}
+.badge{background:var(--badge)}.meta,.reason{color:var(--ink2)}.caution{color:var(--caution)}
+.note{border-left-color:var(--line)}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
 padding:16px 18px;margin-top:18px}.card h2{margin:0 0 .6rem;font-size:1.15rem}.summary p{font-size:1.05rem}
 .small{font-size:.9rem;color:var(--ink2)}svg{width:100%;height:auto;display:block}.grid{stroke:var(--line)}
 .base{stroke:var(--ink2)}.tick{fill:var(--ink2);font-size:11px}.val{fill:currentColor;font-size:12px;font-weight:600}
-.lab{fill:var(--ink2);font-size:11.5px}.up{fill:var(--up)}.down{fill:var(--down)}.tot{fill:var(--tot)}
-.flat{fill:var(--ink2)}.series{fill:none;stroke:var(--accent);stroke-width:2}.hit{fill:transparent}
-.dot,.pt-last{fill:var(--accent)}.mark:hover .hit{fill:var(--accent);fill-opacity:.25}.num{white-space:nowrap}
+.lab{fill:var(--ink2);font-size:11.5px}.wf .up{fill:var(--up)}.wf .down{fill:var(--down)}.wf .tot{fill:var(--tot)}
+.wf .flat{fill:var(--ink2)}.series{fill:none;stroke:var(--s1);stroke-width:2}.hit{fill:transparent}
+.dot,.pt-last{fill:var(--s1)}.mark:hover .hit{fill:var(--s1);fill-opacity:.25}.num{white-space:nowrap}
 ul.check{list-style:none;padding-left:0}ul.check li{padding:3px 0 3px 24px;position:relative}
 ul.check li::before{position:absolute;left:0;width:18px;text-align:center;font-weight:700}
-.yes li::before{content:"\\2713";color:var(--up)}.against li::before{content:"\\2193";color:var(--down)}
+.yes li::before{content:"\\2713";color:var(--s1)}.against li::before{content:"\\2193";color:var(--ink2)}
 .no li::before{content:"\\2715";color:var(--ink2)}.cant li::before{content:"?";color:var(--ink2)}
 .rec{border-top:1px solid var(--line);padding-top:8px;margin-top:8px}.scroll{overflow-x:auto}
 #appendix{margin-top:18px}#appendix>summary{cursor:pointer;font-weight:600;padding:8px 0}
-#appendix table{display:block;overflow-x:auto}p,li,td,h1,h2,h3{overflow-wrap:anywhere}th{overflow-wrap:break-word}"""
+#appendix table{display:block;overflow-x:auto}p,li,td,h1,h2,h3{overflow-wrap:anywhere}th{overflow-wrap:break-word}
+th,td{border-bottom-color:var(--line)}""")
 
 
 def render_html(report: ReportContract) -> str:

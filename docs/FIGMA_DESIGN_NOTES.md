@@ -94,6 +94,20 @@ shadow) for next month, the checked chips (pill radius, the label type; a
 checked chip in the secondary text) and the next step. On a phone the bands
 stack, still full width; no element narrower than the screen holds a
 paragraph.
+**Thach's visual style (2026-10-15), the same exception** (docs/DASHBOARD_DESIGN.md
+section 11): the layout of his reference image "OPERATIONAL DASHBOARD"
+(local only, never committed) - each KPI tile an 18 px stroke icon (the
+secondary text, decorative) beside its label, figure and change; a strip of
+secondary KPIs (customers, the return rate) after the chart cards. The
+dashboard's colours are the dataviz skill's validated reference palette,
+added to `tokens.css` as roles: `--chart-surface`, `--series-1..3`,
+`--change-up`, `--change-down`, `--change-total` - green and red only on an
+arrow or a waterfall bar. Dark mode is selected, by the reader's setting
+(a `data-theme` stamp wins): every token gets its dark step from the same
+reference (its dark chrome, ramps and status steps); the diff highlights,
+which the reference has no step for, take the status colours at a low
+alpha (decision made alone). No Figma frame holds these values - the
+reference palette is the source, as Thach asked.
 
 Link format: `https://www.figma.com/design/DYhLQp7bxoa5HqfvIFNTej?node-id=<id with - instead of :>`
 (e.g. Review = `node-id=3-2`).
