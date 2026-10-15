@@ -17,8 +17,8 @@ from stages.report.front_checklist import checklist_groups
 from stages.report.front_summary import pct, sales_figures, sentence_b
 
 BLOCKED_LINE = "Not compared: the data checks did not pass"
-# The season's verbs, the front's own (front_summary.sentence_b).
-_SEASON_VERB = {"consistent": "in line with", "shortfall": "differs from", "excess": "differs from"}
+# The season bands sentence B words (front_summary.sentence_b); the line states only their figure.
+_SEASON_BANDS = ("consistent", "shortfall", "excess")
 # The chips' subjects (design section 10): a word or two per check of the checklist.
 _SUBJECT = {"C1": "Customers", "C2": "Customers", "C3": "Customers", "B1": "Order frequency", "B2": "Basket size",
             "P1": "Prices", "P2": "Product mix", "P3": "Refunds", "P4": "Discounts", "P5": "Charges",
@@ -44,8 +44,8 @@ def headline(*, metrics: MetricsContract, diagnosis: DiagnosisContract, bridge: 
     current, previous = month_name(period.current), month_name(period.previous)
     if front.state == "blocked":
         return Headline(text=BLOCKED_LINE, notes=notes, asides=[*front.summary, front.sales_note])
-    # Behind the line's marker (the review: "in line with" needs its why): the caution lines, the front's own
-    # summary - the season's gap and the shop's typical gap - then what the amounts are.
+    # Behind the line's marker (the review: a season needs its why): the caution lines, the front's own
+    # summary - the judgement, the season's gap and the shop's typical gap - then what the amounts are.
     asides = [*front.caution, *front.summary, front.sales_note]
     if revenue.current is None:
         return Headline(text=f"Sales in {current} not shown: no sale can be counted", notes=notes, asides=asides)
@@ -58,17 +58,33 @@ def headline(*, metrics: MetricsContract, diagnosis: DiagnosisContract, bridge: 
     decimals = sentence_b(movement)[2]
     _, _, change = sales_figures(metrics, bridge)
     change_pct = metrics.core.revenue_change_pct
+    printed: str | None = None  # the percentage the line prints, when it prints one
     if change is not None and prints_as_zero(change):
         text = f"Sales the same as {previous}"
     elif change_pct is not None:
-        text = f"Sales {pct(change_pct, decimals)} vs {previous}"
+        printed = pct(change_pct, decimals)
+        text = f"Sales {printed} vs {previous}"
     else:
         text = f"Sales {signed(change or 0.0, code)} vs {previous}"
     season = movement.season if movement is not None else None
-    if season is not None and season.band in _SEASON_VERB:
-        whom = "last year" if season.years == 1 else "earlier years"
-        text += f" · {_SEASON_VERB[season.band]} {whom} ({pct(season.expected_change_pct, decimals)})"
+    if season is not None and season.band in _SEASON_BANDS:
+        text += " · " + _season_fact(season.expected_change_pct, season.years, printed=printed, decimals=decimals,
+                                     consistent=season.band == "consistent")
     return Headline(text=text, notes=notes, asides=asides)
+
+
+def _season_fact(expected: float, years: int, *, printed: str | None, decimals: int, consistent: bool) -> str:
+    """The season on the line as a fact (Thach, 2026-10-16): "in line with"
+    only when the two printed changes are equal at the printed precision -
+    the reader can check that on the line itself - and only when stage 3
+    calls the change consistent with the season too (the display review's R1:
+    with a typical gap too small to show, two different changes can print
+    equal); otherwise the figure alone, the judgement and its yardstick
+    behind the line's marker."""
+    shown = pct(expected, decimals)
+    if consistent and printed is not None and printed == shown:
+        return f"in line with {'last year' if years == 1 else 'earlier years'} ({shown})"
+    return f"same months last year {shown}" if years == 1 else f"same months in earlier years typically {shown}"
 
 
 def checked(*, front: Front, diagnosis: DiagnosisContract, views: list[HypothesisView],

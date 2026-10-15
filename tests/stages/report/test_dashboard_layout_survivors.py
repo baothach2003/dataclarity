@@ -28,7 +28,30 @@ def test_a_season_of_several_years_is_said_as_earlier_years() -> None:
     diagnosis = copy.deepcopy(files("demo_classed")["diagnosis.json"])
     diagnosis["headline"]["movement"]["season"]["years"] = 2
     report = build_real("demo_classed", diagnosis=diagnosis)
-    assert report.dashboard.headline.text.endswith("· in line with earlier years (+27.1%)")
+    assert report.dashboard.headline.text.endswith("· same months in earlier years typically +27.1%")
+
+
+def _season_line(run: str, expected: float | None, band: str) -> str:
+    diagnosis = copy.deepcopy(files(run)["diagnosis.json"])
+    movement = diagnosis["headline"]["movement"]
+    expected = movement["change_pct"] if expected is None else expected
+    # The contract holds the gap to the season's figure: change - expected.
+    movement["season"].update(expected_change_pct=expected, band=band,
+                              difference_pct=movement["change_pct"] - expected)
+    return build_real(run, diagnosis=diagnosis).dashboard.headline.text
+
+
+def test_in_line_with_only_when_the_two_printed_changes_are_equal() -> None:
+    # Thach, 2026-10-16: the line states facts only. Sentence B prints as many decimals as it takes to show
+    # the gap (Q56), so the two printed changes are equal only when the changes are: then "in line with" is a
+    # fact the reader can check on the line itself.
+    assert _season_line("demo_classed", None, "consistent") == \
+        "Sales +27.2% vs October 2011 · in line with last year (+27.2%)"
+    # 27.24% against this year's 27.18%: printed +27.24% and +27.18% - different, so the fact only, though
+    # the band says "consistent".
+    assert _season_line("demo_classed", 27.24, "consistent").endswith("· same months last year +27.24%")
+    # A season the change is beyond (4 x the typical 13.1% gap): the figure alone, never "differs from".
+    assert _season_line("demo_classed", -30.0, "excess").endswith("· same months last year -30.0%")
 
 
 def test_no_change_says_the_same_on_the_line_and_no_change_on_the_tile() -> None:
@@ -88,3 +111,22 @@ def test_the_contract_refuses_a_next_step_that_is_not_an_action() -> None:
     data["dashboard"]["next_steps"] = ["Sell more."]
     with pytest.raises(ValidationError, match="one next-step line per suggested action"):
         ReportContract.model_validate(data)
+
+
+def test_equal_printed_changes_over_several_years_say_earlier_years() -> None:
+    diagnosis = copy.deepcopy(files("demo_classed")["diagnosis.json"])
+    movement = diagnosis["headline"]["movement"]
+    movement["season"].update(years=2, expected_change_pct=movement["change_pct"], difference_pct=0.0)
+    line = build_real("demo_classed", diagnosis=diagnosis).dashboard.headline.text
+    assert line.endswith("· in line with earlier years (+27.2%)")
+
+
+def test_r1_in_line_with_only_when_stage_3_says_so_too() -> None:
+    # The display review's R1: with a typical gap too small to show, sentence B falls back to 1 decimal and two
+    # different changes print equal - a season stage 3 calls "excess" must not read "in line with" on the line.
+    diagnosis = copy.deepcopy(files("demo_classed")["diagnosis.json"])
+    movement = diagnosis["headline"]["movement"]
+    expected = movement["change_pct"] - 0.02
+    movement["season"].update(expected_change_pct=expected, band="excess", difference_pct=0.02, typical_pct=1e-6)
+    line = build_real("demo_classed", diagnosis=diagnosis).dashboard.headline.text
+    assert "in line with" not in line and line.endswith("· same months last year +27.2%")

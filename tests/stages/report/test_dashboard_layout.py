@@ -121,7 +121,8 @@ def test_a_tile_is_label_figure_arrow_and_change_only() -> None:
     assert (tiles["orders"].now, tiles["orders"].was) == ("343", "308")
     page = _html(_real("kaggle"))
     tiles_html = page[page.index('id="tiles"'):page.index("</section>", page.index('id="tiles"'))]
-    assert "was 308" in tiles_html and "in November 2024" not in tiles_html and "<p" not in tiles_html
+    # No paragraph (an icon's <path> is no paragraph: Thach's visual style puts one in each tile).
+    assert "was 308" in tiles_html and "in November 2024" not in tiles_html and not re.search(r"<p[\s>]", tiles_html)
 
 
 def test_a_sales_tile_with_no_comparison_keeps_its_reason_behind_its_marker() -> None:
@@ -136,15 +137,25 @@ def test_a_sales_tile_with_no_comparison_keeps_its_reason_behind_its_marker() ->
 
 @pytest.mark.parametrize(("run", "line"), [
     ("kaggle", "Sales +11.9% vs November 2024"),
-    ("demo_classed", "Sales +27.2% vs October 2011 · in line with last year (+27.1%)"),
-    ("demo_unanswered", "Sales +27.08% vs October 2011 · in line with last year (+39.14%)"),
+    ("demo_classed", "Sales +27.2% vs October 2011 · same months last year +27.1%"),
+    ("demo_unanswered", "Sales +27.08% vs October 2011 · same months last year +39.14%"),
 ])
 def test_the_line_under_the_tiles(run: str, line: str) -> None:
     # The percentages at sentence B's decimals - one change printed one way (Q56): the unanswered demo's
-    # season sentence prints 27.08% and 39.14%.
+    # season sentence prints 27.08% and 39.14%. The line states facts only (Thach, 2026-10-16): "in line with"
+    # beside 27.08% and 39.14% read as false; the judgement and its yardstick stand behind the marker.
     report = _real(run)
     assert report.dashboard.headline.text == line
     assert line in " ".join(_page(report).visible)
+
+
+@pytest.mark.parametrize("run", ["demo_classed", "demo_unanswered"])
+def test_the_line_never_states_a_judgement_beside_two_different_printed_figures(run: str) -> None:
+    # Thach, 2026-10-16: "in line with" only when the two printed changes are equal at the printed precision.
+    report = _real(run)
+    assert "in line with" not in report.dashboard.headline.text
+    assert "differs from" not in report.dashboard.headline.text
+    assert any("in line with" in aside for aside in report.dashboard.headline.asides)
 
 
 def test_the_line_is_at_most_about_twenty_words_on_every_file() -> None:
@@ -384,8 +395,8 @@ def test_r2_a_tiles_open_marker_spans_the_whole_row_never_a_narrow_column() -> N
 
 
 def test_r4_the_lines_marker_says_why_in_line_with() -> None:
-    # demo_unanswered: "+27.08% ... in line with last year (+39.14%)" - sentence B (the gap within twice the
-    # typical gap) stands behind the line's marker.
+    # demo_unanswered: "+27.08% ... same months last year +39.14%" - the judgement, sentence B ("in line with":
+    # the gap within twice the typical gap), stands behind the line's marker.
     report = _real("demo_unanswered")
     assert all(line in report.dashboard.headline.asides for line in report.front.summary)
 
