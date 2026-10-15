@@ -311,7 +311,7 @@ def test_execute_records_the_users_columns(tmp_path: Path) -> None:
     files = _executed(tmp_path, ["Location"])
     assert files["cleaning_report.json"]["breakdowns"] == ["Location"]
     assert files["plan_final.json"]["breakdowns"] == ["Location"]
-    assert SCHEMA_VERSION == "4.4"  # 4.4: the sales breakdowns (the dashboard); 4.3 the currency
+    assert SCHEMA_VERSION == "4.5"  # 4.5: the whole-order answers (Thach's Q7); 4.4: the sales breakdowns (the dashboard); 4.3 the currency
 
 
 def test_execute_without_a_breakdown_writes_no_field(tmp_path: Path) -> None:

@@ -12,10 +12,14 @@ beside it. A split that cannot be drawn is withheld with its reason, never a
 failure (suppress, never fabricate).
 
 16.4 (Thach's Q3 and Q4, 2026-10-15): a line's value is
-`shared/split_values.py`'s - with a trusted order id, a blank line takes its
-order's one value (an order holding two is withheld: stage 1 refuses such a
-column); above ALL_SHOWN values, the TOP_SHOWN largest by the two months'
-sales together and one "Other (N values)" member holding the rest."""
+`shared/split_values.py`'s; above ALL_SHOWN values, the TOP_SHOWN largest by
+the two months' sales together and one "Other (N values)" member holding the
+rest. His Q6 and Q7 (2026-10-16), the same schema: a column whose values
+differ inside an order is a line attribute, each line's sales its own value's
+(no longer withheld); a blank line takes its order's value only for a column
+written on each order's first line that the user said applies to the whole
+order (cleaning_report.json `breakdowns_whole_order`) - never by the data
+alone."""
 
 import re
 from collections.abc import Sequence
@@ -34,17 +38,19 @@ __all__ = ["BLANK_LABEL", "compute_breakdowns"]
 
 def compute_breakdowns(
     df: pd.DataFrame, column_mapping: dict[str, str], period: Period, columns: Sequence[str],
-    confirmations: OrderConfirmations | None = None,
+    confirmations: OrderConfirmations | None = None, whole_order: Sequence[str] = (),
 ) -> list[Breakdown]:
     """One Breakdown per column, in the order given. `period` is
-    metrics_core's own: the same two months as every other block."""
+    metrics_core's own: the same two months as every other block.
+    `whole_order`: the columns whose blank lines take their order's value
+    (cleaning_report.json `breakdowns_whole_order`, the user's answer, Q7)."""
     if not columns:
         return []
     parsed = parse_transactions(df, column_mapping, confirmations)
     months = parsed.dates.dt.to_period("M").astype(str)
     current = parsed.counted & (months == period.current)
     previous = parsed.counted & (months == period.previous)
-    return [_one(df, column, parsed, current, previous, period) for column in columns]
+    return [_one(df, column, parsed, current, previous, period, column in whole_order) for column in columns]
 
 
 def _withheld(column: str, reason: str) -> Breakdown:
@@ -57,7 +63,7 @@ _OTHER_LIKE = re.compile(r"^other \(\d+ values?\)$")
 
 
 def _one(df: pd.DataFrame, column: str, parsed: ParsedTransactions, current: pd.Series, previous: pd.Series,
-         period: Period) -> Breakdown:
+         period: Period, fill: bool) -> Breakdown:
     months = f"{month_name(period.previous)} and {month_name(period.current)}"
     if column not in df.columns:
         return _withheld(column, "the column is not in the cleaned file")
@@ -69,10 +75,7 @@ def _one(df: pd.DataFrame, column: str, parsed: ParsedTransactions, current: pd.
         return _withheld(column, f"no line counted in revenue is dated in {month_name(period.previous)} or "
                                  f"{month_name(period.current)}")
     raw = df[column]
-    split = split_values(raw, parsed.order_key, parsed.orders_basis == "order_id", parsed.counted)
-    if split.conflicting_orders:
-        # Stage 1 refuses such a column (Q4); a hand-edited file is withheld, never resolved.
-        return _withheld(column, "an order holds two different values of this column")
+    split = split_values(raw, parsed.order_key, parsed.orders_basis == "order_id", parsed.counted, fill)
     keys = split.keys
     blank = keys.isna()
     values = keys[in_months & ~blank].nunique()

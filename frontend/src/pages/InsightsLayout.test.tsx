@@ -141,8 +141,11 @@ describe('Insights: pictures and figures, almost no text', () => {
   it.each(['kaggle', 'demo_classed'])('%s: checked is one row of chips, in report.json\'s order', (run) => {
     const report = show(run)
     const chips = within(screen.getByTestId('band-checked')).getAllByRole('listitem')
-    expect(chips.map((chip) => chip.dataset.status)).toEqual(dashboardOf(report).checked.map((c) => c.status))
-    dashboardOf(report).checked.forEach((chip, index) => {
+    // `checked` is optional in a 2.10 report's type: these 2.11 fixtures hold it.
+    const checked = dashboardOf(report).checked ?? []
+    expect(checked.length).toBeGreaterThan(0)
+    expect(chips.map((chip) => chip.dataset.status)).toEqual(checked.map((c) => c.status))
+    checked.forEach((chip, index) => {
       expect(chips[index].textContent).toContain(chip.label)
     })
   })

@@ -2,7 +2,9 @@
 // can split sales for the plan as it stands - read on the plan's lines (Thach's Q3-Q5), so asked again whenever a
 // step or an answer of the plan changes - and the AI's suggestion (asked once per run, by the server). The user is
 // the final authority (CLAUDE.md 3.3): the suggestion is pre-selected, the user removes or adds columns, at most
-// two; what is selected goes with the plan.
+// two; what is selected goes with the plan. Thach's Q7 (2026-10-16): a column written on each order's first line only
+// is offered once the user answers that it applies to the whole order - the answers go with the plan, so stage 1
+// is asked again with them.
 
 import { useEffect, useState } from 'react'
 import { breakdownQuestion } from '../api/runs.ts'
@@ -18,6 +20,9 @@ export interface BreakdownState {
   error: unknown
   // The columns that will split sales: the user's choice, else the suggestion - always eligible ones.
   selected: string[]
+  // The user's answers to the Q7 questions, by column.
+  wholeOrder: Record<string, boolean>
+  answer: (column: string, value: boolean | null) => void
   remove: (column: string) => void
   add: (column: string) => void
   retry: () => void
@@ -36,7 +41,9 @@ function planKey(plan: CleaningPlan): string {
 
 const ASK_AFTER_MS = 400
 
-export function useBreakdowns(baseUrl: string, runId: string, plan: CleaningPlan, enabled: boolean): BreakdownState {
+export function useBreakdowns(baseUrl: string, runId: string, edited: CleaningPlan, enabled: boolean): BreakdownState {
+  const [wholeOrder, setWholeOrder] = useState<Record<string, boolean>>({})
+  const plan = withWholeOrder(edited, wholeOrder)
   const key = planKey(plan)
   const [asked, setAsked] = useState<Asked | null>(null)
   // The user's own selection, once they changed it; null while they have not.
@@ -94,6 +101,17 @@ export function useBreakdowns(baseUrl: string, runId: string, plan: CleaningPlan
     stale: current === null && answered !== null,
     error: current?.error ?? null,
     selected,
+    wholeOrder,
+    answer: (column, value) => {
+      const next = { ...wholeOrder }
+      if (value === null) {
+        // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- a column's answer withdrawn
+        delete next[column]
+      } else {
+        next[column] = value
+      }
+      setWholeOrder(next)
+    },
     remove: (column) => {
       setChoice(selected.filter((c) => c !== column))
     },
@@ -109,7 +127,13 @@ export function useBreakdowns(baseUrl: string, runId: string, plan: CleaningPlan
   }
 }
 
-/** `plan` with the columns that split sales (plan `breakdowns`), when there are any. */
-export function withBreakdowns(plan: CleaningPlan, selected: string[]): CleaningPlan {
-  return selected.length === 0 ? plan : { ...plan, breakdowns: selected }
+/** `plan` with the answers to the Q7 questions (plan `breakdown_whole_order`), when there are any. */
+function withWholeOrder(plan: CleaningPlan, answers: Record<string, boolean>): CleaningPlan {
+  return Object.keys(answers).length === 0 ? plan : { ...plan, breakdown_whole_order: answers }
+}
+
+/** `plan` with the columns that split sales (plan `breakdowns`) and the Q7 answers, when there are any. */
+export function withBreakdowns(plan: CleaningPlan, selected: string[], wholeOrder: Record<string, boolean> = {}): CleaningPlan {
+  const answered = withWholeOrder(plan, wholeOrder)
+  return selected.length === 0 ? answered : { ...answered, breakdowns: selected }
 }

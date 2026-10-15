@@ -10,11 +10,15 @@ names from that list, validated, and anything else is no suggestion
 execute checks the answer again (`breakdowns_problem`).
 
 Thach's Q3-Q5 (2026-10-15): eligibility also reads the LINES execute would
-write (`stages/ingest/breakdown_lines.py`): with a trusted order id, blanks
-are counted per order and two values in one order rule a column out (Q4); a
-column of many values is eligible unless nearly every line - order - is its
-own value (Q3); a column whose every value holds only sale lines or only
-return lines is not (Q5)."""
+write (`stages/ingest/breakdown_lines.py`): a column of many values is
+eligible unless nearly every line - order - is its own value (Q3); a column
+whose every value holds only sale lines or only return lines is not (Q5).
+His Q6-Q8 (2026-10-16): a column whose values differ inside an order is a
+line attribute, read and counted per line (Q6); a column written on each
+order's first line only is offered only when the user answers that it
+applies to the whole order - then its blanks are counted per order (Q7,
+`whole_order_questions`); a column naming or locating a person never is
+(Q8, `stages/ingest/personal_columns.py`)."""
 
 import json
 import re
@@ -26,7 +30,13 @@ from pathlib import Path
 import pandas as pd
 from pydantic import ValidationError
 
-from contracts.breakdowns import BreakdownAnswer, BreakdownQuestion, BreakdownSuggestion, EligibleColumn
+from contracts.breakdowns import (
+    BreakdownAnswer,
+    BreakdownQuestion,
+    BreakdownSuggestion,
+    EligibleColumn,
+    WholeOrderQuestion,
+)
 from contracts.cleaning import CleaningPlanContract
 from contracts.metrics import ALL_SHOWN, MAX_BREAKDOWNS
 from contracts.profile import ColumnProfile, ProfileContract
@@ -36,6 +46,7 @@ from shared.dates import as_dates
 from shared.run_registry import run_file
 from stages.ingest.ai_input import _cut
 from stages.ingest.breakdown_lines import ColumnLines, MeasuredLines
+from stages.ingest.personal_columns import names_a_person
 
 SCHEMA_VERSION = "1.0"
 PROMPT = "breakdowns"
@@ -80,9 +91,10 @@ NOT_ANALYSED = "This file is not analysed as sales data, so sales are not split.
 MESSAGES = {
     "chosen": "Suggested from your file's columns. Change or remove them; at most two.",
     "none_chosen": "No column was suggested. You can pick up to two from the list.",
-    "none_eligible": ("No column of your file can split sales: each needs at least 2 values, few blanks and one "
-                      "value per order, and must not be a date, an amount, an id, a sale-or-return type or a field "
+    "none_eligible": ("No column of your file can split sales: each needs at least 2 values and few blanks, and "
+                      "must not be a date, an amount, an id, a person's details, a sale-or-return type or a field "
                       "already used."),
+    "whole_order": "Answer the question below to split sales by a column written on each order's first line.",
     "ai_unavailable": "No suggestion could be made. You can pick up to two from the list.",
 }
 
@@ -113,8 +125,9 @@ def _any_date(values: Iterable[str]) -> bool:
 def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str,
                      by_order: bool = False) -> str | None:
     """None when the column can split sales by the profile and the plan; else
-    why not (Review's hint and execute's refusal say it). With a trusted order
-    id (`by_order`) the lines count the blanks instead (`why_lines_cannot`)."""
+    why not (Review's hint and execute's refusal say it). For a column written
+    on each order's first line only (`by_order`, Q7) the lines count the
+    blanks, per order, instead (`why_lines_cannot`)."""
     action = next((a for a in plan.column_actions if a.source_name == name), None)
     if action is None or profile is None:
         return "it is not one of the file's profiled columns"
@@ -122,6 +135,9 @@ def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, 
         return "the plan drops it"
     if action.canonical_field != "ignore":
         return "the plan already uses it as a field"
+    # Q8 (Thach, 2026-10-16): first, so a person's column is never offered, asked about or given to the AI.
+    if names_a_person(name, (value.value for value in profile.top_values)):
+        return "it names or locates a person"
     if not name.strip() or _UNNAMED.match(name):
         return "it has no header"
     if action.semantic_type not in SPLIT_TYPES:
@@ -138,14 +154,24 @@ def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, 
     return None
 
 
-def why_lines_cannot(lines: ColumnLines | None) -> str | None:
-    """What the lines say (Q3-Q5); None when they allow the split."""
+FIRST_LINE_ONLY = "it is only on each order's first line, and it was not confirmed to apply to the whole order"
+
+
+def whole_order_question(column: str) -> str:
+    """Review's question (Thach's Q7, 2026-10-16), worded by code."""
+    return f"{column} is only on each order's first line: does it apply to the whole order?"
+
+
+def why_lines_cannot(lines: ColumnLines | None, whole_order: bool = False) -> str | None:
+    """What the lines say (Q3-Q7); None when they allow the split.
+    `whole_order`: the user answered that the column applies to the whole
+    order (Q7)."""
     if lines is None:
         return "its lines could not be read"
-    if lines.conflicting_orders:
-        return "an order holds two different values of it"
-    # Per order with the order fill; else per counted line, besides the profile's whole-file share (the
-    # scoped review's #4: either above 10% is too blank - the split draws its blanks as a bar).
+    if lines.first_line_only and not whole_order:
+        return FIRST_LINE_ONLY
+    # Per order for a first-line column (Q7 answered yes); else per counted line, besides the profile's
+    # whole-file share (the scoped review's #4: either above 10% is too blank - the split draws its blanks as a bar).
     if lines.blank_units * 100 > MAX_BLANK_PCT * lines.units:
         return "too many of its cells are blank"
     if lines.values < MIN_VALUES:
@@ -158,9 +184,29 @@ def why_lines_cannot(lines: ColumnLines | None) -> str | None:
     return None
 
 
-def _why(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str, measured: MeasuredLines) -> str | None:
+def _why(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str, measured: MeasuredLines,
+         assume_whole_order: bool = False) -> str | None:
     lines = measured.columns.get(name)
-    return why_not_eligible(profile, plan, name, lines is not None and lines.by_order) or why_lines_cannot(lines)
+    whole = assume_whole_order or plan.breakdown_whole_order.get(name) is True
+    # A first-line column's whole-file blanks are its other lines: its blanks are counted per order (Q7).
+    return (why_not_eligible(profile, plan, name, lines is not None and lines.first_line_only)
+            or why_lines_cannot(lines, whole))
+
+
+def whole_order_questions(profile: ProfileContract, plan: CleaningPlanContract,
+                          measured: MeasuredLines) -> list[WholeOrderQuestion]:
+    """Review's Q7 questions, in the file's order: each column written on each
+    order's first line only that could split sales if it applies to the whole
+    order - a column refused anyway is never asked about - with the answer the
+    plan holds."""
+    asked = []
+    for column in profile.columns:
+        lines = measured.columns.get(column.name)
+        if lines is not None and lines.first_line_only and \
+                _why(column, plan, column.name, measured, assume_whole_order=True) is None:
+            asked.append(WholeOrderQuestion(column=column.name, question=whole_order_question(column.name),
+                                            answer=plan.breakdown_whole_order.get(column.name)))
+    return asked
 
 
 def eligible_columns(profile: ProfileContract, plan: CleaningPlanContract,
@@ -206,19 +252,22 @@ def suggest_breakdowns(make_client: Callable[[], AIClient], model: str, eligible
 
 
 def question(suggestion: BreakdownSuggestion, eligible: list[EligibleColumn],
-             unavailable: str | None = None) -> BreakdownQuestion:
+             unavailable: str | None = None, whole_order: list[WholeOrderQuestion] | None = None) -> BreakdownQuestion:
     """What Review shows for the plan as it stands: the suggestion's columns
     still eligible, and where they came from - or, while the lines cannot be
-    read, why nothing is offered yet (`unavailable`)."""
+    read, why nothing is offered yet (`unavailable`) - and the Q7 questions."""
     names = [column.column for column in eligible]
     suggested = [name for name in suggestion.chosen if name in names]
+    asked = whole_order or []
     if not eligible:
-        status, message = "none_eligible", unavailable or MESSAGES["none_eligible"]
+        waiting = any(q.answer is None for q in asked)
+        status, message = "none_eligible", unavailable or MESSAGES["whole_order" if waiting else "none_eligible"]
     elif suggestion.status == "ai_unavailable":
         status, message = "ai_unavailable", MESSAGES["ai_unavailable"]
     else:
         status, message = "chosen", MESSAGES["chosen" if suggested else "none_chosen"]
-    return BreakdownQuestion(eligible=eligible, suggested=suggested, status=status, message=message)
+    return BreakdownQuestion(eligible=eligible, suggested=suggested, status=status, message=message,
+                             whole_order=asked)
 
 
 def read_profile(runs_root: Path, run_id: str) -> ProfileContract:
@@ -254,8 +303,17 @@ def breakdown_question_run(runs_root: Path, run_id: str, plan: CleaningPlanContr
     """Review's breakdown control for the plan as edited: the eligible columns
     (`measured`: the plan's lines, `stages/ingest/breakdown_review.py`) and
     the run's suggestion (`suggestion_for`, normally `run_suggestion`)."""
-    eligible = eligible_columns(read_profile(runs_root, run_id), plan, measured)
-    return question(suggestion_for(eligible), eligible, measured.unavailable)
+    profile = read_profile(runs_root, run_id)
+    eligible = eligible_columns(profile, plan, measured)
+    return question(suggestion_for(eligible), eligible, measured.unavailable,
+                    whole_order_questions(profile, plan, measured))
+
+
+def whole_order_kept(plan: CleaningPlanContract, measured: MeasuredLines) -> list[str]:
+    """The kept columns stage 2 fills per order: written on each order's
+    first line only, and answered as applying to the whole order (Q7)."""
+    return [name for name in plan.breakdowns if plan.breakdown_whole_order.get(name) is True
+            and (lines := measured.columns.get(name)) is not None and lines.first_line_only]
 
 
 def breakdowns_problem(profile: ProfileContract, plan: CleaningPlanContract, measured: MeasuredLines) -> str | None:

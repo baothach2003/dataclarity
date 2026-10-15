@@ -197,7 +197,7 @@ def test_the_classes_are_read_from_the_file_as_the_later_stages_read_it(tmp_path
 # --- the contracts ------------------------------------------------------------------------
 
 def test_stage_1_contracts_are_4_0_and_metrics_16_0() -> None:
-    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.4", "4.4", "4.4")
+    assert (ai_schema.SCHEMA_VERSION, ai_plan.SCHEMA_VERSION, cleaning.SCHEMA_VERSION) == ("4.5", "4.5", "4.5")
     assert (SchemaInferenceContract.supported_major, CleaningPlanContract.supported_major,
             CleaningReportContract.supported_major) == (4, 4, 4)
     assert (assemble.SCHEMA_VERSION, MetricsContract.supported_major) == ("16.4", 16)  # 16.4 for Thach's Q3/Q4 (additive)

@@ -183,3 +183,83 @@ describe('ReviewPage: the columns to split sales by', () => {
     expect(document.querySelector('b b')).toBeNull()
   })
 })
+
+// Thach's Q7 (2026-10-16): a column written on each order's first line only is offered only once the user says it
+// applies to the whole order. Stage 1 words the question; the page shows it, sends the answer with the plan, and
+// adds nothing of its own.
+const QUESTION = "Payment Method is only on each order's first line: does it apply to the whole order?"
+const ASKING: BreakdownQuestion = {
+  eligible: [{ column: 'Location', values: ['Online', 'In-store'] }],
+  suggested: ['Location'],
+  status: 'chosen',
+  message: "Suggested from your file's columns. Change or remove them; at most two.",
+  whole_order: [{ column: 'Payment Method', question: QUESTION, answer: null }],
+}
+
+describe("ReviewPage: Thach's Q7, a column on each order's first line only", () => {
+  it('asks the question as stage 1 words it, and sends no answer while it is unanswered', async () => {
+    const { executePlan } = renderReview(ASKING)
+    expect(await screen.findByText(QUESTION)).toBeTruthy()
+    const sent = await confirm(executePlan)
+    expect(sent.breakdown_whole_order).toBeUndefined()
+    expect(sent.breakdowns).toEqual(['Location'])
+  })
+
+  it('a yes asks stage 1 again with the answer; the column offered then can be added and is sent with it', async () => {
+    const { breakdownQuestion, executePlan } = renderReview(ASKING)
+    await screen.findByText(QUESTION)
+    breakdownQuestion.mockResolvedValue({ run_id: 'run-1', question: {
+      ...ASKING,
+      eligible: [{ column: 'Payment Method', values: ['Card', 'PayPal'] }, ...ASKING.eligible],
+      whole_order: [{ column: 'Payment Method', question: QUESTION, answer: true }],
+    } })
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, the whole order' }))
+    await waitFor(() => {
+      const last = breakdownQuestion.mock.calls[breakdownQuestion.mock.calls.length - 1][2]
+      expect(last.breakdown_whole_order).toEqual({ 'Payment Method': true })
+    })
+    const add = await screen.findByRole('combobox', { name: 'Add a column to split sales by' })
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'Payment Method' })).toBeTruthy()
+    })
+    fireEvent.change(add, { target: { value: 'Payment Method' } })
+    const sent = await confirm(executePlan)
+    expect(sent.breakdown_whole_order).toEqual({ 'Payment Method': true })
+    expect(sent.breakdowns).toEqual(['Location', 'Payment Method'])
+  })
+
+  it('a no is sent as no, and can be changed', async () => {
+    const { breakdownQuestion, executePlan } = renderReview(ASKING)
+    await screen.findByText(QUESTION)
+    breakdownQuestion.mockResolvedValue({ run_id: 'run-1', question: {
+      ...ASKING, whole_order: [{ column: 'Payment Method', question: QUESTION, answer: false }],
+    } })
+    fireEvent.click(screen.getByRole('button', { name: 'No' }))
+    expect(await screen.findByRole('button', { name: 'Change the answer for Payment Method' })).toBeTruthy()
+    expect((await confirm(executePlan)).breakdown_whole_order).toEqual({ 'Payment Method': false })
+  })
+
+  it('shows the question when no column is offered yet', async () => {
+    renderReview({ eligible: [], suggested: [], status: 'none_eligible',
+      message: "Answer the question below to split sales by a column written on each order's first line.",
+      whole_order: ASKING.whole_order })
+    expect(await screen.findByText(QUESTION)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Yes, the whole order' })).toBeTruthy()
+  })
+})
+
+describe("Q7's scoped fixes", () => {
+  it('F3: Change shows the question again at once, and no answer is sent, even while stage 1 is asked again', async () => {
+    const { breakdownQuestion, executePlan } = renderReview(ASKING)
+    await screen.findByText(QUESTION)
+    breakdownQuestion.mockResolvedValue({ run_id: 'run-1', question: {
+      ...ASKING, whole_order: [{ column: 'Payment Method', question: QUESTION, answer: false }],
+    } })
+    fireEvent.click(screen.getByRole('button', { name: 'No' }))
+    const change = await screen.findByRole('button', { name: 'Change the answer for Payment Method' })
+    breakdownQuestion.mockReturnValue(new Promise(() => undefined))
+    fireEvent.click(change)
+    expect(screen.getByRole('button', { name: 'Yes, the whole order' })).toBeTruthy()
+    expect((await confirm(executePlan)).breakdown_whole_order).toBeUndefined()
+  })
+})

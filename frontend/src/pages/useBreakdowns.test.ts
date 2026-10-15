@@ -44,12 +44,12 @@ describe('useBreakdowns', () => {
     await waitFor(() => {
       expect(ask).toHaveBeenCalledTimes(2)
     })
-    rerender({ plan: { ...deduplicated, confirmations: { order_id_is_receipt: true } } })
+    rerender({ plan: { ...deduplicated, confirmations: { order_id_is_receipt: true, customer_on_first_line_only: null } } })
     await waitFor(() => {
       expect(ask).toHaveBeenCalledTimes(3)
     })
     // The same plan again (a new object): no new ask.
-    rerender({ plan: { ...deduplicated, confirmations: { order_id_is_receipt: true } } })
+    rerender({ plan: { ...deduplicated, confirmations: { order_id_is_receipt: true, customer_on_first_line_only: null } } })
     await new Promise((resolve) => setTimeout(resolve, 20))
     expect(ask).toHaveBeenCalledTimes(3)
   })

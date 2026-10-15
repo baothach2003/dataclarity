@@ -61,6 +61,17 @@ class EligibleColumn(ContractModel):
     values: list[str]
 
 
+class WholeOrderQuestion(ContractModel):
+    """Thach's Q7 (2026-10-16): a column written on each order's first line
+    only - the data cannot tell an order's field from a line's - asked once:
+    does it apply to the whole order? Worded by stage 1; `answer` is the
+    plan's (null: not answered - the column is not offered)."""
+
+    column: str
+    question: str
+    answer: bool | None
+
+
 class BreakdownQuestion(ContractModel):
     """Review's control (POST /breakdowns): the eligible columns, the ones
     suggested (still eligible under the plan as edited), and one line saying
@@ -70,3 +81,5 @@ class BreakdownQuestion(ContractModel):
     suggested: list[str] = Field(max_length=MAX_BREAKDOWNS)
     status: SuggestionStatus
     message: str
+    # Q7: the first-line columns Review asks about, in the file's order.
+    whole_order: list[WholeOrderQuestion] = Field(default_factory=list)

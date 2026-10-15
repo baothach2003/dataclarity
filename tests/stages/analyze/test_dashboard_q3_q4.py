@@ -1,8 +1,11 @@
 """Thach's Q3 and Q4 (2026-10-15) in stage 2's breakdowns (metrics.json 16.4;
 method C:/Users/Happy/dashboard-q345-method.txt). Q3: above 9 values, the top
 8 by the two months' sales and one "Other (N values)" member - the members
-still add up to each month. Q4: with a trusted order id, a blank line takes
-its order's one value. Every figure is worked by hand in the comments."""
+still add up to each month. Q4 as Thach's Q6 and Q7 (2026-10-16) read it:
+with a trusted order id, a blank line takes its order's one value only for a
+column written on each order's first line that the user said applies to the
+whole order; a column whose values differ inside an order is split line by
+line. Every figure is worked by hand in the comments."""
 
 from datetime import UTC, datetime
 
@@ -25,10 +28,11 @@ def _row(day: str, price: float, pay: str | None, order: str | None = None) -> d
     return {"Date": day, "Qty": "1", "Price": str(price), "Product": "X", "Pay": pay, "Order": order}
 
 
-def _split(rows: list[dict], mapping: dict[str, str] = MAPPING, confirmations: OrderConfirmations | None = None):
+def _split(rows: list[dict], mapping: dict[str, str] = MAPPING, confirmations: OrderConfirmations | None = None,
+           whole_order: tuple[str, ...] = ()):
     frame = pd.DataFrame(rows)
     period, core = compute_core_metrics(frame, mapping, now=NOW, confirmations=confirmations)
-    (split,) = compute_breakdowns(frame, mapping, period, ["Pay"], confirmations)
+    (split,) = compute_breakdowns(frame, mapping, period, ["Pay"], confirmations, whole_order)
     return core, split
 
 
@@ -106,7 +110,7 @@ def test_the_written_file_loads_and_the_version_is_16_4() -> None:
     MetricsContract.model_validate(metrics.model_dump(mode="json"))
 
 
-# --- Q4: a blank line takes its order's one value ------------------------------------------------------------------
+# --- Q4 and Q7: a blank line takes its order's one value when the user said so ---------------------------------------
 
 def _orders() -> list[dict]:
     return [
@@ -121,10 +125,18 @@ def _orders() -> list[dict]:
     ]
 
 
-def test_with_an_order_id_a_blank_line_is_its_orders_value() -> None:
-    core, split = _split(_orders(), ORDERED, RECEIPT)
+def test_with_an_order_id_a_blank_line_is_its_orders_value_when_the_user_said_so() -> None:
+    core, split = _split(_orders(), ORDERED, RECEIPT, whole_order=("Pay",))
     assert [(m.name, m.revenue_current, m.revenue_previous) for m in split.members] == [
         ("Card", 15.0, 4.0), ("Cash", 7.0, 20.0), ("(blank)", 3.0, 0.0)]
+    assert sum(m.revenue_current for m in split.members) == core.revenue_current == 25.0
+
+
+def test_a_first_line_column_not_confirmed_is_never_filled() -> None:
+    # Q7 (Thach, 2026-10-16): never filled alone. Stage 1 never keeps such a column unanswered; a hand-edited
+    # report that does gets T1's 5.00 line in the blank member: Card 10.00, Cash 7.00, blank 5.00 + 3.00.
+    core, split = _split(_orders(), ORDERED, RECEIPT)
+    assert [(m.name, m.revenue_current) for m in split.members] == [("Card", 10.0), ("Cash", 7.0), ("(blank)", 8.0)]
     assert sum(m.revenue_current for m in split.members) == core.revenue_current == 25.0
 
 
@@ -140,9 +152,12 @@ def test_an_order_id_the_run_does_not_trust_counts_lines() -> None:
     assert [(m.name, m.revenue_current) for m in split.members] == [("Card", 10.0), ("Cash", 7.0), ("(blank)", 8.0)]
 
 
-def test_an_order_holding_two_values_is_withheld() -> None:
+def test_an_order_holding_two_values_is_split_line_by_line() -> None:
+    # Q6 (Thach, 2026-10-16): T1 now Card 10.00 and Cash 5.00 - a line attribute, each line its own value, even
+    # when a fill is asked (it is no first-line column): Card 10.00, Cash 5.00 + 7.00, blank 3.00 (T2).
     rows = _orders()
-    rows[3]["Pay"] = "Cash"  # T1 now Card and Cash
-    _, split = _split(rows, ORDERED, RECEIPT)
-    assert split.members == []
-    assert split.withheld_reason == "an order holds two different values of this column"
+    rows[3]["Pay"] = "Cash"
+    core, split = _split(rows, ORDERED, RECEIPT, whole_order=("Pay",))
+    assert split.withheld_reason is None
+    assert [(m.name, m.revenue_current) for m in split.members] == [("Card", 10.0), ("Cash", 12.0), ("(blank)", 3.0)]
+    assert sum(m.revenue_current for m in split.members) == core.revenue_current == 25.0

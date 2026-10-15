@@ -237,3 +237,20 @@ def test_report_accepts_run_with_no_changes() -> None:
     report = CleaningReportContract.model_validate(payload)
 
     assert report.changes == []
+
+
+def test_the_whole_order_columns_are_kept_breakdowns_each_once() -> None:
+    # Thach's Q7 (2026-10-16): stage 2 fills per order only columns the user kept and answered yes for.
+    payload = report_payload() | {"breakdowns": ["Pay", "Vendor"], "breakdowns_whole_order": ["Pay"]}
+    assert CleaningReportContract.model_validate(payload).breakdowns_whole_order == ["Pay"]
+    for wrong in (["Till"], ["Pay", "Pay"]):
+        with pytest.raises(ValidationError, match="breakdowns_whole_order lists kept breakdowns, each once"):
+            CleaningReportContract.model_validate(payload | {"breakdowns_whole_order": wrong})
+
+
+def test_the_whole_order_answers_are_booleans() -> None:
+    plan = CleaningPlanContract.model_validate(plan_payload() | {"breakdown_whole_order": {"Pay": True}})
+    assert plan.breakdown_whole_order == {"Pay": True}
+    assert "breakdown_whole_order" not in CleaningPlanContract.model_validate(plan_payload()).model_dump(mode="json")
+    with pytest.raises(ValidationError):
+        CleaningPlanContract.model_validate(plan_payload() | {"breakdown_whole_order": {"Pay": "yes"}})

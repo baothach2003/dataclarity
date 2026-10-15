@@ -56,6 +56,7 @@ def assemble_metrics(
     df: pd.DataFrame, column_mapping: dict[str, str], now: datetime | None = None,
     confirmations: OrderConfirmations | None = None, *, uploaded_at: datetime | None = None,
     unconfirmed_placeholders: Sequence[str] = (), breakdowns: Sequence[str] = (),
+    breakdowns_whole_order: Sequence[str] = (),
 ) -> MetricsContract:
     """Pure computation: calls all four blocks' builders and validates the
     combined result against contracts/metrics.py. Writes nothing. `now` is
@@ -65,7 +66,8 @@ def assemble_metrics(
     after it (2E-u6); without one, `now`. `unconfirmed_placeholders`:
     cleaning_report.json's walk-in candidates left unanswered (2E-u3).
     `breakdowns`: the columns the user kept in Review (cleaning_report.json
-    `breakdowns`; the dashboard, D5)."""
+    `breakdowns`; the dashboard, D5); `breakdowns_whole_order`: those whose
+    blank lines take their order's value (the user's answer, Q7)."""
     now = now or datetime.now(UTC)
     period, core = compute_core_metrics(df, column_mapping, now, confirmations, uploaded_at=uploaded_at)
     customers = compute_customer_metrics(df, column_mapping, period, confirmations, unconfirmed_placeholders)
@@ -73,7 +75,8 @@ def assemble_metrics(
     dimensions = compute_dimension_metrics(df, column_mapping, period, core, confirmations)
     # Validated whole: one breakdown per column, the model's own checks.
     by_dimension = DimensionBreakdown.model_validate(dimensions.model_dump() | {"breakdowns": [
-        split.model_dump() for split in compute_breakdowns(df, column_mapping, period, breakdowns, confirmations)]})
+        split.model_dump() for split in compute_breakdowns(df, column_mapping, period, breakdowns, confirmations,
+                                                            breakdowns_whole_order)]})
 
     return MetricsContract(
         schema_version=SCHEMA_VERSION,
@@ -101,7 +104,8 @@ def analyze_run(runs_root: Path, run_id: str, now: datetime | None = None,
     frame = pd.read_csv(run_file(runs_root, run_id, CLEANED_FILENAME), dtype=str)
     metrics = assemble_metrics(frame, report.column_mapping, now, report.applied_confirmations(),
                                uploaded_at=uploaded_at, unconfirmed_placeholders=report.unconfirmed_placeholders,
-                               breakdowns=report.breakdowns)
+                               breakdowns=report.breakdowns,
+                               breakdowns_whole_order=report.breakdowns_whole_order)
     write_atomically(run_file(runs_root, run_id, METRICS_FILENAME),
                      metrics.model_dump_json(indent=2).encode("utf-8"), around_replace=around_write)
     return metrics

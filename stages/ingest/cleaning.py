@@ -31,7 +31,7 @@ from contracts.cleaning import (
 from shared.run_registry import run_file
 from stages.ingest import transforms
 from stages.ingest.breakdown_lines import measure_cleaned
-from stages.ingest.breakdowns import NOT_ANALYSED, breakdowns_problem, read_profile
+from stages.ingest.breakdowns import NOT_ANALYSED, breakdowns_problem, read_profile, whole_order_kept
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.cleaned_text import as_read, cleaned_csv_text
 from stages.ingest.contract_files import write_files_atomically
@@ -54,7 +54,7 @@ from stages.ingest.transform_catalog import execution_rank
 CLEANED_FILENAME = "cleaned.csv"  # CONTRACTS.md section 1
 PLAN_FINAL_FILENAME = "plan_final.json"
 REPORT_FILENAME = "cleaning_report.json"
-SCHEMA_VERSION = "4.4"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number formats (optional); 2E-u3: the unconfirmed placeholders (optional); 4.3 (the report redesign, step 2): the currency (optional); 4.4 (the dashboard): the sales breakdowns (optional)
+SCHEMA_VERSION = "4.5"  # 2E-e: order_id in the canonical enum; 2E-e2: confirmations; 2E-k: placeholders; 2E-d2: line classes; 2E-l: "pooled" (enum, major); 2E-j: the date order; 2E-t1: "gift_card" (enum, major) and the line taxonomy; 2E-u1: the number formats (optional); 2E-u3: the unconfirmed placeholders (optional); 4.3 (the report redesign, step 2): the currency (optional); 4.4 (the dashboard): the sales breakdowns (optional); 4.5 (Thach's Q7): the whole-order answers (optional)
 
 Step = tuple[TransformAction, str | None, dict[str, Any]]
 
@@ -283,6 +283,7 @@ def execute_run(
     # again on the final plan - refused, never silently changed - and recorded
     # by their names in cleaned.csv. Generic cleaning analyses nothing.
     breakdowns: list[str] = []
+    whole_order: list[str] = []
     if not require_required_fields and plan.breakdowns:
         raise InvalidPlanError([NOT_ANALYSED])
     if plan.breakdowns:
@@ -292,6 +293,7 @@ def execute_run(
         if problem is not None:
             raise InvalidPlanError([problem])
         breakdowns = [renames.get(name, name) for name in plan.breakdowns]
+        whole_order = [renames.get(name, name) for name in whole_order_kept(plan, measured)]
     # Each line's class, decided once, here (2E-t1; docs/LINE_TAXONOMY.md
     # section 4).
     if is_classed(plan):
@@ -322,6 +324,7 @@ def execute_run(
         unconfirmed_placeholders=unanswered_placeholders(read, plan),
         currency=currency,
         breakdowns=breakdowns,
+        breakdowns_whole_order=whole_order,
     )
     write_files_atomically([
         (run_file(runs_root, run_id, CLEANED_FILENAME), cleaned_csv_text(cleaned).encode("utf-8")),

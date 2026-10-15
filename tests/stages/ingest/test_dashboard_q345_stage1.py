@@ -1,8 +1,10 @@
 """Thach's Q3, Q4 and Q5 (2026-10-15) in stage 1's eligibility (method
 C:/Users/Happy/dashboard-q345-method.txt): measured on the lines execute would
 write, through the one definition of a line's value (shared/split_values.py).
-Q4: with a trusted order id, blanks are counted per order and two values in
-one order make a column ineligible; Q3: above 9 values a column is eligible
+Q4: with a trusted order id, blanks are counted per order (since Thach's Q6
+and Q7, 2026-10-16: for a column written on each order's first line that the
+user said applies to the whole order; two values in one order are a line
+attribute, read per line - test_dashboard_q67_stage1.py); Q3: above 9 values a column is eligible
 unless nearly every line (order) is its own value; Q5: a column whose every
 value holds only sale lines or only return lines is ineligible. Shapes built
 from the published export layouts (no customer data)."""
@@ -40,12 +42,13 @@ def _action(name: str, field: str, kind: str, action: str = "flag_only", params:
 
 def _plan(fields: dict[str, tuple[str, str]], confirmations: OrderConfirmations | None = None,
           breakdowns: list[str] | None = None, actions: dict[str, ColumnAction] | None = None,
-          ) -> CleaningPlanContract:
-    """`fields`: column -> (canonical field, semantic type); `actions` replaces a column's action."""
+          whole_order: dict[str, bool] | None = None) -> CleaningPlanContract:
+    """`fields`: column -> (canonical field, semantic type); `actions` replaces a column's action;
+    `whole_order`: the answers to Review's Q7 questions."""
     column_actions = [(actions or {}).get(name) or _action(name, field, kind) for name, (field, kind) in fields.items()]
-    return CleaningPlanContract(schema_version="4.4", generated_at=NOW, source="manual", dataset_actions=[],
+    return CleaningPlanContract(schema_version="4.5", generated_at=NOW, source="manual", dataset_actions=[],
                                 column_actions=column_actions, confirmations=confirmations or OrderConfirmations(),
-                                breakdowns=breakdowns or [])
+                                breakdowns=breakdowns or [], breakdown_whole_order=whole_order or {})
 
 
 def _eligible(content: bytes, plan: CleaningPlanContract) -> list[str]:
@@ -79,12 +82,14 @@ def _shopify() -> bytes:
     return _csv(list(SHOPIFY), rows)
 
 
-def test_with_a_trusted_order_id_the_order_fields_are_offered_and_a_per_line_field_is_not() -> None:
-    # Payment Method and Source: one value per order, no order without one (0% blank by order). Financial
-    # Status: one value in the file. Vendor: three values inside every order - Q4 makes it ineligible.
-    assert _eligible(_shopify(), _plan(SHOPIFY, RECEIPT)) == ["Payment Method", "Source"]
-    assert _why(_shopify(), _plan(SHOPIFY, RECEIPT), "Vendor") == (
-        'column "Vendor" cannot split sales: an order holds two different values of it')
+def test_with_a_trusted_order_id_the_order_fields_are_offered_once_answered_and_a_per_line_field_is() -> None:
+    # Payment Method and Source: one value per order, no order without one (0% blank by order) - offered once
+    # the user says they apply to the whole order (Q7). Financial Status: one value in the file. Vendor: three
+    # values inside every order - a line attribute (Q6), no blank line: offered. (Before Q6 and Q7: Payment
+    # Method and Source offered, Vendor refused.)
+    assert _eligible(_shopify(), _plan(SHOPIFY, RECEIPT)) == ["Vendor"]
+    answered = _plan(SHOPIFY, RECEIPT, whole_order={"Payment Method": True, "Source": True})
+    assert _eligible(_shopify(), answered) == ["Payment Method", "Source", "Vendor"]
 
 
 def test_without_a_trusted_order_id_the_per_line_rule_stands() -> None:
@@ -105,10 +110,11 @@ def test_an_order_with_no_value_counts_against_few_blanks() -> None:
     fields = {k: SHOPIFY[k] for k in ("Name", "Created at", "Lineitem name", "Lineitem quantity", "Lineitem price")}
     fields |= {"Pay": ("ignore", "categorical_nominal")}
     content = _csv(list(fields), rows)
-    assert _why(content, _plan(fields, RECEIPT), "Pay") == 'column "Pay" cannot split sales: too many of its cells ' \
-                                                             "are blank"
+    yes = {"Pay": True}  # the order fill (Q7): blanks counted per order
+    assert _why(content, _plan(fields, RECEIPT, whole_order=yes), "Pay") == (
+        'column "Pay" cannot split sales: too many of its cells are blank')
     rows[2][5] = "Card"  # order #1 now has a value: 1 order of 10 blank, 10% - few blanks
-    assert _eligible(_csv(list(fields), rows), _plan(fields, RECEIPT)) == ["Pay"]
+    assert _eligible(_csv(list(fields), rows), _plan(fields, RECEIPT, whole_order=yes)) == ["Pay"]
 
 
 KAGGLE = {"Transaction ID": ("order_id", "identifier"), "Customer ID": ("customer", "identifier"),
@@ -239,16 +245,23 @@ def test_no_date_mapped_offers_nothing_and_says_why() -> None:
 
 # --- execute checks the same lines ----------------------------------------------------------------------------------
 
-def test_execute_refuses_a_column_with_two_values_in_one_order(tmp_path: Path) -> None:
+def test_execute_refuses_a_first_line_column_not_answered(tmp_path: Path) -> None:
+    # Before Q6 and Q7 this refused Vendor (two values in one order); now Vendor is a line attribute, kept, and
+    # Payment Method - written on each order's first line - is refused until the user says it applies to the
+    # whole order.
     run = create_run(tmp_path)
     (run.path / "raw.csv").write_bytes(_shopify())
     profile_run(tmp_path, run.run_id, now=NOW)
     with pytest.raises(InvalidPlanError) as refused:
-        execute_run(tmp_path, run.run_id, _plan(SHOPIFY, RECEIPT, breakdowns=["Vendor"]), now=NOW)
-    assert refused.value.problems == ['column "Vendor" cannot split sales: an order holds two different values of it']
-    execute_run(tmp_path, run.run_id, _plan(SHOPIFY, RECEIPT, breakdowns=["Payment Method"]), now=NOW)
+        execute_run(tmp_path, run.run_id, _plan(SHOPIFY, RECEIPT, breakdowns=["Payment Method"]), now=NOW)
+    assert refused.value.problems == [
+        'column "Payment Method" cannot split sales: it is only on each order\'s first line, and it was not '
+        'confirmed to apply to the whole order']
+    execute_run(tmp_path, run.run_id, _plan(SHOPIFY, RECEIPT, breakdowns=["Payment Method", "Vendor"],
+                                            whole_order={"Payment Method": True}), now=NOW)
     report = json.loads((run.path / "cleaning_report.json").read_text(encoding="utf-8"))
-    assert report["breakdowns"] == ["Payment Method"]
+    assert report["breakdowns"] == ["Payment Method", "Vendor"]
+    assert report["breakdowns_whole_order"] == ["Payment Method"]
 
 
 # --- mutation's survivors (each its own test) ---------------------------------------------------------------------

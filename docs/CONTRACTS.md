@@ -295,6 +295,16 @@ the 25 the AI sees get `flag_only` with a note that they were not analyzed.
 `plan_final.json` is written by the execution together with `cleaned.csv` and
 `cleaning_report.json` (section 5), and is the plan exactly as it ran.
 
+`breakdowns` (`4.4`, the dashboard, D4) are the columns the user kept in
+Review to split sales by, as written in the file; `breakdown_whole_order`
+(`4.5`, Thach's Q7, 2026-10-16) the user's answers to Review's question
+"<column> is only on each order's first line: does it apply to the whole
+order?" - `{column as written: true | false}`, booleans never coerced; true:
+the column's blank lines take their order's value; false or unanswered (not
+listed): the column is not offered and execute refuses it (never filled
+alone, CLAUDE.md 3.3a). Neither is a cleaning decision; the AI's proposal
+never carries either; both not written while empty.
+
 `confirmations` (`2.1`, session 2E-e2, Thach) holds the user's answers to the
 Review screen's two questions (booleans or `null`, never coerced; a `null`
 object reads as no answers); `null` is "not asked or not answered":
@@ -450,6 +460,12 @@ Rules for the values (no field changed):
   Not written while empty (read as `[]`), so a report without one is exactly
   as before. Stage 2 reads it (section 6's
   `by_dimension.breakdowns`).
+- `breakdowns_whole_order` (`4.5`, Thach's Q7, 2026-10-16; read by stage 2):
+  the kept `breakdowns`, as named in cleaned.csv, that are written on each
+  order's first line only AND that the user answered apply to the whole
+  order (`plan_final.json` `breakdown_whole_order`) - stage 2 gives an
+  order's blank lines its value for these only. A subset of `breakdowns`,
+  each once (the contract refuses anything else); not written while empty.
 - `date_order` (`3.1`, 2E-j) is the order the transaction_date column's
   day-month-year cells were read in: the user's answer, else what the RAW
   file proved (decided before any action runs, so a plan dropping the rows
@@ -1068,14 +1084,17 @@ none, and in a file before 16.3).
   `core.revenue_*` and the category block); the money their net amounts (a
   return line's negative amount counts in the value on its own row, so a
   member can be negative).
-- **16.4 (Thach's Q4, 2026-10-15): a line's value is `shared/split_values.py`'s.**
-  With a trusted order id (`orders_basis` "order_id"), a blank line of an
-  order holding exactly one value (on its counted lines) takes that value -
-  an export writing the order's fields on its first line only (Shopify)
-  splits the order whole; an order holding two values withholds the split
-  ("an order holds two different values of this column" - stage 1 refuses
-  such a column, so only a hand-edited file meets it). Without a trusted
-  order id every line is read alone, as in 16.3.
+- **16.4 (Thach's Q4, 2026-10-15; his Q6 and Q7, 2026-10-16, the same
+  schema): a line's value is `shared/split_values.py`'s.** Each line is read
+  alone: a column whose values differ between the lines of one order (a
+  vendor, a product category) is a line attribute, each line's sales its own
+  value's (Q6 - until 2026-10-16 such a split was withheld, "an order holds
+  two different values of this column"). With a trusted order id
+  (`orders_basis` "order_id"), a column written on each order's first line
+  only (Shopify's order fields) fills its order's blank counted lines with
+  that value ONLY when `cleaning_report.json` `breakdowns_whole_order` lists
+  it - the user's answer (Q7); otherwise its blank lines are the blank
+  member. Without a trusted order id every line is read alone, as in 16.3.
 - **16.4 (Thach's Q3): above `ALL_SHOWN` (9) non-blank values, the
   `TOP_SHOWN` (8) largest and one "Other" member.** "Largest" is the two
   months' sales together (current + previous; a value that fell to nothing
@@ -2322,6 +2341,17 @@ every sentence of the front, every caption and "not shown" line.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-16: **the dashboard, Thach's Q6-Q8.** The stage 1 contracts `4.5`
+  (schema_inference.json kept in step), additive: `plan_final.json`
+  `breakdown_whole_order` (the user's answers to Review's Q7 question) and
+  `cleaning_report.json` `breakdowns_whole_order`, both not written while
+  empty; Review's answer (`BreakdownQuestion`, API only) gains
+  `whole_order` (each question, worded by stage 1, and its answer).
+  `metrics.json` stays 16.4 (no field changed): a line attribute is now split
+  line by line instead of withheld (Q6), and a first-line column is filled
+  per order only when the user said so (Q7). A column naming or locating a
+  person is never offered, so never in the breakdown call's input (Q8) - the
+  input's shape is unchanged.
 - 2026-10-15: **the dashboard, Thach's layout.** `report.json` 2.11,
   additive: `dashboard.headline`, `checked`, `next_month`, `next_steps`
   (section 9); the sales tile's change without its month; the products

@@ -181,3 +181,41 @@ def test_only_the_latest_edit_is_measured_an_older_one_steps_aside(make_api: Mak
     assert seen["older"].status_code == 409
     assert seen["latest"].status_code == 200 and seen["latest"].json()["question"]["suggested"] == ["store"]
     assert api.ai_requests == 3
+
+
+def test_an_answer_to_a_whole_order_question_reuses_the_last_measure(make_api: MakeApi, monkeypatch: Any) -> None:
+    # Thach's Q7 (2026-10-16): the answer changes what is offered, not the lines - the whole file is not read and
+    # measured again for it (one heavy slot); an edit of the plan's steps still is.
+    from app.services import breakdowns as service
+
+    measured: list[int] = []
+    real = service.measure_lines
+
+    def counting(frame: Any, plan: Any) -> Any:
+        measured.append(1)
+        return real(frame, plan)
+
+    monkeypatch.setattr(service, "measure_lines", counting)
+    api, run_id, plan = _planned(make_api, FakeResponse('{"breakdowns": ["store"]}'))
+    assert api.post(run_id, "breakdowns", plan).status_code == 200
+    answered = api.post(run_id, "breakdowns", {**plan, "breakdown_whole_order": {"store": False}})
+    assert answered.status_code == 200, answered.text
+    assert len(measured) == 1
+    retyped = {**plan, "column_actions": [{**a, "action": "flag_only"} if a["source_name"] == "store" else a
+                                          for a in plan["column_actions"]]}
+    assert api.post(run_id, "breakdowns", retyped).status_code == 200
+    assert len(measured) == 2
+
+
+def test_an_answer_never_waits_for_the_heavy_slot(make_api: MakeApi) -> None:
+    # The measure remembered for the same lines is used before the slot is asked for: an answer is answered at
+    # once, even while another step holds the slot.
+    api, run_id, plan = _planned(make_api, FakeResponse('{"breakdowns": ["store"]}'))
+    assert api.post(run_id, "breakdowns", plan).status_code == 200
+    seen: dict[str, Any] = {}
+    answered = threading.Thread(target=lambda: seen.update(
+        answer=api.post(run_id, "breakdowns", {**plan, "breakdown_whole_order": {"store": True}})))
+    with api.app.state.run_work.heavy():
+        answered.start()
+        answered.join(timeout=10)
+        assert "answer" in seen and seen["answer"].status_code == 200

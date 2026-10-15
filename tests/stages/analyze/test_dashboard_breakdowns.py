@@ -244,18 +244,19 @@ def test_on_a_generated_store_the_members_are_each_month_to_the_cent() -> None:
     from tests.scenarios.store import MAPPING as STORE
 
     frame = s0(1)
-    # Read per line (no order id): an invoice holds several categories, which Q4 refuses with an order id.
+    # Read per line (no order id).
     per_line = {k: v for k, v in STORE.items() if v != "order_id"}
     metrics = assemble_metrics(frame, per_line, now=NOW, breakdowns=["Category"])
     (split,) = metrics.by_dimension.breakdowns
     assert split.withheld_reason is None and len(split.members) == 6
     assert round(sum(m.revenue_current for m in split.members), 2) == round(metrics.core.revenue_current, 2)
     assert round(sum(m.revenue_previous for m in split.members), 2) == round(metrics.core.revenue_previous, 2)
-    # With the order id: Category is withheld (Q4), and Customer - one per invoice, many values - is the top 8
+    # With the order id: an invoice holds several categories - a line attribute, split line by line (Thach's
+    # Q6, 2026-10-16), the same six members to the cent; Customer - one per invoice, many values - is the top 8
     # and Other, still to the cent.
     metrics = assemble_metrics(frame, STORE, now=NOW, breakdowns=["Category", "Customer"])
     category, customer = metrics.by_dimension.breakdowns
-    assert category.withheld_reason == "an order holds two different values of this column"
+    assert category.withheld_reason is None and category.members == split.members
     assert customer.withheld_reason is None and any(m.is_other for m in customer.members)
     assert round(sum(m.revenue_current for m in customer.members), 2) == round(metrics.core.revenue_current, 2)
     assert round(sum(m.revenue_previous for m in customer.members), 2) == round(metrics.core.revenue_previous, 2)

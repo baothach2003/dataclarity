@@ -4,7 +4,9 @@ the AI's choice among them, asked once per run. Services orchestrate; the
 rules are stage 1's (`stages/ingest/breakdowns.py`, CLAUDE.md 3.4). Since
 Thach's Q3-Q5 eligibility reads the plan's lines: the raw frame through the
 cache, the measure in a heavy slot of its own, the AI asked after the slot is
-released (as the currency question; Q68's lock order)."""
+released (as the currency question; Q68's lock order). Thach's Q7 answers
+(whether a first-line column applies to the whole order) change what is
+offered, not the lines: an answer reuses the run's last measure."""
 
 import hashlib
 import json
@@ -24,6 +26,7 @@ from app.services.run_memory import FrameCache, RunWork
 from contracts.breakdowns import BreakdownQuestion, BreakdownSuggestion, EligibleColumn
 from contracts.cleaning import CleaningPlanContract
 from shared.run_registry import RunNotFoundError, run_file
+from stages.ingest.breakdown_lines import MeasuredLines
 from stages.ingest.breakdown_review import measure_lines
 from stages.ingest.breakdowns import (
     NOT_ANALYSED,
@@ -38,14 +41,24 @@ STEP = "suggest sales breakdowns"
 # The plan each run was last asked about (the doubt review's R2): a measure waiting for the heavy slot that
 # is no longer the latest edit steps aside, so the slot serves the plan as it stands, never a queue of edits.
 _LATEST: dict[str, str] = {}
+# Each run's last measure, by the plan's lines key: an answer to a Q7 question re-asks without re-reading the file.
+_MEASURED: dict[str, tuple[str, MeasuredLines]] = {}
 _LATEST_LOCK = threading.Lock()
 SUPERSEDED = "A later edit of the plan is being checked; this one was skipped."
 
 
 def _plan_key(plan: CleaningPlanContract) -> str:
     """What eligibility reads of the plan: all of it but the user's own
-    choice - its steps and answers decide the lines measured (Q3-Q5)."""
+    choice of columns - its steps and answers decide the lines measured
+    (Q3-Q5) and the Q7 answers what is offered."""
     return json.dumps(plan.model_dump(mode="json", exclude={"breakdowns", "generated_at"}), sort_keys=True)
+
+
+def _lines_key(plan: CleaningPlanContract) -> str:
+    """What the measure reads of the plan: not the Q7 answers, which decide
+    what is offered on the same lines."""
+    return json.dumps(plan.model_dump(mode="json", exclude={"breakdowns", "generated_at", "breakdown_whole_order"}),
+                      sort_keys=True)
 
 
 def ask_breakdowns(session: Session, run_id: str, body: dict[str, Any], *, settings: Settings,
@@ -88,19 +101,36 @@ def ask_breakdowns(session: Session, run_id: str, body: dict[str, Any], *, setti
                                lambda: run_suggestion(runs_root, run_id, eligible, ask))
 
         key = _plan_key(plan)
-        latest = hashlib.sha256(key.encode("utf-8")).hexdigest()  # a short mark per run, not the plan
+        # A short mark per run, not the plan: the lines it measures (an answer to a Q7 question is no new edit
+        # of the lines, so it never pushes a waiting measure of the same lines aside).
+        lines = hashlib.sha256(_lines_key(plan).encode("utf-8")).hexdigest()
         with _LATEST_LOCK:
-            _LATEST[run_id] = latest
+            _LATEST[run_id] = lines
 
-        def read() -> BreakdownQuestion:
+        def remembered() -> MeasuredLines | None:
+            with _LATEST_LOCK:
+                held = _MEASURED.get(run_id)
+            return held[1] if held is not None and held[0] == lines else None
+
+        def measure() -> MeasuredLines:
+            if (held := remembered()) is not None:
+                return held
             require_raw(runs_root, run_id)
             frame = frame_of_run(work, cache, runs_root, run_id)
             with work.heavy():
+                if (held := remembered()) is not None:  # measured while this ask waited for the slot
+                    return held
                 with _LATEST_LOCK:
-                    superseded = _LATEST.get(run_id) != latest
+                    superseded = _LATEST.get(run_id) != lines
                 if superseded:
                     raise ApiError("INVALID_STATE", SUPERSEDED)
                 measured = measure_lines(frame, plan)
+            with _LATEST_LOCK:
+                _MEASURED[run_id] = (lines, measured)
+            return measured
+
+        def read() -> BreakdownQuestion:
+            measured = measure()
             # The slot released before the AI is asked: an answer of seconds never holds it.
             return breakdown_question_run(runs_root, run_id, plan, measured, suggestion_for)
 

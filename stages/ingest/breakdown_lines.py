@@ -5,8 +5,11 @@ would write - the plan run on the whole file by `clean_frame`, read back as
 cleaned.csv holds it, through the shared reading of lines and orders - so
 Review, execute and stage 2 read one file the same way. Nothing is written.
 
-A line's value is `shared/split_values.py`'s (with a trusted order id, a
-blank line takes its order's one value). The file's OWN blank cells count as
+A line's value is `shared/split_values.py`'s: each line its own (Thach's
+Q6: a column whose values differ inside an order is a line attribute); a
+column written on each order's first line only is measured as it would be
+drawn if the user answers that it applies to the whole order (Q7) - its
+blanks per order - and Review asks. The file's OWN blank cells count as
 blank even when the plan fills them (an imputed "Unknown" is no value of the
 file): Kaggle's Discount Applied is a third blank, imputed - offered, a third
 of the split would be the plan's word."""
@@ -24,13 +27,12 @@ from stages.ingest.cleaned_text import as_read
 class ColumnLines(NamedTuple):
     """One column, over the lines counted in revenue."""
 
-    by_order: bool          # a trusted order id and a first-line field: blanks are read per order
-    units: int              # orders (by_order) or lines - what the blanks are counted on
+    first_line_only: bool   # written on each order's first line only (Q7): Review asks; blanks per order
+    units: int              # orders (first_line_only) or lines - what the blanks are counted on
     values: int             # distinct values
-    blank_units: int        # orders with no value of the file's (by_order); lines otherwise
+    blank_units: int        # orders with no value of the file's (first_line_only); lines otherwise
     orders: bool            # a trusted order id: "nearly every order its own value" (Q3)
     purchases: int          # orders (a trusted order id) or lines - what the values are counted against
-    conflicting_orders: int  # orders holding two values (by_order)
     sale_or_return: bool    # Q5: sale and return lines in the file, each value holding one kind only
 
 
@@ -57,9 +59,10 @@ def measure_cleaned(frame: pd.DataFrame, read: pd.DataFrame, renames: dict[str, 
 def _column(values: pd.Series, file_cells: pd.Series, parsed: ParsedTransactions) -> ColumnLines:
     counted = parsed.counted
     trusted = parsed.orders_basis == "order_id"
-    split = split_values(values, parsed.order_key, trusted, counted)
-    # Per order only where the order fill applies (a first-line field, F1); otherwise the per-line rule.
-    by_order = split.filled
+    # A first-line column is measured filled - as drawn once the user says it applies to the whole order (Q7;
+    # unanswered it is not offered at all); any other column line by line (Q6).
+    split = split_values(values, parsed.order_key, trusted, counted, fill=True)
+    by_order = split.first_line_only
     keys = split.keys
     # Blank: no value after the fill, or the file's own cell blank on every line of its order (an imputed cell).
     file_blank = is_blank(file_cells.astype("object")).to_numpy()
@@ -76,7 +79,6 @@ def _column(values: pd.Series, file_cells: pd.Series, parsed: ParsedTransactions
     sales = parsed.sale[counted].groupby(group).any()
     returns = parsed.returned[counted].groupby(group).any()
     both_kinds = bool(sales.any()) and bool(returns.any())
-    return ColumnLines(by_order=by_order, units=units, values=distinct, blank_units=blank_units, orders=trusted,
-                       purchases=purchases,
-                       conflicting_orders=split.conflicting_orders,
+    return ColumnLines(first_line_only=by_order, units=units, values=distinct, blank_units=blank_units,
+                       orders=trusted, purchases=purchases,
                        sale_or_return=both_kinds and not bool((sales & returns).any()))

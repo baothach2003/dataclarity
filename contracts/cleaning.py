@@ -1,9 +1,9 @@
 """plan_proposed.json, plan_final.json and cleaning_report.json
 (docs/CONTRACTS.md sections 4 and 5)."""
 
-from typing import Any, ClassVar, Literal, get_args
+from typing import Any, ClassVar, Literal, Self, get_args
 
-from pydantic import Field, NonNegativeInt, StrictBool, field_validator
+from pydantic import Field, NonNegativeInt, StrictBool, field_validator, model_validator
 
 from contracts._base import ContractFile, ContractModel
 from contracts.currency import AppliedCurrency, CurrencyAnswer
@@ -171,6 +171,13 @@ class CleaningPlanContract(ContractFile):
     # plan's source ignores it), checked again at execute. The AI's proposal
     # never carries one; not written while empty.
     breakdowns: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
+    # 4.5 (Thach's Q7, 2026-10-16): the user's answers to Review's question
+    # "<column> is only on each order's first line: does it apply to the
+    # whole order?", by the column as written in the file - true: its blank
+    # lines take their order's value; false, or no answer: the column is not
+    # offered (never filled alone, CLAUDE.md 3.3a). The AI's proposal never
+    # carries one; not written while empty.
+    breakdown_whole_order: dict[str, StrictBool] = Field(default_factory=dict, exclude_if=lambda value: not value)
 
     @field_validator("confirmations", mode="before")
     @classmethod
@@ -258,6 +265,12 @@ class CleaningReportContract(ContractFile):
     # an earlier report. Not written while empty (the scoped review, G1): a
     # report stage 1 writes before step 4 stays exactly as it was.
     breakdowns: list[str] = Field(default_factory=list, max_length=2, exclude_if=lambda value: not value)
+    # 4.5 (Thach's Q7, 2026-10-16): the kept breakdowns, as named in
+    # cleaned.csv, that are written on each order's first line only and that
+    # the user said apply to the whole order - stage 2 gives an order's blank
+    # lines its value for these only. Empty in an earlier report; not written
+    # while empty.
+    breakdowns_whole_order: list[str] = Field(default_factory=list, exclude_if=lambda value: not value)
 
     @field_validator("breakdowns")
     @classmethod
@@ -267,6 +280,13 @@ class CleaningReportContract(ContractFile):
         if len(value) != len(set(value)):
             raise ValueError("each breakdown column is listed once")
         return value
+
+    @model_validator(mode="after")
+    def _whole_order_is_kept(self) -> Self:
+        if not set(self.breakdowns_whole_order) <= set(self.breakdowns) or \
+                len(set(self.breakdowns_whole_order)) != len(self.breakdowns_whole_order):
+            raise ValueError("breakdowns_whole_order lists kept breakdowns, each once")
+        return self
 
     @field_validator("confirmations", mode="before")
     @classmethod

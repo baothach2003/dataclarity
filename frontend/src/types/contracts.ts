@@ -295,6 +295,9 @@ export interface CleaningPlan {
   confirmations?: OrderConfirmations
   // 4.4 (the dashboard, D4): the columns the user kept to split sales by; absent when none.
   breakdowns?: string[]
+  // 4.5 (Thach's Q7): whether a column written on each order's first line applies to the whole order; absent when
+  // nothing is answered.
+  breakdown_whole_order?: Record<string, boolean>
 }
 
 // --- cleaning_report.json -----------------------------------------------------

@@ -38,7 +38,7 @@ def test_the_no_answers_are_part_of_the_plan() -> None:
     answers = OrderConfirmations(customer_not_placeholders=["Ann"])
     assert answers.customer_not_placeholders == ["Ann"]
     assert OrderConfirmations().customer_not_placeholders == []
-    assert SCHEMA_VERSION == "4.4"
+    assert SCHEMA_VERSION == "4.5"
 
 
 def test_every_unanswered_candidate_is_recorded_as_written_most_often(tmp_path: Path) -> None:

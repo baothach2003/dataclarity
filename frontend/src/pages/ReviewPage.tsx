@@ -222,7 +222,8 @@ export function ReviewPage({
       const result = await executePlan(
         baseUrl,
         runId,
-        withBreakdowns(withCurrency(orderAnswers.confirmed(planToSubmit), answered), split),
+        withBreakdowns(withCurrency(orderAnswers.confirmed(planToSubmit), answered), split,
+          isNotInventory ? {} : breakdowns.wholeOrder),
       )
       onCleaned({ report: result.report, notices: result.notices })
     } catch (error) {
