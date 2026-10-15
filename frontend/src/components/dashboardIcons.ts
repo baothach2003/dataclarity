@@ -1,7 +1,7 @@
 // The dashboard's tile icons and its strip (Thach's visual style, 2026-10-15; docs/DASHBOARD_DESIGN.md section 11):
 // one small neutral icon per tile id, decorative; the tiles that stand in the strip of secondary KPIs under the
-// chart cards. report.html draws the same (stages/report/html_dashboard.py TILE_ICONS, STRIP_TILES) - a pytest pins
-// the two equal, one line per tile below.
+// chart cards; each metric's polarity (Thach's Q10). report.html draws the same (stages/report/html_dashboard.py
+// TILE_ICONS, STRIP_TILES, TILE_POLARITY) - a pytest pins the two equal, one line per tile below.
 
 import type { Tile } from '../types/reportDashboard.ts'
 
@@ -14,3 +14,19 @@ export const TILE_ICONS: Record<Tile['id'], string[]> = {
 }
 
 export const STRIP_TILES: readonly Tile['id'][] = ['customers', 'return_rate']
+
+// Thach's Q10 (2026-10-16): each metric's fixed polarity - which direction is good for it (1: up, -1: down). A
+// property of the metric, not a verdict on the month; it picks the arrow's colour, the arrow's shape stays the meaning.
+export const TILE_POLARITY: Record<Tile['id'], 1 | -1> = {
+  sales: 1,
+  orders: 1,
+  aov: 1,
+  customers: 1,
+  return_rate: -1,
+}
+
+/** The arrow's tone: good or bad by the metric's polarity; none when nothing moved. */
+export function arrowTone(id: Tile['id'], direction: NonNullable<Tile['direction']>): 'good' | 'bad' | null {
+  if (direction === 'same') return null
+  return (direction === 'up' ? 1 : -1) === TILE_POLARITY[id] ? 'good' : 'bad'
+}

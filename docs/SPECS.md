@@ -103,7 +103,8 @@ otherwise `planned`. One process only (v1).
 
 ### 4.1 Upload page
 Drag-drop + file picker, size/type validation, privacy note (only a bounded
-sample of rows is ever sent to the AI), progress bar, then the Analyzing state
+sample of rows is ever sent to the AI, and it may include customer names or
+e-mails - Thach, 2026-10-16, Q11), progress bar, then the Analyzing state
 with a 3-step indicator. Errors rendered inline per section 10.
 
 ### 4.2 Review screen (most important screen in the product)

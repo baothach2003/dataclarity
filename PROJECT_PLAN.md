@@ -5439,6 +5439,14 @@ dataclarity/
         chart is unchanged since the report redesign); Review did not ask
         about "CRUK" on the classed demo in the app run, so that one line
         answer was not given.
+      From the dashboard's visual style (Thach, 2026-10-16):
+      - the second series' orange means "last month" on a chart comparing two
+        months and "part 2" on a parts-of-a-whole bar - one colour, two
+        meanings on one page (each chart has its own legend; never both in
+        one chart).
+      - the schema and plan calls' sample (at most 30 rows plus column
+        summaries) may include customer names or e-mails; Upload says so
+        (Q11). Masking those cells: Backlog v2.
 
 - **DoD:** every hostile input fails gracefully with the specified message
 
@@ -6111,6 +6119,21 @@ dataclarity/
       or 3 parts, top products by sales with the value at the bar's end
       (`docs/DASHBOARD_DESIGN.md` section 11; the reference images are
       local only, never committed).
+      **Thach's answers (2026-10-16, the fourth run), with his reasons:**
+      D-13..D-22 accepted; **Q9** no "returning customers' share of sales"
+      tile in v1 - the customers card already shows it in money, and a new
+      definition and a file-start bias are not worth it before deploy
+      (removed from the strip's design; Backlog v2); **Q10** the arrow's
+      colour by a FIXED per-metric polarity table, not by the direction
+      alone - sales, orders, average order value, customers up = good
+      (green), the return rate down = good (green), the arrow ▲/▼ stays the
+      meaning; polarity is a property of the metric, not a verdict on the
+      month (ADR-0007 unaffected); **Q11** the 30-row sample kept for v1 and
+      said honestly - Upload: "Only a small sample (at most 30 rows plus
+      column summaries), which may include customer names or e-mails, is
+      sent to the AI to suggest a plan."; masking personal cells is Backlog
+      v2 (it changes two validated prompts); the orange used for both
+      "previous month" and "part 2" goes to 8D.
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6138,6 +6161,15 @@ order id), a movement is said the wrong way ("Refunds rose" beside refunds
 that fell), and sound sentences are refused (9 of 38). A v2 design starts
 from a constrained output (a choice among code-written options, or an
 allow-list vocabulary), never a blocklist.
+
+**v2: the dashboard's deferred pieces** (Thach, 2026-10-16):
+- a "returning customers' share of sales" tile (Q9) - in v1 the customers
+  card shows it in money; it needs a new stage 2 definition (which
+  denominator) and an answer to the file-start bias (a customer whose first
+  order is before the file starts reads as new);
+- masking personal cells (names, e-mails, phones, addresses) in the schema
+  and plan calls' sample (Q11) - it changes two validated prompts' input,
+  so it needs their re-validation and a smoke test.
 
 **Mixed currencies, option B** (Thach, 2026-10-05, the report redesign's
 Q7): analyse one currency, the other lines left out in stage 1 with a
@@ -6311,6 +6343,19 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**The dashboard, item 9D - fourth run, 2026-10-16 (Thach's answers to
+Q9-Q11)**: D-13..D-22 accepted. **Q10 DONE** (display: failing tests first,
+one review cycle; mutation on the logic): each tile's arrow coloured by the
+metric's fixed polarity (`TILE_POLARITY`, report.html and the page pinned
+equal) - a falling return rate is a green ▼, a falling average order value
+a red ▼; the arrow's shape and words unchanged. **Q11 DONE**: Upload says
+the sample sent to the AI may include customer names or e-mails (README
+Known limitations, SPECS 4.1). Q9 (no returning customers' share tile) and
+the sample's masking to Backlog v2; the orange's two meanings to 8D. The
+review approved (two doc rows corrected, two tests added); decisions made
+alone D-23 (the tone a supplement, no "lower is better" hint) and D-24. No
+deploy step started.
 
 **The dashboard, item 9D - third run, 2026-10-16 (Thach's answers to Q6-Q8,
 the line, the visual style)**: `design/dashboard/` in .git/info/exclude

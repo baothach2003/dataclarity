@@ -36,6 +36,10 @@ TILE_ICONS: dict[TileId, tuple[str, ...]] = {
                   "M18 20a6 6 0 0 0-2.5-4.9"),
     "return_rate": ("M9 14 4 9l5-5", "M4 9h11a5 5 0 0 1 0 10h-3"),
 }
+# Thach's Q10 (2026-10-16): each metric's fixed polarity - which direction is good for it (1 up, -1 down). A
+# property of the metric, not a verdict on the month (ADR-0007 unaffected); it picks the arrow's colour, and the
+# arrow's shape stays the meaning.
+TILE_POLARITY: dict[TileId, int] = {"sales": 1, "orders": 1, "aov": 1, "customers": 1, "return_rate": -1}
 
 # The dashboard's layout in the report's own tokens (_FRONT_STYLE's - the
 # dataviz palette): tiles in a row that wraps, each its icon beside its
@@ -51,7 +55,7 @@ color:var(--ink2);fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:ro
 .kpi-strip .tiles{margin-top:14px}
 .tl{font-size:.85rem;color:var(--ink2)}.tv{font-size:1.45rem;font-weight:600;line-height:1.3;
 overflow-wrap:anywhere}.tile .num{white-space:normal}.tc{font-size:.8rem;color:var(--ink2)}.arrow{font-size:.7rem}
-.arrow.up{color:var(--up)}.arrow.down{color:var(--down)}.arrow.same{color:var(--ink2)}
+.arrow.good{color:var(--up)}.arrow.bad{color:var(--down)}.arrow.same{color:var(--ink2)}
 .headline{display:flex;flex-wrap:wrap;align-items:flex-start;gap:4px 8px;margin:16px 0 4px;font-size:1.05rem;
 font-weight:600}.headline>span{min-width:0;overflow-wrap:anywhere}
 .widgets{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:0 18px;
@@ -111,14 +115,22 @@ def _icon(tile_id: TileId) -> str:
     return f'<svg class="ticon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">{paths}</svg>'
 
 
+def _tone(tile: Tile) -> str:
+    """The arrow's tone class: " good" or " bad" by the metric's polarity; none when nothing moved."""
+    if tile.direction not in ("up", "down"):
+        return ""
+    return " good" if (1 if tile.direction == "up" else -1) == TILE_POLARITY[tile.id] else " bad"
+
+
 def _tile(tile: Tile, texts: dict[str, str]) -> str:
     # The icon in the label's row (the display review's R6): the figure keeps the tile's whole width.
     parts = [f'<div class="tile" data-tile="{tile.id}"><div class="tl">{_icon(tile.id)}{esc(tile.label)}</div>']
     # A figure, or the two words "not shown": its reason stands behind the marker.
     parts.append(f'<div class="tv num">{esc(tile.now)}</div>' if tile.now is not None else '<div class="tv">not shown</div>')
-    # Green and red for change only, always with the arrow - the arrow alone coloured (design section 11).
-    arrow = (f'<span class="arrow {tile.direction}" role="img" aria-label="{_DIRECTION_WORDS[tile.direction]} last '
-             f'month">{_ARROWS[tile.direction]}</span> ') if tile.direction else ""
+    # Green and red for change only, always with the arrow - the arrow alone coloured (design section 11), by the
+    # metric's polarity (Thach's Q10): a falling return rate is green.
+    arrow = (f'<span class="arrow {tile.direction}{_tone(tile)}" role="img" aria-label="'
+             f'{_DIRECTION_WORDS[tile.direction]} last month">{_ARROWS[tile.direction]}</span> ') if tile.direction else ""
     if tile.change is not None:
         parts.append(f'<div class="tc">{arrow}{esc(tile.change)}</div>')
     elif tile.was is not None:
@@ -256,5 +268,5 @@ def words_html(report: ReportContract, dashboard: Dashboard, front: Front) -> st
     return f'<div id="dashboard-words" class="card"><h2>The dashboard in words</h2>{"".join(parts)}</div>'
 
 
-__all__ = ["DASHBOARD_STYLE", "SECTION_IDS", "STRIP_TILES", "TILE_ICONS", "dashboard_html", "marker", "note_texts",
+__all__ = ["DASHBOARD_STYLE", "SECTION_IDS", "STRIP_TILES", "TILE_ICONS", "TILE_POLARITY", "dashboard_html", "marker", "note_texts",
            "words_html"]

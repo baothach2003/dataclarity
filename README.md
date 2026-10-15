@@ -89,6 +89,12 @@ main ones:
   amounts only - a payments export such as Stripe's, a till's daily totals -
   cannot be analysed in v1: Upload and Review say so (Thach, 2026-10-15; the
   required fields are frozen, `CLAUDE.md` 3.6).
+- **The AI's sample may include personal columns.** To suggest a cleaning
+  plan, at most 30 rows plus column summaries are sent to the AI, and they
+  may include personal details such as customer names or e-mails; Upload
+  says so.
+  Masking those cells is planned for v2 (Thach, 2026-10-16). A column naming
+  or locating a person is never offered as a dashboard breakdown.
 - **When the data cannot tell two meanings apart, v1 does not guess.** It
   keeps one reading, reports the lines and money involved, and shows a note
   beside the figures they affect - for example, a return booked as stock

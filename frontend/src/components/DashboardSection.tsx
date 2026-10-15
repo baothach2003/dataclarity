@@ -10,7 +10,7 @@ import type { Chart, NoteCode } from '../types/report.ts'
 import type { Chip, Dashboard, NextMonthBand, Tile, Widget } from '../types/reportDashboard.ts'
 import type { Front } from '../types/reportFront.ts'
 import { DashboardBars, DashboardParts } from './DashboardBars.tsx'
-import { STRIP_TILES, TILE_ICONS } from './dashboardIcons.ts'
+import { STRIP_TILES, TILE_ICONS, arrowTone } from './dashboardIcons.ts'
 import { FrontSalesChart } from './FrontSalesChart.tsx'
 import { FrontWaterfall } from './FrontWaterfall.tsx'
 import { NoteMarker } from './NoteMarker.tsx'
@@ -41,9 +41,15 @@ interface DashboardSectionProps {
 }
 
 function TileCard({ tile, noteTexts }: { tile: Tile; noteTexts: ReadonlyMap<NoteCode, string> }) {
-  // Green and red for change only, always with the arrow - the arrow alone coloured (design section 11).
+  // Green and red for change only, always with the arrow - the arrow alone coloured (design section 11), by the
+  // metric's polarity (Thach's Q10): a falling return rate is green.
+  const tone = tile.direction !== null ? arrowTone(tile.id, tile.direction) : null
   const arrow = tile.direction !== null && (
-    <span className={`tile__arrow tile__arrow--${tile.direction}`} role="img" aria-label={ARROW_WORDS[tile.direction]}>
+    <span
+      className={`tile__arrow tile__arrow--${tile.direction}${tone ? ` tile__arrow--${tone}` : ''}`}
+      role="img"
+      aria-label={ARROW_WORDS[tile.direction]}
+    >
       {ARROWS[tile.direction]}
     </span>
   )

@@ -218,8 +218,10 @@ export function UploadPage({ baseUrl, onUploaded }: UploadPageProps) {
           <div className="notice__body">
             <p className="notice__title">Your data stays on our server</p>
             <p className="notice__detail">
-              Only a small sample (at most 30 rows plus column summaries) is sent to the AI to
-              suggest a plan. Files are deleted automatically after 24 hours.
+              {/* Thach's Q11 (2026-10-16): the sample stays for v1 and is named honestly - it may hold personal
+                  columns (masking them changes two validated prompts: Backlog v2). */}
+              Only a small sample (at most 30 rows plus column summaries), which may include customer names or
+              e-mails, is sent to the AI to suggest a plan. Files are deleted automatically after 24 hours.
             </p>
           </div>
         </div>

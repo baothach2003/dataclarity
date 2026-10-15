@@ -6,7 +6,7 @@
 
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { STRIP_TILES, TILE_ICONS } from '../components/dashboardIcons.ts'
+import { STRIP_TILES, TILE_ICONS, TILE_POLARITY } from '../components/dashboardIcons.ts'
 import { waterfallRows } from '../domain/frontView.ts'
 import type { ReportContract } from '../types/report.ts'
 import demoClassed from './frontFixtures/demo_classed.json'
@@ -69,6 +69,41 @@ describe('Insights: the reference layout', () => {
     expect(arrow?.classList.contains('tile__arrow--up')).toBe(true)
     const change = sales.querySelector('.tile__change')
     expect(change?.className).toBe('tile__change')
+  })
+})
+
+// Thach's Q10 (2026-10-16): the arrow's colour by the metric's fixed polarity - sales, orders, AOV, customers up =
+// good (green); the return rate down = good (green). A property of the metric, not a verdict on the month.
+describe('Insights: the arrow colour by polarity (Q10)', () => {
+  function arrowOf(tileId: string): Element | null {
+    return screen.getByTestId(`tile-${tileId}`).querySelector('.tile__arrow')
+  }
+
+  it('the page holds the same polarity table as report.html', () => {
+    expect(TILE_POLARITY).toEqual({ sales: 1, orders: 1, aov: 1, customers: 1, return_rate: -1 })
+  })
+
+  it('demo: a falling return rate is green, a falling average red, the rest green', () => {
+    show('demo_classed')
+    expect(arrowOf('return_rate')?.className).toBe('tile__arrow tile__arrow--down tile__arrow--good')
+    expect(arrowOf('return_rate')?.getAttribute('aria-label')).toBe('lower than last month')
+    expect(arrowOf('return_rate')?.textContent).toBe('▼')
+    expect(arrowOf('aov')?.className).toBe('tile__arrow tile__arrow--down tile__arrow--bad')
+    for (const id of ['sales', 'orders', 'customers']) {
+      expect(arrowOf(id)?.className).toBe('tile__arrow tile__arrow--up tile__arrow--good')
+    }
+  })
+
+  it.each([
+    ['return_rate', 'up', 'tile__arrow tile__arrow--up tile__arrow--bad'],
+    ['customers', 'down', 'tile__arrow tile__arrow--down tile__arrow--bad'],
+    ['return_rate', 'same', 'tile__arrow tile__arrow--same'],
+  ] as const)('%s %s: %s', (tileId, direction, expected) => {
+    const report = structuredClone(RUNS.demo_classed)
+    const tile = report.dashboard?.tiles.find((t) => t.id === tileId)
+    if (tile) tile.direction = direction
+    render(<InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} />)
+    expect(arrowOf(tileId)?.className).toBe(expected)
   })
 })
 

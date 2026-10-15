@@ -78,7 +78,10 @@ Rules held by the tiles:
   down, same - equal as printed is "same"), in the neutral text colour: no
   green or red, because a colour would be a verdict on the month (ADR-0007; the
   KPI card's "up = green" stays an open issue of the old cards only). Sales'
-  arrow follows the sign of the shown change.
+  arrow follows the sign of the shown change. **Superseded for the colour**
+  (section 11): only the arrow is coloured (D-18), green or red by the
+  metric's fixed polarity (Thach's Q10, 2026-10-16) - a property of the
+  metric, not a verdict on the month; the direction rule above is unchanged.
 - **Notes beside each tile** (3.3a): `kpis[].notes`, as layer 1 already holds
   them.
 - **Blocked**: every tile shows this month only, no "was", no arrow; the
@@ -906,10 +909,10 @@ only: none of their figures, colours, many-slice donuts or two-axis charts.
    one list (`dashboard.tiles`); which tile stands in the strip is layout,
    by its id - customers and return_rate - one constant in each renderer,
    pinned equal by a test (decision made alone: no report.json field and no
-   version bump for a placement). **Returning customers' share of sales is
-   not shown**: no field of metrics.json or diagnosis.json holds it, and a
-   consumer computes no figure (CONTRACTS 11; CLAUDE.md 3.2) - Q9 in
-   section 9;
+   version bump for a placement). **No "returning customers' share of
+   sales" tile in v1** (Thach, 2026-10-16, Q9): the customers card already
+   shows it in money, and a new definition with its file-start bias is not
+   worth it before deploy - Backlog v2;
 5. the full-width bands (next month, checked, next step), then Technical
    details.
 
@@ -924,8 +927,8 @@ holds the validator's output (light against `#fcfcfb`, dark against
 | Main series | `#2a78d6` | `#3987e5` | the sales line; this month's bars; part 1 |
 | Second series | `#eb6834` | `#d95926` | last month's marker, only where two months are compared; part 2 |
 | Third part | `#1baf7a` | `#199e70` | part 3 of a parts-of-a-whole bar (2 or 3 parts only) |
-| Up (change) | `#0ca30c` | `#0ca30c` | the ▲ arrow, a waterfall bar that adds |
-| Down (change) | `#d03b3b` | `#d03b3b` | the ▼ arrow, a waterfall bar that takes away |
+| Good change | `#0ca30c` | `#0ca30c` | a tile's arrow (▲ or ▼) whose move is good for its metric (Q10); a waterfall bar that adds |
+| Bad change | `#d03b3b` | `#d03b3b` | a tile's arrow (▲ or ▼) whose move is bad for its metric (Q10); a waterfall bar that takes away |
 | Totals | `#898781` | `#898781` | the waterfall's whole change |
 | Text | `#0b0b0b` / `#52514e` | `#ffffff` / `#c3c2b7` | every figure, label and value - never a series colour |
 
@@ -943,9 +946,25 @@ changes, never a series; red is never a main or brand colour.
 **Decisions made alone:** only the arrow is coloured - the change's text
 stays in the neutral ink (green on `#fcfcfb` is 3.27:1, too faint for 13 px
 text; a mark beside a value carries the meaning, the dataviz rule "text
-wears text tokens"); the colours follow the DIRECTION of the printed pair
-on every tile, as Thach wrote it - the return rate falling shows a red ▼
-(Q10 in section 9); this replaces D-10 (neutral arrows).
+wears text tokens"); this replaces D-10 (neutral arrows).
+
+**The arrow's colour by the metric's polarity** (Thach, 2026-10-16, Q10):
+a FIXED per-metric table, not the direction alone - sales, orders (lines),
+average order value and customers: up is good (green); the return rate:
+down is good (green). `TILE_POLARITY` in `html_dashboard.py` and
+`dashboardIcons.ts`, pinned equal by a test; the arrow's class carries the
+direction (its shape, its words for a screen reader: "lower than last
+month") and its tone (`good` / `bad`, the colour); nothing moved, no tone.
+The arrow ▲/▼ stays the meaning. Polarity is a property of the metric, not
+a verdict on the month: it says which way is better for that figure, never
+whether this month's move was unusual or why (ADR-0007 unaffected - no
+step-4 row is read). The waterfall's colours are unchanged (each bar a
+part of the sales change: adding is up). **Decision made alone (D-23):**
+the tone is a supplement, never the meaning - the arrow's shape and its
+words for a screen reader say the direction, and good or bad is said by
+colour only (a falling return rate and a falling average look alike to a
+colour-blind reader and to a screen reader, as before Q10); a metric-level
+hint such as "lower is better" was not added (new text, not asked).
 
 **Charts** - one y-axis each (the line and the waterfall; the bars have
 none); a parts-of-a-whole bar only for 2 or 3 parts (D6, unchanged - never a
@@ -1049,9 +1068,10 @@ Decisions made alone (2026-10-16, each open to Thach's veto):
 - **D-16** metrics.json stays 16.4: no field changed (a line attribute split
   instead of withheld, a fill only on the user's answer).
 - **D-17** the strip's tiles by id in each renderer (no report.json field,
-  no version bump); returning customers' share not shown (no field holds it).
+  no version bump); returning customers' share not shown (no field holds it;
+  Thach's Q9: no such tile in v1).
 - **D-18** only the arrow coloured, the change's text in the neutral ink;
-  replaces D-10.
+  replaces D-10. (Its colour by the metric's polarity since Thach's Q10.)
 - **D-19** a single-series bar chart with no negative value prints each value
   at its bar's end; a two-month chart keeps its value above the bar and
   gains a legend.
@@ -1063,7 +1083,35 @@ Decisions made alone (2026-10-16, each open to Thach's veto):
   two test files did not type-check (`tsc -b` reads `src`, tests included);
   their types fixed, no assertion weakened.
 
-Open questions (2026-10-16):
+Thach's answers (2026-10-16, the fourth run), with his reasons:
+- **D-13..D-22 accepted.**
+- **Q9 no tile in v1**: no "returning customers' share of sales" tile - the
+  customers card already shows it in money; a new definition and a
+  file-start bias (a customer's first order before the file starts reads as
+  new) are not worth it before deploy. Removed from the strip's design
+  (section 11); Backlog v2.
+- **Q10 the arrow's colour by a FIXED per-metric polarity table**, not by the
+  direction alone: sales, orders, average order value, customers - up is
+  good (green); the return rate - down is good (green). The arrow ▲/▼ stays
+  the meaning. Polarity is a property of the metric, not a verdict on the
+  month (ADR-0007 unaffected). Built in section 11; failing tests first.
+- **Q11 keep the 30-row sample for v1, said honestly**: the Upload notice
+  reads "Only a small sample (at most 30 rows plus column summaries), which
+  may include customer names or e-mails, is sent to the AI to suggest a
+  plan." Masking personal cells in the sample: Backlog v2 (it changes two
+  validated prompts). README Known limitations and SPECS 4.1 say the same.
+- **The orange used for both "previous month" and "part 2"**: a known limit,
+  8D.
+
+Decisions made alone (2026-10-16, the fourth run, each open to Thach's veto):
+- **D-23** Q10's tone is a supplement: good or bad is carried by colour
+  only (the shape and the screen-reader words say the direction); no "lower
+  is better" hint added to the return rate's tile (new text, not asked).
+- **D-24** README Known limitations and SPECS 4.1 say what the Upload notice
+  says (the sample may hold personal details); the notice keeps Thach's
+  exact words.
+
+Open questions (2026-10-16, answered above):
 - **Q9** Returning customers' share of sales (Thach's strip): no field of
   metrics.json or diagnosis.json holds it, and a consumer computes no figure.
   Add it to stage 2 (additive: the returning customers' sales over the

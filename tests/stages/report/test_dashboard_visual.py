@@ -123,13 +123,15 @@ def test_red_is_never_a_main_colour() -> None:
 
 
 def test_up_and_down_colour_only_the_arrow_never_the_text() -> None:
+    # Thach's Q10 (2026-10-16): the colour is the metric's polarity (test_q10_* below), still on the arrow alone.
     style = DASHBOARD_STYLE.replace("\n", "")
-    assert ".arrow.up{color:var(--up)}" in style and ".arrow.down{color:var(--down)}" in style
+    assert ".arrow.good{color:var(--up)}" in style and ".arrow.bad{color:var(--down)}" in style
     assert ".arrow.same{color:var(--ink2)}" in style
     assert ".tc{" in style and "color:var(--ink2)" in style.split(".tc{")[1].split("}")[0]
     page = _html(_real("kaggle"))
     sales = page[page.index('data-tile="sales"'):]
-    assert re.search(r'<span class="arrow up" role="img" aria-label="higher than last month">&#9650;</span>', sales)
+    assert re.search(r'<span class="arrow up good" role="img" aria-label="higher than last month">&#9650;</span>',
+                     sales)
 
 
 def test_bars_wear_the_series_colours_and_the_waterfall_the_change_colours() -> None:
@@ -335,3 +337,79 @@ def test_s1_figures_line_up_across_a_row_whatever_the_labels_length() -> None:
     css = APP_CSS.read_text(encoding="utf-8")
     label = _css_rule(css, ".tile__label")
     assert "flex: 1 0 auto" in label and "align-items: flex-start" in label and "gap: var(--space-2)" in label
+
+
+# --- Thach's Q10 (2026-10-16): the arrow's colour by the metric's fixed polarity ---------------------------------------
+# Polarity is a property of the metric, not a verdict on the month (ADR-0007 unaffected): sales, orders, average
+# order value and customers up = good (green); the return rate down = good (green). The arrow's shape stays the meaning.
+
+def _arrow_classes(page: str, tile_id: str) -> str:
+    tile = page[page.index(f'data-tile="{tile_id}"'):]
+    return re.search(r'<span class="(arrow [^"]+)" role="img"', tile).group(1)
+
+
+def test_q10_the_polarity_table_is_fixed_per_metric() -> None:
+    from typing import get_args
+
+    from contracts.report_dashboard import TileId
+    from stages.report.html_dashboard import TILE_POLARITY
+
+    assert TILE_POLARITY == {"sales": 1, "orders": 1, "aov": 1, "customers": 1, "return_rate": -1}
+    assert set(TILE_POLARITY) == set(get_args(TileId))
+
+
+def test_q10_a_falling_return_rate_is_green_a_falling_average_red() -> None:
+    page = _html(_real(ALL_FIVE))  # the demo: return rate 0.169 -> 0.152, AOV down, the rest up
+    assert _arrow_classes(page, "return_rate") == "arrow down good"
+    assert _arrow_classes(page, "aov") == "arrow down bad"
+    for tile_id in ("sales", "orders", "customers"):
+        assert _arrow_classes(page, tile_id) == "arrow up good"
+    # The arrow keeps its shape and its words: the direction, never a verdict.
+    tile = page[page.index('data-tile="return_rate"'):]
+    assert re.search(r'aria-label="lower than last month">&#9660;</span>', tile)
+
+
+@pytest.mark.parametrize(("tile_id", "direction", "tone"), [
+    ("return_rate", "up", "bad"), ("return_rate", "down", "good"), ("customers", "down", "bad"),
+    ("sales", "down", "bad"), ("orders", "up", "good"), ("return_rate", "same", None), ("sales", "same", None)])
+def test_q10_each_direction_and_polarity(tile_id: str, direction: str, tone: str | None) -> None:
+    report = _real(ALL_FIVE)
+    tile = next(t for t in report.dashboard.tiles if t.id == tile_id).model_copy(update={"direction": direction})
+    html = html_dashboard._tile(tile, html_dashboard.note_texts(report))
+    classes = re.search(r'<span class="(arrow [^"]+)" role="img"', html).group(1)
+    assert classes == (f"arrow {direction} {tone}" if tone else f"arrow {direction}")
+
+
+def test_q10_the_colours_follow_the_tone_never_the_direction_alone() -> None:
+    style = DASHBOARD_STYLE.replace("\n", "")
+    assert ".arrow.up{" not in style and ".arrow.down{" not in style
+    css = APP_CSS.read_text(encoding="utf-8")
+    assert "var(--change-up)" in _css_rule(css, ".tile__arrow--good")
+    assert "var(--change-down)" in _css_rule(css, ".tile__arrow--bad")
+    assert "var(--text-secondary)" in _css_rule(css, ".tile__arrow--same")
+    assert not re.search(r"\.tile__arrow--(up|down)\s*\{", css)
+
+
+def test_q10_the_page_has_the_same_polarity_table() -> None:
+    from stages.report.html_dashboard import TILE_POLARITY
+
+    source = (ROOT / "frontend" / "src" / "components" / "dashboardIcons.ts").read_text(encoding="utf-8")
+    body = re.search(r"export const TILE_POLARITY[^=]*= \{(.*?)\}", source, flags=re.S).group(1)
+    assert {k: int(v) for k, v in re.findall(r"([a-z_]+): (-?1)", body)} == TILE_POLARITY
+
+
+def test_q10_no_direction_draws_no_arrow() -> None:
+    # Its review's nit: a tile with nothing to compare has no arrow, so no tone.
+    report = _real(ALL_FIVE)
+    tile = next(t for t in report.dashboard.tiles if t.id == "return_rate")
+    html = html_dashboard._tile(tile.model_copy(update={"direction": None}), html_dashboard.note_texts(report))
+    assert 'class="arrow' not in html
+
+
+def test_q10_orders_worded_as_lines_keep_their_polarity() -> None:
+    # Its review's nit: a file with no order id words the orders tile "Lines" - the id, so the polarity, stays.
+    report = _real(ALL_FIVE)
+    tile = next(t for t in report.dashboard.tiles if t.id == "orders")
+    tile = tile.model_copy(update={"label": "Lines", "direction": "down"})
+    html = html_dashboard._tile(tile, html_dashboard.note_texts(report))
+    assert re.search(r'<span class="arrow down bad" role="img"', html)

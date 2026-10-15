@@ -165,3 +165,16 @@ describe("UploadPage: the columns a file needs (Thach's Q2, 2026-10-15)", () => 
     expect(screen.getByText(REQUIRED_COLUMNS_COPY)).toBeDefined()
   })
 })
+
+describe('UploadPage: what is sent to the AI', () => {
+  // Thach's Q11 (2026-10-16): the sample is kept for v1, and said honestly - it may hold names or e-mails.
+  it('says the sample sent to the AI may include customer names or e-mails', () => {
+    render(<UploadPage baseUrl="http://localhost:8000" onUploaded={vi.fn()} />)
+    const detail = screen.getByText((_, element) => element?.classList.contains('notice__detail') === true &&
+      element.textContent.includes('sent to the AI'))
+    expect(detail.textContent.replace(/\s+/g, ' ').trim()).toBe(
+      'Only a small sample (at most 30 rows plus column summaries), which may include customer names or ' +
+        'e-mails, is sent to the AI to suggest a plan. Files are deleted automatically after 24 hours.',
+    )
+  })
+})

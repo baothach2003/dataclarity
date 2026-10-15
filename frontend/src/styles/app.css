@@ -1431,11 +1431,12 @@ table.hypotheses details summary {
   font-size: var(--type-caption-size);
 }
 /* Green and red for change only, always with the arrow - the arrow alone coloured; the change's text stays in the
-   secondary ink (design section 11). */
-.tile__arrow--up {
+   secondary ink (design section 11). The colour by the metric's polarity, never the direction alone (Thach's Q10):
+   a falling return rate is good. */
+.tile__arrow--good {
   color: var(--change-up);
 }
-.tile__arrow--down {
+.tile__arrow--bad {
   color: var(--change-down);
 }
 .tile__arrow--same {
