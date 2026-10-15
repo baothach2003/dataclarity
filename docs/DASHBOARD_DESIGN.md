@@ -307,6 +307,10 @@ lines refuse too (besides the profile's share). Recorded, not fixed: a
 narrow race where an identical later ask joins a measure that steps aside
 (409 instead of its answer); "first line" reads the row label (always a
 RangeIndex today).
+**Found by the smoke test's dry run (before any real call), fixed, test
+first:** a time of day ("08:13", "5:05 PM") was offered - Square's "Time"
+under a manual plan that types every column text; it reads as a period now
+(rule 7).
 
 **Decision made alone (D-3):** 10% for "few blanks", and "no value reading as
 a number" (store numbers 1-5 are excluded; a false find would chart an

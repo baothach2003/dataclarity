@@ -321,3 +321,13 @@ def test_a_second_value_only_on_lines_not_counted_is_no_split() -> None:
     fields = BASE | {"store": ("ignore", "categorical_nominal")}
     assert _why(_csv(list(fields), rows), _plan(fields), "store") == (
         'column "store" cannot split sales: it needs at least 2 values')
+
+
+@pytest.mark.parametrize("values", [["08:13", "09:40", "17:05"], ["8:13 AM", "5:05 PM"], ["08:13:59", "17:05:01"]])
+def test_a_time_of_day_is_never_offered(values: list[str]) -> None:
+    # Found in the smoke test's dry run (Square's "Time" typed text by a manual plan): a time of day is a period,
+    # never a category - doubtful = not offered (rule 7).
+    rows = [[f"2024-12-{1 + i % 28:02d}", "Mug", 1, 2.5, values[i % len(values)]] for i in range(30)]
+    fields = BASE | {"Time": ("ignore", "text")}
+    assert _why(_csv(list(fields), rows), _plan(fields), "Time") == (
+        'column "Time" cannot split sales: its values are dates')

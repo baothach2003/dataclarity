@@ -72,6 +72,9 @@ _PERIOD_LIKE = re.compile(
     r"|^(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?"
     r"|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?(?:\s*[-/ ]?\s*\d{2,4})?$",
     re.IGNORECASE)
+# A time of day ("08:13", "5:05 PM", "17:05:01"): a period too, never a category (the smoke test's dry run found
+# Square's "Time" offered under a manual plan that types every column text).
+_TIME_LIKE = re.compile(r"^\d{1,2}:\d{2}(?::\d{2})?(?:\s*[AaPp]\.?[Mm]\.?)?$")
 
 NOT_ANALYSED = "This file is not analysed as sales data, so sales are not split."
 MESSAGES = {
@@ -100,9 +103,9 @@ def _any_number(values: Iterable[str]) -> bool:
 
 def _any_date(values: Iterable[str]) -> bool:
     """Any value a date by the shared reading of dates (CLAUDE.md 3.1), or a
-    period written as text."""
+    period written as text, or a time of day."""
     listed = [value.strip() for value in values]
-    if any(_PERIOD_LIKE.match(value) for value in listed):
+    if any(_PERIOD_LIKE.match(value) or _TIME_LIKE.match(value) for value in listed):
         return True
     return bool(listed) and bool(as_dates(pd.Series(listed, dtype="object")).notna().any())
 

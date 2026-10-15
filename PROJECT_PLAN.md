@@ -6321,6 +6321,9 @@ its "(suggested: <class>, not confirmed)" mark (full process). Recorded
 fixes: a split kept in Review is never "not split that way" (4.1); the
 waterfall draws its bars across at every width on the page (4.2). Q2:
 Upload and Review say which columns a file needs; README.
+The smoke test's dry run (no real call) found a time of day ("08:13")
+offered as a split under a manual plan: it now reads as a period (rule 7),
+test first.
 
 **The dashboard, item 9D - overnight run of 2026-10-14 (Thach away)**:
 step 1 DONE - `docs/DASHBOARD_DESIGN.md` (tiles, widget catalog, order
