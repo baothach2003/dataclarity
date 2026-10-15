@@ -33,7 +33,7 @@ def _metrics_16_2() -> dict:
 
 
 def test_the_version_is_2_8() -> None:
-    assert SCHEMA_VERSION == "2.10"  # 2.10: the dashboard; 2.9: the front section (step 3); 2.8: narration_status "not_in_v1" (Q21), the revenue KPI's change (Q22)
+    assert SCHEMA_VERSION == "2.11"  # 2.11 Thach's layout (the line, the chips, the bands); 2.10: the dashboard; 2.9: the front section (step 3); 2.8: narration_status "not_in_v1" (Q21), the revenue KPI's change (Q22)
 
 
 def test_with_no_narration_step_the_status_says_not_in_v1() -> None:

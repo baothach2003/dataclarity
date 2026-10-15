@@ -109,7 +109,8 @@ def build_front(*, metrics: MetricsContract, diagnosis: DiagnosisContract, forec
               # A split is named only where one is drawn: never beside a blocked report (step 3's review).
               "cannot_know": cannot_know(diagnosis.not_testable, cleaning, numbers, left_out,
                                          [] if diagnosis.trust.verdict == "blocked" else
-                                         [split.column for split in metrics.by_dimension.breakdowns if split.members])}
+                                         [split.column for split in metrics.by_dimension.breakdowns if split.members],
+                                         blocked=diagnosis.trust.verdict == "blocked")}
     trust = diagnosis.trust
     if trust.verdict == "blocked":
         blocked = " ".join(check_lines(trust.checks, "blocked", period)) or "the data checks did not pass."

@@ -76,6 +76,12 @@ and money, and adds a visible note wherever the affected figure is shown
 (a note present by construction rather than because of the file's data -
 `discounts_in_prices`, the same-day note at zero - is shown once, in "How to
 read these figures": Thach, 2026-09-29; `docs/LINE_TAXONOMY.md` section 3).
+Thach's amendment, 2026-10-15 (the dashboard's layout): the note is still
+shown WHERE its figure is shown, but as a compact marker - an "i" beside the
+figure or chart, reachable by keyboard and named for a screen reader - that
+opens its full sentence on tap or click; a mark of one or two words stays
+inline (for example "(suggested: charge, not confirmed)" on a product,
+"not shown" on a tile). The full sentences are also in Technical details.
 Instances: a zero-amount line's stock direction (the line taxonomy's decision
 5), and lines typed "in" (its Q25 - a customer return booked as "in" cannot be
 told from stock received). Claude applies this rule to any later finding of

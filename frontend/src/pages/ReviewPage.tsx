@@ -22,7 +22,7 @@ import { Stepper } from '../components/Stepper.tsx'
 import { SummaryStrip } from '../components/SummaryStrip.tsx'
 import { buildColumnViewModels } from '../domain/columnView.ts'
 import { describeError } from '../domain/errorCopy.ts'
-import { mappingConflict, missingRequiredFields } from '../domain/planRules.ts'
+import { mappingConflict, missingRequiredFields, REQUIRED_COLUMNS_COPY } from '../domain/planRules.ts'
 import { buildManualPlan, reconcileAction, withMappingDisabled } from '../domain/reviewPlan.ts'
 import { defaultParams } from '../domain/transformParams.ts'
 import { useBreakdowns, withBreakdowns } from './useBreakdowns.ts'
@@ -325,6 +325,13 @@ export function ReviewPage({
           >
             Profiling is done. You can build the cleaning plan by hand, and preview and cleaning
             work as normal.
+          </Notice>
+        )}
+
+        {/* Thach's Q2 (2026-10-15): while a required field is not mapped, what a file needs, said plainly. */}
+        {missingFields.length > 0 && (
+          <Notice tone="info" title="What this file needs">
+            {REQUIRED_COLUMNS_COPY}
           </Notice>
         )}
 

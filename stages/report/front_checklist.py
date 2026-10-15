@@ -41,7 +41,9 @@ def _ranked(hypotheses: list[Hypothesis], first: str | None) -> list[Hypothesis]
     return sorted(hypotheses, key=lambda h: (h.id != first, -abs(h.contribution or 0.0), order[h.id]))
 
 
-def checklist(diagnosis: DiagnosisContract, views: list[HypothesisView], ctx: Context) -> list[ChecklistGroup]:
+def _sorted(diagnosis: DiagnosisContract, views: list[HypothesisView]) -> tuple[list[Hypothesis], ...]:
+    """Each hypothesis in its group by stage 3's verdict (matches, against,
+    ruled out, cannot show) - the one reading for the lines and the chips."""
     against_shown = {view.id for view in views if view.moved_against}
     matches, against, ruled_out, cannot = [], [], [], []
     for hypothesis in diagnosis.hypotheses:
@@ -56,6 +58,21 @@ def checklist(diagnosis: DiagnosisContract, views: list[HypothesisView], ctx: Co
             ruled_out.append(hypothesis)
         elif hypothesis.id not in DATA_IDS:  # D1-D3: the one data-checks line
             cannot.append(hypothesis)
+    return matches, against, ruled_out, cannot
+
+
+def checklist_groups(diagnosis: DiagnosisContract, views: list[HypothesisView]) -> list[tuple[str, list[str]]]:
+    """The groups' kinds and their hypotheses' ids, as `checklist` groups
+    them (the dashboard's chips: Thach's layout, 2026-10-15)."""
+    matches, against, ruled_out, cannot = _sorted(diagnosis, views)
+    named = diagnosis.headline.rule in (2, 5, 6)
+    groups = [("matches" if named else "moved", matches), ("against", against), ("not_reason", ruled_out),
+              ("cannot_show", cannot)]
+    return [(kind, [h.id for h in found]) for kind, found in groups if found]
+
+
+def checklist(diagnosis: DiagnosisContract, views: list[HypothesisView], ctx: Context) -> list[ChecklistGroup]:
+    matches, against, ruled_out, cannot = _sorted(diagnosis, views)
     headline = diagnosis.headline
     named = headline.rule in (2, 5, 6)
     groups = []

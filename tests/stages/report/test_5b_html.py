@@ -5,6 +5,7 @@ pixels. Written before the code; every expected value is a field of the
 report built in report_fixtures.py, formatted by hand.
 """
 
+import re
 from typing import Any
 
 from contracts.lines import NOTE_TEXTS
@@ -40,8 +41,11 @@ def test_the_sections_follow_the_three_layers() -> None:
     # 2.9: the front section first; the three layers in the appendix after it (the report redesign, step 3).
     # 2.10: the dashboard's tiles, then its widgets in report.json's order (this hand-built file draws no split of
     # the change: the returns, sized, before the text parts; the months unsized among them), then the appendix.
-    assert sections == ["tiles", "returns", "summary", "sales-by-month", "checked", "next-steps", "next-month",
-                        "cannot-know", "quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
+    # 2.11 (Thach's layout): the tiles, the chart cards, the bands; the front's text parts lead Technical details
+    # ("The dashboard in words") before the three layers.
+    assert sections == ["tiles", "returns", "sales-by-month", "band-next-month", "band-checked", "summary",
+                        "chart-notes", "checked", "next-steps", "next-month", "cannot-know", "quality", "numbers",
+                        "how-to-read", "causes", "actions", "provenance"]
 
 
 def test_the_kpis_are_the_reports_figures_formatted() -> None:
@@ -97,8 +101,14 @@ def test_a_files_note_stands_beside_the_figures_it_names_by_its_code() -> None:
     # Beside orders, customers, AOV and the return rate (not revenue), and
     # beside the recommendations - and, since 2.9, beside the front's parts of the change and its checks (Q35).
     # 2.10: beside the tiles of orders, order value and return rate (3) and the returns widget (1); this file
-    # draws no split of the change, so no part of it stands - and no note beside it (7 - 1 + 4).
-    assert links.count("#note-same_day_cancellations") == 10
+    # draws no split of the change, so no part of it stands - and no note beside it (7 - 1 + 4). 2.11 (CLAUDE.md
+    # 3.3a as amended): those four are markers that open the note's sentence; the links stay in Technical details
+    # (10 - 4).
+    markers = re.findall(r'<details class="mk" data-notes="([^"]*)"', html)
+    # (the layout review: the checked band's marker too, where the checks' findings are shown - 4 + 1; its scoped
+    # review: the line under the tiles carries the summary's notes, the diagnosis's among them - 5 + 1)
+    assert sum("same_day_cancellations" in codes.split() for codes in markers) == 6
+    assert links.count("#note-same_day_cancellations") == 6
     assert " ".join(NOTE_TEXTS["same_day_cancellations"].split()) in page.section("numbers")
 
 

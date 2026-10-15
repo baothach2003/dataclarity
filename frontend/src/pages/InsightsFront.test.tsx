@@ -114,11 +114,12 @@ describe('Insights opens with the front section', () => {
     expect(screen.queryByText('Data trust: trusted', { exact: false })?.closest('[data-testid="technical-details"]')).toBe(toggle)
   })
 
-  it('shows the front before the toggle', () => {
+  it('shows the front before the toggle - 2.11: its line under the tiles; the summary in the toggle', () => {
     const report = show('kaggle')
-    const summary = screen.getByText(frontOf(report).summary[0])
+    const line = screen.getByTestId('dashboard-headline')
 
-    expect(summary.compareDocumentPosition(technical()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(line.compareDocumentPosition(technical()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(within(technical()).getByText(frontOf(report).summary[0])).toBeDefined()
   })
 })
 
@@ -158,7 +159,8 @@ describe('the waterfall draws the bridge (Q17)', () => {
     expect(bridge.aov_split).toBe(false)
     expect(rows.map((row) => row.factor)).not.toContain('units_per_order')
     expect(rows.map((row) => row.factor)).not.toContain('price_per_unit')
-    expect(screen.getByText(given(waterfallOf(report).note))).toBeDefined()
+    // 2.11: behind the card's marker, and in Technical details.
+    expect(technical().textContent).toContain(given(waterfallOf(report).note))
     const table = screen.getByRole('table', { name: 'Where the change came from' })
     const parts = within(table).getAllByRole('rowheader').map((cell) => cell.textContent)
     expect(parts).not.toContain('Items per order')
@@ -181,7 +183,7 @@ describe('sales by month', () => {
 
     expect(screen.getByRole('heading', { name: 'Sales by month (before any costs)' })).toBeDefined()
     expect(frontOf(report).chart_note[0]).toMatch(/^January 2025 is not in the chart/)
-    expect(screen.getByText(frontOf(report).chart_note[0])).toBeDefined()
+    expect(technical().textContent).toContain(frontOf(report).chart_note[0])  // 2.11: the caption in the toggle
   })
 })
 
@@ -209,9 +211,11 @@ describe('the currency', () => {
 describe('what to do next', () => {
   it('lists each action as stage 4 wrote it (kaggle)', () => {
     const report = show('kaggle')
-    const section = screen.getByRole('region', { name: 'What to do next' })
+    // 2.11: the action is the "Next step" band's line; the whole item stands in Technical details.
+    const section = technical()
     const item = given(frontOf(report).next_steps).items[0]
 
+    expect(within(screen.getByTestId('band-next-steps')).getByText(item.action)).toBeDefined()
     expect(within(section).getByText(`Rests on: ${item.rests_on}`)).toBeDefined()
     expect(within(section).getByText(item.action)).toBeDefined()
     expect(within(section).getByText(item.why)).toBeDefined()
@@ -220,7 +224,7 @@ describe('what to do next', () => {
 
   it('says why nothing is suggested (demo_classed)', () => {
     const report = show('demo_classed')
-    const section = screen.getByRole('region', { name: 'What to do next' })
+    const section = technical()  // 2.11: in Technical details
 
     expect(within(section).getByText(given(given(frontOf(report).next_steps).sentence))).toBeDefined()
   })

@@ -1,6 +1,6 @@
 {
  "report": {
-  "schema_version": "2.10",
+  "schema_version": "2.11",
   "generated_at": "2026-09-29T00:00:00Z",
   "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
   "source_file": "kaggle.csv",
@@ -1388,7 +1388,7 @@
      "now_value": 46292.5,
      "was": null,
      "was_value": null,
-     "change": "GBP +4,925.00 (+11.9%) on November 2024",
+     "change": "GBP +4,925.00 (+11.9%)",
      "direction": "up",
      "reason": null,
      "notes": []
@@ -1554,6 +1554,99 @@
      "notes": []
     },
     {
+     "id": "products",
+     "kind": "chart",
+     "chart": "bars",
+     "placed_by": "fallback",
+     "size": null,
+     "title": "Products with the most sales in December 2024",
+     "column": null,
+     "bars": [
+      {
+       "label": "Product 029",
+       "now": 1664.0,
+       "was": null,
+       "now_text": "GBP 1,664.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 027",
+       "now": 992.0,
+       "was": null,
+       "now_text": "GBP 992.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 052",
+       "now": 988.0,
+       "was": null,
+       "now_text": "GBP 988.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 055",
+       "now": 987.5,
+       "was": null,
+       "now_text": "GBP 987.50",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 056",
+       "now": 943.0,
+       "was": null,
+       "now_text": "GBP 943.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 011",
+       "now": 920.0,
+       "was": null,
+       "now_text": "GBP 920.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 049",
+       "now": 874.0,
+       "was": null,
+       "now_text": "GBP 874.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 020",
+       "now": 812.0,
+       "was": null,
+       "now_text": "GBP 812.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 012",
+       "now": 805.0,
+       "was": null,
+       "now_text": "GBP 805.00",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 026",
+       "now": 800.0,
+       "was": null,
+       "now_text": "GBP 800.00",
+       "was_text": null,
+       "is_blank": false
+      }
+     ],
+     "caption": [],
+     "notes": []
+    },
+    {
      "id": "checklist",
      "kind": "text",
      "chart": null,
@@ -1601,7 +1694,96 @@
      "caption": [],
      "notes": []
     }
-   ]
+   ],
+   "headline": {
+    "text": "Sales +11.9% vs November 2024",
+    "notes": [],
+    "asides": [
+     "Sales in December 2024 were GBP 46,292.50, up GBP 4,925.00 (+11.9%) on November 2024 (GBP 41,367.50).",
+     "That is more than twice this shop's typical month-to-month change (about 4.9%).",
+     "The figures match customers ordering more often: 25 customers placed an order in each month, and together they placed 343 orders, up from 308.",
+     "Sales here means the money customers paid (before any costs). It is not profit: the file has no cost data."
+    ]
+   },
+   "checked": [
+    {
+     "label": "Data",
+     "status": "checked"
+    },
+    {
+     "label": "Customers",
+     "status": "checked"
+    },
+    {
+     "label": "Order frequency",
+     "status": "matches"
+    },
+    {
+     "label": "Basket size",
+     "status": "matches"
+    },
+    {
+     "label": "Prices",
+     "status": "checked"
+    },
+    {
+     "label": "Product mix",
+     "status": "other way"
+    },
+    {
+     "label": "Refunds",
+     "status": "checked"
+    },
+    {
+     "label": "Discounts",
+     "status": "checked"
+    },
+    {
+     "label": "Charges",
+     "status": "can't tell"
+    },
+    {
+     "label": "One product",
+     "status": "checked"
+    },
+    {
+     "label": "Products in or out",
+     "status": "matches"
+    },
+    {
+     "label": "Stock",
+     "status": "checked"
+    },
+    {
+     "label": "Calendar",
+     "status": "matches"
+    },
+    {
+     "label": "Last year",
+     "status": "matches"
+    }
+   ],
+   "next_month": {
+    "month": "January 2025",
+    "figure": "GBP 43,835.33",
+    "value": 43835.33333333333,
+    "low": "GBP 38,893.14",
+    "low_value": 38893.13949234326,
+    "high": "GBP 49,405.54",
+    "high_value": 49405.537159650725,
+    "reason": null,
+    "notes": [],
+    "asides": [
+     "Next month (January 2025): about GBP 43,835.33, likely between GBP 38,893.14 and GBP 49,405.54 (the real figure should land in this range about 8 months in 10).",
+     "It is based on the last three full months, the latest counting most, and assumes no seasonal pattern.",
+     "Your file already has sales for 1 to 18 January 2025; that part-month is not compared with this estimate."
+    ]
+   },
+   "next_steps": [
+    "Show a pricier alternative next to the cheaper products customers chose."
+   ],
+   "checked_notes": [],
+   "next_steps_notes": []
   }
  },
  "bridge": {

@@ -31,18 +31,31 @@ function tick(value: number, code: string | null): string {
   return code ? `${code} ${text}` : text
 }
 
-export function FrontWaterfall({ waterfall }: { waterfall: Waterfall }) {
+/** `inCard`: the dashboard's chart card (Thach's layout, 2026-10-15) - the bars across at every width (the
+ * columns' labels overlapped at 1440 px in a card: the step 6 app check), no paragraph (the caption and the note
+ * stand behind the card's marker), the table of words for a screen reader only. */
+export function FrontWaterfall({ waterfall, inCard = false }: { waterfall: Waterfall; inCard?: boolean }) {
   const code = useCurrencyCode()
-  const narrow = useNarrow()
+  const narrow = useNarrow() || inCard
   const rows = waterfallRows(waterfall)
   const previous = waterfall.previous_label.split(' ').slice(0, -2).join(' ')
   const current = waterfall.current_label.split(' ').slice(0, -2).join(' ')
 
   return (
     <>
-      <p className="front__small">{waterfall.caption}</p>
-      <p className="front__small">{`0 = ${waterfall.previous_label} (${waterfall.previous_text})`}</p>
-      <div className="chart-frame" role="img" aria-label={`${TITLE}, drawn as bars: the table below gives every figure`}>
+      {!inCard && <p className="front__small">{waterfall.caption}</p>}
+      {inCard ? (
+        // The chart's key, a few words (report.html draws it in its chart): never a paragraph.
+        <div className="front__small chart-key">{`0 = ${waterfall.previous_label} (${waterfall.previous_text})`}</div>
+      ) : (
+        <p className="front__small">{`0 = ${waterfall.previous_label} (${waterfall.previous_text})`}</p>
+      )}
+      <div
+        className="chart-frame"
+        role="img"
+        aria-label={`${TITLE}, drawn as bars: the table below gives every figure`}
+        data-layout={narrow ? 'across' : 'columns'}
+      >
         {/* A phone draws the same bars across, each label on its own line: five labelled columns do not fit
             at 390 px (the app check, 2026-10-06). */}
         <BarChart
@@ -82,7 +95,7 @@ export function FrontWaterfall({ waterfall }: { waterfall: Waterfall }) {
           </Bar>
         </BarChart>
       </div>
-      <div className="table-scroll">
+      <div className={inCard ? 'visually-hidden' : 'table-scroll'}>
         <table className="hypotheses">
           <caption>{TITLE}</caption>
           <thead>
@@ -114,7 +127,7 @@ export function FrontWaterfall({ waterfall }: { waterfall: Waterfall }) {
           </tbody>
         </table>
       </div>
-      {waterfall.note && <p className="front__small">{waterfall.note}</p>}
+      {!inCard && waterfall.note && <p className="front__small">{waterfall.note}</p>}
     </>
   )
 }

@@ -9,6 +9,13 @@ import { REQUIRED_CANONICAL_FIELDS } from './transformCatalog.ts'
 
 const REQUIRED_FIELD_ORDER: CanonicalField[] = ['product_name', 'transaction_date', 'quantity']
 
+/** What a file needs, said plainly on Upload and on Review while a required field is not mapped (Thach's Q2,
+ * 2026-10-15: the required fields are not reopened - stage 1's product name, date and quantity, AI_PIPELINE 6;
+ * the README's Known limitations says the same). */
+export const REQUIRED_COLUMNS_COPY =
+  'This version needs one row per item sold, with a column for its date, its product and its quantity - and a unit ' +
+  'price to count sales in money. A file of dates and amounts only, such as a payments export, cannot be analysed.'
+
 export function mappedColumnsByField(plan: CleaningPlan): Map<CanonicalField, string[]> {
   const map = new Map<CanonicalField, string[]>()
   for (const column of plan.column_actions) {

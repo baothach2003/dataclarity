@@ -48,8 +48,9 @@ from stages.report.layers import actions, causes, numbers, revenue_notes
 # revenue's reason; 2.6: each hypothesis's lens, so the label names its total; 2.7: the headline's hedge
 # (the report redesign, step 1 - report.json carries the Headline model); 2.8: narration_status
 # "not_in_v1" (Q21) and the revenue KPI's exact change (Q22); 2.9: the front section, the currency, the rows
-# left out and the part-months (the report redesign, step 3); 2.10: the dashboard block (2026-10-14) (CONTRACTS 10).
-SCHEMA_VERSION = "2.10"
+# left out and the part-months (the report redesign, step 3); 2.10: the dashboard block (2026-10-14); 2.11: the
+# dashboard's line under the tiles, its checked chips and its bands (Thach's layout, 2026-10-15) (CONTRACTS 10).
+SCHEMA_VERSION = "2.11"
 STAGES_RUN = ["ingest", "analyze", "diagnose", "predict"]
 
 
@@ -159,7 +160,8 @@ def build_report(*, run_id: str, source_file: str, metrics: MetricsContract, dia
                         causes=layer_2, actions=layer_3, charts=charts, partial=partial, left_out=left_out,
                         code=shown.code)
     dashboard = build_dashboard(metrics=metrics, diagnosis=diagnosis, cleaning=cleaning, numbers=layer_1, front=front,
-                                charts=charts, notes=[*layer_1.notes, *layer_2.notes], code=shown.code)
+                                charts=charts, notes=[*layer_1.notes, *layer_2.notes], code=shown.code,
+                                views=layer_2.hypotheses, forecast=layer_3.forecast)
     return ReportContract(
         schema_version=SCHEMA_VERSION, generated_at=now or datetime.now(UTC), run_id=run_id, source_file=source_file,
         data_quality=DataQuality(rows_in=cleaning.rows_in, rows_out=cleaning.rows_out,

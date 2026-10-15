@@ -6,6 +6,15 @@ formatted by stage 5; the page computes and words none.
 
 The order rule lives here, once: stage 5 orders the widgets with it and the
 contract refuses any other order.
+
+2.11 (Thach's layout, 2026-10-15; docs/DASHBOARD_DESIGN.md section 10): the
+dashboard is pictures and figures - one short line under the tiles
+(`headline`), and full-width bands for what needs words: next month's figure
+and range (`next_month`), one row of chips for what was checked (`checked`),
+one line per suggested action (`next_steps`). A note stands where its figure
+is, as a marker (CLAUDE.md 3.3a as amended): each element's `notes` and the
+sentences behind the same marker (`asides`, a tile's `reason`, a widget's
+`caption`).
 """
 
 from typing import Literal, Self
@@ -40,6 +49,17 @@ CHART_OF: dict[WidgetId, tuple[Chart, ...]] = {
     "trend": ("line",), "waterfall": ("waterfall",), "customers": ("bars",), "products": ("bars",),
     "category": ("bars", "parts"), "breakdown_1": ("bars", "parts"), "breakdown_2": ("bars", "parts"),
     "returns": ("bars",)}
+
+
+# Row 2's line: "at most about 20 words" (Thach).
+MAX_HEADLINE_WORDS = 20
+# The checked chips: one per subject, in this order (design section 10). A
+# file that counts lines names B1 "Lines per customer" in the same place.
+CHIP_ORDER: tuple[tuple[str, ...], ...] = (
+    ("Data",), ("Customers",), ("Order frequency", "Lines per customer"), ("Basket size",), ("Prices",),
+    ("Product mix",), ("Refunds",), ("Discounts",), ("Charges",), ("One product",), ("Products in or out",),
+    ("Stock",), ("Calendar",), ("Last year",))
+ChipStatus = Literal["checked", "matches", "moved", "other way", "can't tell", "caution"]
 
 
 def printed_figure(text: str) -> float:
@@ -176,6 +196,63 @@ class Widget(ContractModel):
         return self
 
 
+class Headline(ContractModel):
+    """Row 2: the summary as one short line, code-written from existing
+    fields; behind its marker the sales figure's notes and the caution lines
+    (`asides`)."""
+
+    text: str = Field(min_length=1)
+    notes: list[NoteCode] = Field(default_factory=list)
+    asides: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _short(self) -> Self:
+        if len(self.text.split()) > MAX_HEADLINE_WORDS:
+            raise ValueError(f"the line under the tiles is {MAX_HEADLINE_WORDS} words at most")
+        return self
+
+
+class Chip(ContractModel):
+    """One subject of what was checked, and what the checklist found of it."""
+
+    label: str
+    status: ChipStatus
+
+
+class NextMonthBand(ContractModel):
+    """The forecast's first month as numbers: about `figure`, likely `low` to
+    `high` - or why there is none (`reason`). Its other sentences stand
+    behind its marker (`asides`) and in Technical details."""
+
+    month: str | None
+    figure: str | None
+    value: float | None
+    low: str | None
+    low_value: float | None
+    high: str | None
+    high_value: float | None
+    reason: str | None
+    notes: list[NoteCode] = Field(default_factory=list)
+    asides: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _figures_or_why_not(self) -> Self:
+        texts, values = (self.figure, self.low, self.high), (self.value, self.low_value, self.high_value)
+        if any((text is None) != (value is None) for text, value in zip(texts, values, strict=True)):
+            raise ValueError("next month's printed figures and their values go together")
+        if (self.figure is None) == (self.reason is None):
+            raise ValueError("next month shows its figure, or why there is none - never both")
+        if self.figure is not None and (self.month is None or self.low is None or self.high is None):
+            raise ValueError("next month's figure comes with its month and its range")
+        for text, value in zip(texts, values, strict=True):
+            if text is not None and value is not None and not _agrees(text, value):
+                raise ValueError("next month's printed figure is its value")
+        if self.low_value is not None and self.high_value is not None and self.value is not None \
+                and not self.low_value <= self.value <= self.high_value:
+            raise ValueError("next month's figure lies inside its range")
+        return self
+
+
 class Dashboard(ContractModel):
     # As the front's: compared, not compared (this month alone), blocked.
     state: Literal["compared", "not_compared", "blocked"]
@@ -187,6 +264,37 @@ class Dashboard(ContractModel):
     # the figures they caution).
     caution: list[str]
     widgets: list[Widget] = Field(min_length=1)
+    # 2.11 (Thach's layout): row 2's line and row 4's bands.
+    headline: Headline | None = None
+    checked: list[Chip] = Field(default_factory=list)
+    next_month: NextMonthBand | None = None
+    next_steps: list[str] = Field(default_factory=list)
+    # The notes beside the checked chips and the next steps - the front's
+    # (CLAUDE.md 3.3a: where those findings are shown, behind a marker).
+    checked_notes: list[NoteCode] = Field(default_factory=list)
+    next_steps_notes: list[NoteCode] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _the_bands(self) -> Self:
+        labels = [chip.label for chip in self.checked]
+        places = [next((i for i, names in enumerate(CHIP_ORDER) if label in names), None) for label in labels]
+        if None in places or places != sorted(set(places)):  # type: ignore[type-var]
+            raise ValueError(f"the chips are {CHIP_ORDER}'s subjects, each once, in that order; got {labels}")
+        if self.checked and (self.checked[0].label != "Data" or self.checked[0].status not in ("checked", "caution")):
+            raise ValueError("the checked chips open with the data checks: checked or caution")
+        if any(chip.status == "caution" for chip in self.checked[1:]):
+            raise ValueError("only the data checks are a caution")
+        if self.checked and self.checked[0].status == "caution" and not self.caution:
+            raise ValueError("the data chip says caution exactly when a check cautions")
+        if self.checked and self.checked[0].status != "caution" and self.caution:
+            raise ValueError("the data chip says caution exactly when a check cautions")
+        if self.state == "blocked" and (self.checked or self.next_steps):
+            raise ValueError("a blocked report draws no chip and no next step: its line says why")
+        if self.headline is not None and not set(self.caution) <= set(self.headline.asides):
+            raise ValueError("the caution lines stand behind the line's marker (CLAUDE.md 3.3a)")
+        if any(not step.strip() for step in self.next_steps):
+            raise ValueError("a next step is a line of words")
+        return self
 
     @model_validator(mode="after")
     def _by_the_rules(self) -> Self:

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReviewPage } from './ReviewPage.tsx'
+import { REQUIRED_COLUMNS_COPY } from '../domain/planRules.ts'
 import * as runsApi from '../api/runs.ts'
 import { ApiError } from '../api/errors.ts'
 import type {
@@ -337,5 +338,25 @@ describe('ReviewPage: error-state rendering', () => {
     expect(screen.getByText('drop_rows_missing on qty left no rows')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: 'Back to review' }))
     expect(screen.queryByText('drop_rows_missing on qty left no rows')).toBeNull()
+  })
+})
+
+describe("ReviewPage: the columns a file needs (Thach's Q2, 2026-10-15)", () => {
+  it('says plainly which columns the file needs while a required field is not mapped', () => {
+    vi.mocked(runsApi.previewPlan).mockResolvedValue(makePreviewResponse())
+    render(
+      <ReviewPage
+        baseUrl="http://localhost:8000"
+        runId="run-1"
+        filename="sales.csv"
+        profile={makeProfile()}
+        schema={null}
+        initialPlan={null}
+        notices={[{ code: 'AI_UNAVAILABLE', message: 'The AI could not propose a plan.' }]}
+        onCancel={vi.fn()}
+        onCleaned={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(REQUIRED_COLUMNS_COPY)).toBeDefined()
   })
 })

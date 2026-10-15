@@ -1,6 +1,6 @@
 {
  "report": {
-  "schema_version": "2.10",
+  "schema_version": "2.11",
   "generated_at": "2026-09-29T00:00:00Z",
   "run_id": "3f0c9a1e-5b7d-4c2e-9a8b-1d2e3f4a5b6c",
   "source_file": "demo_unanswered.csv",
@@ -1707,7 +1707,7 @@
      "now_value": 654527.09,
      "was": null,
      "was_value": null,
-     "change": "+139,466.56 (+27.08%) on October 2011",
+     "change": "+139,466.56 (+27.08%)",
      "direction": "up",
      "reason": null,
      "notes": [
@@ -1898,6 +1898,103 @@
      "notes": []
     },
     {
+     "id": "products",
+     "kind": "chart",
+     "chart": "bars",
+     "placed_by": "fallback",
+     "size": null,
+     "title": "Products with the most sales in November 2011",
+     "column": null,
+     "bars": [
+      {
+       "label": "Product 186 (suggested: charge, not confirmed)",
+       "now": 18434.670000000002,
+       "was": null,
+       "now_text": "18,434.67",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 437",
+       "now": 11708.220000000001,
+       "was": null,
+       "now_text": "11,708.22",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 617",
+       "now": 9251.03,
+       "was": null,
+       "now_text": "9,251.03",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 381",
+       "now": 7976.79,
+       "was": null,
+       "now_text": "7,976.79",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 450",
+       "now": 6939.8099999999995,
+       "was": null,
+       "now_text": "6,939.81",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 127",
+       "now": 6548.13,
+       "was": null,
+       "now_text": "6,548.13",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 076",
+       "now": 5648.33,
+       "was": null,
+       "now_text": "5,648.33",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 289",
+       "now": 5465.28,
+       "was": null,
+       "now_text": "5,465.28",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 382",
+       "now": 5437.07,
+       "was": null,
+       "now_text": "5,437.07",
+       "was_text": null,
+       "is_blank": false
+      },
+      {
+       "label": "Product 281",
+       "now": 4607.61,
+       "was": null,
+       "now_text": "4,607.61",
+       "was_text": null,
+       "is_blank": false
+      }
+     ],
+     "caption": [],
+     "notes": [
+      "same_day_cancellations",
+      "unconfirmed_suggestions",
+      "unconfirmed_deductions"
+     ]
+    },
+    {
      "id": "checklist",
      "kind": "text",
      "chart": null,
@@ -1945,7 +2042,105 @@
      "caption": [],
      "notes": []
     }
-   ]
+   ],
+   "headline": {
+    "text": "Sales +27.08% vs October 2011 · in line with last year (+39.14%)",
+    "notes": [
+     "same_day_cancellations",
+     "unconfirmed_suggestions",
+     "unconfirmed_deductions"
+    ],
+    "asides": [
+     "This change is in line with last year's: 39.14% last year, 27.08% this year (one earlier year to compare with) - a gap of 12.06 points, within twice this shop's typical gap (8.55 points).",
+     "Sales in November 2011 were 654,527.09, up 139,466.56 (+27.08%) on October 2011 (515,060.53).",
+     "Nothing else stands out: the change is in line with last year's, so none of the checks below is named as the reason.",
+     "Sales here means the money customers paid (before any costs). It is not profit: the file has no cost data. Amounts are in your file's currency."
+    ]
+   },
+   "checked": [
+    {
+     "label": "Data",
+     "status": "checked"
+    },
+    {
+     "label": "Customers",
+     "status": "moved"
+    },
+    {
+     "label": "Order frequency",
+     "status": "moved"
+    },
+    {
+     "label": "Basket size",
+     "status": "can't tell"
+    },
+    {
+     "label": "Prices",
+     "status": "moved"
+    },
+    {
+     "label": "Product mix",
+     "status": "moved"
+    },
+    {
+     "label": "Refunds",
+     "status": "moved"
+    },
+    {
+     "label": "Discounts",
+     "status": "checked"
+    },
+    {
+     "label": "Charges",
+     "status": "can't tell"
+    },
+    {
+     "label": "One product",
+     "status": "checked"
+    },
+    {
+     "label": "Products in or out",
+     "status": "checked"
+    },
+    {
+     "label": "Stock",
+     "status": "checked"
+    },
+    {
+     "label": "Calendar",
+     "status": "moved"
+    },
+    {
+     "label": "Last year",
+     "status": "moved"
+    }
+   ],
+   "next_month": {
+    "month": "December 2011",
+    "figure": "384,784.50",
+    "value": 384784.5046036465,
+    "low": "305,880.67",
+    "low_value": 305880.67356950865,
+    "high": "484,042.07",
+    "high_value": 484042.07188143436,
+    "reason": null,
+    "notes": [
+     "unconfirmed_suggestions",
+     "unconfirmed_deductions"
+    ],
+    "asides": [
+     "Next month (December 2011): about 384,784.50, likely between 305,880.67 and 484,042.07 (the real figure should land in this range about 8 months in 10).",
+     "It follows the seasonal pattern of the last two years - the fewest years that can show one - so the shape is less certain than more years would make it.",
+     "Your file already has sales for 1 to 9 December 2011; that part-month is not compared with this estimate."
+    ]
+   },
+   "next_steps": [],
+   "checked_notes": [
+    "same_day_cancellations",
+    "unconfirmed_suggestions",
+    "unconfirmed_deductions"
+   ],
+   "next_steps_notes": []
   }
  },
  "bridge": {

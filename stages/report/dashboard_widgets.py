@@ -16,7 +16,8 @@ from contracts.report import Chart, NoteView
 from contracts.report_dashboard import Bar, Widget, WidgetId
 from contracts.report_front import Front
 from shared.claim_lines import Context, money_terms
-from shared.wording import amount, prints_as_zero
+from shared.wording import amount, month_name, prints_as_zero
+from stages.report.html_parts import suggested_mark
 
 MAX_PARTS = 3
 _CUSTOMER_IDS = ("C1", "C3", "C2")  # new, came back, stopped buying - the order a shop owner reads them
@@ -120,10 +121,17 @@ def chart_widgets(*, metrics: MetricsContract, diagnosis: DiagnosisContract, cle
             draws["customers"] = set(terms)
     localization = diagnosis.localization
     dims = {d.name: d for d in localization.dimensions} if localization is not None else {}
-    # No products widget (Thach's stop rule, 2026-10-14): its first form ("moved most", stage 3's members)
-    # was false on the Kaggle file; its fix (stage 2's top products) still named a suggested charge, DOTCOM
-    # POSTAGE, as Online Retail II's top product without its "suggested, not confirmed" mark - a fabrication
-    # on a demo file found by the scoped review, so the element is not shown. The appendix keeps the tables.
+    # Stage 2's best sellers this month (Thach re-enabled them, 2026-10-15, after the stop rule hid them on
+    # 2026-10-14 for naming a suggested charge, DOTCOM POSTAGE, unmarked): each product whose class was
+    # suggested and nobody confirmed carries its mark - the one copy, html_parts.suggested_mark. No movement,
+    # no size, no tie: it draws no cause.
+    top = metrics.products.top_products
+    if len(top) >= 2:
+        marks = metrics.products.suggested_classes
+        found.append(Widget(id="products", kind="chart", chart="bars", placed_by="fallback", size=None,
+                            title=f"Products with the most sales in {month_name(metrics.period.current)}",
+                            bars=[_bar(suggested_mark(p.product, marks), p.revenue, None, code) for p in top],
+                            notes=_notes(notes, "products")))
     categories = metrics.by_dimension.category
     if len(categories) >= 2:
         size = (max(abs(m.delta) for m in dims["category"].members) if compared and "category" in dims

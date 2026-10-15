@@ -69,12 +69,15 @@ export function DashboardParts({ bars, title }: { bars: Bar[]; title: string }) 
           )
         })}
       </ul>
-      {bars.map((bar, index) => (
-        <p className="front__small" key={index}>
-          <span className={`hp-swatch hp-part--${String(index)}`} aria-hidden="true" />
-          {`${bar.label}: ${bar.now_text}${bar.was_text !== null ? ` (was ${bar.was_text})` : ''}`}
-        </p>
-      ))}
+      {/* Each part's own figures: a legend, not a paragraph (Thach's layout, 2026-10-15). */}
+      <ul className="hp-legend">
+        {bars.map((bar, index) => (
+          <li className="front__small" key={index}>
+            <span className={`hp-swatch hp-part--${String(index)}`} aria-hidden="true" />
+            {`${bar.label}: ${bar.now_text}${bar.was_text !== null ? ` (was ${bar.was_text})` : ''}`}
+          </li>
+        ))}
+      </ul>
     </>
   )
 }

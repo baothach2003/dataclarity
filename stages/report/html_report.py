@@ -23,7 +23,7 @@ from shared.run_registry import run_file
 from shared.wording import month_name
 from stages.report.html_causes import causes_html
 from stages.report.html_charts import chart_html, plotly_js
-from stages.report.html_dashboard import DASHBOARD_STYLE, dashboard_html
+from stages.report.html_dashboard import DASHBOARD_STYLE, dashboard_html, words_html
 from stages.report.html_front import front_html
 from stages.report.html_parts import (
     FORMATS,
@@ -261,14 +261,20 @@ def _render(report: ReportContract) -> str:
         header, opening, closing = f"<header><h1>Sales report</h1>{meta}</header>", "", ""
     else:
         period = numbers.period
-        # 2.10: the dashboard - the tiles, then the widgets in report.json's order (D3, D7).
-        body_front = (dashboard_html(report, report.dashboard, front, month_name(period.previous))
-                      if report.dashboard is not None else front_html(report, front))
+        # 2.10: the dashboard - the tiles, then the widgets in report.json's order (D3, D7); 2.11 Thach's
+        # layout - the line, the chart cards, the bands; every long text in Technical details.
+        dashboard = report.dashboard
+        # A report before 2.11 (no line under the tiles) draws its front section as it was (the review).
+        if dashboard is not None and dashboard.headline is None:
+            dashboard = None
+        body_front = (dashboard_html(report, dashboard, front) if dashboard is not None
+                      else front_html(report, front))
         header = (f"<header><h1>Your sales report</h1>{meta}"
                   f"{para(f'{month_name(period.current)} compared with {month_name(period.previous)}', 'meta')}"
                   f"</header>{body_front}")
         # Thach, Q67: one name, "Technical details", here and on the page.
         opening = ('<details id="appendix"><summary>Technical details</summary>'
+                   + (words_html(report, dashboard, front) if dashboard is not None else "")
                    + para("In Technical details, 'revenue' is the same figure as 'sales' above.")
                    + (para(f"Amounts are in {report.currency.code}. Sentences quoted from the analysis, and the "
                            "evidence of each check, are shown as written, their amounts without the code.")

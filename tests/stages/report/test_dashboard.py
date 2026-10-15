@@ -30,6 +30,9 @@ from tests.stages.report.real_runs import build_real, files
 
 NOW = datetime(2026, 10, 1, tzinfo=UTC)
 TEXT = ["summary", "checklist", "next_steps", "next_month", "cannot_know"]
+# Thach re-enabled the products widget with its mark (2026-10-15): unsized, it comes right after the summary in
+# the fixed order (summary, trend, waterfall, customers, products, ...).
+UNSIZED = ["summary", "products", "checklist", "next_steps", "next_month", "cannot_know"]
 # The illustrative breakdowns of the design's mock: the Kaggle run's Location and Payment Method, by stage 2's
 # definition (members sum to 46,292.50 and 41,367.50).
 KAGGLE_SPLITS = [
@@ -76,7 +79,7 @@ def _pipeline(frame: pd.DataFrame, mapping: dict[str, str] = STORE, breakdowns: 
 
 
 def test_the_version_is_2_10() -> None:
-    assert SCHEMA_VERSION == "2.10"  # 2.10: the dashboard block (2026-10-14)
+    assert SCHEMA_VERSION == "2.11"  # 2.11 Thach's layout (the line, the chips, the bands); 2.10: the dashboard block (2026-10-14)
 
 
 def test_kaggle_tiles_are_sales_orders_order_value_and_customers() -> None:
@@ -84,9 +87,10 @@ def test_kaggle_tiles_are_sales_orders_order_value_and_customers() -> None:
 
     assert list(tiles) == ["sales", "orders", "aov", "customers"]  # no return line in the file: no return rate
     sales = tiles["sales"]
-    # Sentence A's own figures: 46,292.50, up 4,925.00 (+11.9%) on November 2024.
+    # Sentence A's own figures: 46,292.50, up 4,925.00 (+11.9%) - the month "on November 2024" moved to the line
+    # under the tiles (Thach's layout, 2.11: a tile is label, figure, arrow and change).
     assert (sales.label, sales.now, sales.change, sales.direction) == (
-        "Sales", "46,292.50", "+4,925.00 (+11.9%) on November 2024", "up")
+        "Sales", "46,292.50", "+4,925.00 (+11.9%)", "up")
     assert (tiles["orders"].label, tiles["orders"].now, tiles["orders"].was, tiles["orders"].direction) == (
         "Orders", "343", "308", "up")
     assert (tiles["aov"].label, tiles["aov"].now, tiles["aov"].was) == ("Average order value", "134.96", "134.31")
@@ -104,7 +108,7 @@ def test_online_retail_has_the_return_rate_as_a_ratio_never_a_percentage() -> No
     assert (rate.label, rate.now, rate.was, rate.direction, rate.unit) == (
         "Orders with a return, per order sold", "0.152", "0.169", "down", "ratio")
     assert (tiles["customers"].now, tiles["customers"].was) == ("756", "609")
-    assert tiles["sales"].change == "+141,755.41 (+27.2%) on October 2011"
+    assert tiles["sales"].change == "+141,755.41 (+27.2%)"  # the month in the line under the tiles (2.11)
 
 
 def test_a_file_with_no_order_id_and_no_customer_says_lines_and_has_no_customer_tile() -> None:
@@ -151,7 +155,7 @@ def test_kaggle_leads_with_the_change_split_its_named_cause_draws() -> None:
     # 2,562.50 (stage 3's largest category move); then the unsized in the fixed order - the summary, this
     # month's best sellers (stage 2's list, no movement: step 3's review), the rest of the text. No customers
     # widget: new, back and stopped buying are 0.00 in both months.
-    assert widgets == ["waterfall", "trend", "category", *TEXT]
+    assert widgets == ["waterfall", "trend", "category", *UNSIZED]
     placed = {w.id: w.placed_by for w in build_real("kaggle").dashboard.widgets}
     assert placed["waterfall"] == "named" and placed["trend"] == "size" and placed["summary"] == "fallback"
 
@@ -161,7 +165,7 @@ def test_kaggle_with_two_breakdowns_places_each_by_its_largest_move() -> None:
     _, widgets = _ids(report)
     # Location's largest move +7,765.50 (in-store) comes before the change itself; Payment Method's +2,424.50
     # (cash) after the category's 2,562.50.
-    assert widgets == ["waterfall", "breakdown_1", "trend", "category", "breakdown_2", *TEXT]
+    assert widgets == ["waterfall", "breakdown_1", "trend", "category", "breakdown_2", *UNSIZED]
     by_id = {w.id: w for w in report.dashboard.widgets}
     location, payment = by_id["breakdown_1"], by_id["breakdown_2"]
     assert (location.title, location.column, location.chart, location.size) == (
@@ -175,19 +179,21 @@ def test_online_retail_has_no_named_cause_so_the_largest_move_leads() -> None:
     for run in ("demo_classed", "demo_unanswered"):
         report = build_real(run)
         _, widgets = _ids(report)
-        assert widgets == ["trend", "waterfall", "customers", "returns", *TEXT], run
+        assert widgets == ["trend", "waterfall", "customers", "returns", *UNSIZED], run
 
 
-def test_no_products_widget_is_drawn_the_stop_rules_element_hidden() -> None:
-    # Thach's stop rule (2026-10-14): the products widget fabricated on a demo file twice - "moved most" over
-    # stage 3's larger members only (Kaggle), then DOTCOM POSTAGE, a suggested charge, as Online Retail II's
-    # top product without its mark (the scoped review) - so it is not shown, on any run, in report.json or the page.
+def test_the_products_widget_is_drawn_again_with_its_mark() -> None:
+    # Was "no products widget is drawn" - the stop rule's element hidden (2026-10-14: it named DOTCOM POSTAGE, a
+    # suggested charge, as Online Retail II's top product without its mark). Thach re-enabled it WITH the mark
+    # (2026-10-15): drawn on every run, a suggested product never without "(suggested: <class>, not confirmed)".
     for run in ("kaggle", "demo_classed", "demo_unanswered"):
         report = build_real(run)
-        assert "products" not in _ids(report)[1], run
+        assert "products" in _ids(report)[1], run
         page = Page(render_html(report))
-        assert "products" not in [attrs["id"] for attrs in page.named("section")], run
-        assert "DOTCOM POSTAGE" not in page.front_text and "Products with the most sales" not in page.front_text
+        assert "products" in [attrs["id"] for attrs in page.named("section")], run
+        assert "Products with the most sales in" in page.front_text
+    unanswered = Page(render_html(build_real("demo_unanswered"))).section("products")
+    assert "Product 186 (suggested: charge, not confirmed)" in unanswered
 
 
 def test_lapsed_customers_lead_with_the_customers_widget() -> None:
@@ -255,10 +261,11 @@ def test_report_html_draws_the_tiles_then_the_widgets_in_the_blocks_order() -> N
     page = render_html(report)
     probe = Page(page)
     widget_ids = [attrs["id"] for attrs in probe.named("section") if (attrs.get("class") or "").startswith("card widget")]
-    assert widget_ids == [SECTION_IDS[w.id] for w in report.dashboard.widgets]
+    # 2.11 (Thach's layout): the chart widgets are the cards; the text parts are in Technical details.
+    assert widget_ids == [SECTION_IDS[w.id] for w in report.dashboard.widgets if w.kind == "chart"]
     tiles = probe.section("tiles")
     assert tiles.index("Sales") < tiles.index("Orders") < tiles.index("Average order value")
-    assert "+4,925.00 (+11.9%) on November 2024" in tiles
+    assert "+4,925.00 (+11.9%)" in tiles
     assert "Sales by Location" in probe.section("breakdown-1")
     assert page.index('id="tiles"') < page.index('id="appendix"')
 
@@ -419,7 +426,8 @@ def test_a_withheld_breakdown_says_why_under_the_tiles() -> None:
     assert "breakdown_1" not in _ids(report)[1]
     assert report.dashboard.not_shown[-1] == ('Sales by "Desk" are not shown: the column has 14 values in November '
                                               "2024 and December 2024; a split is drawn for 12 at most.")
-    assert 'Sales by "Desk" are not shown' in Page(render_html(report)).section("tiles")
+    # 2.11: in Technical details ("The dashboard in words", its "In short"), not under the tiles.
+    assert 'Sales by "Desk" are not shown' in Page(render_html(report)).section("summary")
 
 
 def test_a_blocked_report_names_no_split_in_what_it_cannot_know() -> None:
@@ -432,7 +440,9 @@ def test_a_blocked_report_names_no_split_in_what_it_cannot_know() -> None:
     assert report.dashboard.state == "blocked"
     assert report.dashboard.widgets[0].id == "summary" and "breakdown_1" not in _ids(report)[1]
     line = next(item.text for item in report.front.cannot_know if item.title.startswith("Sales by channel"))
-    assert line == "This version does not split sales that way."
+    # Was "This version does not split sales that way." beside the split the user kept (Thach's 4.1).
+    assert line == ('You kept "Till" in Review to split sales by; it is not drawn in this report: the data checks '
+                    "did not pass.")
 
 def test_the_category_chart_is_never_parts_of_a_whole() -> None:
     # Review 3 #4: stage 2's categories leave the lines with no category out, so they are not the whole.

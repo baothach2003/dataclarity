@@ -3,7 +3,7 @@
 // report.html draws. The page decides no order and words no figure. The fixtures are stage 5's real output on the
 // three real runs (tests/contracts/front_fixtures.py proves it). Written before the page drew the block.
 
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { bannedIn } from '../domain/frontBanned.ts'
 import type { ReportContract } from '../types/report.ts'
@@ -36,6 +36,16 @@ function dashboardOf(report: ReportContract): Dashboard {
   return report.dashboard
 }
 
+/** Opens the marker inside `where` and returns what it shows (CLAUDE.md 3.3a as amended: a note behind an "i"). */
+function opened(where: HTMLElement): string {
+  const marker = where.querySelector<HTMLButtonElement>('button.marker')
+  if (!marker) {
+    throw new Error('a marker stands there')
+  }
+  fireEvent.click(marker)
+  return where.querySelector('.marker__panel')?.textContent ?? ''
+}
+
 function show(run: string, change?: (report: ReportContract) => void): ReportContract {
   const report = structuredClone(RUNS[run].report)
   change?.(report)
@@ -65,7 +75,8 @@ describe('Insights draws the dashboard block', () => {
   it.each(Object.keys(RUNS))('%s: the widgets in report.json\'s order, none added, none dropped', (run) => {
     const report = show(run)
     const drawn = screen.getAllByTestId(/^widget-/).map((node) => node.dataset.testid?.replace('widget-', ''))
-    expect(drawn).toEqual(dashboardOf(report).widgets.map((w) => w.id))
+    // 2.11 (Thach's layout): the chart widgets are the cards; the text parts stand in Technical details.
+    expect(drawn).toEqual(dashboardOf(report).widgets.filter((w) => w.kind === 'chart').map((w) => w.id))
   })
 
   it('Kaggle: the trend widget title is one heading, not two', () => {
@@ -77,20 +88,25 @@ describe('Insights draws the dashboard block', () => {
     expect(screen.getAllByRole('heading', { name: trend.title })).toHaveLength(1)
   })
 
-  it('Kaggle: "was" beside last month\'s value, the month named, the arrow worded', () => {
+  it('Kaggle: "was" beside last month\'s value, the month in the line under the tiles, the arrow worded', () => {
     show('kaggle')
     const orders = screen.getByTestId('tile-orders')
-    expect(orders.textContent).toContain('was 308 in November 2024')
+    // 2.11: a tile is its label, figure, arrow and change; "vs November 2024" is the line's.
+    expect(orders.textContent).toContain('was 308')
+    expect(screen.getByTestId('dashboard-headline').textContent).toContain('vs November 2024')
     expect(within(orders).getByRole('img', { name: 'higher than last month' })).toBeTruthy()
   })
 
-  it('a caution stands under the tiles, before any widget', () => {
+  it('a caution stands under the tiles, before any widget - behind the line\'s marker (2.11)', () => {
     show('kaggle', (report) => {
-      dashboardOf(report).caution = ['Some days in December 2024 have no sales at all.']
+      const dashboard = dashboardOf(report)
+      dashboard.caution = ['Some days in December 2024 have no sales at all.']
+      dashboard.headline?.asides.unshift('Some days in December 2024 have no sales at all.')
     })
-    const caution = screen.getByText('Some days in December 2024 have no sales at all.')
+    const line = screen.getByTestId('dashboard-headline')
     const firstWidget = screen.getAllByTestId(/^widget-/)[0]
-    expect(caution.compareDocumentPosition(firstWidget) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(line.compareDocumentPosition(firstWidget) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(opened(line)).toContain('Some days in December 2024 have no sales at all.')
   })
 
   it('a breakdown widget prints its bars\' texts; a negative bar runs left of zero', () => {
@@ -152,7 +168,7 @@ describe('Insights draws the dashboard block', () => {
     expect(within(card).getByText('Last month')).toBeTruthy()
     expect(within(card).getByText('Web: 300.00 (was 100.00)')).toBeTruthy()
     expect(within(card).getByText('Shop: 100.00 (was 300.00)')).toBeTruthy()
-    expect(within(card).getByText('Each part is one channel.')).toBeTruthy()
+    expect(opened(card)).toContain('Each part is one channel.')  // 2.11: the caption behind the card's marker
     const widths = [...card.querySelectorAll<HTMLElement>('.hp-part')].map((part) => parseFloat(part.style.width))
     expect(widths).toEqual([75, 25, 25, 75])
   })
@@ -175,7 +191,7 @@ describe('Insights draws the dashboard block', () => {
     expect(kinds).toEqual(['hb-bar hb-bar--up', 'hb-bar hb-bar--down', 'hb-bar hb-bar--flat'])
   })
 
-  it('a tile with no comparison prints last month\'s value with its month', () => {
+  it('a tile with no comparison prints last month\'s value (its month in the line under the tiles)', () => {
     const report = show('kaggle', (r) => {
       for (const tile of dashboardOf(r).tiles) {
         tile.change = null
@@ -183,7 +199,7 @@ describe('Insights draws the dashboard block', () => {
     })
     for (const tile of dashboardOf(report).tiles) {
       if (tile.was !== null) {
-        expect(screen.getByTestId(`tile-${tile.id}`).textContent).toContain(`was ${tile.was} in November 2024`)
+        expect(screen.getByTestId(`tile-${tile.id}`).textContent).toContain(`was ${tile.was}`)
       }
     }
   })
@@ -203,7 +219,8 @@ describe('Insights draws the dashboard block', () => {
       dashboard.widgets = dashboard.widgets.filter((w) => ['summary', 'trend', 'next_month', 'cannot_know'].includes(w.id))
     })
     expect(screen.getAllByText('Data checks: 2 of 3 passed.')).toHaveLength(1)
-    expect(within(screen.getByTestId('widget-summary')).getByText('Data checks: 2 of 3 passed.')).toBeTruthy()
+    // 2.11: the summary's sentences stand in Technical details ("The dashboard in words").
+    expect(within(screen.getByTestId('technical-details')).getByText('Data checks: 2 of 3 passed.')).toBeTruthy()
   })
 
   it('a blocked report: the sales tile\'s reason, no figure, three text widgets, the lines under the tiles', () => {
@@ -220,10 +237,12 @@ describe('Insights draws the dashboard block', () => {
       }
     })
     const tile = screen.getByTestId('tile-sales')
-    expect(tile.querySelector('.tile__value')).toBeNull()
-    expect(within(tile).getByText('The data did not pass its checks.')).toBeTruthy()
-    expect(screen.getByText('Orders are not shown: the data did not pass its checks.')).toBeTruthy()
-    expect(screen.getAllByTestId(/^widget-/).map((w) => w.dataset.testid)).toEqual(['widget-summary', 'widget-next_month', 'widget-cannot_know'])
+    // 2.11: no figure - the two words "not shown", the reason behind the tile's marker; no chart card; the lines
+    // under the tiles stand in Technical details.
+    expect(tile.querySelector('.tile__value')?.textContent).toBe('not shown')
+    expect(opened(tile)).toContain('The data did not pass its checks.')
+    expect(within(screen.getByTestId('technical-details')).getByText('Orders are not shown: the data did not pass its checks.')).toBeTruthy()
+    expect(screen.queryAllByTestId(/^widget-/)).toEqual([])
   })
 
   it('the summary carries the waterfall note once when the change cannot be split', () => {
@@ -237,7 +256,7 @@ describe('Insights draws the dashboard block', () => {
       dashboard.widgets = dashboard.widgets.filter((w) => w.id !== 'waterfall')
     })
     expect(screen.getAllByText('The change cannot be split this month.')).toHaveLength(1)
-    expect(within(screen.getByTestId('widget-summary')).getByText('The change cannot be split this month.')).toBeTruthy()
+    expect(within(screen.getByTestId('technical-details')).getByText('The change cannot be split this month.')).toBeTruthy()
   })
 
   it('the trend\'s sentences stand even when no month can be drawn', () => {
@@ -248,7 +267,7 @@ describe('Insights draws the dashboard block', () => {
         trend.caption = ['January 2025 is not in the chart.']
       }
     })
-    expect(within(screen.getByTestId('widget-trend')).getByText('January 2025 is not in the chart.')).toBeTruthy()
+    expect(opened(screen.getByTestId('widget-trend'))).toContain('January 2025 is not in the chart.')  // 2.11
   })
 
   it('a widget this page cannot draw is left out, never drawn as bars', () => {

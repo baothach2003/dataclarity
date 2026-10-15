@@ -2,6 +2,7 @@
 // "Upload · states (spec).png"). Client-side type/size check, then the upload
 // with progress, then the caller (App.tsx) moves on to Analyzing.
 
+import { REQUIRED_COLUMNS_COPY } from '../domain/planRules.ts'
 import { useRef, useState } from 'react'
 import type { DragEvent, KeyboardEvent } from 'react'
 import { createRun } from '../api/runs.ts'
@@ -107,6 +108,7 @@ export function UploadPage({ baseUrl, onUploaded }: UploadPageProps) {
             We profile it, propose a cleaning plan, and you review every change before anything
             runs.
           </p>
+          <p className="page__subtitle">{REQUIRED_COLUMNS_COPY}</p>
         </div>
 
         {!baseUrl && (

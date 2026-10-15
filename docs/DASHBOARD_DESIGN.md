@@ -742,6 +742,34 @@ the page (its column labels overlapped at 1440 px in a card).
 needs a date, a product and a quantity column for each sale (with a price
 for its money); the README's Known limitations lists it.
 
+**As built (2026-10-15).** report.json 2.11 (`contracts/report_dashboard.py`
+Headline, Chip, NextMonthBand; `stages/report/dashboard_bands.py`;
+`html_dashboard.py`; the page's DashboardSection, NoteMarker, DashboardWords).
+Failing tests first (the paragraph, marker, mock-label and long-text tests
+red on 2.10); mutation on the logic 21 of 21 (9 after their tests); the
+products mark by the full process (method
+`C:\Users\Happy\dashboard-products-mark-method.txt`). Found while
+building: the waterfall's note and the "not split" note were in no part of
+Technical details; the sales note ("not profit", the file's currency) stood
+nowhere near the figures - both fixed. **The review (one cycle, fresh
+context)**: no fabrication on the demos; the products widget passes. Fixed,
+tests first: a card's title squeezed by an open marker (the head wraps);
+a tile's notes opened in a column a tile wide; the page's waterfall lost
+its key "0 = <last month>"; "in line with last year" had nothing behind its
+marker saying why (the summary's sentences now are); the checked and
+next-step bands had no marker for their notes (`checked_notes`,
+`next_steps_notes`); "8 months in 10" behind the next-month marker; a 2.10
+report draws its old front; markers 24 px, the panel always present for
+aria-controls. **Its scoped review**: no fabrication; fixed, each narrowing:
+the line's marker carries the summary's notes (the diagnosis's
+same_day_cancellations among them); an open tile takes the whole row in the
+flow (a panel over the other tiles hid their figures and markers); an open
+marker takes its own line in a card's head; report.html and the page print
+the bands and "The dashboard in words" in one order. No further cycle (stop
+rule). Recorded: nothing ties the line's text to the tile or the chips to
+the checklist in the contract (the tests do); report.html's waterfall SVG
+text is small in a 440 px card.
+
 ## 9. Decisions made alone and open questions
 
 Decisions made alone (each open to Thach's veto):

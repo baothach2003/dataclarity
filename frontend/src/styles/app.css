@@ -1499,3 +1499,147 @@ table.hypotheses details summary {
   border-radius: var(--radius-badge);
   margin-right: var(--space-2);
 }
+
+/* Thach's layout (report.json 2.11; docs/DASHBOARD_DESIGN.md section 10): pictures and figures, almost no text.
+   One line under the tiles; the chart cards; full-width bands for what needs words (on a phone they stack, still
+   full width); a note where its figure is, as a small "i" that opens its sentences (CLAUDE.md 3.3a as amended).
+   The design tokens only, as the dashboard's exception (FIGMA_DESIGN_NOTES section 3). */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.dashboard-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-1) var(--space-2);
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+}
+.dashboard-headline__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dashboard-widget__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+.dashboard-widget__head .front-card__title {
+  flex: 1;
+  min-width: 0;
+}
+.band {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  min-width: 0;
+}
+.band__title {
+  margin: 0;
+  font-size: var(--type-h3-size);
+  line-height: var(--type-h3-line);
+  font-weight: var(--type-h3-weight);
+}
+.band__line {
+  margin: 0;
+  font-weight: var(--type-label-weight);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.band__list {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.chip {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-3);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+}
+.chip--checked,
+.chip__status {
+  color: var(--text-secondary);
+}
+.marker-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 100%;
+}
+.marker {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-label-weight);
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.marker:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.marker__panel {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--border);
+  font-size: var(--type-caption-size);
+  line-height: var(--type-caption-line);
+  font-weight: var(--type-body-weight);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+/* A tile whose marker is open takes the whole row of tiles, in the flow: a note never stands in a column a tile
+   wide, and never over another figure (the review and its scoped review). */
+.tile:has(.marker[aria-expanded='true']) {
+  grid-column: 1 / -1;
+}
+/* An open marker takes its own line in a card's head: the title is never squeezed (the scoped review's O1). */
+.marker-wrap:has(.marker[aria-expanded='true']) {
+  flex-basis: 100%;
+}
+.marker__panel[hidden] {
+  display: none;
+}
+.marker__panel p {
+  margin: 0 0 var(--space-1);
+}
+.hp-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

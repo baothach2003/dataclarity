@@ -227,6 +227,15 @@ def sentence_b(movement: HeadlineMovement | None) -> tuple[str | None, bool, int
             f"{_pct(movement.typical_pct, decimals, False)}).", inside, decimals)
 
 
+def pct(value: float, decimals: int) -> str:
+    """A signed percentage as the front prints one (the dashboard's line)."""
+    return _pct(value, decimals)
+
+
+def sales_figures(metrics: MetricsContract, bridge: LeverBridge | None) -> tuple[float, float, float | None]:
+    return _sales_figures(metrics, bridge)
+
+
 def _sales_figures(metrics: MetricsContract, bridge: LeverBridge | None) -> tuple[float, float, float | None]:
     """This month's and last month's sales and the change, as the front
     prints them: the bridge's shown cents (Q22), or the exact change where no
@@ -241,17 +250,17 @@ def sales_change(metrics: MetricsContract, bridge: LeverBridge | None, code: str
                  movement: HeadlineMovement | None) -> tuple[str, float, str | None, float | None]:
     """The dashboard's sales tile (docs/DASHBOARD_DESIGN.md section 2): this
     month and the change, printed exactly as sentence A prints them (Q56: one
-    change printed one way) - its percentage at sentence B's decimals."""
+    change printed one way) - its percentage at sentence B's decimals. No
+    month: the line under the tiles names it (Thach's layout, 2.11)."""
     now, _, change = _sales_figures(metrics, bridge)
     decimals = sentence_b(movement)[2]
-    previous = month_name(metrics.period.previous)
     if change is None:
         return amount(now, code), now, None, None
     if prints_as_zero(change):
-        return amount(now, code), now, f"the same as in {previous}", change
-    pct = metrics.core.revenue_change_pct
-    percent = "" if pct is None else f" ({_pct(pct, decimals)})"
-    return amount(now, code), now, f"{signed(change, code)}{percent} on {previous}", change
+        return amount(now, code), now, "no change", change
+    change_pct = metrics.core.revenue_change_pct
+    percent = "" if change_pct is None else f" ({_pct(change_pct, decimals)})"
+    return amount(now, code), now, f"{signed(change, code)}{percent}", change
 
 
 def sentence_a(metrics: MetricsContract, bridge: LeverBridge | None, code: str | None, decimals: int = 1) -> str:

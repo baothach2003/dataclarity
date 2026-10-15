@@ -367,7 +367,7 @@ def test_no_front_word_is_jargon_or_a_verdict() -> None:
 def test_the_report_is_2_9_and_carries_its_front() -> None:
     report = build_real("kaggle")
 
-    assert report.schema_version == "2.10" and report.front is not None and report.currency is not None
+    assert report.schema_version == "2.11" and report.front is not None and report.currency is not None  # 2.11: Thach's layout
 
 
 # --- the blocked and not-compared states, on the hand-built files of 5A -----------------------------------------

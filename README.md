@@ -84,6 +84,11 @@ the full list, with how each was found, is `PROJECT_PLAN.md` item 8D. The
 main ones:
 
 - **Stock figures are not supported.** v1 analyses sales, not inventory.
+- **A file needs a date, a product and a quantity for each item sold.** A
+  unit price lets the report count sales in money. A file of dates and
+  amounts only - a payments export such as Stripe's, a till's daily totals -
+  cannot be analysed in v1: Upload and Review say so (Thach, 2026-10-15; the
+  required fields are frozen, `CLAUDE.md` 3.6).
 - **When the data cannot tell two meanings apart, v1 does not guess.** It
   keeps one reading, reports the lines and money involved, and shows a note
   beside the figures they affect - for example, a return booked as stock

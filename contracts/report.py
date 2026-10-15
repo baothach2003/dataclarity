@@ -270,6 +270,12 @@ class ReportContract(ContractFile):
             raise ValueError("the front section, the currency, the rows left out and the part-months exist from 2.9")
         if (version >= (2, 10)) != (self.dashboard is not None):
             raise ValueError("a 2.10 report carries its dashboard, and only from 2.10")
+        if self.dashboard is not None:
+            layout = (self.dashboard.headline, self.dashboard.next_month)
+            if version >= (2, 11) and None in layout:
+                raise ValueError("a 2.11 report carries the line under its tiles and next month's band")
+            if version < (2, 11) and (layout != (None, None) or self.dashboard.checked or self.dashboard.next_steps):
+                raise ValueError("the line, the chips and the bands exist from 2.11")
         return self
 
     def _dashboard_of_this_report(self) -> None:
@@ -292,6 +298,24 @@ class ReportContract(ContractFile):
                 raise ValueError(f"the {tile.id} tile carries its figure's notes (CLAUDE.md 3.3a)")
         if dashboard.tiles[0].now_value is None and kpis["revenue"].current is not None:
             raise ValueError("the sales tile withholds a figure layer 1 shows")
+        if dashboard.headline is not None and dashboard.headline.notes != front.notes.summary:
+            raise ValueError("the line under the tiles carries the summary's notes (CLAUDE.md 3.3a)")
+        band = dashboard.next_month
+        if band is not None:
+            if band.notes != front.notes.next_month:
+                raise ValueError("next month's band carries the estimate's notes (CLAUDE.md 3.3a)")
+            points = self.layer_3_actions.forecast.points
+            if band.value is not None and (not points or (band.value, band.low_value, band.high_value) != (
+                    points[0].point, points[0].low, points[0].high)):
+                raise ValueError("next month's band prints the forecast's first point and its range")
+            if band.value is None and points:
+                raise ValueError("next month's band shows the forecast it has")
+        if dashboard.headline is not None and (dashboard.checked_notes, dashboard.next_steps_notes) != (
+                front.notes.checked, front.notes.next_steps):
+            raise ValueError("the checked and next-step bands carry the front's notes (CLAUDE.md 3.3a)")
+        steps = front.next_steps
+        if dashboard.next_steps != ([item.action for item in steps.items] if steps is not None else []):
+            raise ValueError("one next-step line per suggested action, its own words")
         widgets = {widget.id: widget for widget in dashboard.widgets}
         named = [widget.id for widget in dashboard.widgets if widget.placed_by == "named"]
         if named and self.layer_2_causes.headline.rule not in (4, 5, 6):

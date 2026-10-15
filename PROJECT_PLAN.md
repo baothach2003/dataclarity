@@ -6307,6 +6307,20 @@ sales or only returns is ruled out); Review asks 400 ms after the last edit
 and keeps the selection while measuring; only the latest edit is measured.
 Online Retail II's Country is now offered. Open: Q6-Q8 (DASHBOARD_DESIGN
 section 9).
+**Thach's layout DONE** (report.json 2.11; DASHBOARD_DESIGN section 10;
+display: failing tests first, one review cycle, its scoped review; mutation
+on the logic): tiles of label, figure, arrow and change; one short line
+under them ("Sales +27.2% vs October 2011 · in line with last year
+(+27.1%)", at most 20 words); the chart cards in the order rule's order, no
+caption under a chart; full-width bands - next month's figure and range,
+one row of checked chips, one line per next step; "The dashboard in words"
+opens Technical details (every sentence, caption and "not shown" line - none
+deleted); a note where its figure is as an "i" marker that opens its
+sentence (CLAUDE.md 3.3a amended). The products widget is drawn again with
+its "(suggested: <class>, not confirmed)" mark (full process). Recorded
+fixes: a split kept in Review is never "not split that way" (4.1); the
+waterfall draws its bars across at every width on the page (4.2). Q2:
+Upload and Review say which columns a file needs; README.
 
 **The dashboard, item 9D - overnight run of 2026-10-14 (Thach away)**:
 step 1 DONE - `docs/DASHBOARD_DESIGN.md` (tiles, widget catalog, order

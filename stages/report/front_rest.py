@@ -154,9 +154,12 @@ def rows_left_out(cleaning: CleaningReportContract) -> list[RowsLeftOut]:
 
 
 def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContract, numbers: Numbers,
-                left_out: list[RowsLeftOut], splits: list[str] | None = None) -> list[CannotKnow]:
+                left_out: list[RowsLeftOut], splits: list[str] | None = None, *, blocked: bool = False,
+                ) -> list[CannotKnow]:
     """Section 6 in plain words: the not-testable list by id (its code reasons
-    stay in the appendix), stock, and the rows left out."""
+    stay in the appendix), stock, and the rows left out. `splits`: the
+    columns a breakdown is drawn for; the user's own (cleaning_report.json
+    `breakdowns`) are named whether drawn or not (Thach's 4.1, 2026-10-15)."""
     ids = {item.id for item in not_testable}
     found = [CannotKnow(title="Profit", text="The file has no costs, so these figures are sales, not profit.")]
     if "X1" in ids:
@@ -169,10 +172,8 @@ def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContrac
     if ids & {"X6", "X7"}:
         # With a breakdown drawn (the dashboard, D4), "does not split" would be
         # false beside it: the columns that split sales are named instead.
-        text = ("This version does not split sales that way." if not splits else
-                f"Sales are split only by {_names(splits)}, kept in Review; no other channel, payment or country "
-                "column of the file is read.")
-        found.append(CannotKnow(title="Sales by channel, payment method or country", text=text))
+        found.append(CannotKnow(title="Sales by channel, payment method or country",
+                                text=_splits(splits or [], cleaning.breakdowns, blocked)))
     read, used = cleaning.rows_in, cleaning.rows_out
     if left_out:
         text = (f"{count(read)} rows were read and {count(used)} used: {'; '.join(r.sentence for r in left_out)} "
@@ -188,6 +189,26 @@ def cannot_know(not_testable: list[NotTestable], cleaning: CleaningReportContrac
                  "Technical details.")
     found.append(CannotKnow(title="Rows left out", text=text))
     return found
+
+
+def _splits(drawn: list[str], kept: list[str], blocked: bool) -> str:
+    """What the report says of the columns that split sales: the drawn ones
+    as before; one kept in Review but not drawn (a blocked report, a split
+    stage 2 withheld) by its name and why - never "this version does not
+    split sales that way" beside a split the user chose (step 3's scoped
+    review; Thach's 4.1)."""
+    if not kept and not drawn:
+        return "This version does not split sales that way."
+    parts = []
+    if drawn:
+        parts.append(f"Sales are split only by {_names(drawn)}, kept in Review; no other channel, payment or country "
+                     "column of the file is read.")
+    missing = [column for column in kept if column not in drawn]
+    if missing:
+        why = ": the data checks did not pass." if blocked else " - Technical details say why."
+        parts.append(f"You kept {_names(missing)} in Review to split sales by; "
+                     f"{'it is' if len(missing) == 1 else 'they are'} not drawn in this report{why}")
+    return " ".join(parts)
 
 
 def _names(columns: list[str]) -> str:

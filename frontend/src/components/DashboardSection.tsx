@@ -1,24 +1,18 @@
-// The dashboard on Insights (report.json 2.10; docs/DASHBOARD_DESIGN.md; Thach's D7): the KPI tiles, the caution
-// lines under them, then report.json's widgets in the order stage 5 decided - the same block report.html draws
-// (stages/report/html_dashboard.py). The page decides no order and words no figure: each tile prints stage 5's
-// text, each chart draws report.json's bars or its own chart, each text widget is the front section's own part.
+// The dashboard on Insights (report.json 2.10, 2.11; docs/DASHBOARD_DESIGN.md sections 1-3 and 10; Thach's D7 and
+// his layout of 2026-10-15): pictures and figures, almost no text - the same block report.html draws
+// (stages/report/html_dashboard.py). Row 1 the KPI tiles (label, figure, arrow, change); row 2 one short line;
+// row 3 the chart cards in report.json's order; row 4 full-width bands - next month, the checked chips, the next
+// step. A note stands where its figure is, as a marker (NoteMarker). Every long text is in Technical details
+// (DashboardWords). The page decides no order and words no figure.
 
 import type { ReactNode } from 'react'
-import type { NoteCode, Chart } from '../types/report.ts'
-import type { Dashboard, Tile, Widget } from '../types/reportDashboard.ts'
+import type { Chart, NoteCode } from '../types/report.ts'
+import type { Chip, Dashboard, NextMonthBand, Tile, Widget } from '../types/reportDashboard.ts'
 import type { Front } from '../types/reportFront.ts'
 import { DashboardBars, DashboardParts } from './DashboardBars.tsx'
-import { FrontReadWith } from './FrontReadWith.tsx'
-import {
-  FrontCannotKnowBody,
-  FrontCard,
-  FrontChangeBody,
-  FrontCheckedBody,
-  FrontNextMonthBody,
-  FrontNextStepsBody,
-  FrontSummaryBody,
-} from './FrontSection.tsx'
 import { FrontSalesChart } from './FrontSalesChart.tsx'
+import { FrontWaterfall } from './FrontWaterfall.tsx'
+import { NoteMarker } from './NoteMarker.tsx'
 
 const ARROWS: Record<NonNullable<Tile['direction']>, string> = { up: '▲', down: '▼', same: '●' }
 const ARROW_WORDS: Record<NonNullable<Tile['direction']>, string> = {
@@ -26,12 +20,14 @@ const ARROW_WORDS: Record<NonNullable<Tile['direction']>, string> = {
   down: 'lower than last month',
   same: 'the same as last month',
 }
-const TEXT_TITLES: Partial<Record<Widget['id'], string>> = {
-  summary: 'In short',
-  checklist: 'What was checked',
-  next_steps: 'What to do next',
-  next_month: 'Next month',
-  cannot_know: 'What this report cannot know',
+// A chip's mark (report.html's _CHIP_MARKS): the check mark for "checked, not the reason".
+const CHIP_MARKS: Record<Chip['status'], string> = {
+  checked: '✓',
+  matches: '●',
+  moved: '↕',
+  'other way': '⇄',
+  "can't tell": '?',
+  caution: '!',
 }
 
 interface DashboardSectionProps {
@@ -39,70 +35,47 @@ interface DashboardSectionProps {
   front: Front
   // report.json's charts.revenue_trend, drawn by the trend widget.
   salesChart: Chart | undefined
-  // "November 2024": the month a tile's "was" is about.
-  previousMonth: string
-  onOpenNote: (code: NoteCode) => void
+  // Each note's sentence by its code (the report's own notes).
+  noteTexts: ReadonlyMap<NoteCode, string>
 }
 
-function TileCard({ tile, previousMonth, onOpenNote }: { tile: Tile; previousMonth: string; onOpenNote: (code: NoteCode) => void }) {
+function TileCard({ tile, noteTexts }: { tile: Tile; noteTexts: ReadonlyMap<NoteCode, string> }) {
   const arrow = tile.direction !== null && (
     <span className="tile__arrow" role="img" aria-label={ARROW_WORDS[tile.direction]}>
       {ARROWS[tile.direction]}
     </span>
   )
+  const change = tile.change ?? (tile.was !== null ? `was ${tile.was}` : null)
   return (
     <div className="tile" data-testid={`tile-${tile.id}`}>
-      <p className="tile__label">{tile.label}</p>
-      {tile.now !== null && <p className="tile__value">{tile.now}</p>}
-      {tile.change !== null && (
-        <p className="tile__change">
-          {arrow} {tile.change}
-        </p>
+      <div className="tile__label">{tile.label}</div>
+      {/* A figure, or the two words "not shown": its reason stands behind the marker. */}
+      <div className="tile__value">{tile.now ?? 'not shown'}</div>
+      {change !== null && (
+        <div className="tile__change">
+          {arrow} {change}
+        </div>
       )}
-      {tile.change === null && tile.was !== null && (
-        <p className="tile__change">
-          {arrow} {`was ${tile.was} in ${previousMonth}`}
-        </p>
-      )}
-      {tile.reason !== null && <p className="tile__change">{tile.reason}</p>}
-      <FrontReadWith codes={tile.notes} onOpen={onOpenNote} />
+      <NoteMarker about={tile.label} codes={tile.notes} asides={tile.reason ? [tile.reason] : []} texts={noteTexts} />
     </div>
   )
 }
 
-function WidgetCard({ widget, front, salesChart, onOpenNote }: { widget: Widget } & Omit<DashboardSectionProps, 'dashboard' | 'previousMonth'>) {
-  const title = widget.title ?? TEXT_TITLES[widget.id] ?? ''
-  const notes = <FrontReadWith codes={widget.notes} onOpen={onOpenNote} />
-  // Every widget's caption after its body, as report.html's _widget prints it.
-  const captions = widget.caption.map((line, index) => (
-    // Two lines may read alike; their place is their identity.
-    <p className="front__small" key={index}>
-      {line}
-    </p>
-  ))
+function ChartCard({ widget, front, salesChart, noteTexts }: { widget: Widget } & Omit<DashboardSectionProps, 'dashboard'>) {
+  const title = widget.title ?? ''
+  let asides = widget.caption
   let body: ReactNode
   switch (widget.id) {
-    case 'summary':
-      body = <FrontSummaryBody front={front} onOpenNote={onOpenNote} withCaution={false} />
-      break
-    case 'checklist':
-      body = <FrontCheckedBody front={front} onOpenNote={onOpenNote} />
-      break
-    case 'next_steps':
-      body = <FrontNextStepsBody front={front} onOpenNote={onOpenNote} />
-      break
-    case 'next_month':
-      body = <FrontNextMonthBody front={front} onOpenNote={onOpenNote} />
-      break
-    case 'cannot_know':
-      body = <FrontCannotKnowBody front={front} />
-      break
     case 'trend':
-      // The chart; its part-month and gap sentences are the caption, printed even when no month can be drawn.
       body = <FrontSalesChart chart={salesChart} title={title} notes={[]} showTitle={false} />
       break
     case 'waterfall':
-      body = <FrontChangeBody front={front} onOpenNote={onOpenNote} />
+      if (front.waterfall === null) {
+        return null
+      }
+      // Its caption and note stand behind the card's marker.
+      asides = [front.waterfall.caption, ...(front.waterfall.note ? [front.waterfall.note] : []), ...widget.caption]
+      body = <FrontWaterfall waterfall={front.waterfall} inCard />
       break
     case 'customers':
     case 'products':
@@ -111,7 +84,7 @@ function WidgetCard({ widget, front, salesChart, onOpenNote }: { widget: Widget 
     case 'breakdown_2':
     case 'returns':
       // Only a chart this page can draw: a widget of another shape is left out, never drawn as bars.
-      if (widget.kind !== 'chart' || !widget.chart || !['bars', 'diverging', 'parts'].includes(widget.chart)) {
+      if (!widget.chart || !['bars', 'diverging', 'parts'].includes(widget.chart)) {
         return null
       }
       body =
@@ -125,45 +98,94 @@ function WidgetCard({ widget, front, salesChart, onOpenNote }: { widget: Widget 
       // A widget id this page does not know (a later, additive one) is left out.
       return null
   }
-  const isTextPart = widget.kind === 'text' || widget.id === 'waterfall'
   return (
-    <FrontCard title={title} className={`dashboard-widget dashboard-widget--${widget.kind}`}>
-      <div data-testid={`widget-${widget.id}`} className="dashboard-widget__body">
-        {body}
-        {captions}
-        {/* A text part and the waterfall print their own notes line (the front's); a chart prints the widget's. */}
-        {!isTextPart && notes}
+    <section className="card dashboard-widget" aria-label={title} data-testid={`widget-${widget.id}`}>
+      <div className="dashboard-widget__head">
+        <h2 className="front-card__title">{title}</h2>
+        <NoteMarker about={title} codes={widget.notes} asides={asides} texts={noteTexts} />
       </div>
-    </FrontCard>
+      <div className="dashboard-widget__body">
+        {body}
+      </div>
+    </section>
   )
 }
 
-export function DashboardSection({ dashboard, front, salesChart, previousMonth, onOpenNote }: DashboardSectionProps) {
+function NextMonth({ band, noteTexts }: { band: NextMonthBand; noteTexts: ReadonlyMap<NoteCode, string> }) {
+  const line =
+    band.figure !== null
+      ? `${band.month ?? ''}: about ${band.figure} · likely ${band.low ?? ''} to ${band.high ?? ''}`
+      : `Next month: ${band.reason ?? ''}`
   return (
-    <>
-      <div className="dashboard-tiles">
-        <div className="tiles">
-          {dashboard.tiles.map((tile) => (
-            <TileCard key={tile.id} tile={tile} previousMonth={previousMonth} onOpenNote={onOpenNote} />
-          ))}
+    <section className="band" data-testid="band-next-month" aria-label="Next month">
+      <h2 className="band__title">Next month</h2>
+      <p className="band__line">{line}</p>
+      <NoteMarker about="next month" codes={band.notes} asides={band.asides} texts={noteTexts} />
+    </section>
+  )
+}
+
+function Checked({ chips, notes, noteTexts }: { chips: Chip[]; notes: NoteCode[]; noteTexts: ReadonlyMap<NoteCode, string> }) {
+  return (
+    <section className="band" data-testid="band-checked" aria-label="Checked">
+      <h2 className="band__title">Checked</h2>
+      <ul className="chips">
+        {chips.map((chip) => (
+          <li key={chip.label} className={`chip chip--${chip.status.replaceAll(' ', '-').replaceAll("'", '')}`} data-status={chip.status}>
+            <span aria-hidden="true">{CHIP_MARKS[chip.status]}</span> {chip.label}
+            {chip.status === 'checked' ? (
+              <span className="visually-hidden"> checked</span>
+            ) : (
+              <span className="chip__status"> {chip.status}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <NoteMarker about="what was checked" codes={notes} asides={[]} texts={noteTexts} />
+    </section>
+  )
+}
+
+function NextSteps({ steps, notes, noteTexts }: { steps: string[]; notes: NoteCode[]; noteTexts: ReadonlyMap<NoteCode, string> }) {
+  return (
+    <section className="band" data-testid="band-next-steps" aria-label="Next step">
+      <h2 className="band__title">Next step</h2>
+      <ul className="band__list">
+        {steps.map((step) => (
+          <li key={step}>{step}</li>
+        ))}
+      </ul>
+      <NoteMarker about="the next step" codes={notes} asides={[]} texts={noteTexts} />
+    </section>
+  )
+}
+
+export function DashboardSection({ dashboard, front, salesChart, noteTexts }: DashboardSectionProps) {
+  const checked = dashboard.checked ?? []
+  const steps = dashboard.next_steps ?? []
+  return (
+    <div className="dashboard" data-testid="dashboard">
+      <div className="tiles">
+        {dashboard.tiles.map((tile) => (
+          <TileCard key={tile.id} tile={tile} noteTexts={noteTexts} />
+        ))}
+      </div>
+      {dashboard.headline && (
+        <div className="dashboard-headline" data-testid="dashboard-headline">
+          <span className="dashboard-headline__text">{dashboard.headline.text}</span>
+          <NoteMarker about="these sales figures" codes={dashboard.headline.notes} asides={dashboard.headline.asides} texts={noteTexts} />
         </div>
-        {dashboard.not_shown.map((line, index) => (
-          // Two lines may read alike; their place is their identity.
-          <p className="front__small" key={index}>
-            {line}
-          </p>
-        ))}
-        {dashboard.caution.map((line, index) => (
-          <p className="front__caution" key={index}>
-            {line}
-          </p>
-        ))}
-      </div>
+      )}
       <div className="dashboard-widgets">
-        {dashboard.widgets.map((widget) => (
-          <WidgetCard key={widget.id} widget={widget} front={front} salesChart={salesChart} onOpenNote={onOpenNote} />
-        ))}
+        {dashboard.widgets
+          .filter((widget) => widget.kind === 'chart')
+          .map((widget) => (
+            <ChartCard key={widget.id} widget={widget} front={front} salesChart={salesChart} noteTexts={noteTexts} />
+          ))}
       </div>
-    </>
+      {dashboard.next_month && <NextMonth band={dashboard.next_month} noteTexts={noteTexts} />}
+      {checked.length > 0 && <Checked chips={checked} notes={dashboard.checked_notes ?? []} noteTexts={noteTexts} />}
+      {steps.length > 0 && <NextSteps steps={steps} notes={dashboard.next_steps_notes ?? []} noteTexts={noteTexts} />}
+    </div>
   )
 }

@@ -7,6 +7,7 @@ three real runs (fixtures/). Structure and text, never pixels."""
 
 import copy
 import re
+from html import unescape
 
 import pytest
 
@@ -18,9 +19,10 @@ from tests.stages.report.real_runs import RUNS, build_real, files, with_actions
 # 2.10 (the dashboard): the tiles, then the widgets in report.json's order - Kaggle's change split first (B1
 # named), the months and the category by size, then the unsized in the fixed order: the summary, this month's
 # best sellers (step 3's review), the front's other text parts.
-FRONT_SECTIONS = ["tiles", "change", "sales-by-month", "category", "summary", "checked", "next-steps",
-                  "next-month", "cannot-know"]
-APPENDIX_SECTIONS = ["quality", "numbers", "how-to-read", "causes", "actions", "provenance"]
+# 2.11 (Thach's layout): the tiles, the chart cards, the bands; the front's text parts lead Technical details.
+FRONT_SECTIONS = ["tiles", "change", "sales-by-month", "category", "products", "band-next-month", "band-checked"]
+APPENDIX_SECTIONS = ["summary", "chart-notes", "checked", "next-steps", "next-month", "cannot-know", "quality",
+                     "numbers", "how-to-read", "causes", "actions", "provenance"]
 
 
 def _page(run: str = "kaggle", **replaced) -> Page:
@@ -29,6 +31,13 @@ def _page(run: str = "kaggle", **replaced) -> Page:
 
 def _html(run: str = "kaggle", **replaced) -> str:
     return render_html(build_real(run, **replaced))
+
+
+def _headline(run: str = "kaggle", **replaced) -> str:
+    """The line under the tiles with what its marker opens, as text (2.11)."""
+    html = _html(run, **replaced)
+    part = html[html.index('id="headline"'):html.index('class="widgets"')]
+    return " ".join(unescape(re.sub(r"<[^>]+>", " ", part)).split())
 
 
 # --- the shape: the front, then one closed appendix (1.7) ------------------------------------------------
@@ -87,7 +96,8 @@ def test_the_front_says_sales_before_any_costs_and_not_profit() -> None:
     front = _page().front_text
 
     assert "Sales by month (before any costs)" in front
-    assert "It is not profit: the file has no cost data." in front
+    # 2.11: behind the line's marker - where the change is stated - and in Technical details.
+    assert "It is not profit: the file has no cost data." in _headline()
 
 
 def test_no_ai_narration_line_anywhere() -> None:
@@ -220,7 +230,7 @@ def test_the_rows_left_out_are_said_in_section_6() -> None:
 def test_not_stated_shows_no_code_and_says_so() -> None:
     page = _page()
 
-    assert "Amounts are in your file's currency." in page.front_text
+    assert "Amounts are in your file's currency." in _headline()  # 2.11: behind the line's marker
     assert not re.search(r"\b[A-Z]{3} [\d+-]", page.text)
 
 
@@ -245,11 +255,14 @@ def test_a_caution_opens_the_summary() -> None:
     diagnosis["trust"]["verdict"] = "caution"
     diagnosis["trust"]["checks"][0] |= {"status": "caution", "month": "current",
                                         "message": "About 5 days in December have no sales."}
-    # 2.10: the caution stands under the tiles, beside the figures it cautions (CLAUDE.md 3.3a), before any widget.
-    tiles = _page(diagnosis=diagnosis).section("tiles")
+    # 2.10: the caution stood under the tiles; 2.11 (Thach's layout, CLAUDE.md 3.3a as amended): behind the line's
+    # marker, under the tiles, before any chart - and the data chip says "caution".
+    html = _html(diagnosis=diagnosis)
+    line = _headline(diagnosis=diagnosis)
 
-    assert tiles.index("Sales") < tiles.index("Some days in December 2024")  # the opener left the front (safety valve)
-    assert "Some days in December 2024 have no sales at all" in tiles  # Q37: by the check's id and status
+    assert html.index('id="tiles"') < html.index('id="headline"') < html.index('class="widgets"')
+    assert "Some days in December 2024 have no sales at all" in line  # Q37: by the check's id and status
+    assert "! Data caution" in " ".join(_page(diagnosis=diagnosis).section("band-checked").split())
 
 
 def test_the_page_is_still_one_self_contained_file() -> None:

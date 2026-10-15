@@ -3,15 +3,17 @@ the KPI tiles and the widgets, in the order code decides
 (`contracts.report_dashboard.order_widgets`). Built from the layers and the
 front section already chosen and from the earlier files; every figure is a
 field of one of them, formatted - nothing is computed (CONTRACTS 11). The
-widgets' charts: `dashboard_widgets.py`."""
+widgets' charts: `dashboard_widgets.py`; the line under the tiles, the chips
+and the bands (2.11, Thach's layout): `dashboard_bands.py`."""
 
 from contracts.cleaning import CleaningReportContract
 from contracts.diagnosis import DiagnosisContract
 from contracts.metrics import MetricsContract
-from contracts.report import Chart, Kpi, NoteView, Numbers
+from contracts.report import Chart, ForecastView, HypothesisView, Kpi, NoteView, Numbers
 from contracts.report_dashboard import BLOCKED_WIDGETS, TIED, Dashboard, Tile, Widget, WidgetId, order_widgets
 from contracts.report_front import Front
 from shared.wording import amount, count, month_name, prints_as_zero
+from stages.report import dashboard_bands
 from stages.report.dashboard_widgets import chart_widgets
 from stages.report.front_summary import sales_change
 
@@ -136,11 +138,19 @@ def _tied(diagnosis: DiagnosisContract, draws: dict[WidgetId, set[str]], compare
 
 def build_dashboard(*, metrics: MetricsContract, diagnosis: DiagnosisContract, cleaning: CleaningReportContract,
                     numbers: Numbers, front: Front, charts: list[Chart], notes: list[NoteView],
-                    code: str | None) -> Dashboard:
+                    code: str | None, views: list[HypothesisView], forecast: ForecastView) -> Dashboard:
     found, not_shown = tiles(numbers, front, metrics, diagnosis, cleaning, code)
+    bridge = diagnosis.tree.lever.bridge if diagnosis.tree is not None else None
+    bands = {"headline": dashboard_bands.headline(metrics=metrics, diagnosis=diagnosis, bridge=bridge, front=front,
+                                                  numbers=numbers, code=code),
+             "checked": dashboard_bands.checked(front=front, diagnosis=diagnosis, views=views,
+                                                lines_basis=metrics.core.orders_basis == "lines"),
+             "next_month": dashboard_bands.next_month(view=forecast, front=front, code=code),
+             "next_steps": dashboard_bands.next_steps(front),
+             "checked_notes": list(front.notes.checked), "next_steps_notes": list(front.notes.next_steps)}
     if front.state == "blocked":
         widgets = [Widget(id=w, kind="text", chart=None, placed_by="fallback", title=None) for w in BLOCKED_WIDGETS]
-        return Dashboard(state="blocked", tiles=found, not_shown=not_shown, caution=[], widgets=widgets)
+        return Dashboard(state="blocked", tiles=found, not_shown=not_shown, caution=[], widgets=widgets, **bands)
     compared = front.state == "compared"
     drawn, draws, widget_lines = chart_widgets(metrics=metrics, diagnosis=diagnosis, cleaning=cleaning, front=front,
                                                charts=charts, notes=notes, code=code, compared=compared,
@@ -160,7 +170,7 @@ def build_dashboard(*, metrics: MetricsContract, diagnosis: DiagnosisContract, c
         else:
             ordered.append(Widget(id=widget_id, kind="text", chart=None, placed_by="fallback", title=None))
     return Dashboard(state=front.state, tiles=found, not_shown=not_shown + widget_lines, caution=list(front.caution),
-                     widgets=ordered)
+                     widgets=ordered, **bands)
 
 
 __all__ = ["build_dashboard", "tiles"]

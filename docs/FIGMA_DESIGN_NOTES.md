@@ -85,6 +85,15 @@ the metric type in a tile at least 200 px wide, and on the h2 type under
 640 px, where two tiles share a row: a sales figure such as 663,315.58 broke
 inside the number on a narrower tile (the dashboard's step 5 review and its
 scoped review).
+**Thach's layout (2026-10-15), the same exception:** the line under the tiles
+on the h3 type; the chart cards as today, each with its title and an "i"
+marker (a 22 px round button, the border colour, the secondary text) that
+opens a panel of the note's sentences under it (the caption type, a 3 px
+border-left); full-width bands (the card's surface, border, radius and
+shadow) for next month, the checked chips (pill radius, the label type; a
+checked chip in the secondary text) and the next step. On a phone the bands
+stack, still full width; no element narrower than the screen holds a
+paragraph.
 
 Link format: `https://www.figma.com/design/DYhLQp7bxoa5HqfvIFNTej?node-id=<id with - instead of :>`
 (e.g. Review = `node-id=3-2`).

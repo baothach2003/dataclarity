@@ -11,6 +11,7 @@ import { useState } from 'react'
 import { downloadReportHtml } from '../api/analysis.ts'
 import { CausesSection } from '../components/CausesSection.tsx'
 import { DashboardSection } from '../components/DashboardSection.tsx'
+import { DashboardWords } from '../components/DashboardWords.tsx'
 import { ForecastCard } from '../components/ForecastCard.tsx'
 import { FrontSection } from '../components/FrontSection.tsx'
 import { KpiCard } from '../components/KpiCard.tsx'
@@ -106,6 +107,8 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
   const howToReadCodes = new Set(numbers.how_to_read.map((note) => note.code))
   // Each note once, where the front's links land (report.html's #note-<code>).
   const linkedNotes = besideFigures.filter((note) => !howToReadCodes.has(note.code))
+  // Each note's sentence by its code, opened by the dashboard's markers (CLAUDE.md 3.3a as amended).
+  const noteTexts = new Map(besideFigures.map((note) => [note.code, note.text]))
   const unconfirmedWalkIns = Boolean(numbers.unconfirmed_placeholders_reason)
 
   const openNote = (noteCode: NoteCode) => {
@@ -141,16 +144,11 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
             </p>
           </div>
 
-          {/* 2.10: the dashboard - the tiles, then the widgets in report.json's order (D7: report.html draws the
-              same); a report before 2.10, its front section as before. */}
-          {front !== null && report.dashboard ? (
-            <DashboardSection
-              dashboard={report.dashboard}
-              front={front}
-              salesChart={revenueChart}
-              previousMonth={monthLabel(period.previous)}
-              onOpenNote={openNote}
-            />
+          {/* 2.10: the dashboard - 2.11 Thach's layout: the tiles, one line, the chart cards in report.json's
+              order, the bands (D7: report.html draws the same); a report before 2.10, its front section. */}
+          {/* A report before 2.11 (no line under the tiles) draws its front section as it was. */}
+          {front !== null && report.dashboard?.headline ? (
+            <DashboardSection dashboard={report.dashboard} front={front} salesChart={revenueChart} noteTexts={noteTexts} />
           ) : (
             front !== null && <FrontSection front={front} salesChart={revenueChart} onOpenNote={openNote} />
           )}
@@ -165,6 +163,10 @@ export function InsightsPage({ baseUrl, runId, report }: InsightsPageProps) {
           >
             <summary className="technical__summary">Technical details</summary>
             <div className="technical__body">
+              {/* Every sentence the dashboard leaves out of its rows (Thach's layout: nothing deleted). */}
+              {front !== null && report.dashboard?.headline && (
+                <DashboardWords dashboard={report.dashboard} front={front} onOpenNote={openNote} />
+              )}
               {front !== null && (
                 <p className="insights-reason">In Technical details, &apos;revenue&apos; is the same figure as &apos;sales&apos; above.</p>
               )}

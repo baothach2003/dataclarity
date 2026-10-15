@@ -9,7 +9,7 @@ for display (CONTRACTS 9, "stage 5 performs no analysis").
 
 import json
 import re
-from collections.abc import Callable, Iterable, Iterator, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from contextvars import ContextVar
 from html import escape
@@ -112,9 +112,16 @@ def _plain(value: object) -> object:
     return value
 
 
+def suggested_mark(name: str, marks: Mapping[str, str]) -> str:
+    """A product whose class was suggested and nobody confirmed, with its
+    mark "(suggested: <class>, not confirmed)" (CONTRACTS 6 and 7; Thach's
+    Q17) - the one copy, for the appendix and the dashboard's products."""
+    return f"{name} (suggested: {marks[name]}, not confirmed)" if name in marks else name
+
+
 def _marked(value: object, marks: dict[str, str]) -> object:
     if isinstance(value, str) and value in marks:
-        return f"{value} (suggested: {marks[value]}, not confirmed)"
+        return suggested_mark(value, marks)
     if isinstance(value, dict):
         return {key: _marked(item, marks) for key, item in value.items()}
     if isinstance(value, list):

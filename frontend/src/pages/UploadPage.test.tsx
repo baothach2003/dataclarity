@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { UploadPage } from './UploadPage.tsx'
+import { REQUIRED_COLUMNS_COPY } from '../domain/planRules.ts'
 import * as limitsApi from '../api/limits.ts'
 import * as runsApi from '../api/runs.ts'
 import { ApiError } from '../api/errors.ts'
@@ -155,5 +156,12 @@ describe('UploadPage', () => {
     expect(screen.getByText('Backend not configured')).toBeDefined()
     selectFile(csvFile())
     expect(createRun).not.toHaveBeenCalled()
+  })
+})
+
+describe("UploadPage: the columns a file needs (Thach's Q2, 2026-10-15)", () => {
+  it('says plainly which columns the file needs, before anything is uploaded', () => {
+    render(<UploadPage baseUrl="http://localhost:8000" onUploaded={vi.fn()} />)
+    expect(screen.getByText(REQUIRED_COLUMNS_COPY)).toBeDefined()
   })
 })

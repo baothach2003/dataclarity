@@ -2236,6 +2236,39 @@ before). `contracts/report_dashboard.py`:
 report.html 2.10 draws the tiles, then the widgets in that order (each part
 of the front under its old section id), then the appendix.
 
+**2.11 - Thach's layout (2026-10-15; `docs/DASHBOARD_DESIGN.md` section
+10): pictures and figures, almost no text.** Additive, version-gated (a 2.11
+report carries `headline` and `next_month`; an earlier one none of the four):
+- `headline` - `{text, notes, asides}`: row 2, the summary as one code-written
+  line of at most 20 words ("Sales +27.2% vs October 2011 · in line with
+  last year (+27.1%)"; not compared, this month withheld and blocked each
+  their own template). `notes` are the sales figure's (layer 1's revenue
+  notes - checked); `asides` the sentences behind its marker: the caution
+  lines (all of them - checked) and the sales note.
+- `checked` - `[{label, status}]`: row 4's chips, one per check subject in
+  the fixed order (`CHIP_ORDER`: Data, Customers, Order frequency or Lines
+  per customer, Basket size, Prices, Product mix, Refunds, Discounts,
+  Charges, One product, Products in or out, Stock, Calendar, Last year),
+  from the checklist's own groups (`checked`, `matches`, `moved`, `other
+  way`, `can't tell`; Data `checked` or `caution` - caution exactly when a
+  check cautions); none when blocked.
+- `next_month` - `{month, figure, value, low, low_value, high, high_value,
+  reason, notes, asides}`: the forecast's first point and its range as
+  printed (checked against the forecast; the figure inside its range), or
+  why there is none; its notes are the front's next-month notes (checked).
+- `next_steps` - `[str]`: one line per suggested action, the action's own
+  words (checked against the front's items); none when blocked.
+- The sales tile's `change` no longer names the month ("+4,925.00 (+11.9%)";
+  zero is "no change"): the line names it.
+- The products widget (`products`) is drawn again: stage 2's top products this
+  month, a product whose class was suggested and not confirmed labelled
+  "<name> (suggested: <class>, not confirmed)".
+report.html 2.11 draws the tiles, the line, the chart widgets as cards (the
+text widgets stay in the list for the order rule and are not cards), then
+the bands; a note is a marker (`details.mk`, `data-notes` its codes) that
+opens its sentences; Technical details opens with "The dashboard in words":
+every sentence of the front, every caption and "not shown" line.
+
 ## 10. Versioning and change policy
 
 - Adding an optional field: minor bump (`1.0` -> `1.1`), readers unaffected.
@@ -2289,6 +2322,11 @@ of the front under its old section id), then the appendix.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-15: **the dashboard, Thach's layout.** `report.json` 2.11,
+  additive: `dashboard.headline`, `checked`, `next_month`, `next_steps`
+  (section 9); the sales tile's change without its month; the products
+  widget drawn again with its mark. No field renamed or removed. CLAUDE.md
+  3.3a amended: a note stands where its figure is as a marker.
 - 2026-10-15: **the dashboard, Thach's Q3-Q5.** `metrics.json` 16.4,
   additive: a breakdown's Other member (`members[].is_other`,
   `members[].values`; section 6) - above 9 values the top 8 and Other, where
