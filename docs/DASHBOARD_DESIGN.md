@@ -367,6 +367,24 @@ Generic cleaning refuses a plan that still names breakdowns.
   list as it stands then.
 - **Budget**: stage 1's third call; with stages 3 and 4 making none, a run
   stays within AI_PIPELINE 2's four.
+- **Smoke test (Thach approved; 2026-10-15, after the layout was pushed):**
+  4 real calls, one per shape, through stage 1's own step (one attempt, no
+  retry), the plans stored or written by hand (no other AI call); local
+  logging outside the repo, the key never printed. **Passed: every first
+  answer valid, clean JSON, stop reason end_turn.**
+
+  | Shape | Eligible | Chosen | Tokens in / out | Latency | Est. cost |
+  |---|---|---|---|---|---|
+  | Kaggle | Payment Method, Location | Payment Method, Location | 520 / 24 | 1.26 s | $0.0013 |
+  | Online Retail II (classed) | Country | Country | 533 / 17 | 0.87 s | $0.0012 |
+  | WooCommerce-shaped (built) | Order Status, Payment Method Title, Shipping Method Title | Payment Method Title, Shipping Method Title | 569 / 32 | 0.97 s | $0.0015 |
+  | Square-shaped (built, with refunds) | Location, Channel, Card Brand | Location, Channel | 560 / 22 | 1.06 s | $0.0013 |
+
+  Model served `claude-sonnet-5`; about $0.005 in all (at $2 / $10 per
+  million tokens, the price the plan states). The choices are the ones a
+  shop owner would want: not Order Status (a status), and Event Type never
+  offered (Q5). Its dry run found a time of day offered (fixed first,
+  section 5.1).
 
 ### 5.4 Review - the user decides (CLAUDE.md 3.3)
 

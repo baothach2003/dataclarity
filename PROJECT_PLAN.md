@@ -6323,7 +6323,12 @@ waterfall draws its bars across at every width on the page (4.2). Q2:
 Upload and Review say which columns a file needs; README.
 The smoke test's dry run (no real call) found a time of day ("08:13")
 offered as a split under a manual plan: it now reads as a period (rule 7),
-test first.
+test first. **The smoke test PASSED** (Thach approved): 4 real calls on 4
+shapes - Kaggle, Online Retail II, a WooCommerce-shaped and a
+Square-shaped file - every first answer valid; chosen Payment Method +
+Location, Country, Payment Method Title + Shipping Method Title, Location +
+Channel; 520-569 tokens in, 17-32 out, 0.9-1.3 s, about $0.005 in all
+(DASHBOARD_DESIGN 5.3). No deploy step started.
 
 **The dashboard, item 9D - overnight run of 2026-10-14 (Thach away)**:
 step 1 DONE - `docs/DASHBOARD_DESIGN.md` (tiles, widget catalog, order
