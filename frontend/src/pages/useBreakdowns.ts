@@ -1,7 +1,8 @@
 // Review's sales breakdowns (the dashboard, Thach's D4; docs/DASHBOARD_DESIGN.md 5.4). Stage 1 says which columns
-// can split sales for the plan as it stands - asked again only when a column's field, type or drop changes - and
-// the AI's suggestion (asked once per run, by the server). The user is the final authority (CLAUDE.md 3.3): the
-// suggestion is pre-selected, the user removes or adds columns, at most two; what is selected goes with the plan.
+// can split sales for the plan as it stands - read on the plan's lines (Thach's Q3-Q5), so asked again whenever a
+// step or an answer of the plan changes - and the AI's suggestion (asked once per run, by the server). The user is
+// the final authority (CLAUDE.md 3.3): the suggestion is pre-selected, the user removes or adds columns, at most
+// two; what is selected goes with the plan.
 
 import { useEffect, useState } from 'react'
 import { breakdownQuestion } from '../api/runs.ts'
@@ -12,6 +13,8 @@ import type { CleaningPlan } from '../types/contracts.ts'
 export interface BreakdownState {
   question: BreakdownQuestion | null
   loading: boolean
+  // The question shown is the last answer, for an earlier plan: stage 1 is measuring the plan as it stands now.
+  stale: boolean
   error: unknown
   // The columns that will split sales: the user's choice, else the suggestion - always eligible ones.
   selected: string[]
@@ -26,19 +29,21 @@ interface Asked {
   error: unknown
 }
 
-/** What eligibility reads of the plan: each column's field, type and drop (the server's own key). */
-function columnsKey(plan: CleaningPlan): string {
-  return JSON.stringify(
-    plan.column_actions.map((c) => [c.source_name, c.canonical_field, c.semantic_type, c.action === 'drop_column']),
-  )
+/** What eligibility reads of the plan: all of it but the user's own choice of columns (the server's key too). */
+function planKey(plan: CleaningPlan): string {
+  return JSON.stringify({ ...plan, breakdowns: undefined, generated_at: undefined })
 }
 
+const ASK_AFTER_MS = 400
+
 export function useBreakdowns(baseUrl: string, runId: string, plan: CleaningPlan, enabled: boolean): BreakdownState {
-  const key = columnsKey(plan)
+  const key = planKey(plan)
   const [asked, setAsked] = useState<Asked | null>(null)
   // The user's own selection, once they changed it; null while they have not.
   const [choice, setChoice] = useState<string[] | null>(null)
   const [attempt, setAttempt] = useState(0)
+  // The last answer received, whatever plan it was for.
+  const [answered, setAnswered] = useState<Asked | null>(null)
   const [planAtKey, setPlanAtKey] = useState({ key, plan })
   if (planAtKey.key !== key) {
     setPlanAtKey({ key, plan })
@@ -49,28 +54,44 @@ export function useBreakdowns(baseUrl: string, runId: string, plan: CleaningPlan
       return
     }
     const controller = new AbortController()
-    breakdownQuestion(baseUrl, runId, planAtKey.plan, controller.signal)
-      .then((response) => {
-        setAsked({ key: planAtKey.key, question: response.question, error: null })
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          setAsked({ key: planAtKey.key, question: null, error })
-        }
-      })
+    // 400 ms after the last edit, as the preview (the doubt review's R2: each edit is a whole-file measure on the
+    // server, in its one heavy slot).
+    const timer = setTimeout(() => {
+      breakdownQuestion(baseUrl, runId, planAtKey.plan, controller.signal)
+        .then((response) => {
+          setAsked({ key: planAtKey.key, question: response.question, error: null })
+          setAnswered({ key: planAtKey.key, question: response.question, error: null })
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) {
+            setAsked({ key: planAtKey.key, question: null, error })
+          }
+        })
+    }, ASK_AFTER_MS)
     return () => {
+      clearTimeout(timer)
       controller.abort()
     }
   }, [baseUrl, runId, planAtKey, enabled, attempt])
 
   const current = asked !== null && asked.key === key ? asked : null
-  const question = current?.question ?? null
+  // While the plan as it stands is measured, the last answer stays: the columns selected are not dropped unseen
+  // (the doubt review's R1) - execute checks them again on the final plan, and refuses one that no longer splits.
+  const shown = current ?? answered
+  const question = shown?.question ?? null
   const eligible = new Set(question?.eligible.map((c) => c.column) ?? [])
-  // A column no longer eligible (mapped or dropped since) is never sent.
-  const selected = (choice ?? question?.suggested ?? []).filter((c) => eligible.has(c)).slice(0, MAX_BREAKDOWNS)
+  // A column no longer eligible is never sent: not in the answer, nor - while the answer is the last one, for an
+  // earlier plan - dropped or mapped to a field by the plan as it stands (the scoped review's #2).
+  const unused = new Set(
+    plan.column_actions.filter((c) => c.canonical_field === 'ignore' && c.action !== 'drop_column').map((c) => c.source_name),
+  )
+  const selected = (choice ?? question?.suggested ?? [])
+    .filter((c) => eligible.has(c) && unused.has(c))
+    .slice(0, MAX_BREAKDOWNS)
   return {
     question,
     loading: enabled && current === null,
+    stale: current === null && answered !== null,
     error: current?.error ?? null,
     selected,
     remove: (column) => {

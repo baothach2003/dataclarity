@@ -53,8 +53,12 @@ def _breakdown(widget: WidgetId, split: Breakdown, compared: bool, size: float |
                notes: list[str]) -> Widget | None:
     if not split.members:
         return None  # withheld by stage 2, with its reason (CONTRACTS 6): nothing drawn
-    bars = _sorted([_bar(m.name, m.revenue_current, m.revenue_previous if compared else None, code, m.is_blank)
-                    for m in split.members])
+    # The values shown one by one, largest first; then "Other (N values)" - many values, no mover (Q3) - and
+    # the blank bucket last.
+    drawn = [(m, _bar(m.name, m.revenue_current, m.revenue_previous if compared else None, code, m.is_blank))
+             for m in split.members]
+    bars = (_sorted([b for m, b in drawn if not m.is_other and not m.is_blank])
+            + [b for m, b in drawn if m.is_other] + [b for m, b in drawn if m.is_blank])
     blank = [f'"{BLANK_LABEL}" is the lines with no value in this column.'] if any(b.is_blank for b in bars) else []
     return Widget(id=widget, kind="chart", chart=_split_chart(bars), placed_by="size" if size is not None else
                   "fallback", size=size, title=f"Sales by {split.column}", column=split.column, bars=bars,
@@ -133,7 +137,8 @@ def chart_widgets(*, metrics: MetricsContract, diagnosis: DiagnosisContract, cle
                                      "chart."], notes=_notes(notes, "category")))
     for index, split in enumerate(metrics.by_dimension.breakdowns, start=1):
         widget_id: WidgetId = "breakdown_1" if index == 1 else "breakdown_2"
-        changes = [abs(m.change) for m in split.members if m.change is not None]
+        # Other's change is many values' together, never a mover's: it does not size the widget (Q3).
+        changes = [abs(m.change) for m in split.members if m.change is not None and not m.is_other]
         widget = _breakdown(widget_id, split, compared, max(changes) if compared and changes else None, code,
                             _notes(notes, widget_id))
         if widget is not None:

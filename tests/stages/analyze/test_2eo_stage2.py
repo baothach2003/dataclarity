@@ -124,7 +124,7 @@ def test_metrics_json_is_15_and_diagnosis_json_16() -> None:
     from contracts.metrics import MetricsContract
     from stages.analyze.assemble import SCHEMA_VERSION
 
-    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("16.3", 16, 18)  # 16.3 in the dashboard's step 2 (additive); 16.2 in the report redesign's step 1 (additive); 16.1 in 2E-u6 (additive); metrics 16.0 since 2E-t1, diagnosis 18.0 since 3E1b (17.0 since 2E-t2)
+    assert (SCHEMA_VERSION, MetricsContract.supported_major, DiagnosisContract.supported_major) == ("16.4", 16, 18)  # 16.4 for Thach's Q3/Q4 (additive); 16.3 in the dashboard's step 2 (additive); 16.2 in the report redesign's step 1 (additive); 16.1 in 2E-u6 (additive); metrics 16.0 since 2E-t1, diagnosis 18.0 since 3E1b (17.0 since 2E-t2)
 
 
 def test_complete_months_end_at_the_last_counted_month() -> None:

@@ -62,7 +62,7 @@ def test_an_incomplete_previous_month_has_no_change_and_says_why() -> None:
 
 
 def test_the_version_is_16_3() -> None:
-    assert SCHEMA_VERSION == "16.3"  # 16.3: the dashboard's breakdowns; 16.2: core.revenue_change (the report redesign, step 1); 16.1 in 2E-u6
+    assert SCHEMA_VERSION == "16.4"  # 16.4 for Thach's Q3/Q4 (additive); 16.3: the dashboard's breakdowns; 16.2: core.revenue_change (the report redesign, step 1); 16.1 in 2E-u6
 
 
 def _dump(**core: object) -> dict:

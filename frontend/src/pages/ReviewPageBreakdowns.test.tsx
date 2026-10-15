@@ -101,7 +101,9 @@ afterEach(() => {
 describe('ReviewPage: the columns to split sales by', () => {
   it('asks stage 1 about the plan as it stands and shows the suggestion with its values and where it came from', async () => {
     const { breakdownQuestion } = renderReview(SUGGESTED)
-    expect(await screen.findByText('Location')).toBeTruthy()
+    // Asked 400 ms after the last edit (the doubt review's R2): wait for the notice's own line.
+    expect(await screen.findByText(SUGGESTED.message)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Remove Location' })).toBeTruthy()
     expect(breakdownQuestion.mock.calls[0][2].column_actions).toEqual(PLAN.column_actions)
     expect(screen.getByText("Suggested from your file's columns. Change or remove them; at most two.")).toBeTruthy()
     expect(screen.getByText(/\(Cash, Credit Card, Digital Wallet\)/)).toBeTruthy()
@@ -109,13 +111,13 @@ describe('ReviewPage: the columns to split sales by', () => {
 
   it('sends the suggestion unchanged when the user leaves it', async () => {
     const { executePlan } = renderReview(SUGGESTED)
-    await screen.findByText('Location')
+    await screen.findByText(SUGGESTED.message)
     expect((await confirm(executePlan)).breakdowns).toEqual(['Location', 'Payment Method'])
   })
 
   it('lets the user remove one and add another, at most two', async () => {
     const { executePlan } = renderReview(SUGGESTED)
-    await screen.findByText('Location')
+    await screen.findByText(SUGGESTED.message)
     const add = screen.getByRole('combobox', { name: 'Add a column to split sales by' })
     if (!(add instanceof HTMLSelectElement)) {
       throw new Error('the add control is a select')
@@ -148,12 +150,14 @@ describe('ReviewPage: the columns to split sales by', () => {
         initialPlan={PLAN} notices={[]} onCancel={vi.fn()} onCleaned={vi.fn()} />,
     )
     expect(await screen.findByText('The columns to split sales by could not be read')).toBeTruthy()
+    // The scoped review's #1: said, as while the question loads.
+    expect(screen.getByText(/If you confirm now, sales are not split by any column\./)).toBeTruthy()
     expect((await confirm(executePlan)).breakdowns).toBeUndefined()
   })
 
   it('sends no breakdown when the user removes them all', async () => {
     const { executePlan } = renderReview(SUGGESTED)
-    await screen.findByText('Location')
+    await screen.findByText(SUGGESTED.message)
     fireEvent.click(screen.getByRole('button', { name: 'Remove Location' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove Payment Method' }))
     expect(screen.getByText('Sales will not be split by any column.')).toBeTruthy()

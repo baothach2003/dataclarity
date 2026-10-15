@@ -380,6 +380,17 @@ MAX_BREAKDOWNS = 2
 # The reserved member holding a column's blank cells (stage 3's visible-bucket
 # rule): the members are then the whole of each month.
 BLANK_LABEL = "(blank)"
+# 16.4 (Thach's Q3, 2026-10-15): a split of more than ALL_SHOWN values shows
+# the TOP_SHOWN largest and one member holding the rest, named by
+# `other_label` - the members still the whole of each month. Both bounds are
+# inside MAX_BREAKDOWN_VALUES.
+ALL_SHOWN = 9
+TOP_SHOWN = 8
+
+
+def other_label(values: int) -> str:
+    """The name of the member holding `values` folded values."""
+    return f"Other ({values} values)"
 
 
 class BreakdownMember(ContractModel):
@@ -390,6 +401,10 @@ class BreakdownMember(ContractModel):
     # Exactly revenue_current - revenue_previous; null with the breakdown's
     # change_reason when the previous month is incomplete.
     change: float | None
+    # 16.4 (Q3): the member holding the values not shown one by one, and how
+    # many they are - set exactly on it.
+    is_other: bool = False
+    values: int | None = Field(default=None, ge=2)
 
 
 class Breakdown(ContractModel):
@@ -420,7 +435,25 @@ class Breakdown(ContractModel):
             raise ValueError(f"{self.column!r}: each value is listed once")
         if sum(1 for m in self.members if not m.is_blank) > MAX_BREAKDOWN_VALUES:
             raise ValueError(f"{self.column!r}: a split is drawn for {MAX_BREAKDOWN_VALUES} values at most")
+        self._other_holds_the_rest()
         return self
+
+    def _other_holds_the_rest(self) -> None:
+        """16.4 (Q3): every value shown, at most ALL_SHOWN; or the TOP_SHOWN
+        largest and one "Other" member holding at least two more."""
+        others = [m for m in self.members if m.is_other]
+        named = [m for m in self.members if not m.is_other and not m.is_blank]
+        for member in self.members:
+            if member.is_other != (member.values is not None):
+                raise ValueError(f"{self.column!r}/{member.name!r}: the Other member, and only it, counts its values")
+            if member.is_other and (member.is_blank or member.name != other_label(member.values or 0)):
+                raise ValueError(f"{self.column!r}: the Other member is named {other_label(member.values or 0)!r}")
+        if len(others) > 1:
+            raise ValueError(f"{self.column!r}: one Other member at most")
+        if others and len(named) != TOP_SHOWN:
+            raise ValueError(f"{self.column!r}: with an Other member, exactly {TOP_SHOWN} values are shown")
+        if not others and len(named) > ALL_SHOWN:
+            raise ValueError(f"{self.column!r}: more than {ALL_SHOWN} values are shown as {TOP_SHOWN} and Other")
 
 
 class DimensionBreakdown(ContractModel):
@@ -558,6 +591,9 @@ class MetricsContract(ContractFile):
         no stage 2 of that version wrote."""
         if self.by_dimension.breakdowns and minor_version(self.schema_version) < (16, 3):
             raise ValueError("by_dimension.breakdowns exists from metrics.json 16.3")
+        if minor_version(self.schema_version) < (16, 4) and any(
+                m.is_other for split in self.by_dimension.breakdowns for m in split.members):
+            raise ValueError("a breakdown's Other member exists from metrics.json 16.4")
         return self
 
     @model_validator(mode="after")

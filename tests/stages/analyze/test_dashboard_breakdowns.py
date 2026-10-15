@@ -88,15 +88,17 @@ def test_an_incomplete_previous_month_keeps_its_totals_and_has_no_change() -> No
         "Card": 50.0, "Cash": 0.0, "Voucher": 20.0, BLANK_LABEL: 0.0}
 
 
-def test_more_than_twelve_values_is_withheld_with_the_count() -> None:
+def test_more_than_twelve_values_is_drawn_as_eight_and_other() -> None:
+    # Was "withheld with the count" (16.3); Thach's Q3 (16.4) draws the top 8 and "Other".
     rows = [_row("2019-12-01", "1", "1.0", "V0")]
     rows += [_row(f"2020-01-{day:02d}", "1", "1.0", f"V{day}") for day in range(1, 13)]
     rows.append(_row("2020-01-31", "1", "1.0", "V13"))  # 14 values in all; December's V0 counts too
     _, _, (split,) = _breakdowns(pd.DataFrame(rows), ["Pay"])
 
-    assert split.members == []
-    assert split.withheld_reason == ("the column has 14 values in December 2019 and January 2020; a split is drawn "
-                                     "for 12 at most")
+    # All 1.00 over the two months: by name - v0, v1, v10, v11, v12, v13, v2, v3 shown; V4..V9 are Other (6.00).
+    assert split.withheld_reason is None
+    assert [m.name for m in split.members] == ["V0", "V1", "V10", "V11", "V12", "V13", "V2", "V3", "Other (6 values)"]
+    assert (split.members[-1].revenue_current, split.members[-1].values) == (6.0, 6)
 
 
 def test_twelve_values_is_drawn() -> None:
@@ -105,7 +107,8 @@ def test_twelve_values_is_drawn() -> None:
     _, _, (split,) = _breakdowns(pd.DataFrame(rows), ["Pay"])
 
     assert split.withheld_reason is None
-    assert len(split.members) == 12
+    # Was 12 members (16.3); Q3: V1 (2.00) and the seven first by name of the 1.00s, then Other (V6..V9).
+    assert len(split.members) == 9 and split.members[-1].name == "Other (4 values)"
 
 
 def test_a_blank_member_is_not_counted_against_the_twelve() -> None:
@@ -114,7 +117,8 @@ def test_a_blank_member_is_not_counted_against_the_twelve() -> None:
     _, _, (split,) = _breakdowns(pd.DataFrame(rows), ["Pay"])
 
     assert split.withheld_reason is None
-    assert len(split.members) == 13 and split.members[-1].is_blank
+    # Was 13 members (16.3); Q3: 8 values, Other (4 values), and the blank - never folded.
+    assert len(split.members) == 10 and split.members[-1].is_blank and split.members[-2].is_other
 
 
 def test_one_value_splits_nothing() -> None:
@@ -184,10 +188,11 @@ def test_lines_outside_the_two_months_are_not_counted() -> None:
     assert {m.name: m.revenue_previous for m in split.members}["Cash"] == 50.0  # November's 90 not in it
 
 
-def test_assemble_writes_them_and_the_version_is_16_3() -> None:
+def test_assemble_writes_them_and_the_version_is_16_4() -> None:
     metrics = assemble_metrics(_shop(), MAPPING, now=NOW, breakdowns=["Pay"])
 
-    assert SCHEMA_VERSION == "16.3"  # 16.3: by_dimension.breakdowns (the dashboard, step 2)
+    # 16.3: by_dimension.breakdowns (the dashboard, step 2); 16.4: the Other member (Q3)
+    assert SCHEMA_VERSION == "16.4"
     assert [s.column for s in metrics.by_dimension.breakdowns] == ["Pay"]
 
 
@@ -239,11 +244,21 @@ def test_on_a_generated_store_the_members_are_each_month_to_the_cent() -> None:
     from tests.scenarios.store import MAPPING as STORE
 
     frame = s0(1)
-    metrics = assemble_metrics(frame, STORE, now=NOW, breakdowns=["Category"])
+    # Read per line (no order id): an invoice holds several categories, which Q4 refuses with an order id.
+    per_line = {k: v for k, v in STORE.items() if v != "order_id"}
+    metrics = assemble_metrics(frame, per_line, now=NOW, breakdowns=["Category"])
     (split,) = metrics.by_dimension.breakdowns
     assert split.withheld_reason is None and len(split.members) == 6
     assert round(sum(m.revenue_current for m in split.members), 2) == round(metrics.core.revenue_current, 2)
     assert round(sum(m.revenue_previous for m in split.members), 2) == round(metrics.core.revenue_previous, 2)
+    # With the order id: Category is withheld (Q4), and Customer - one per invoice, many values - is the top 8
+    # and Other, still to the cent.
+    metrics = assemble_metrics(frame, STORE, now=NOW, breakdowns=["Category", "Customer"])
+    category, customer = metrics.by_dimension.breakdowns
+    assert category.withheld_reason == "an order holds two different values of this column"
+    assert customer.withheld_reason is None and any(m.is_other for m in customer.members)
+    assert round(sum(m.revenue_current for m in customer.members), 2) == round(metrics.core.revenue_current, 2)
+    assert round(sum(m.revenue_previous for m in customer.members), 2) == round(metrics.core.revenue_previous, 2)
 
 
 def test_a_line_not_counted_in_revenue_makes_no_member() -> None:
@@ -267,13 +282,14 @@ def test_values_only_outside_the_two_months_do_not_count_towards_the_bound() -> 
     assert "one value" in split.withheld_reason
 
 
-def test_thirteen_values_is_withheld() -> None:
+def test_thirteen_values_is_eight_and_other() -> None:
     rows = [_row(f"2020-01-{day:02d}", "1", "1.0", f"V{day}") for day in range(1, 13)]
     rows += [_row("2019-12-01", "1", "1.0", "V0"), _row("2020-01-31", "1", "1.0", "V1")]  # V0..V12: 13 values
     _, _, (split,) = _breakdowns(pd.DataFrame(rows), ["Pay"])
 
-    assert split.withheld_reason == ("the column has 13 values in December 2019 and January 2020; a split is drawn "
-                                     "for 12 at most")
+    # Was withheld (16.3); Q3: V1 2.00 first, then v0, v10, v11, v12, v2, v3, v4 by name; Other V5..V9 (5 values).
+    assert split.withheld_reason is None
+    assert split.members[-1].name == "Other (5 values)" and split.members[-1].revenue_current == 5.0
 
 
 def test_a_month_of_returns_is_a_negative_member() -> None:

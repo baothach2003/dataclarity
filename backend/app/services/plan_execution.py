@@ -53,7 +53,7 @@ def preview_plan(
     plan = stage_errors.parse_plan(body)
     session.commit()  # the read transaction ends here: a preview can take seconds
     try:
-        _require_raw(settings.runs_dir, run_id)
+        require_raw(settings.runs_dir, run_id)
         # Parsing the whole file on a cache miss is a heavy step (Thach,
         # 2026-10-02); a hit costs nothing.
         frame = frame_of_run(work, cache, settings.runs_dir, run_id)
@@ -91,7 +91,7 @@ def ask_currency(
     plan = stage_errors.parse_plan(body)
     session.commit()  # the read transaction ends here: a first load parses the whole file
     try:
-        _require_raw(settings.runs_dir, run_id)
+        require_raw(settings.runs_dir, run_id)
         question = currency_question_for(work, cache, settings.runs_dir, run_id, plan)
     except RunNotFoundError:
         raise stage_errors.files_gone() from None
@@ -135,7 +135,7 @@ def summarise_lines(
     plan = stage_errors.parse_plan(body)
     session.commit()  # the read transaction ends here: the whole file takes seconds
     try:
-        _require_raw(settings.runs_dir, run_id)
+        require_raw(settings.runs_dir, run_id)
         with work.summary(run_id):
             # The frame first, then the summary in a slot of its own - never the
             # slot around the cache's load, which inverted the lock order against
@@ -186,7 +186,7 @@ def execute_plan(
     # Before the claim: a body that is no plan at all, or a run with no file, never takes it.
     plan = stage_errors.parse_plan(body)
     try:
-        _require_raw(runs_root, run_id)
+        require_raw(runs_root, run_id)
     except RunNotFoundError:
         raise stage_errors.files_gone() from None
     # Registered BEFORE the claim and left AFTER the settling below: while it is, the
@@ -257,7 +257,7 @@ def _forget(run_id: str, cache: FrameCache, work: RunWork, budgets: RetryBudgets
         budgets.forget(run_id)
 
 
-def _require_raw(runs_root: Path, run_id: str) -> None:
+def require_raw(runs_root: Path, run_id: str) -> None:
     """Explicit, so that a missing upload is EXPIRED (410) and any other file-not-found
     inside a stage (a bad deployment) is not mistaken for it."""
     if not run_file(runs_root, run_id, RAW_FILENAME).exists():

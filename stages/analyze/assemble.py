@@ -45,8 +45,10 @@ from stages.analyze.metrics_products import compute_product_metrics
 # choosing the period and counted - `period.upload_cutoff`,
 # `core.future_lines`). 16.2 in the report redesign's step 1 (additive:
 # `core.revenue_change`, Thach 2026-10-05). 16.3 in the dashboard's step 2
-# (additive: `by_dimension.breakdowns`, Thach's D5, 2026-10-14).
-SCHEMA_VERSION = "16.3"
+# (additive: `by_dimension.breakdowns`, Thach's D5, 2026-10-14). 16.4 for
+# Thach's Q3 and Q4 (2026-10-15; additive: a breakdown's "Other" member,
+# `is_other` and `values`; a blank line takes its order's one value).
+SCHEMA_VERSION = "16.4"
 METRICS_FILENAME = "metrics.json"
 
 

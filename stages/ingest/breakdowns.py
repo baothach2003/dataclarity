@@ -7,7 +7,14 @@ the plan as the user edited it); the AI only chooses up to two of them
 (`suggest_breakdowns`), once per run, with no retry: its answer is column
 names from that list, validated, and anything else is no suggestion
 (suppress, never fabricate). The user decides in Review (CLAUDE.md 3.3);
-execute checks the answer again (`breakdowns_problem`)."""
+execute checks the answer again (`breakdowns_problem`).
+
+Thach's Q3-Q5 (2026-10-15): eligibility also reads the LINES execute would
+write (`stages/ingest/breakdown_lines.py`): with a trusted order id, blanks
+are counted per order and two values in one order rule a column out (Q4); a
+column of many values is eligible unless nearly every line - order - is its
+own value (Q3); a column whose every value holds only sale lines or only
+return lines is not (Q5)."""
 
 import json
 import re
@@ -21,20 +28,27 @@ from pydantic import ValidationError
 
 from contracts.breakdowns import BreakdownAnswer, BreakdownQuestion, BreakdownSuggestion, EligibleColumn
 from contracts.cleaning import CleaningPlanContract
-from contracts.metrics import MAX_BREAKDOWN_VALUES, MAX_BREAKDOWNS
+from contracts.metrics import ALL_SHOWN, MAX_BREAKDOWNS
 from contracts.profile import ColumnProfile, ProfileContract
 from shared.ai_client import AIClient, AIUnavailable, RetryBudget
 from shared.contract_files import write_atomically
 from shared.dates import as_dates
 from shared.run_registry import run_file
 from stages.ingest.ai_input import _cut
+from stages.ingest.breakdown_lines import ColumnLines, MeasuredLines
 
 SCHEMA_VERSION = "1.0"
 PROMPT = "breakdowns"
 MAX_TOKENS = 300  # two column names in JSON
-# "Few blanks" (D4): at most this share of the file's rows blank (design D-3).
+# "Few blanks" (D4): at most this share of the file's rows - with a trusted
+# order id, of its orders (Q4) - blank (design D-3).
 MAX_BLANK_PCT = 10.0
 MIN_VALUES = 2
+# Q3: a column of more values than a split shows one by one is eligible
+# unless they are more than this share of its units (lines, or orders) -
+# "nearly every line its own value" (decision made alone: the conservative
+# side of "nearly every").
+MAX_VALUES_PER_UNIT = 0.5
 # The AI sees at most this many columns, in the file's order: with each column's
 # at most 10 values, each cut to AI_PIPELINE section 1's 100 characters, the
 # input stays bounded on a wide export (the step 4 review #1).
@@ -63,8 +77,9 @@ NOT_ANALYSED = "This file is not analysed as sales data, so sales are not split.
 MESSAGES = {
     "chosen": "Suggested from your file's columns. Change or remove them; at most two.",
     "none_chosen": "No column was suggested. You can pick up to two from the list.",
-    "none_eligible": ("No column of your file can split sales: each needs 2 to 12 values and few blanks, and "
-                      "must not be a date, an amount, an id or a field already used."),
+    "none_eligible": ("No column of your file can split sales: each needs at least 2 values, few blanks and one "
+                      "value per order, and must not be a date, an amount, an id, a sale-or-return type or a field "
+                      "already used."),
     "ai_unavailable": "No suggestion could be made. You can pick up to two from the list.",
 }
 
@@ -92,9 +107,11 @@ def _any_date(values: Iterable[str]) -> bool:
     return bool(listed) and bool(as_dates(pd.Series(listed, dtype="object")).notna().any())
 
 
-def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str) -> str | None:
-    """None when the column can split sales; else why not (Review's hint and
-    execute's refusal say it)."""
+def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str,
+                     by_order: bool = False) -> str | None:
+    """None when the column can split sales by the profile and the plan; else
+    why not (Review's hint and execute's refusal say it). With a trusted order
+    id (`by_order`) the lines count the blanks instead (`why_lines_cannot`)."""
     action = next((a for a in plan.column_actions if a.source_name == name), None)
     if action is None or profile is None:
         return "it is not one of the file's profiled columns"
@@ -106,9 +123,9 @@ def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, 
         return "it has no header"
     if action.semantic_type not in SPLIT_TYPES:
         return "it is not a column of categories"
-    if not MIN_VALUES <= profile.unique_count <= MAX_BREAKDOWN_VALUES:
-        return f"it needs {MIN_VALUES} to {MAX_BREAKDOWN_VALUES} values"
-    if profile.null_pct > MAX_BLANK_PCT:
+    if profile.unique_count < MIN_VALUES:
+        return f"it needs at least {MIN_VALUES} values"
+    if not by_order and profile.null_pct > MAX_BLANK_PCT:
         return "too many of its cells are blank"
     top = [value.value for value in profile.top_values]
     if _NUMERIC_DTYPE.match(profile.dtype) or profile.number_format is not None or _any_number(top):
@@ -118,11 +135,38 @@ def why_not_eligible(profile: ColumnProfile | None, plan: CleaningPlanContract, 
     return None
 
 
-def eligible_columns(profile: ProfileContract, plan: CleaningPlanContract) -> list[EligibleColumn]:
-    """The columns that can split sales, in the file's order (design 5.1)."""
+def why_lines_cannot(lines: ColumnLines | None) -> str | None:
+    """What the lines say (Q3-Q5); None when they allow the split."""
+    if lines is None:
+        return "its lines could not be read"
+    if lines.conflicting_orders:
+        return "an order holds two different values of it"
+    # Per order with the order fill; else per counted line, besides the profile's whole-file share (the
+    # scoped review's #4: either above 10% is too blank - the split draws its blanks as a bar).
+    if lines.blank_units * 100 > MAX_BLANK_PCT * lines.units:
+        return "too many of its cells are blank"
+    if lines.values < MIN_VALUES:
+        # The profile reads the whole file; a second value only on lines no figure counts splits nothing (O3).
+        return f"it needs at least {MIN_VALUES} values"
+    if lines.values > ALL_SHOWN and lines.values > MAX_VALUES_PER_UNIT * lines.purchases:
+        return f"nearly every {'order' if lines.orders else 'line'} has its own value"
+    if lines.sale_or_return:
+        return "each of its values holds only sales or only returns"
+    return None
+
+
+def _why(profile: ColumnProfile | None, plan: CleaningPlanContract, name: str, measured: MeasuredLines) -> str | None:
+    lines = measured.columns.get(name)
+    return why_not_eligible(profile, plan, name, lines is not None and lines.by_order) or why_lines_cannot(lines)
+
+
+def eligible_columns(profile: ProfileContract, plan: CleaningPlanContract,
+                     measured: MeasuredLines) -> list[EligibleColumn]:
+    """The columns that can split sales, in the file's order (design 5.1):
+    by the profile, the plan and the lines `measured` for that plan."""
     found = []
     for column in profile.columns:
-        if why_not_eligible(column, plan, column.name) is None:
+        if _why(column, plan, column.name, measured) is None:
             # Each value cut as the AI's input cuts it: Review shows what the AI sees.
             found.append(EligibleColumn(column=column.name, values=[_cut(value.value) for value in column.top_values]))
     return found
@@ -158,13 +202,15 @@ def suggest_breakdowns(make_client: Callable[[], AIClient], model: str, eligible
                                model_used=answer.model)
 
 
-def question(suggestion: BreakdownSuggestion, eligible: list[EligibleColumn]) -> BreakdownQuestion:
+def question(suggestion: BreakdownSuggestion, eligible: list[EligibleColumn],
+             unavailable: str | None = None) -> BreakdownQuestion:
     """What Review shows for the plan as it stands: the suggestion's columns
-    still eligible, and where they came from."""
+    still eligible, and where they came from - or, while the lines cannot be
+    read, why nothing is offered yet (`unavailable`)."""
     names = [column.column for column in eligible]
     suggested = [name for name in suggestion.chosen if name in names]
     if not eligible:
-        status, message = "none_eligible", MESSAGES["none_eligible"]
+        status, message = "none_eligible", unavailable or MESSAGES["none_eligible"]
     elif suggestion.status == "ai_unavailable":
         status, message = "ai_unavailable", MESSAGES["ai_unavailable"]
     else:
@@ -200,17 +246,19 @@ def run_suggestion(runs_root: Path, run_id: str, eligible: list[EligibleColumn],
     return suggestion
 
 
-def breakdown_question_run(runs_root: Path, run_id: str, plan: CleaningPlanContract,
+def breakdown_question_run(runs_root: Path, run_id: str, plan: CleaningPlanContract, measured: MeasuredLines,
                            suggestion_for: Callable[[list[EligibleColumn]], BreakdownSuggestion]) -> BreakdownQuestion:
     """Review's breakdown control for the plan as edited: the eligible columns
-    and the run's suggestion (`suggestion_for`, normally `run_suggestion`)."""
-    eligible = eligible_columns(read_profile(runs_root, run_id), plan)
-    return question(suggestion_for(eligible), eligible)
+    (`measured`: the plan's lines, `stages/ingest/breakdown_review.py`) and
+    the run's suggestion (`suggestion_for`, normally `run_suggestion`)."""
+    eligible = eligible_columns(read_profile(runs_root, run_id), plan, measured)
+    return question(suggestion_for(eligible), eligible, measured.unavailable)
 
 
-def breakdowns_problem(profile: ProfileContract, plan: CleaningPlanContract) -> str | None:
+def breakdowns_problem(profile: ProfileContract, plan: CleaningPlanContract, measured: MeasuredLines) -> str | None:
     """Execute's check of the user's answer (the plan is the user's: refused,
-    never silently changed): at most two, each once, each still eligible."""
+    never silently changed): at most two, each once, each still eligible -
+    `measured` on execute's own cleaned lines."""
     names = plan.breakdowns
     if not names:
         return None
@@ -220,7 +268,7 @@ def breakdowns_problem(profile: ProfileContract, plan: CleaningPlanContract) -> 
         return "a column is chosen twice to split sales"
     by_name = {column.name: column for column in profile.columns}
     for name in names:
-        why = why_not_eligible(by_name.get(name), plan, name)
+        why = _why(by_name.get(name), plan, name, measured)
         if why is not None:
             return f'column "{name}" cannot split sales: {why}'
     return None

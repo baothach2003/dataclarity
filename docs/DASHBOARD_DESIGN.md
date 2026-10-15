@@ -236,6 +236,78 @@ number and date rules read the profile's 10 commonest values, so an 11th or
 cuts them (100 characters), and the AI sees the first 12 eligible columns in
 the file's order: the input is at most 12 x 10 values x 100 characters.
 
+**Thach's Q3-Q5 (2026-10-15), as built.** Eligibility also reads the LINES
+execute would write (`stages/ingest/breakdown_lines.py`; Review runs the plan
+on the whole file as its line summary does - `breakdown_review.py` - and
+execute measures its own cleaned lines), through one definition of a line's
+value shared with stage 2 (`shared/split_values.py`). Method:
+`C:\Users\Happy\dashboard-q345-method.txt`, facts measured first.
+- **Q4** with a trusted order id (`orders_basis` "order_id"): "few blanks" is
+  counted per ORDER - an order with no value of the FILE's on any counted
+  line (a cell the plan imputed, Kaggle's "Unknown", is still blank: measured,
+  the cleaned cells said 0% where the file is 33% blank) - and any order
+  holding two different values rules the column out. Without a trusted order
+  id the per-line rule stands (profile `null_pct`). So Shopify's
+  first-line-only Payment Method and Source are offered; a line-level column
+  (Vendor, a product group) is not, whenever orders hold several lines.
+- **Q3** the profile's upper bound (12) goes; a column of more than 9 values is
+  ruled out when its values are more than half its units (orders with an
+  order id, else lines): "nearly every line its own value" (decision made
+  alone: half, the conservative side). Online Retail II's Country (38 values,
+  23,865 orders, no order with two countries) is now offered.
+- **Q5** with sale and return lines in the file (the shared `sale` and
+  `returned`), a column whose every value - the blank bucket counted as one -
+  holds only sale lines or only return lines is ruled out (Square's Event
+  Type; also a store that took every return, which the data cannot tell from
+  a type). A file with no return line has nothing to separate.
+- While the plan cannot run (a date or number question open, no date, no
+  quantity and price, a plan error) nothing is offered and Review says why;
+  nothing is stored, so the AI is asked once the plan runs. Review asks again
+  whenever the plan's steps or answers change (they decide the lines).
+- The prompt's context sentence says the new rules (it said "between 2 and 12
+  values"); its instructions are unchanged.
+
+**Its doubt review (one cycle, fresh context) and the fixes, tests first:**
+the figures on both demos were exact (ORII Country 38 values, Other (18
+values), to the cent; Kaggle's imputed Discount Applied refused). Fixed: R1
+an edit while the lines were measured again dropped the columns the user had
+selected - the last answer now stays shown while the plan is measured ("the
+columns selected are checked again when the file is cleaned"; execute still
+refuses one that no longer splits); R2 every edit queued a whole-file measure
+in the one heavy slot - Review asks 400 ms after the last edit, and a measure
+that is no longer the run's latest edit steps aside (409) when its turn
+comes; R3 the consumer-contract rows of `is_other` and `values` did not
+match the test's form and were skipped - now pinned; F1 the order fill gave
+a bag's sales to the vendor of the shirt beside it when the value sat on an
+order's SECOND line - an order fills only when the column is a first-line
+field by the data (every line holding a value is the first counted line of
+its order, Shopify's shape), else every line is read alone (the per-line
+rule: its blank lines are blanks); O3 a second value only on lines no figure
+counts made a column offered and then withheld - the counted lines need two
+values. Recorded, not fixed (for Thach): **Q7** a per-line attribute written
+on an order's FIRST line only (a vendor on the shirt, nothing on the bag)
+cannot be told from Shopify's order fields by the data - filled as Q4 says;
+**Q8** columns that name each customer (a billing name, a street) are now
+offered when there are fewer values than half the orders - true figures, but
+personal data on a chart; the AI is told no column is an identifier; O2 a
+value held only on a line outside revenue (a gift card) never fills its
+order (its lines show as "(blank)" - sales hidden, never invented); O4
+Shopify's Financial Status (paid / refunded) is offered - an honest split,
+the same kind as Event Type, which Q5 catches only with return lines; N1 a
+value written "Other" can stand beside "Other (4 values)" (different text);
+N2 a conflict the plan's own fill made is worded as the file's.
+Mutation: 42 of 43 killed, 1 equivalent (stage 2's trusted-order flag: with
+an untrusted id each line is its own order, so a fill changes nothing); the
+fixes' 6 of 6. **The scoped review of the fixes approved** (no fabrication on
+the demos or the export shapes); its cheap findings, each narrowing, fixed
+with tests: a failed question says that confirming now splits sales by no
+column; a column the same edit drops or maps is never sent while the last
+answer is shown; without the order fill, blanks above 10% of the counted
+lines refuse too (besides the profile's share). Recorded, not fixed: a
+narrow race where an identical later ask joins a measure that steps aside
+(409 instead of its answer); "first line" reads the row label (always a
+RangeIndex today).
+
 **Decision made alone (D-3):** 10% for "few blanks", and "no value reading as
 a number" (store numbers 1-5 are excluded; a false find would chart an
 amount as a category - the costly error).
@@ -469,6 +541,18 @@ values is withheld (it splits nothing); a value written "(blank)" withholds
 the whole breakdown (rather than renaming either bucket); a column stage 1
 added is never split.
 
+**Thach's Q3 and Q4 (2026-10-15), as built - metrics.json 16.4.** A line's
+value is `shared/split_values.py`'s: with a trusted order id a blank line
+takes its order's one value (an order with two values withholds the split, a
+guard - stage 1 refuses such a column). Above 9 non-blank values in the two
+months: the top 8 by the two months' sales together (current + previous,
+decision made alone: a value that fell to nothing this month stays shown;
+equal ones by key) and one member "Other (N values)" (`is_other`, `values`),
+listed after them; the blank member is never folded; the members still sum
+to each month's revenue. The "more than 12 values" withholding is gone. On
+the dashboard, Other is drawn after the shown values (the blank last) and its
+change never sizes the widget (decision made alone: many values, no mover).
+
 ## 8. The dashboard block (D7) and the test plan
 
 report.json 2.10, additive: `dashboard`:
@@ -563,6 +647,101 @@ the block existed); 23 older stage 5 assertions moved to the new layout or
 wording, none removed (the list is in the overnight report, for Thach's F2
 sign-off); the frontend fixtures regenerated.
 
+## 10. Thach's layout (2026-10-15): pictures and figures, almost no text
+
+Thach's decision, after the first app run: the dashboard is pictures and
+figures; a reader sees numbers and charts, not paragraphs. Why: the step 6
+screenshots read as a report of cards of sentences - the figures were there
+but had to be found. Rows, top to bottom (report.json 2.11, additive; one
+copy - D7 - report.html and the page draw the same block):
+
+1. **KPI tiles**: label, figure, arrow and change only - no sentence. The
+   sales tile's change is "+4,925.00 (+11.9%)" (the comparison month moved to
+   row 2); another tile's change is "was 308". A tile's reason (sales withheld
+   or not compared) stands behind its marker; a sales tile with no figure
+   shows the two words "not shown".
+2. **One full-width line** (`dashboard.headline`): the summary as a short
+   code template from existing fields, at most about 20 words - "Sales +27.2%
+   vs October 2011 · in line with last year (+27.1%)". This replaces Q1: the
+   long summary moves to Technical details. Templates:
+   - compared: "Sales <change> vs <previous month>" - the percentage at
+     sentence B's decimals (one change printed one way, Q56), the amount when
+     no percentage exists, "the same as <previous month>" at zero - then, with
+     a season band, " · in line with" / " · differs from" + "last year" or
+     "earlier years" + " (<the season's expected change>)", the front's own
+     verbs at sentence B's decimals;
+   - not compared: "Sales <this month's figure> in <month> · not compared:
+     <previous month> is not covered whole" (or "no sale in <previous month>
+     can be counted");
+   - this month withheld: "Sales in <month> not shown: no sale can be
+     counted";
+   - blocked: "Not compared: the data checks did not pass".
+   Its marker: the revenue notes, and the caution lines (a caution's month
+   and check, CLAUDE.md 3.3a as amended) - the caution leaves the row under
+   the tiles.
+3. **A grid of chart cards** - trend, waterfall, customers, refunds,
+   products, category, breakdowns - in the order rule's order (section 4,
+   unchanged; the text widgets stay in report.json's list for the rule and
+   are not drawn as cards); short titles, figures on the bars, no paragraph
+   or caption under a chart - each caption stands behind the card's marker
+   and in Technical details.
+4. **Full-width horizontal bands** for what needs words:
+   - "Next month" (`dashboard.next_month`): the forecast's figure and its
+     range as numbers - "January 2025: about GBP 47,100.00 · likely GBP
+     40,000.00 to GBP 52,000.00"; with too little history, "not estimated";
+     how the range is built, the part-month and the season sentences stand
+     behind its marker and in Technical details;
+   - "Checked" (`dashboard.checked`): one row of short chips - one per check
+     subject, in a fixed order (Data, Customers, Order frequency, Basket
+     size, Prices, Product mix, Refunds, Discounts, Charges, One product,
+     Products in or out, Stock, Calendar, Last year) - from the checklist's
+     own groups (one copy: `front_checklist.groups`): "checked" (a check
+     mark: checked, not the reason), "matches" (named as matching the
+     figures), "moved" (moved, not singled out), "other way" (pulled the
+     other way), "can't tell" (the file cannot show it); Data is checked or
+     "caution". A subject of several checks (Customers: new, stopped, back)
+     takes the strongest: matches, other way, moved, checked, can't tell.
+     Under a blocked report no chip is drawn (the line says it);
+   - "Next step" (`dashboard.next_steps`): one line per suggested action,
+     the action's own text (stage 4's); why and what to watch stand in
+     Technical details. No band without an action (the sentence saying why
+     none is suggested stands in Technical details) - decision made alone.
+5. **Technical details** (closed): first "The dashboard in words" - the
+   front section's every sentence (summary, sales note, data checks, the full
+   checklist, what to do next with why and what to watch, next month, what
+   this report cannot know), every caption and every "not shown" line - then
+   the appendix as before. Nothing is deleted.
+
+**Notes: CLAUDE.md 3.3a as amended by Thach (2026-10-15).** A note is still
+shown WHERE its figure is shown, as a compact marker - an "i" button beside
+the figure or chart, reachable by keyboard and named for a screen reader -
+that opens its full sentence on tap or click (report.html: a `details`
+element; the page: a button with `aria-expanded`). A mark of one or two words
+stays inline ("(suggested: charge, not confirmed)" on a product - the
+existing one copy, `html_parts`; "not shown" on a tile). report.json carries
+the markers: each element's `notes` (codes, worded by the report's own
+note texts) and its sentences (a tile's `reason`, a widget's `caption`, the
+line's caution, the band's sentences).
+
+**Mock-only labels** ("PLACED BY SIZE", "PLACED BY THE FIXED ORDER", the MOCK
+banner) are in no user-facing output: `placed_by` stays a field read by the
+contract and the tests, never printed.
+
+**Products** (Thach, 2026-10-15): re-enabled - stage 2's top products this
+month, each product whose class was suggested and nobody confirmed carries
+"(suggested: <class>, not confirmed)" from the one copy of the marking logic
+(`html_parts.suggested_mark`, which the appendix's evidence also reads). If
+the scoped review still finds a fabrication, it is hidden again (stop rule).
+
+**Recorded fixes**: a blocked report (or a withheld split) names the columns
+kept in Review and says they are not drawn, never "This version does not
+split sales that way"; the waterfall draws its bars across at every width on
+the page (its column labels overlapped at 1440 px in a card).
+
+**Q2** (Thach): not reopened. Upload and Review say plainly that a file
+needs a date, a product and a quantity column for each sale (with a price
+for its money); the README's Known limitations lists it.
+
 ## 9. Decisions made alone and open questions
 
 Decisions made alone (each open to Thach's veto):
@@ -583,7 +762,21 @@ Decisions made alone (each open to Thach's veto):
 - **D-12** the new plan item is numbered 9D as Thach asked; the existing 9D
   ("What I learned") becomes 9E.
 
-Open questions:
+Thach's answers (2026-10-15): Q1 replaced by his layout decision (a short
+summary line under the tiles); Q2 not reopened - Upload and Review say which
+columns a file needs, and the README lists it; Q3 the top 8 and "Other";
+Q4 blanks per order, two values in an order rule the column out; Q5 a
+sale-or-return column is ruled out. F2 approved.
+
+Open questions from the answers (and section 5.1's review: Q7, Q8):
+- **Q6** Q4 as written rules out every line-level column (Vendor, a product
+  group, a size) in a file with an order id whenever an order holds lines of
+  two values - in the scenario store an invoice holds several categories, so
+  even a Category column would be refused. The rule is applied as written
+  (conservative); reading such a column per line when no line of the order is
+  blank would bring them back. Keep as built?
+
+Earlier open questions (answered above):
 - **Q1** keep the summary where the rule puts it (after the charts), or pin it
   under the tiles?
 - **Q2** a date+amount-only file (Stripe, Z-reports) cannot be analysed in

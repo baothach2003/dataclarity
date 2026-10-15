@@ -157,9 +157,11 @@ def ask_breakdowns(
     settings: SettingsDep,
     session: SessionDep,
     make_client: Annotated[AiClientFactory, Depends(get_ai_client_factory)],
+    cache: Annotated[FrameCache, Depends(get_frame_cache)],
     work: WorkDep,
 ) -> BreakdownResponse:
-    return breakdowns.ask_breakdowns(session, run_id, body, settings=settings, make_client=make_client, work=work)
+    return breakdowns.ask_breakdowns(session, run_id, body, settings=settings, make_client=make_client,
+                                     cache=cache, work=work)
 
 
 @router.post("/{run_id}/line-summary")

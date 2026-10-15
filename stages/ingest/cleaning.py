@@ -30,6 +30,7 @@ from contracts.cleaning import (
 )
 from shared.run_registry import run_file
 from stages.ingest import transforms
+from stages.ingest.breakdown_lines import measure_cleaned
 from stages.ingest.breakdowns import NOT_ANALYSED, breakdowns_problem, read_profile
 from stages.ingest.changes import FLAG_PREFIX
 from stages.ingest.cleaned_text import as_read, cleaned_csv_text
@@ -285,7 +286,9 @@ def execute_run(
     if not require_required_fields and plan.breakdowns:
         raise InvalidPlanError([NOT_ANALYSED])
     if plan.breakdowns:
-        problem = breakdowns_problem(read_profile(runs_root, run_id), plan)
+        # On these very lines (Q3-Q5): what stage 2 will split.
+        measured = measure_cleaned(cleaned, read, renames, mapping, applied, plan)
+        problem = breakdowns_problem(read_profile(runs_root, run_id), plan, measured)
         if problem is not None:
             raise InvalidPlanError([problem])
         breakdowns = [renames.get(name, name) for name in plan.breakdowns]

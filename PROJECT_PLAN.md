@@ -6078,6 +6078,16 @@ dataclarity/
       process); 3 stage 5's dashboard block and report.html; 4 the AI column
       choice with the AI faked, and the smoke-test plan for Thach's approval;
       5 the Insights page; 6 the real-app check.
+      **Thach's answers (2026-10-15):** F2 approved; Q2 not reopened (Upload
+      and Review say which columns a file needs; README Known limitations);
+      Q3 above about 8 values the top 8 and "Other (N values)", the members
+      still the month, a cap for id-like columns; Q4 with an order id blanks
+      per order, two values in one order rule a column out; Q5 a column whose
+      every value holds only sales or only returns is ruled out; the products
+      widget re-enabled with its "(suggested)" mark; his layout - pictures and
+      figures: tiles, one short line, chart cards, full-width bands, every long
+      text in Technical details, a note as a marker where its figure is
+      (CLAUDE.md 3.3a amended). Then the smoke test (at most 4 real calls).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6278,6 +6288,25 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**The dashboard, item 9D - second run, 2026-10-15 (Thach's answers)**: the
+six commits pushed (his one-time authorisation; his Codex paths in
+.git/info/exclude). CRUK: a stored plan, not a regression - the demo sample
+holds no CRUK line (0 of 460,859 rows); the classed plan's answer came from
+the full download. **Q3-Q5 DONE** (full process: method
+`C:\Users\Happy\dashboard-q345-method.txt`, facts measured first, tests
+first, mutation 42 of 43 + 6 of 6, one doubt review, its scoped review
+approved): metrics.json 16.4 - above 9 values the top 8 by the two months'
+sales and "Other (N values)", the members still each month to the cent; a
+line's value is `shared/split_values.py`'s, one definition for stages 1 and
+2 - with a trusted order id a first-line field (Shopify) fills its order;
+stage 1's eligibility reads the lines execute writes (blanks per order with
+the fill, two values in one order rule a column out, nearly every
+order/line its own value rules it out, a column whose values hold only
+sales or only returns is ruled out); Review asks 400 ms after the last edit
+and keeps the selection while measuring; only the latest edit is measured.
+Online Retail II's Country is now offered. Open: Q6-Q8 (DASHBOARD_DESIGN
+section 9).
 
 **The dashboard, item 9D - overnight run of 2026-10-14 (Thach away)**:
 step 1 DONE - `docs/DASHBOARD_DESIGN.md` (tiles, widget catalog, order

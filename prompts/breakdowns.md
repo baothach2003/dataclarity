@@ -3,9 +3,10 @@ schema below exactly. No markdown fences, no commentary.
 
 CONTEXT
 The report will draw sales split by up to two columns of the shop's file. Code
-has already chosen which columns COULD split sales: each has between 2 and 12
-values and few blanks, and none is a date, an amount, an identifier or a field
-the report already uses. You see only those columns, each with its most common
+has already chosen which columns COULD split sales: each has at least 2 values
+(a column of many values is drawn as its 8 largest and the rest together), few
+blanks and one value per order, and none is a date, an amount, an identifier, a
+sale-or-return type or a field the report already uses. You see only those columns, each with its most common
 values. You never see the file, and you compute nothing.
 
 YOUR JOB

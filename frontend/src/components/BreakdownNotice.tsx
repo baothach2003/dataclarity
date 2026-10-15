@@ -24,7 +24,7 @@ export function BreakdownNotice({ state }: { state: BreakdownState }) {
           </button>
         }
       >
-        {describeError(error).detail}
+        {describeError(error).detail} If you confirm now, sales are not split by any column.
       </Notice>
     )
   }
@@ -70,6 +70,13 @@ export function BreakdownNotice({ state }: { state: BreakdownState }) {
       }
     >
       <span className="notice__line">{question.message}</span>
+      {state.stale && (
+        // The doubt review's R1: an edit is being measured; what is selected stays, and is checked again.
+        <span className="notice__line">
+          Checking the columns again for your edits… If you confirm now, the columns selected are checked again when
+          the file is cleaned.
+        </span>
+      )}
       {state.selected.length === 0 ? (
         <span className="notice__line">Sales will not be split by any column.</span>
       ) : (

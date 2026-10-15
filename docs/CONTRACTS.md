@@ -1068,6 +1068,23 @@ none, and in a file before 16.3).
   `core.revenue_*` and the category block); the money their net amounts (a
   return line's negative amount counts in the value on its own row, so a
   member can be negative).
+- **16.4 (Thach's Q4, 2026-10-15): a line's value is `shared/split_values.py`'s.**
+  With a trusted order id (`orders_basis` "order_id"), a blank line of an
+  order holding exactly one value (on its counted lines) takes that value -
+  an export writing the order's fields on its first line only (Shopify)
+  splits the order whole; an order holding two values withholds the split
+  ("an order holds two different values of this column" - stage 1 refuses
+  such a column, so only a hand-edited file meets it). Without a trusted
+  order id every line is read alone, as in 16.3.
+- **16.4 (Thach's Q3): above `ALL_SHOWN` (9) non-blank values, the
+  `TOP_SHOWN` (8) largest and one "Other" member.** "Largest" is the two
+  months' sales together (current + previous; a value that fell to nothing
+  stays shown), equal ones by their key. The Other member: `is_other` true,
+  `values` the number of values it holds (2 or more), named
+  `"Other (N values)"` (`contracts.metrics.other_label`), listed after the
+  shown values and before the blank member; its figures are the folded
+  values' sums. The blank member is never folded. A value written like the
+  Other label (`"Other (5 values)"`, any case) withholds a split that folds.
 - A value is read as the category block reads one (`shared.text.
   category_key`: lower-cased, not case-folded - "STRASSE" and "Strasse" are
   one value, "Straße" another, as in the category block), named by its first
@@ -1082,10 +1099,11 @@ none, and in a file before 16.3).
 - **Withheld** (`members` empty, `withheld_reason` set; the dashboard draws
   nothing for it): the column is not in cleaned.csv; it is one stage 1 added
   (the line-class columns, a `__flag_` column); no line counted in revenue in
-  the two months; fewer than 2 non-blank values there; more than
-  `MAX_BREAKDOWN_VALUES` (12) non-blank values there; a value written
+  the two months; fewer than 2 non-blank values there; a value written
   `"(blank)"` (any case - an Excel pivot's label), which could not be told
-  from the empty cells' member.
+  from the empty cells' member; an order holding two values (16.4); a value
+  written like the Other label in a split that folds (16.4). (16.3 also
+  withheld more than 12 values; 16.4 folds them - Q3.)
 - A change can be float residue (`0.1 + 0.2` against `0.3`: -5.55e-17): a
   reader decides up, down or the same from the printed cents, never from the
   raw sign.
@@ -1094,7 +1112,11 @@ none, and in a file before 16.3).
   beside it (and any change beside an incomplete previous month); a blank
   member not named `"(blank)"` or a value named so; a name twice; more than 12
   non-blank members; more than 2 breakdowns or a column twice; a non-empty
-  list in a file before 16.3.
+  list in a file before 16.3; (16.4) `values` on a member that is not Other
+  or missing on Other, Other blank or named otherwise than
+  `"Other (N values)"`, two Others, Other beside other than exactly 8 shown
+  values, more than 9 shown values without Other, an Other member in a file
+  before 16.4.
 
 ## 7. `diagnosis.json` (stage 3 output)
 
@@ -2267,6 +2289,17 @@ of the front under its old section id), then the appendix.
   stage output carries it (the run id is the directory name), only
   `report.json` does, because that file is downloaded standalone. Adding it
   later is a minor bump under the first rule above.
+- 2026-10-15: **the dashboard, Thach's Q3-Q5.** `metrics.json` 16.4,
+  additive: a breakdown's Other member (`members[].is_other`,
+  `members[].values`; section 6) - above 9 values the top 8 and Other, where
+  16.3 withheld more than 12; with a trusted order id a blank line takes its
+  order's one value (`shared/split_values.py`, one definition for stages 1
+  and 2). Stage 1's eligibility reads the lines execute writes (Q3 id-like
+  columns, Q4 per-order blanks and one value per order, Q5 a column whose
+  every value holds only sales or only returns): no contract field changes,
+  `breakdown_suggestion.json` stays 1.0. Section 11 rows added (readers 5,
+  FE: `members[].is_other` false by default, `members[].values` set exactly on
+  Other).
 - 2026-10-14: **the dashboard, step 4 (Thach's D4).** The stage 1 contracts
   `4.4` (schema_inference.json kept in step), additive: `plan_final.json`
   `breakdowns` (the user's answer in Review) and `cleaning_report.json`
@@ -3050,6 +3083,8 @@ How the fields are read:
 | `by_dimension.breakdowns[].members[].change` | `float \| None` | 5, FE |
 | `by_dimension.breakdowns[].change_reason` | `str \| None` | 5, FE |
 | `by_dimension.breakdowns[].withheld_reason` | `str \| None` | 5, FE |
+| `by_dimension.breakdowns[].members[].is_other` | `bool` | 5, FE |
+| `by_dimension.breakdowns[].members[].values` | `int \| None (ge=2)` | 5, FE |
 
 #### diagnosis.json
 

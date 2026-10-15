@@ -13,8 +13,9 @@ from tests.stages.ingest.cleaning_fixtures import RAW_CSV
 from tests.stages.ingest.plan_answers import action, dataset_action, plan_answer
 from tests.stages.ingest.schema_answers import answer, column
 
-# The API fixture's own rows (the fake schema answer's issue counts read them), with a store column.
-STORES = ["North", "South", "North", "East", "South"]
+# The API fixture's own rows (the fake schema answer's issue counts read them), with a store column. The return
+# line (B2) is North's, as a sale is: a store holding only the return would separate sales from returns (Q5).
+STORES = ["North", "North", "North", "East", "South"]
 CSV = "\n".join([f"{line},{store}" for line, store in zip(RAW_CSV.decode().splitlines()[1:], STORES)]).encode()
 CSV = b"sku,name,qty,price,day,store\n" + CSV + b"\n"
 
@@ -143,3 +144,40 @@ def test_a_second_ask_while_the_ai_answers_waits_for_that_answer(make_api: MakeA
     assert first.status_code == 200 and seen["second"].status_code == 200
     assert seen["second"].json()["question"]["suggested"] == ["store"]
     assert api.ai_requests == 3  # schema, plan, the breakdowns - once
+
+
+def test_a_plan_that_cannot_run_yet_offers_nothing_says_why_and_asks_no_ai(make_api: MakeApi) -> None:
+    # Q3-Q5: eligibility reads the plan's lines; with no date kept there are none - nothing offered, nothing
+    # stored, and the AI is asked once the plan can run.
+    api, run_id, plan = _planned(make_api, FakeResponse('{"breakdowns": ["store"]}'))
+    undated = {**plan, "column_actions": [{**a, "canonical_field": "ignore"} if a["source_name"] == "day"
+                                          else a for a in plan["column_actions"]]}
+    question = api.post(run_id, "breakdowns", undated).json()["question"]
+    assert (question["eligible"], question["status"]) == ([], "none_eligible")
+    assert question["message"] == "Map a date, and keep its column, to see which columns can split sales."
+    assert api.ai_requests == 2
+    assert api.post(run_id, "breakdowns", plan).json()["question"]["suggested"] == ["store"]
+    assert api.ai_requests == 3
+
+
+def test_only_the_latest_edit_is_measured_an_older_one_steps_aside(make_api: MakeApi) -> None:
+    # The doubt review's R2: each edit is a whole-file measure in the one heavy slot. Two edits arrive while a
+    # step holds it: once it is free, the older is not measured (409) and the latest is (200).
+    api, run_id, plan = _planned(make_api, FakeResponse('{"breakdowns": ["store"]}'))
+    assert api.post(run_id, "breakdowns", plan).status_code == 200  # the frame read, the AI asked once
+    retyped = {**plan, "column_actions": [{**a, "semantic_type": "text"} if a["source_name"] == "store" else a
+                                          for a in plan["column_actions"]]}
+    work = api.app.state.run_work
+    seen: dict[str, Any] = {}
+    older = threading.Thread(target=lambda: seen.update(older=api.post(run_id, "breakdowns", retyped)))
+    latest = threading.Thread(target=lambda: seen.update(latest=api.post(run_id, "breakdowns", plan)))
+    with work.heavy():
+        older.start()
+        time.sleep(0.3)
+        latest.start()
+        time.sleep(0.3)
+    older.join(timeout=10)
+    latest.join(timeout=10)
+    assert seen["older"].status_code == 409
+    assert seen["latest"].status_code == 200 and seen["latest"].json()["question"]["suggested"] == ["store"]
+    assert api.ai_requests == 3

@@ -135,7 +135,7 @@ def test_a_metrics_file_written_before_2eu6_still_reads() -> None:
     restored = MetricsContract.model_validate(old)
     assert (restored.period.upload_cutoff, restored.core.future_lines, restored.core.future_lines_reason) == (
         None, 0, None)
-    assert found.schema_version == "16.3"
+    assert found.schema_version == "16.4"  # 16.4 for Thach's Q3/Q4 (additive)
 
 
 def test_the_reason_is_paired_with_the_count() -> None:

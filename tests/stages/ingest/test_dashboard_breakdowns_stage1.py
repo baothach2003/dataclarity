@@ -17,12 +17,13 @@ from contracts.breakdowns import BreakdownSuggestion
 from contracts.cleaning import CleaningPlanContract, ColumnAction
 from shared.ai_client import AIClient
 from shared.run_registry import create_run
+from stages.ingest.breakdown_review import measure_lines
 from stages.ingest.breakdowns import (MAX_AI_COLUMNS, MESSAGES, breakdown_question_run, breakdowns_problem,
                                       eligible_columns, question, run_suggestion, suggest_breakdowns,
                                       why_not_eligible)
 from stages.ingest.cleaning import SCHEMA_VERSION, execute_run
 from stages.ingest.plan_validation import InvalidPlanError, validate_final_plan
-from stages.ingest.profiling import profile_csv, profile_run
+from stages.ingest.profiling import profile_csv, profile_run, read_csv_text
 from tests.ai_fakes import FakeMessages, FakeResponse
 
 NOW = datetime(2026, 10, 14, tzinfo=UTC)
@@ -44,8 +45,17 @@ def _plan(fields: dict[str, tuple[str, str]], drop: tuple[str, ...] = (), breakd
                                 column_actions=actions, breakdowns=breakdowns or [])
 
 
+def _measured(content: bytes, plan: CleaningPlanContract):
+    """The lines execute would write, measured for the plan (Q3-Q5)."""
+    return measure_lines(read_csv_text(content).frame, plan)
+
+
+def _columns(content: bytes, plan: CleaningPlanContract):
+    return eligible_columns(profile_csv(content, now=NOW), plan, _measured(content, plan))
+
+
 def _eligible(content: bytes, fields: dict[str, tuple[str, str]], **plan: Any) -> list[str]:
-    return [c.column for c in eligible_columns(profile_csv(content, now=NOW), _plan(fields, **plan))]
+    return [c.column for c in _columns(content, _plan(fields, **plan))]
 
 
 # --- the shapes (design 6.1, 6.3) --------------------------------------------------------------------------------
@@ -71,15 +81,19 @@ def test_kaggle_offers_payment_method_and_location_only() -> None:
     assert _eligible(_kaggle(), KAGGLE_FIELDS) == ["Payment Method", "Location"]
 
 
-def test_online_retail_ii_country_has_too_many_values() -> None:
+def test_online_retail_ii_country_is_offered_under_q3() -> None:
+    # Was "has too many values" (more than 12): Thach's Q3 draws the top 8 and "Other", so 15 countries over 40
+    # lines are offered - 15 values is not nearly every line its own (the id-like bound is half the lines).
     fields = {"Invoice": ("order_id", "identifier"), "Description": ("product_name", "text"),
               "Quantity": ("quantity", "numeric_discrete"), "InvoiceDate": ("transaction_date", "datetime"),
               "Price": ("unit_price", "numeric_continuous"), "Country": ("ignore", "categorical_nominal")}
     rows = [[f"5{i}", f"Product {i}", 1, f"2011-11-{1 + i % 28:02d}", 1.25, f"Country {i % 15}"] for i in range(40)]
     profile = profile_csv(_csv(list(fields), rows), now=NOW)
-    assert eligible_columns(profile, _plan(fields)) == []
+    content = _csv(list(fields), rows)
+    assert [c.column for c in eligible_columns(profile, _plan(fields), _measured(content, _plan(fields)))] == [
+        "Country"]
     country = next(c for c in profile.columns if c.name == "Country")
-    assert why_not_eligible(country, _plan(fields), "Country") == "it needs 2 to 12 values"
+    assert why_not_eligible(country, _plan(fields), "Country") is None
 
 
 def test_shopify_order_fields_on_first_lines_only_are_too_blank_vendor_is_offered() -> None:
@@ -153,9 +167,9 @@ THREE = ["North", "South", "East"] * 10
     (dict(values=THREE, header="Unnamed: 5"), "it has no header"),
     (dict(values=THREE, kind="identifier"), "it is not a column of categories"),
     (dict(values=THREE, kind="numeric_discrete"), "it is not a column of categories"),
-    (dict(values=["North"] * 30), "it needs 2 to 12 values"),
+    (dict(values=["North"] * 30), "it needs at least 2 values"),
     (dict(values=[f"S{i % 12}" for i in range(30)]), None),
-    (dict(values=[f"S{i % 13}" for i in range(30)]), "it needs 2 to 12 values"),
+    (dict(values=[f"S{i % 13}" for i in range(30)]), None),  # Q3: 13 values pass the profile's rules
     (dict(values=THREE[:27] + [None] * 3), None),            # 10% blank: few blanks
     (dict(values=THREE[:26] + [None] * 4), "too many of its cells are blank"),  # 13.3%
     (dict(values=[1, 2, 3] * 10), "its values are numbers"),
@@ -177,7 +191,7 @@ def test_a_column_not_profiled_is_not_eligible() -> None:
 def _suggest(*outcomes: FakeResponse | Exception, content: bytes | None = None) -> tuple[BreakdownSuggestion,
                                                                                      FakeMessages]:
     messages = FakeMessages(*outcomes)
-    eligible = eligible_columns(profile_csv(content or _kaggle(), now=NOW), _plan(KAGGLE_FIELDS))
+    eligible = _columns(content or _kaggle(), _plan(KAGGLE_FIELDS))
     return suggest_breakdowns(lambda: AIClient(messages), "test-model", eligible, now=NOW), messages
 
 
@@ -241,11 +255,13 @@ def test_no_eligible_column_asks_no_ai_and_builds_no_client() -> None:
 
 def test_the_question_words_where_the_suggestion_came_from() -> None:
     suggestion, _ = _suggest(_reply("Location"))
-    eligible = eligible_columns(profile_csv(_kaggle(), now=NOW), _plan(KAGGLE_FIELDS))
+    eligible = _columns(_kaggle(), _plan(KAGGLE_FIELDS))
     asked = question(suggestion, eligible)
     assert (asked.suggested, asked.status, asked.message) == (["Location"], "chosen", MESSAGES["chosen"])
-    remapped = _plan(KAGGLE_FIELDS | {"Location": ("category", "categorical_nominal")})
-    after = question(suggestion, eligible_columns(profile_csv(_kaggle(), now=NOW), remapped))
+    # Retyped since (was remapped to a second "category": a plan that cannot run, which the lines measure - Q3-Q5 -
+    # rightly refuses to read): no longer offered, so no longer suggested.
+    remapped = _plan(KAGGLE_FIELDS | {"Location": ("ignore", "identifier")})
+    after = question(suggestion, _columns(_kaggle(), remapped))
     # Mapped since: no longer offered, so no longer suggested (and "none chosen" said).
     assert (after.suggested, after.message) == ([], MESSAGES["none_chosen"])
     failed, _ = _suggest(FakeResponse("x"))
@@ -272,8 +288,9 @@ def test_the_ai_is_asked_once_per_run_and_the_answer_stored_even_when_it_failed(
     def stored(eligible: Any) -> BreakdownSuggestion:
         return run_suggestion(tmp_path, run_id, eligible, ask)
 
-    first = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), stored)
-    second = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), stored)
+    lines = _measured(_kaggle(), _plan(KAGGLE_FIELDS))
+    first = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), lines, stored)
+    second = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), lines, stored)
     assert asked == [1] and first == second and first.status == "ai_unavailable"
     stored = json.loads((tmp_path / run_id / "breakdown_suggestion.json").read_text(encoding="utf-8"))
     assert (stored["status"], stored["schema_version"]) == ("ai_unavailable", "1.0")
@@ -317,9 +334,11 @@ def test_execute_refuses_a_column_that_cannot_split_sales(tmp_path: Path, names:
 
 def test_the_check_reads_the_profile_and_the_final_plan() -> None:
     profile = profile_csv(_kaggle(), now=NOW)
-    assert breakdowns_problem(profile, _plan(KAGGLE_FIELDS, breakdowns=["Location"])) is None
+    kept = _plan(KAGGLE_FIELDS, breakdowns=["Location"])
+    assert breakdowns_problem(profile, kept, _measured(_kaggle(), kept)) is None
     dropped = _plan(KAGGLE_FIELDS, drop=("Location",), breakdowns=["Location"])
-    assert breakdowns_problem(profile, dropped) == 'column "Location" cannot split sales: the plan drops it'
+    assert breakdowns_problem(profile, dropped, _measured(_kaggle(), dropped)) == (
+        'column "Location" cannot split sales: the plan drops it')
 
 
 # --- the gaps mutation found (each its own test) ------------------------------------------------------------------
@@ -366,7 +385,7 @@ def test_three_names_from_the_list_are_still_refused() -> None:
            "Quantity": ("quantity", "numeric_discrete"), "Item Cost": ("unit_price", "numeric_continuous")}
     rows = [[i, f"2024-12-{1 + i % 28:02d}", ["completed", "refunded"][i % 2], ["Card", "PayPal", "Bank"][i % 3],
              ["Flat rate", "Free shipping"][i % 2], f"Item {i % 4}", 1, 12.0] for i in range(30)]
-    eligible = eligible_columns(profile_csv(_csv(list(woo), rows), now=NOW), _plan(woo))
+    eligible = _columns(_csv(list(woo), rows), _plan(woo))
     assert len(eligible) == 3
     messages = FakeMessages(_reply("Order Status", "Payment Method Title", "Shipping Method Title"))
     suggestion = suggest_breakdowns(lambda: AIClient(messages), "m", eligible, now=NOW)
@@ -437,7 +456,7 @@ def test_the_ais_input_is_bounded_values_cut_and_twelve_columns_at_most() -> Non
     header = [*MANUAL, "Terms", *[f"Flag {n}" for n in range(20)]]
     rows = [[i, f"2024-12-{1 + i % 28:02d}", 1, 9.5, long[i % 2], *[["Yes", "No"][i % 2]] * 20] for i in range(30)]
     fields = MANUAL | {name: ("ignore", "text") for name in header[4:]}
-    eligible = eligible_columns(profile_csv(_csv(header, rows), now=NOW), _plan(fields))
+    eligible = _columns(_csv(header, rows), _plan(fields))
     assert len(eligible) == 21 and max(len(v) for v in eligible[0].values) == 100
     messages = FakeMessages(_reply("Terms"))
     suggestion = suggest_breakdowns(lambda: AIClient(messages), "m", eligible, now=NOW)
@@ -447,7 +466,7 @@ def test_the_ais_input_is_bounded_values_cut_and_twelve_columns_at_most() -> Non
 
 
 def test_an_answer_with_anything_beside_the_names_is_no_answer() -> None:
-    eligible = eligible_columns(profile_csv(_kaggle(), now=NOW), _plan(KAGGLE_FIELDS))
+    eligible = _columns(_kaggle(), _plan(KAGGLE_FIELDS))
     messages = FakeMessages(FakeResponse('{"breakdowns": ["Location"], "why": "shops differ"}'))
     suggestion = suggest_breakdowns(lambda: AIClient(messages), "m", eligible, now=NOW)
     assert (suggestion.status, suggestion.chosen) == ("ai_unavailable", [])
@@ -465,9 +484,10 @@ def test_nothing_is_stored_while_nothing_is_eligible_so_a_later_edit_still_asks(
         return run_suggestion(tmp_path, run_id, eligible, ask)
 
     used = KAGGLE_FIELDS | {"Payment Method": ("ignore", "identifier"), "Location": ("ignore", "identifier")}
-    first = breakdown_question_run(tmp_path, run_id, _plan(used), stored)
+    first = breakdown_question_run(tmp_path, run_id, _plan(used), _measured(_kaggle(), _plan(used)), stored)
     assert first.status == "none_eligible" and not (tmp_path / run_id / "breakdown_suggestion.json").exists()
-    second = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), stored)
+    second = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), _measured(_kaggle(), _plan(KAGGLE_FIELDS)),
+                                    stored)
     assert (second.status, second.suggested, len(asked)) == ("chosen", ["Location"], 2)
     assert json.loads((tmp_path / run_id / "breakdown_suggestion.json").read_text(encoding="utf-8"))["chosen"] == [
         "Location"]
@@ -480,6 +500,6 @@ def test_a_stored_file_this_version_cannot_read_is_no_suggestion_and_no_second_c
     def ask(eligible: Any) -> BreakdownSuggestion:
         raise AssertionError("the AI is asked once per run")
 
-    shown = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS),
+    shown = breakdown_question_run(tmp_path, run_id, _plan(KAGGLE_FIELDS), _measured(_kaggle(), _plan(KAGGLE_FIELDS)),
                                    lambda eligible: run_suggestion(tmp_path, run_id, eligible, ask))
     assert (shown.status, shown.suggested) == ("ai_unavailable", [])
