@@ -130,8 +130,8 @@ def test_up_and_down_colour_only_the_arrow_never_the_text() -> None:
     assert ".tc{" in style and "color:var(--ink2)" in style.split(".tc{")[1].split("}")[0]
     page = _html(_real("kaggle"))
     sales = page[page.index('data-tile="sales"'):]
-    assert re.search(r'<span class="arrow up good" role="img" aria-label="higher than last month">&#9650;</span>',
-                     sales)
+    assert re.search(r'<span class="arrow up good" role="img" title="Higher is better" aria-label="higher than last '
+                     r'month">&#9650;</span>', sales)
 
 
 def test_bars_wear_the_series_colours_and_the_waterfall_the_change_colours() -> None:
@@ -413,3 +413,65 @@ def test_q10_orders_worded_as_lines_keep_their_polarity() -> None:
     tile = tile.model_copy(update={"label": "Lines", "direction": "down"})
     html = html_dashboard._tile(tile, html_dashboard.note_texts(report))
     assert re.search(r'<span class="arrow down bad" role="img"', html)
+
+
+# --- Thach's D-23 addition (2026-10-16): the good/bad meaning without visible words --------------------------------
+# For every tile with a polarity: screen-reader-only text after the direction and the figure (", good" / ", bad"),
+# and a title on the arrow ("Higher is better" / "Lower is better"). No new visible word on the tile.
+
+_BETTER = {1: "Higher is better", -1: "Lower is better"}
+
+
+def _tile_html(tile_id: str, direction: str | None) -> str:
+    report = _real(ALL_FIVE)
+    tile = next(t for t in report.dashboard.tiles if t.id == tile_id).model_copy(update={"direction": direction})
+    return html_dashboard._tile(tile, html_dashboard.note_texts(report))
+
+
+def _visible(html: str) -> str:
+    """What a sighted reader sees: the hidden spans and the marker's panel removed, tags stripped."""
+    html = re.sub(r'<span class="visually-hidden">.*?</span>', "", html)
+    html = re.sub(r"<details.*?</details>", "", html, flags=re.S)
+    return re.sub(r"<[^>]+>", "", html)
+
+
+@pytest.mark.parametrize("direction", ["up", "down"])
+@pytest.mark.parametrize("tile_id", ["sales", "orders", "aov", "customers", "return_rate"])
+def test_d23_the_screen_reader_text_follows_the_polarity_table(tile_id: str, direction: str) -> None:
+    from stages.report.html_dashboard import TILE_POLARITY
+
+    html = _tile_html(tile_id, direction)
+    good = (1 if direction == "up" else -1) == TILE_POLARITY[tile_id]
+    change = re.search(r'<div class="tc">(.*?)</div>', html).group(1)
+    # After the direction and the figure, the last thing the change's line says.
+    assert change.endswith(f'<span class="visually-hidden">, {"good" if good else "bad"}</span>')
+    assert change.count("visually-hidden") == 1
+    arrow = re.search(r'<span class="arrow [^"]+"[^>]*>', change).group(0)
+    assert f'title="{_BETTER[TILE_POLARITY[tile_id]]}"' in arrow
+
+
+@pytest.mark.parametrize("tile_id", ["sales", "orders", "aov", "customers", "return_rate"])
+def test_d23_nothing_moved_says_no_good_or_bad_but_keeps_the_metrics_title(tile_id: str) -> None:
+    from stages.report.html_dashboard import TILE_POLARITY
+
+    html = _tile_html(tile_id, "same")
+    assert "visually-hidden" not in re.search(r'<div class="tc">(.*?)</div>', html).group(1)
+    assert f'title="{_BETTER[TILE_POLARITY[tile_id]]}"' in html
+
+
+@pytest.mark.parametrize("direction", ["up", "down", "same"])
+@pytest.mark.parametrize("tile_id", ["sales", "orders", "aov", "customers", "return_rate"])
+def test_d23_no_new_visible_word_on_the_tile(tile_id: str, direction: str) -> None:
+    visible = _visible(_tile_html(tile_id, direction)).lower()
+    for word in ("good", "bad", "better"):
+        assert word not in visible
+
+
+def test_d23_on_the_demo_page() -> None:
+    page = _html(_real(ALL_FIVE))
+    for tile_id, word, title in [("return_rate", "good", "Lower is better"), ("aov", "bad", "Higher is better"),
+                                 ("sales", "good", "Higher is better")]:
+        tile = page[page.index(f'data-tile="{tile_id}"'):]
+        change = re.search(r'<div class="tc">(.*?)</div>', tile).group(1)
+        assert change.endswith(f'<span class="visually-hidden">, {word}</span>') and f'title="{title}"' in change
+    assert ".visually-hidden{position:absolute" in DASHBOARD_STYLE.replace("\n", "")

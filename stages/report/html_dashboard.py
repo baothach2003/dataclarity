@@ -40,6 +40,9 @@ TILE_ICONS: dict[TileId, tuple[str, ...]] = {
 # property of the metric, not a verdict on the month (ADR-0007 unaffected); it picks the arrow's colour, and the
 # arrow's shape stays the meaning.
 TILE_POLARITY: dict[TileId, int] = {"sales": 1, "orders": 1, "aov": 1, "customers": 1, "return_rate": -1}
+# The same meaning without visible words (Thach's D-23 addition): a title on the arrow names the metric's polarity,
+# and screen-reader-only text says good or bad after the direction and the figure.
+_BETTER = {1: "Higher is better", -1: "Lower is better"}
 
 # The dashboard's layout in the report's own tokens (_FRONT_STYLE's - the
 # dataviz palette): tiles in a row that wraps, each its icon beside its
@@ -129,12 +132,15 @@ def _tile(tile: Tile, texts: dict[str, str]) -> str:
     parts.append(f'<div class="tv num">{esc(tile.now)}</div>' if tile.now is not None else '<div class="tv">not shown</div>')
     # Green and red for change only, always with the arrow - the arrow alone coloured (design section 11), by the
     # metric's polarity (Thach's Q10): a falling return rate is green.
-    arrow = (f'<span class="arrow {tile.direction}{_tone(tile)}" role="img" aria-label="'
-             f'{_DIRECTION_WORDS[tile.direction]} last month">{_ARROWS[tile.direction]}</span> ') if tile.direction else ""
+    tone = _tone(tile)
+    arrow = (f'<span class="arrow {tile.direction}{tone}" role="img" title="{_BETTER[TILE_POLARITY[tile.id]]}" '
+             f'aria-label="{_DIRECTION_WORDS[tile.direction]} last month">{_ARROWS[tile.direction]}</span> '
+             ) if tile.direction else ""
+    said = f'<span class="visually-hidden">,{tone}</span>' if tone else ""
     if tile.change is not None:
-        parts.append(f'<div class="tc">{arrow}{esc(tile.change)}</div>')
+        parts.append(f'<div class="tc">{arrow}{esc(tile.change)}{said}</div>')
     elif tile.was is not None:
-        parts.append(f'<div class="tc">{arrow}was {esc(tile.was)}</div>')
+        parts.append(f'<div class="tc">{arrow}was {esc(tile.was)}{said}</div>')
     parts.append(marker(tile.label, tile.notes, [tile.reason] if tile.reason else [], texts))
     parts.append("</div>")
     return "".join(parts)

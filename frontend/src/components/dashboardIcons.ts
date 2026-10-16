@@ -25,6 +25,10 @@ export const TILE_POLARITY: Record<Tile['id'], 1 | -1> = {
   return_rate: -1,
 }
 
+// The same meaning without visible words (Thach's D-23 addition): a title on the arrow names the metric's polarity,
+// and screen-reader-only text says good or bad after the direction and the figure.
+export const BETTER: Record<1 | -1, string> = { 1: 'Higher is better', [-1]: 'Lower is better' }
+
 /** The arrow's tone: good or bad by the metric's polarity; none when nothing moved. */
 export function arrowTone(id: Tile['id'], direction: NonNullable<Tile['direction']>): 'good' | 'bad' | null {
   if (direction === 'same') return null

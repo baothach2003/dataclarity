@@ -6133,7 +6133,13 @@ dataclarity/
       column summaries), which may include customer names or e-mails, is
       sent to the AI to suggest a plan."; masking personal cells is Backlog
       v2 (it changes two validated prompts); the orange used for both
-      "previous month" and "part 2" goes to 8D.
+      "previous month" and "part 2" goes to 8D. **D-23 accepted with one
+      addition** (2026-10-16): for every tile with a polarity the good/bad
+      meaning is also said without visible text - screen-reader-only text
+      after the direction (", good" / ", bad") and a title on the arrow
+      ("Higher is better" / "Lower is better"); no new visible word; the same
+      in report.html and on the page from the one table. Why: colour alone
+      must not carry the meaning (a colour-blind reader, a screen reader).
 - [ ] 9A Deploy API + Postgres to Render; env vars + CORS for the real domain,
       including origins with a trailing slash and Vercel preview domains
 - [ ] 9B Deploy frontend to Vercel; production smoke test
@@ -6343,6 +6349,15 @@ significance threshold, making a one-cent price rise a step change.
   `docs/adr/0003-model-selection-policy.md`.
 
 ## 12. Current Status
+
+**The dashboard, item 9D - D-23's addition, 2026-10-16**: DONE (failing
+tests first - 16 pytest, 15 Vitest red before the code; mutation 5 of 5 and
+3 of 3): every tile's arrow carries a title from its metric's polarity
+("Higher is better" / "Lower is better") and, when it moved, the change's
+line ends with screen-reader-only ", good" or ", bad" by `TILE_POLARITY` -
+report.html and the Insights page alike; no visible word added. Decision
+made alone D-25 (the hidden text at the end of the line, Thach's example's
+order). No deploy step started.
 
 **The dashboard, item 9D - fourth run, 2026-10-16 (Thach's answers to
 Q9-Q11)**: D-13..D-22 accepted. **Q10 DONE** (display: failing tests first,

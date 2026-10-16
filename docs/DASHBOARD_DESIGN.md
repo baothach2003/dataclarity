@@ -959,12 +959,12 @@ The arrow ▲/▼ stays the meaning. Polarity is a property of the metric, not
 a verdict on the month: it says which way is better for that figure, never
 whether this month's move was unusual or why (ADR-0007 unaffected - no
 step-4 row is read). The waterfall's colours are unchanged (each bar a
-part of the sales change: adding is up). **Decision made alone (D-23):**
-the tone is a supplement, never the meaning - the arrow's shape and its
-words for a screen reader say the direction, and good or bad is said by
-colour only (a falling return rate and a falling average look alike to a
-colour-blind reader and to a screen reader, as before Q10); a metric-level
-hint such as "lower is better" was not added (new text, not asked).
+part of the sales change: adding is up). **D-23, with Thach's addition**
+(section 9): the colour is a supplement, never the only carrier - good or
+bad is also said without visible words: screen-reader-only text at the end
+of the change's line (", good" / ", bad"; the shared `.visually-hidden`
+class) and a title on the arrow from the metric's polarity ("Higher is
+better" / "Lower is better"). No visible word is added to a tile.
 
 **Charts** - one y-axis each (the line and the waterfall; the bars have
 none); a parts-of-a-whole bar only for 2 or 3 parts (D6, unchanged - never a
@@ -1107,9 +1107,25 @@ Decisions made alone (2026-10-16, the fourth run, each open to Thach's veto):
 - **D-23** Q10's tone is a supplement: good or bad is carried by colour
   only (the shape and the screen-reader words say the direction); no "lower
   is better" hint added to the return rate's tile (new text, not asked).
+  Accepted by Thach with an addition (below).
 - **D-24** README Known limitations and SPECS 4.1 say what the Upload notice
   says (the sample may hold personal details); the notice keeps Thach's
   exact words.
+
+Thach's answer (2026-10-16, after the fourth run): **D-23 accepted with one
+addition** - for every tile with a polarity, the good/bad meaning is also
+said WITHOUT visible text: screen-reader-only text after the direction and
+the figure (", good" / ", bad" - a screen reader reads "lower than last
+month, was 0.169, good"), and a title on the arrow ("Higher is better" /
+"Lower is better", the metric's polarity, so also on an arrow that did not
+move). No new visible word on the tile. The same in report.html and on the
+Insights page, from the one table (`TILE_POLARITY`). Why: colour alone no
+longer carries the meaning for a colour-blind reader or a screen reader
+(WCAG 1.4.1). Built in section 11; failing tests first. Decision made
+alone (D-25): the hidden text stands at the END of the change's line -
+after the arrow's direction words and the printed figure - the order of
+Thach's example ("down 0.017, good"); an arrow that did not move says no
+good or bad.
 
 Open questions (2026-10-16, answered above):
 - **Q9** Returning customers' share of sales (Thach's strip): no field of

@@ -10,7 +10,7 @@ import type { Chart, NoteCode } from '../types/report.ts'
 import type { Chip, Dashboard, NextMonthBand, Tile, Widget } from '../types/reportDashboard.ts'
 import type { Front } from '../types/reportFront.ts'
 import { DashboardBars, DashboardParts } from './DashboardBars.tsx'
-import { STRIP_TILES, TILE_ICONS, arrowTone } from './dashboardIcons.ts'
+import { BETTER, STRIP_TILES, TILE_ICONS, TILE_POLARITY, arrowTone } from './dashboardIcons.ts'
 import { FrontSalesChart } from './FrontSalesChart.tsx'
 import { FrontWaterfall } from './FrontWaterfall.tsx'
 import { NoteMarker } from './NoteMarker.tsx'
@@ -48,6 +48,7 @@ function TileCard({ tile, noteTexts }: { tile: Tile; noteTexts: ReadonlyMap<Note
     <span
       className={`tile__arrow tile__arrow--${tile.direction}${tone ? ` tile__arrow--${tone}` : ''}`}
       role="img"
+      title={BETTER[TILE_POLARITY[tile.id]]}
       aria-label={ARROW_WORDS[tile.direction]}
     >
       {ARROWS[tile.direction]}
@@ -69,6 +70,8 @@ function TileCard({ tile, noteTexts }: { tile: Tile; noteTexts: ReadonlyMap<Note
       {change !== null && (
         <div className="tile__change">
           {arrow} {change}
+          {/* Good or bad for a screen reader, after the direction and the figure (D-23): no visible word. */}
+          {tone && <span className="visually-hidden">{`, ${tone}`}</span>}
         </div>
       )}
       <NoteMarker about={tile.label} codes={tile.notes} asides={tile.reason ? [tile.reason] : []} texts={noteTexts} />

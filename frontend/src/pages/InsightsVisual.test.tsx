@@ -107,6 +107,53 @@ describe('Insights: the arrow colour by polarity (Q10)', () => {
   })
 })
 
+// Thach's D-23 addition (2026-10-16): the good/bad meaning without visible words - screen-reader-only text after the
+// direction and the figure (", good" / ", bad") and a title on the arrow ("Higher is better" / "Lower is better").
+describe('Insights: good or bad said without visible words (D-23)', () => {
+  const BETTER = { 1: 'Higher is better', '-1': 'Lower is better' } as const
+  const IDS = ['sales', 'orders', 'aov', 'customers', 'return_rate'] as const
+
+  function showWith(tileId: string, direction: 'up' | 'down' | 'same'): HTMLElement {
+    const report = structuredClone(RUNS.demo_classed)
+    const tile = report.dashboard?.tiles.find((t) => t.id === tileId)
+    if (tile) tile.direction = direction
+    render(<InsightsPage baseUrl="http://localhost:8000" runId="run-1" report={report} />)
+    const change = screen.getByTestId(`tile-${tileId}`).querySelector<HTMLElement>('.tile__change')
+    if (change === null) throw new Error(`${tileId}: no change line`)
+    return change
+  }
+
+  function visible(element: HTMLElement): string {
+    const copy = element.cloneNode(true) as HTMLElement
+    copy.querySelectorAll('.visually-hidden').forEach((hidden) => {
+      hidden.remove()
+    })
+    return copy.textContent
+  }
+
+  for (const tileId of IDS) {
+    for (const direction of ['up', 'down'] as const) {
+      it(`${tileId} ${direction}: the screen-reader text follows the polarity table`, () => {
+        const change = showWith(tileId, direction)
+        const good = (direction === 'up' ? 1 : -1) === TILE_POLARITY[tileId]
+        const hidden = change.querySelectorAll('.visually-hidden')
+        expect(hidden.length).toBe(1)
+        expect(hidden[0].textContent).toBe(good ? ', good' : ', bad')
+        expect(change.lastElementChild).toBe(hidden[0])
+        expect(change.querySelector('.tile__arrow')?.getAttribute('title')).toBe(BETTER[TILE_POLARITY[tileId]])
+        expect(visible(change)).not.toMatch(/good|bad|better/i)
+      })
+    }
+
+    it(`${tileId} same: no good or bad, the metric's title kept, no new visible word`, () => {
+      const change = showWith(tileId, 'same')
+      expect(change.querySelector('.visually-hidden')).toBeNull()
+      expect(change.querySelector('.tile__arrow')?.getAttribute('title')).toBe(BETTER[TILE_POLARITY[tileId]])
+      expect(visible(change)).not.toMatch(/good|bad|better/i)
+    })
+  }
+})
+
 describe('Insights: the charts', () => {
   it.each(Object.keys(RUNS))('%s: a chart of two months has a legend, and no change colour', (run) => {
     show(run)
